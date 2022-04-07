@@ -18,13 +18,8 @@ class Raptor {
       if (!mute) jumpSound.play();
     }
   }
-  update() {
-    this.y += this.velocity;
-    this.velocity += this.gravity * BACKGROUND_VELOCITY;
 
-    image(this.img, 0, this.y, this.w, this.h);
-    noFill();
-    stroke(0);
+  debugRectangles() {
     push();
     translate(this.w / 2, this.y + this.h / 10);
     rotate(PI * 1.04);
@@ -46,6 +41,41 @@ class Raptor {
     translate(this.w * 0.8, this.y + this.h * 0.2);
     rect(0, 0, this.w * 0.2, this.h * 0.1);
     pop();
+  }
+
+  debugPolygon() {
+    beginShape();
+    vertex(this.w * 0.5, this.y + this.h * 0.27);
+    vertex(0, this.y + this.h * 0.1);
+    vertex(0, this.y + this.h * 0.15);
+    vertex(this.w * 0.5, this.y + this.h * 0.4);
+    vertex(this.w * 0.6, this.y + this.h * 0.6);
+    vertex(this.w * 0.5, this.y + this.h);
+    vertex(this.w * 0.75, this.y + this.h);
+    vertex(this.w * 0.7, this.y + this.h * 0.8);
+    vertex(this.w * 0.75, this.y + this.h * 0.8);
+    vertex(this.w * 0.8, this.y + this.h * 0.6);
+    vertex(this.w * 0.78, this.y + this.h * 0.55);
+    vertex(this.w * 0.9, this.y + this.h * 0.3);
+    vertex(this.w, this.y + this.h * 0.3);
+    vertex(this.w, this.y + this.h * 0.23);
+    vertex(this.w, this.y + this.h * 0.23);
+    vertex(this.w * 0.9, this.y + this.h * 0.15);
+    vertex(this.w * 0.85, this.y + this.h * 0.15);
+    vertex(this.w * 0.8, this.y + this.h * 0.35);
+    endShape(CLOSE);
+  }
+
+  update() {
+    this.y += this.velocity;
+    this.velocity += this.gravity * BACKGROUND_VELOCITY;
+
+    image(this.img, 0, this.y, this.w, this.h);
+    noFill();
+    stroke(0);
+
+    this.debugPolygon();
+    // this.debugRectangles();
 
     if (this.y > this.ground) {
       this.y = this.ground;
