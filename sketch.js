@@ -136,7 +136,7 @@ function computeSkyGradient() {
 }
 
 function drawSoundIcon({ black = true } = {}) {
-  const soundIconSize = width / 25;
+  const soundIconSize = width / 30;
 
   image(
     black ? soundControl : soundControlBright,
@@ -150,14 +150,15 @@ function drawSoundIcon({ black = true } = {}) {
     push();
     translate(width - soundIconSize - 20, 20);
     beginShape(LINES);
-    strokeWeight(5);
+    strokeWeight(3);
     stroke(black ? 0 : 255);
 
-    vertex(0, 0);
-    vertex(soundIconSize, soundIconSize);
+    const off = 5;
+    vertex(off, off);
+    vertex(soundIconSize - off, soundIconSize - off);
 
-    vertex(0, soundIconSize);
-    vertex(soundIconSize, 0);
+    vertex(off, soundIconSize - off);
+    vertex(soundIconSize - off, off);
 
     endShape(CLOSE);
     pop();
