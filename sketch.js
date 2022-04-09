@@ -346,7 +346,7 @@ function newCloud() {
   const newCloud = {
     xpos: window.innerWidth,
     ypos: random(40, window.innerHeight - 1.5 * groundHeight),
-    size: random(0.8, 1.3),
+    size: random(0.8 * (raptor.w / 150), 1.3 * (raptor.w / 150)),
   };
   clouds.push(newCloud);
 }
