@@ -7,7 +7,6 @@ let clouds = [];
 let skyColors = [];
 const initialSky = 1;
 let counter = initialSky;
-// let pebbles;
 let stars;
 let amt = 0;
 let jumpSound;
@@ -29,7 +28,6 @@ function windowResized() {
   groundHeight = window.innerHeight / 10;
   GROUND = window.innerHeight - groundHeight;
   raptor.resize();
-  // pebbles = new Pebbles();
   stars = new Stars();
   clouds = [];
   resetGame();
@@ -90,7 +88,6 @@ function setup() {
 
   currentSkyColor = skyColors[counter - 1];
   targetSkyColor = skyColors[counter];
-  // pebbles = new Pebbles();
   stars = new Stars();
 }
 
@@ -100,7 +97,6 @@ function resetGame() {
   counter = initialSky;
   currentSkyColor = skyColors[counter - 1];
   targetSkyColor = skyColors[counter];
-  // pebbles = new Pebbles();
   stars = new Stars();
   raptor.velocity = 0;
   raptor.ground = GROUND - raptor.h;
@@ -223,7 +219,6 @@ function draw() {
   rect(0, GROUND + 5 + 10, window.innerWidth, 20);
   fill("#EDC9AF");
   rect(0, GROUND + 5 + 10 + 20, window.innerWidth, 200);
-  // pebbles.update();
 
   const haze = lerpColor(currentSkyColor, white, 0.6);
   haze.setAlpha(100);
@@ -323,32 +318,6 @@ class Pebble {
     fill(this.color);
     ellipse(this.x, this.y, this.size, this.size);
     this.x -= BACKGROUND_VELOCITY * (width / 1000);
-  }
-}
-class Pebbles {
-  constructor() {
-    this.array = [];
-    this.seed();
-  }
-  seed() {
-    for (let i = 0; i < 100; i++) {
-      this.newPebble(random(0, width));
-    }
-  }
-  newPebble(x) {
-    this.array.push(new Pebble(x));
-  }
-  update() {
-    if (frameCount % 5 === 0) {
-      this.newPebble();
-      this.newPebble();
-      this.newPebble();
-      this.newPebble();
-    }
-    for (let pebble of this.array) {
-      pebble.update();
-    }
-    this.array = this.array.filter((pebble) => pebble.x > 0 - pebble.size);
   }
 }
 
