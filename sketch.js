@@ -12,6 +12,8 @@ let amt = 0;
 let jumpSound;
 let mute = true;
 let music;
+let gradient = [];
+let soundControlBright;
 
 function preload() {
   cactuses = new Cactuses(loadImage("assets/cactus.png"));
@@ -19,7 +21,8 @@ function preload() {
   raptor = new Raptor(loadImage("assets/raptor.gif"));
   jumpSound = loadSound("assets/jump.mp3");
   music = loadSound("assets/music2.mp3");
-  soundControl = loadImage("assets/audio-play.jpg");
+  soundControl = loadImage("assets/audio-play.png");
+  soundControlBright = loadImage("assets/audio-play-invert.png");
 }
 
 function windowResized() {
@@ -89,6 +92,7 @@ function setup() {
   currentSkyColor = skyColors[counter - 1];
   targetSkyColor = skyColors[counter];
   stars = new Stars();
+  resetGame();
 }
 
 function resetGame() {
@@ -97,6 +101,7 @@ function resetGame() {
   counter = initialSky;
   currentSkyColor = skyColors[counter - 1];
   targetSkyColor = skyColors[counter];
+  computeSkyGradient();
   stars = new Stars();
   raptor.velocity = 0;
   raptor.ground = GROUND - raptor.h;
@@ -121,11 +126,52 @@ function keyPressed() {
     resetGameIfGameOver();
   }
 }
+function computeSkyGradient() {
+  gradient = [];
+  for (let y = 0; y < height; y++) {
+    const inter = map(y, 0, height, 0, 1);
+    const c = lerpColor(currentSkyColor, white, inter);
+    gradient.push(c);
+  }
+}
 
+function drawSoundIcon({ black = true } = {}) {
+  const soundIconSize = width / 25;
+
+  image(
+    black ? soundControl : soundControlBright,
+    width - soundIconSize - 20,
+    20,
+    soundIconSize,
+    soundIconSize
+  );
+
+  if (mute) {
+    push();
+    translate(width - soundIconSize - 20, 20);
+    beginShape(LINES);
+    strokeWeight(5);
+    stroke(black ? 0 : 255);
+
+    vertex(0, 0);
+    vertex(soundIconSize, soundIconSize);
+
+    vertex(0, soundIconSize);
+    vertex(soundIconSize, 0);
+
+    endShape(CLOSE);
+    pop();
+  }
+}
+
+let opacity = 0;
 function draw() {
   if (gameOver) {
     push();
-    background(color("rgba(0, 0, 0, 0.03)"));
+    opacity = min(opacity + 0.01, 1);
+    background(color(`rgba(0, 0, 0, ${opacity}) `));
+    drawSoundIcon({ black: false });
+
     textAlign(CENTER, CENTER);
     strokeWeight(0);
     fill(255);
@@ -150,11 +196,9 @@ function draw() {
   // console.log(Math.floor(frameRate()));
   clear();
   // sky-gradient
-  for (let y = 0; y < height; y++) {
-    const inter = map(y, 0, height, 0, 1);
-    const c = lerpColor(currentSkyColor, white, inter);
-    // console.log(c);
-    stroke(c);
+
+  for (let y = 0; y < gradient.length; y++) {
+    stroke(gradient[y]);
     line(0, y, width, y);
   }
 
@@ -166,7 +210,7 @@ function draw() {
     (index === 7 && amt < 0.03);
   stars.draw(isNight);
 
-  if (frameCount % 10 === 0) {
+  if (frameCount % 30 === 0) {
     amt += 0.001;
     if (amt >= 0.1) {
       amt = 0;
@@ -174,37 +218,14 @@ function draw() {
       targetSkyColor = skyColors[index];
     }
     currentSkyColor = lerpColor(currentSkyColor, targetSkyColor, amt);
+    computeSkyGradient();
   }
 
-  const soundIconSize = width / 25;
-  image(
-    soundControl,
-    width - width / 20,
-    width / 20 - soundIconSize,
-    soundIconSize,
-    soundIconSize
-  );
-
-  if (mute) {
-    push();
-    beginShape(LINES);
-    strokeWeight(5);
-    stroke(0);
-
-    vertex(width - width / 20 + soundIconSize, width / 20 - soundIconSize);
-    vertex(width - width / 20, width / 20);
-
-    vertex(width - width / 20 + soundIconSize, width / 20);
-    vertex(width - width / 20, width / 20 - soundIconSize);
-
-    endShape(CLOSE);
-    pop();
-  }
-
+  drawSoundIcon();
   textSize(32);
   noStroke();
 
-  var textColor = lerpColor(
+  const textColor = lerpColor(
     currentSkyColor,
     isNight ? color(255) : color(0),
     0.6
