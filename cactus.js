@@ -35,7 +35,7 @@ class Cactus {
 }
 
 function getNewMinWidth() {
-  return raptor.w + Math.floor(Math.random() * raptor.w * 10);
+  return raptor.w * 1.5 + Math.floor(Math.random() * raptor.w * 10);
 }
 
 class Cactuses {

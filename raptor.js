@@ -28,10 +28,11 @@ class Raptor {
       const y = cactuses.cactuses[0].y - cactuses.cactuses[0].h;
       return y;
     }
-    return 0;
   }
 
   jump() {
+    if (cactuses.cactuses.length <= 0) return;
+
     if (this.y === this.ground && !gameOver) {
       const a = this.downwardAcceleration * 25;
       const v = sqrt((a * this.ground - a * this.jumpHeight) / 2);

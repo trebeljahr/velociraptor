@@ -5,7 +5,8 @@ let white;
 let currentSkyColor, targetSkyColor;
 let clouds = [];
 let skyColors = [];
-let counter = 1;
+const initialSky = 1;
+let counter = initialSky;
 let pebbles, stars;
 let amt = 0;
 let jumpSound;
@@ -49,28 +50,28 @@ function controlSound() {
 }
 
 function mousePressed() {
-  console.log("Mouse Pressed");
+  raptor.jump();
   controlSound();
   resetGameIfGameOver();
-  raptor.jump();
 }
 
 function setup() {
   toggleMusic();
   createCanvas(window.innerWidth, window.innerHeight);
   const skyBlue = color(80, 180, 205);
-  const skySunset = color(235, 120, 53);
-  const skyMorning = color(255, 201, 34);
+  const skyOrange = color(235, 120, 53);
+  const skyYellow = color(255, 201, 34);
   const skyNight = color(21, 34, 56);
   white = color(255);
   skyColors = [
     skyBlue,
-    skyMorning,
-    skySunset,
+    skyBlue,
+    skyYellow,
+    skyOrange,
     skyNight,
     skyNight,
-    skySunset,
-    skyMorning,
+    skyOrange,
+    skyYellow,
   ];
 
   currentSkyColor = skyColors[counter - 1];
@@ -83,12 +84,14 @@ function resetGameIfGameOver() {
   if (gameOver && frameCount - gameOverSince > 30) {
     gameOver = false;
     gameOverSince = 0;
-    counter = 1;
+    counter = initialSky;
     currentSkyColor = skyColors[counter - 1];
     targetSkyColor = skyColors[counter];
     pebbles = new Pebbles();
     stars = new Stars();
     raptor.velocity = 0;
+    raptor.ground = GROUND - raptor.h;
+    raptor.y = raptor.ground;
     cactuses.cactuses = [];
     clouds = [];
     score = 0;
@@ -120,6 +123,13 @@ function draw() {
     textStyle(ITALIC);
     text("Press ENTER to restart!", width / 2, height / 1.8);
     pop();
+    push();
+    fill(255);
+    noStroke();
+    textSize(32);
+    text(`Score: ${score}`, 20, 50);
+    pop();
+
     return;
   }
   clear();
@@ -133,10 +143,10 @@ function draw() {
 
   const index = counter % skyColors.length;
   const isNight =
-    (index === 3 && amt > 0.05) ||
-    index === 4 ||
+    (index === 4 && amt > 0.7) ||
     index === 5 ||
-    (index === 6 && amt < 0.03);
+    index === 6 ||
+    (index === 7 && amt < 0.03);
   stars.draw(isNight);
 
   if (frameCount % 10 === 0) {
