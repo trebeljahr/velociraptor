@@ -49,8 +49,10 @@ function controlSound() {
 }
 
 function mousePressed() {
+  console.log("Mouse Pressed");
   controlSound();
   resetGameIfGameOver();
+  raptor.jump();
 }
 
 function setup() {
