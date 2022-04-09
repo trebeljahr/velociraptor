@@ -69,23 +69,63 @@ function setup() {
   stars = new Stars();
 }
 
+function touchStarted() {
+  raptor.jump();
+}
+
 function keyPressed() {
-  if (keyCode === SPACE) {
+  if (keyCode === SPACE || keyCode === 87 || keyCode === UP_ARROW) {
     raptor.jump();
+  }
+  if (keyCode === ENTER) {
+    if (gameOver) {
+      gameOver = false;
+      currentSkyColor = skyColors[counter - 1];
+      targetSkyColor = skyColors[counter];
+      pebbles = new Pebbles();
+      stars = new Stars();
+      raptor.velocity = 0;
+      cactuses.cactuses = [];
+      clouds = [];
+      score = 0;
+    }
   }
 }
 
 function draw() {
+  if (gameOver) {
+    push();
+    background(color("rgba(0, 0, 0, 0.03)"));
+    textAlign(CENTER, CENTER);
+    strokeWeight(0);
+    fill(255);
+    textFont("Helvetica");
+    textSize(width / 15);
+    noStroke();
+    textStyle(BOLD);
+    text("Game Over", width / 2, height / 2.2);
+    textSize(width / 60);
+    textStyle(ITALIC);
+    text("Press ENTER to restart!", width / 2, height / 1.8);
+    pop();
+    return;
+  }
+  clear();
+  // sky-gradient
+  for (let y = 0; y < height; y++) {
+    const inter = map(y, 0, height, 0, 1);
+    const c = lerpColor(currentSkyColor, white, inter);
+    stroke(c);
+    line(0, y, width, y);
+  }
+
   const index = counter % skyColors.length;
   const isNight =
     (index === 3 && amt > 0.05) ||
     index === 4 ||
     index === 5 ||
-    (index === 6 && amt < 0.07);
-  if (isNight) {
-    noStroke();
-    stars.draw();
-  }
+    (index === 6 && amt < 0.03);
+  stars.draw(isNight);
 
   if (frameCount % 10 === 0) {
     amt += 0.001;
@@ -95,14 +135,6 @@ function draw() {
       targetSkyColor = skyColors[index];
     }
     currentSkyColor = lerpColor(currentSkyColor, targetSkyColor, amt);
-  }
-
-  // sky-gradient
-  for (let y = 0; y < height; y++) {
-    const inter = map(y, 0, height, 0, 1);
-    const c = lerpColor(currentSkyColor, white, inter);
-    stroke(c);
-    line(0, y, width, y);
   }
 
   const soundIconSize = width / 25;
@@ -116,12 +148,17 @@ function draw() {
 
   if (mute) {
     push();
-    translate(width - width / 20, width / 20 - soundIconSize);
-    rotate(PI * 0.2);
-    translate(width / 38, -width / 52);
+    beginShape(LINES);
+    strokeWeight(5);
     stroke(0);
-    fill(0);
-    rect(0, 0, soundIconSize / 10, soundIconSize);
+
+    vertex(width - width / 20 + soundIconSize, width / 20 - soundIconSize);
+    vertex(width - width / 20, width / 20);
+
+    vertex(width - width / 20 + soundIconSize, width / 20);
+    vertex(width - width / 20, width / 20 - soundIconSize);
+
+    endShape(CLOSE);
     pop();
   }
 
@@ -185,11 +222,9 @@ class Star {
     this.size = random(3, 6);
     this.x = x;
     this.y = random(0, window.innerHeight / 2);
-    this.color = 255;
   }
 
   draw() {
-    fill(this.color);
     ellipse(this.x, this.y, this.size, this.size);
   }
 }
@@ -198,7 +233,10 @@ class Stars {
   constructor() {
     this.array = [];
     this.seed();
+    this.opacity = 0;
+    this.fadeSpeed = 0.01;
   }
+
   newStar(x) {
     this.array.push(new Star(x));
   }
@@ -207,10 +245,27 @@ class Stars {
       this.newStar(random(0, width));
     }
   }
-  draw() {
-    for (let star of this.array) {
-      star.draw();
+
+  get color() {
+    return `rgba(255, 255, 255, ${this.opacity})`;
+  }
+
+  draw(isNight) {
+    if (isNight && frameCount % 2 === 0) {
+      this.opacity += this.fadeSpeed;
     }
+    if (!isNight && frameCount % 2 === 0) {
+      this.opacity -= this.fadeSpeed;
+    }
+    this.opacity = constrain(this.opacity, 0, 1);
+
+    push();
+    fill(this.color);
+    noStroke();
+    for (let star of this.array) {
+      star.draw(isNight);
+    }
+    pop();
   }
 }
 

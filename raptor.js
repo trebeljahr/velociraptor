@@ -1,81 +1,88 @@
+const scale = 1.5;
 class Raptor {
   constructor(img) {
-    this.h = 212 / 3;
-    this.w = 578 / 3;
+    this.h = 212 / scale;
+    this.w = 578 / scale;
 
     this.velocity = 0.5;
-    this.gravity = 0.08;
+    this.gravity = 0.1;
     this.ground = GROUND - this.h;
     this.y = this.ground;
+    this.x = 0;
 
-    this.jumpStrength = 5 * BACKGROUND_VELOCITY;
+    this.jumpStrength = 3.5;
     this.img = img;
-    this.delay = 100;
+    this.delay = 70;
   }
+
   jump() {
     if (this.y === this.ground) {
-      this.velocity = -this.jumpStrength;
-      if (!mute) jumpSound.play();
+      if (cactuses.cactuses.length > 0) {
+        const y = cactuses.cactuses[0].y - cactuses.cactuses[0].h * 1.5;
+        const v = sqrt(0.5 * this.downwardAcceleration * y);
+        this.velocity = -v;
+        if (!mute) jumpSound.play();
+      }
     }
   }
 
-  debugRectangles() {
-    push();
-    translate(this.w / 2, this.y + this.h / 10);
-    rotate(PI * 1.04);
-    translate(-this.w * 0.01, -this.h * 0.25);
-    rect(0, 0, this.w * 0.4, this.h / 10);
-    pop();
-
-    push();
-    translate(this.w * 0.5, this.y + this.h * 0.28);
-    rect(0, 0, this.w / 3.4, this.h / 2);
-    pop();
-
-    push();
-    translate(this.w * 0.5, this.y + this.h * 0.28 + this.h / 2);
-    rect(0, 0, this.w / 4, this.h * 0.28);
-    pop();
-
-    push();
-    translate(this.w * 0.8, this.y + this.h * 0.2);
-    rect(0, 0, this.w * 0.2, this.h * 0.1);
-    pop();
+  collisionPolygon() {
+    const points = [
+      { x: this.x + this.w * 0.5, y: this.y + this.h * 0.27 },
+      { x: this.x, y: this.y + this.h * 0.1 },
+      { x: this.x, y: this.y + this.h * 0.15 },
+      { x: this.x + this.w * 0.5, y: this.y + this.h * 0.4 },
+      { x: this.x + this.w * 0.6, y: this.y + this.h * 0.6 },
+      { x: this.x + this.w * 0.5, y: this.y + this.h * 0.82 },
+      { x: this.x + this.w * 0.48, y: this.y + this.h },
+      { x: this.x + this.w * 0.55, y: this.y + this.h },
+      { x: this.x + this.w * 0.51, y: this.y + this.h * 0.955 },
+      { x: this.x + this.w * 0.53, y: this.y + this.h * 0.9 },
+      { x: this.x + this.w * 0.55, y: this.y + this.h * 0.9 },
+      { x: this.x + this.w * 0.55, y: this.y + this.h * 0.86 },
+      { x: this.x + this.w * 0.51, y: this.y + this.h * 0.86 },
+      { x: this.x + this.w * 0.53, y: this.y + this.h * 0.8 },
+      { x: this.x + this.w * 0.62, y: this.y + this.h * 0.65 },
+      { x: this.x + this.w * 0.63, y: this.y + this.h * 0.6 },
+      { x: this.x + this.w * 0.67, y: this.y + this.h * 0.6 },
+      { x: this.x + this.w * 0.67, y: this.y + this.h * 0.85 },
+      { x: this.x + this.w * 0.72, y: this.y + this.h * 0.95 },
+      { x: this.x + this.w * 0.78, y: this.y + this.h * 0.95 },
+      { x: this.x + this.w * 0.7, y: this.y + this.h * 0.8 },
+      { x: this.x + this.w * 0.75, y: this.y + this.h * 0.8 },
+      { x: this.x + this.w * 0.8, y: this.y + this.h * 0.6 },
+      { x: this.x + this.w * 0.78, y: this.y + this.h * 0.55 },
+      { x: this.x + this.w * 0.9, y: this.y + this.h * 0.3 },
+      { x: this.x + this.w, y: this.y + this.h * 0.3 },
+      { x: this.x + this.w, y: this.y + this.h * 0.23 },
+      { x: this.x + this.w * 0.9, y: this.y + this.h * 0.15 },
+      { x: this.x + this.w * 0.85, y: this.y + this.h * 0.15 },
+      { x: this.x + this.w * 0.8, y: this.y + this.h * 0.35 },
+    ];
+    return points;
   }
 
-  debugPolygon() {
-    beginShape();
-    vertex(this.w * 0.5, this.y + this.h * 0.27);
-    vertex(0, this.y + this.h * 0.1);
-    vertex(0, this.y + this.h * 0.15);
-    vertex(this.w * 0.5, this.y + this.h * 0.4);
-    vertex(this.w * 0.6, this.y + this.h * 0.6);
-    vertex(this.w * 0.5, this.y + this.h);
-    vertex(this.w * 0.75, this.y + this.h);
-    vertex(this.w * 0.7, this.y + this.h * 0.8);
-    vertex(this.w * 0.75, this.y + this.h * 0.8);
-    vertex(this.w * 0.8, this.y + this.h * 0.6);
-    vertex(this.w * 0.78, this.y + this.h * 0.55);
-    vertex(this.w * 0.9, this.y + this.h * 0.3);
-    vertex(this.w, this.y + this.h * 0.3);
-    vertex(this.w, this.y + this.h * 0.23);
-    vertex(this.w, this.y + this.h * 0.23);
-    vertex(this.w * 0.9, this.y + this.h * 0.15);
-    vertex(this.w * 0.85, this.y + this.h * 0.15);
-    vertex(this.w * 0.8, this.y + this.h * 0.35);
-    endShape(CLOSE);
+  get downwardAcceleration() {
+    return (this.gravity * BACKGROUND_VELOCITY * BACKGROUND_VELOCITY) / 10;
   }
 
+  debugJumpLine() {
+    if (cactuses.cactuses.length > 0) {
+      push();
+      stroke(0);
+      strokeWeight(5);
+      const y = cactuses.cactuses[0].y - cactuses.cactuses[0].h * 1.5;
+      line(0, y, width, y);
+      pop();
+    }
+  }
   update() {
     this.y += this.velocity;
-    this.velocity += this.gravity * BACKGROUND_VELOCITY;
+    this.velocity += this.downwardAcceleration;
+    // this.debugJumpLine();
 
-    image(this.img, 0, this.y, this.w, this.h);
     noFill();
     stroke(0);
-
-    this.debugPolygon();
-    // this.debugRectangles();
 
     if (this.y > this.ground) {
       this.y = this.ground;
@@ -84,7 +91,7 @@ class Raptor {
 
     if (this.y === this.ground) {
       this.img.play();
-      if (frameCount % 60 === 0 && this.delay > 25) {
+      if (frameCount % 60 === 0 && this.delay > 40) {
         this.delay = this.delay - 1;
         this.img.delay(this.delay);
       }
@@ -92,5 +99,26 @@ class Raptor {
       this.img.setFrame(11);
       this.img.pause();
     }
+
+    image(this.img, 0, this.y, this.w, this.h);
+
+    const points = this.collisionPolygon();
+    for (let cactus of cactuses.cactuses) {
+      const cactusPoints = cactus.collisionPolygon();
+      const hitCactus = collidePolyPoly(points, cactusPoints, true);
+      if (hitCactus) {
+        // gameOver = true;
+        // gameOverSince = frameCount;
+      }
+    }
+  }
+
+  debugPolygon() {
+    const points = this.collisionPolygon();
+    beginShape();
+    points.forEach(({ x, y }) => {
+      vertex(x, y);
+    });
+    endShape(CLOSE);
   }
 }
