@@ -4,8 +4,7 @@ class Raptor {
 
     this.velocity = 0.5;
     this.gravity = 0.1;
-    this.ground = GROUND - this.h;
-    this.y = this.ground;
+
     this.x = 0;
 
     this.jumpStrength = 3.5;
@@ -17,6 +16,8 @@ class Raptor {
     this.aspectRatio = 212 / 578;
     this.w = window.innerWidth / 3;
     this.h = this.w * this.aspectRatio;
+    this.ground = GROUND - this.h;
+    this.y = this.ground;
   }
 
   get downwardAcceleration() {

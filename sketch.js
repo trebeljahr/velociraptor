@@ -7,7 +7,8 @@ let clouds = [];
 let skyColors = [];
 const initialSky = 1;
 let counter = initialSky;
-let pebbles, stars;
+// let pebbles;
+let stars;
 let amt = 0;
 let jumpSound;
 let mute = true;
@@ -23,13 +24,12 @@ function preload() {
 }
 
 function windowResized() {
+  clear();
   resizeCanvas(window.innerWidth, window.innerHeight);
   groundHeight = window.innerHeight / 10;
   GROUND = window.innerHeight - groundHeight;
   raptor.resize();
-  raptor.ground = GROUND - raptor.h;
-  raptor.y = raptor.ground;
-  pebbles = new Pebbles();
+  // pebbles = new Pebbles();
   stars = new Stars();
   clouds = [];
   resetGame();
@@ -90,7 +90,7 @@ function setup() {
 
   currentSkyColor = skyColors[counter - 1];
   targetSkyColor = skyColors[counter];
-  pebbles = new Pebbles();
+  // pebbles = new Pebbles();
   stars = new Stars();
 }
 
@@ -100,7 +100,7 @@ function resetGame() {
   counter = initialSky;
   currentSkyColor = skyColors[counter - 1];
   targetSkyColor = skyColors[counter];
-  pebbles = new Pebbles();
+  // pebbles = new Pebbles();
   stars = new Stars();
   raptor.velocity = 0;
   raptor.ground = GROUND - raptor.h;
@@ -223,7 +223,7 @@ function draw() {
   rect(0, GROUND + 5 + 10, window.innerWidth, 20);
   fill("#EDC9AF");
   rect(0, GROUND + 5 + 10 + 20, window.innerWidth, 200);
-  pebbles.update();
+  // pebbles.update();
 
   const haze = lerpColor(currentSkyColor, white, 0.6);
   haze.setAlpha(100);
