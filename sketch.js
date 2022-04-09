@@ -147,18 +147,20 @@ function draw() {
 
     return;
   }
+  // console.log(Math.floor(frameRate()));
   clear();
   // sky-gradient
   for (let y = 0; y < height; y++) {
     const inter = map(y, 0, height, 0, 1);
     const c = lerpColor(currentSkyColor, white, inter);
+    // console.log(c);
     stroke(c);
     line(0, y, width, y);
   }
 
   const index = counter % skyColors.length;
   const isNight =
-    (index === 4 && amt > 0.7) ||
+    (index === 4 && amt > 0.02) ||
     index === 5 ||
     index === 6 ||
     (index === 7 && amt < 0.03);

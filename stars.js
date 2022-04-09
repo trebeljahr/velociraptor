@@ -15,7 +15,7 @@ class Stars {
     this.array = [];
     this.seed();
     this.opacity = 0;
-    this.fadeSpeed = 0.01;
+    this.fadeSpeed = 0.005;
   }
 
   newStar(x) {
