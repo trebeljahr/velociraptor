@@ -15,14 +15,24 @@ class Raptor {
     this.delay = 70;
   }
 
+  get downwardAcceleration() {
+    return (this.gravity * BACKGROUND_VELOCITY * BACKGROUND_VELOCITY) / 10;
+  }
+
+  get jumpHeight() {
+    if (cactuses.cactuses.length > 0) {
+      const y = cactuses.cactuses[0].y - cactuses.cactuses[0].h;
+      return y;
+    }
+    return 0;
+  }
+
   jump() {
     if (this.y === this.ground && !gameOver) {
-      if (cactuses.cactuses.length > 0) {
-        const y = cactuses.cactuses[0].y - cactuses.cactuses[0].h * 1.5;
-        const v = sqrt(0.5 * this.downwardAcceleration * y);
-        this.velocity = -v;
-        if (!mute) jumpSound.play();
-      }
+      const a = this.downwardAcceleration * 25;
+      const v = sqrt((a * this.ground - a * this.jumpHeight) / 2);
+      this.velocity = -v;
+      if (!mute) jumpSound.play();
     }
   }
 
@@ -62,20 +72,15 @@ class Raptor {
     return points;
   }
 
-  get downwardAcceleration() {
-    return (this.gravity * BACKGROUND_VELOCITY * BACKGROUND_VELOCITY) / 10;
+  debugJumpLine() {
+    push();
+    stroke(0);
+    strokeWeight(5);
+    const y = this.jumpHeight;
+    line(0, y, width, y);
+    pop();
   }
 
-  debugJumpLine() {
-    if (cactuses.cactuses.length > 0) {
-      push();
-      stroke(0);
-      strokeWeight(5);
-      const y = cactuses.cactuses[0].y - cactuses.cactuses[0].h * 1.5;
-      line(0, y, width, y);
-      pop();
-    }
-  }
   update() {
     this.y += this.velocity;
     this.velocity += this.downwardAcceleration;

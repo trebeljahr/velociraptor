@@ -1,7 +1,7 @@
 class Cactus {
   constructor(size) {
     this.aspectRatio = 312 / 892;
-    const maxSize = raptor.h * 0.5;
+    const maxSize = raptor.h * 0.6;
     this.h = maxSize; // min(size * this.aspectRatio, maxSize);
     this.w = this.h * this.aspectRatio;
 
@@ -35,7 +35,7 @@ class Cactus {
 }
 
 function getNewMinWidth() {
-  return raptor.w + Math.floor(Math.random() * raptor.w * 2);
+  return raptor.w + Math.floor(Math.random() * raptor.w * 10);
 }
 
 class Cactuses {
@@ -66,7 +66,7 @@ class Cactuses {
 
     for (let cactus of this.cactuses) {
       cactus.update();
-      image(this.img, cactus.x, GROUND - cactus.h, cactus.w, cactus.h);
+      image(this.img, cactus.x, cactus.y, cactus.w, cactus.h);
     }
 
     this.cactuses = this.cactuses.filter((cactus) => {
