@@ -107,8 +107,8 @@ class Raptor {
       const cactusPoints = cactus.collisionPolygon();
       const hitCactus = collidePolyPoly(points, cactusPoints, true);
       if (hitCactus) {
-        // gameOver = true;
-        // gameOverSince = frameCount;
+        gameOver = true;
+        gameOverSince = frameCount;
       }
     }
   }
