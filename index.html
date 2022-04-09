@@ -10,16 +10,62 @@
         padding: 0;
         overflow: hidden;
       }
+      .loaderContainer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        border: none;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        font-size: 50px;
+        justify-content: center;
+        align-items: center;
+      }
+      .loader {
+        border: 16px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 16px solid #3498db;
+        width: 120px;
+        height: 120px;
+        -webkit-animation: spin 2s linear infinite; /* Safari */
+        animation: spin 2s linear infinite;
+      }
+
+      /* Safari */
+      @-webkit-keyframes spin {
+        0% {
+          -webkit-transform: rotate(0deg);
+        }
+        100% {
+          -webkit-transform: rotate(360deg);
+        }
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/p5@1.4.0/lib/p5.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/addons/p5.sound.min.js"></script>
-    <script defer src="https://unpkg.com/p5.collide2d"></script>
-
+    <script src="https://unpkg.com/p5.collide2d"></script>
     <script src="globals.js"></script>
+    <script src="stars.js"></script>
     <script src="raptor.js"></script>
     <script src="cactus.js"></script>
     <script src="sketch.js"></script>
   </head>
-  <body></body>
+  <body>
+    <div id="p5_loading" class="loaderContainer">
+      <div class="loader"></div>
+      <p>Loading game...</p>
+    </div>
+  </body>
 </html>
