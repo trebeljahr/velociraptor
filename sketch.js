@@ -46,12 +46,32 @@ function controlSound() {
   if (mouseX > width - 100 && mouseX < width && mouseY > 0 && mouseY < 100) {
     mute = !mute;
     toggleMusic();
+    return true;
   }
+  return false;
+}
+
+function on_touch_screen() {
+  return (
+    "ontouchstart" in window ||
+    navigator.maxTouchPoints > 0 ||
+    navigator.msMaxTouchPoints > 0
+  );
 }
 
 function mouseClicked() {
+  if (on_touch_screen()) return;
+  if (controlSound()) return;
   raptor.jump();
-  controlSound();
+  resetGameIfGameOver();
+}
+
+function touchStarted() {
+  if (!on_touch_screen()) return;
+  console.log("Touched!");
+  if (controlSound()) return;
+
+  raptor.jump();
   resetGameIfGameOver();
 }
 
