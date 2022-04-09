@@ -10,6 +10,7 @@ let pebbles, stars;
 let amt = 0;
 let jumpSound;
 let mute = true;
+let music;
 
 function preload() {
   cactuses = new Cactuses(loadImage("assets/cactus.png"));
@@ -24,6 +25,7 @@ function windowResized() {
   resizeCanvas(window.innerWidth, window.innerHeight);
   groundHeight = window.innerHeight / 10;
   GROUND = window.innerHeight - groundHeight;
+  raptor.resize();
   raptor.ground = GROUND - raptor.h;
   raptor.y = raptor.ground;
   pebbles = new Pebbles();
@@ -45,8 +47,10 @@ function controlSound() {
     toggleMusic();
   }
 }
+
 function mousePressed() {
   controlSound();
+  resetGameIfGameOver();
 }
 
 function setup() {
@@ -71,12 +75,6 @@ function setup() {
   targetSkyColor = skyColors[counter];
   pebbles = new Pebbles();
   stars = new Stars();
-}
-
-function touchStarted() {
-  raptor.jump();
-  resetGameIfGameOver();
-  controlSound();
 }
 
 function resetGameIfGameOver() {

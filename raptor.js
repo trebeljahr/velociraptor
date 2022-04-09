@@ -1,8 +1,6 @@
-const scale = 1.5;
 class Raptor {
   constructor(img) {
-    this.h = 212 / scale;
-    this.w = 578 / scale;
+    this.resize();
 
     this.velocity = 0.5;
     this.gravity = 0.1;
@@ -13,6 +11,12 @@ class Raptor {
     this.jumpStrength = 3.5;
     this.img = img;
     this.delay = 70;
+  }
+
+  resize() {
+    this.aspectRatio = 212 / 578;
+    this.w = window.innerWidth / 3;
+    this.h = this.w * this.aspectRatio;
   }
 
   get downwardAcceleration() {
