@@ -5,11 +5,11 @@ let white;
 let currentSkyColor, targetSkyColor;
 let clouds = [];
 let skyColors = [];
-let counter = 3;
+let counter = 1;
 let pebbles, stars;
 let amt = 0;
 let jumpSound;
-let mute = false;
+let mute = true;
 
 function preload() {
   cactuses = new Cactuses(loadImage("assets/cactus.png"));
@@ -39,12 +39,16 @@ function toggleMusic() {
   }
 }
 
-function mousePressed() {
+function controlSound() {
   if (mouseX > width - 100 && mouseX < width && mouseY > 0 && mouseY < 100) {
     mute = !mute;
     toggleMusic();
   }
 }
+function mousePressed() {
+  controlSound();
+}
+
 function setup() {
   toggleMusic();
   createCanvas(window.innerWidth, window.innerHeight);
@@ -71,24 +75,32 @@ function setup() {
 
 function touchStarted() {
   raptor.jump();
+  resetGameIfGameOver();
+  controlSound();
 }
 
+function resetGameIfGameOver() {
+  if (gameOver && frameCount - gameOverSince > 30) {
+    gameOver = false;
+    gameOverSince = 0;
+    counter = 1;
+    currentSkyColor = skyColors[counter - 1];
+    targetSkyColor = skyColors[counter];
+    pebbles = new Pebbles();
+    stars = new Stars();
+    raptor.velocity = 0;
+    cactuses.cactuses = [];
+    clouds = [];
+    score = 0;
+    BACKGROUND_VELOCITY = initialVelocity;
+  }
+}
 function keyPressed() {
   if (keyCode === SPACE || keyCode === 87 || keyCode === UP_ARROW) {
     raptor.jump();
   }
   if (keyCode === ENTER) {
-    if (gameOver) {
-      gameOver = false;
-      currentSkyColor = skyColors[counter - 1];
-      targetSkyColor = skyColors[counter];
-      pebbles = new Pebbles();
-      stars = new Stars();
-      raptor.velocity = 0;
-      cactuses.cactuses = [];
-      clouds = [];
-      score = 0;
-    }
+    resetGameIfGameOver();
   }
 }
 

@@ -35,29 +35,26 @@ class Cactus {
 }
 
 function getNewMinWidth() {
-  return Math.floor(
-    Math.random() * (window.innerWidth / 4) + window.innerWidth / 3
-  );
+  return raptor.w + Math.floor(Math.random() * raptor.w * 2);
 }
-
-let minWidthToSpawnNewCactus = getNewMinWidth();
 
 class Cactuses {
   constructor(img) {
     this.img = img;
     this.cactuses = [];
   }
+  get minWidthToSpawnNewCactus() {
+    return getNewMinWidth();
+  }
+
   addCactus() {
     const lastCactus = this.cactuses[this.cactuses.length - 1];
     if (lastCactus) {
       const distanceToLastCactus = window.innerWidth - lastCactus.x;
-      if (distanceToLastCactus >= minWidthToSpawnNewCactus) {
+      if (distanceToLastCactus >= this.minWidthToSpawnNewCactus) {
         const randomSize = Math.floor(Math.random() * 30) + 10;
         this.cactuses.push(new Cactus(randomSize));
-        if (BACKGROUND_VELOCITY < 20) {
-          BACKGROUND_VELOCITY += 0.3;
-        }
-        minWidthToSpawnNewCactus = getNewMinWidth();
+        BACKGROUND_VELOCITY += 0.1;
       }
     } else {
       const randomSize = Math.floor(Math.random() * 30) + 10;

@@ -16,7 +16,7 @@ class Raptor {
   }
 
   jump() {
-    if (this.y === this.ground) {
+    if (this.y === this.ground && !gameOver) {
       if (cactuses.cactuses.length > 0) {
         const y = cactuses.cactuses[0].y - cactuses.cactuses[0].h * 1.5;
         const v = sqrt(0.5 * this.downwardAcceleration * y);
