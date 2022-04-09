@@ -306,21 +306,6 @@ class Stars {
   }
 }
 
-class Pebble {
-  constructor(x) {
-    this.size = random(3, 6);
-    this.x = x || window.innerWidth + this.size + 30 + random(-30, 30);
-    this.y = random(GROUND + 40 - this.size, window.innerHeight);
-    this.color = random(0, 100);
-  }
-
-  update() {
-    fill(this.color);
-    ellipse(this.x, this.y, this.size, this.size);
-    this.x -= BACKGROUND_VELOCITY * (width / 1000);
-  }
-}
-
 function drawCloud(x, y, size) {
   fill(255, 255, 255);
   noStroke();
