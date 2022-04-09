@@ -32,6 +32,7 @@ function windowResized() {
   pebbles = new Pebbles();
   stars = new Stars();
   clouds = [];
+  resetGame();
 }
 
 function toggleMusic() {
@@ -51,26 +52,19 @@ function controlSound() {
   return false;
 }
 
-function on_touch_screen() {
-  return (
-    "ontouchstart" in window ||
-    navigator.maxTouchPoints > 0 ||
-    navigator.msMaxTouchPoints > 0
-  );
+let released = false;
+function mouseReleased() {
+  released = true;
+  return false;
 }
 
-function mouseClicked() {
-  if (on_touch_screen()) return;
-  if (controlSound()) return;
-  raptor.jump();
-  resetGameIfGameOver();
-}
+function mousePressed() {
+  if (!released) {
+    return;
+  }
+  released = false;
 
-function touchStarted() {
-  if (!on_touch_screen()) return;
-  console.log("Touched!");
   if (controlSound()) return;
-
   raptor.jump();
   resetGameIfGameOver();
 }
@@ -100,24 +94,29 @@ function setup() {
   stars = new Stars();
 }
 
+function resetGame() {
+  gameOver = false;
+  gameOverSince = 0;
+  counter = initialSky;
+  currentSkyColor = skyColors[counter - 1];
+  targetSkyColor = skyColors[counter];
+  pebbles = new Pebbles();
+  stars = new Stars();
+  raptor.velocity = 0;
+  raptor.ground = GROUND - raptor.h;
+  raptor.y = raptor.ground;
+  cactuses.cactuses = [];
+  clouds = [];
+  score = 0;
+  BACKGROUND_VELOCITY = initialVelocity;
+}
+
 function resetGameIfGameOver() {
   if (gameOver && frameCount - gameOverSince > 30) {
-    gameOver = false;
-    gameOverSince = 0;
-    counter = initialSky;
-    currentSkyColor = skyColors[counter - 1];
-    targetSkyColor = skyColors[counter];
-    pebbles = new Pebbles();
-    stars = new Stars();
-    raptor.velocity = 0;
-    raptor.ground = GROUND - raptor.h;
-    raptor.y = raptor.ground;
-    cactuses.cactuses = [];
-    clouds = [];
-    score = 0;
-    BACKGROUND_VELOCITY = initialVelocity;
+    resetGame();
   }
 }
+
 function keyPressed() {
   if (keyCode === SPACE || keyCode === 87 || keyCode === UP_ARROW) {
     raptor.jump();
@@ -233,14 +232,15 @@ function draw() {
 
   // clouds
   for (let i = 0; i < clouds.length; i++) {
-    const singleCloud = clouds[i];
-    cloud(singleCloud.xpos, singleCloud.ypos, singleCloud.size);
-    singleCloud.xpos -= BACKGROUND_VELOCITY * (width / 900);
-    singleCloud.ypos += random(-0.5, 0.5);
+    const cloud = clouds[i];
+    drawCloud(cloud.xpos, cloud.ypos, cloud.size * cloud.scale);
+    cloud.xpos -= BACKGROUND_VELOCITY * (width / 900);
+    cloud.ypos += random(-0.5, 0.5);
   }
 
   clouds = clouds.filter(
-    (cloud) => !(cloud.xpos > width + 20 || cloud.xpos < -50)
+    (cloud) =>
+      !(cloud.xpos > width + 20 || cloud.xpos < -cloud.size * cloud.scale * 60)
   );
 
   if (frameCount % 20 === 0 && random(0, 100) > 50 - BACKGROUND_VELOCITY * 6) {
@@ -339,8 +339,7 @@ class Pebbles {
     this.array.push(new Pebble(x));
   }
   update() {
-    const every20Frames = frameCount % 20 === 0;
-    if (every20Frames) {
+    if (frameCount % 5 === 0) {
       this.newPebble();
       this.newPebble();
       this.newPebble();
@@ -353,20 +352,21 @@ class Pebbles {
   }
 }
 
-function cloud(x, y, size) {
+function drawCloud(x, y, size) {
   fill(255, 255, 255);
   noStroke();
   arc(x, y, 25 * size, 20 * size, PI + TWO_PI, TWO_PI);
-  arc(x + 10, y, 25 * size, 45 * size, PI + TWO_PI, TWO_PI);
-  arc(x + 25, y, 25 * size, 35 * size, PI + TWO_PI, TWO_PI);
-  arc(x + 40, y, 30 * size, 20 * size, PI + TWO_PI, TWO_PI);
+  arc(x + 10 * size, y, 25 * size, 45 * size, PI + TWO_PI, TWO_PI);
+  arc(x + 25 * size, y, 25 * size, 35 * size, PI + TWO_PI, TWO_PI);
+  arc(x + 40 * size, y, 30 * size, 20 * size, PI + TWO_PI, TWO_PI);
 }
 
 function newCloud() {
   const newCloud = {
+    scale: window.innerWidth / 600,
     xpos: window.innerWidth,
     ypos: random(40, window.innerHeight - 1.5 * groundHeight),
-    size: random(0.8 * (raptor.w / 150), 1.3 * (raptor.w / 150)),
+    size: random(0.8, 1.3),
   };
   clouds.push(newCloud);
 }
