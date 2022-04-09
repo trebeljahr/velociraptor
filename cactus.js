@@ -30,7 +30,7 @@ class Cactus {
   }
 
   update() {
-    this.x -= BACKGROUND_VELOCITY;
+    this.x -= BACKGROUND_VELOCITY * (width / 1000);
   }
 }
 

@@ -49,7 +49,7 @@ function controlSound() {
   }
 }
 
-function mousePressed() {
+function mouseClicked() {
   raptor.jump();
   controlSound();
   resetGameIfGameOver();
@@ -215,7 +215,7 @@ function draw() {
   for (let i = 0; i < clouds.length; i++) {
     const singleCloud = clouds[i];
     cloud(singleCloud.xpos, singleCloud.ypos, singleCloud.size);
-    singleCloud.xpos -= BACKGROUND_VELOCITY + 0.5;
+    singleCloud.xpos -= BACKGROUND_VELOCITY * (width / 900);
     singleCloud.ypos += random(-0.5, 0.5);
   }
 
@@ -228,7 +228,7 @@ function draw() {
   }
 
   fill(0);
-  sandX -= BACKGROUND_VELOCITY;
+  sandX -= BACKGROUND_VELOCITY * (width / 1000);
   if (sandX < -window.innerWidth) {
     sandX = 0;
   }
@@ -302,7 +302,7 @@ class Pebble {
   update() {
     fill(this.color);
     ellipse(this.x, this.y, this.size, this.size);
-    this.x -= BACKGROUND_VELOCITY;
+    this.x -= BACKGROUND_VELOCITY * (width / 1000);
   }
 }
 class Pebbles {

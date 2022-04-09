@@ -20,7 +20,13 @@ class Raptor {
   }
 
   get downwardAcceleration() {
-    return (this.gravity * BACKGROUND_VELOCITY * BACKGROUND_VELOCITY) / 10;
+    return (
+      (this.gravity *
+        BACKGROUND_VELOCITY *
+        BACKGROUND_VELOCITY *
+        (width / 1000)) /
+      10
+    );
   }
 
   get jumpHeight() {
