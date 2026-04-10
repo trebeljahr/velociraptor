@@ -30,29 +30,37 @@ class Raptor {
     );
   }
 
-  get jumpHeight() {
-    if (cactuses.cactuses.length > 0) {
-      const y = cactuses.cactuses[0].y - cactuses.cactuses[0].h;
-      return y;
-    }
-  }
-
   jump() {
-    if (cactuses.cactuses.length <= 0) return;
+    // Only jump when grounded and alive — otherwise hold mid-air state.
+    if (this.y !== this.ground || gameOver) return;
 
-    if (this.y === this.ground && !gameOver) {
-      const a = this.downwardAcceleration * 25;
-      const v = sqrt((a * this.ground - a * this.jumpHeight) / 2);
-      this.velocity = -v;
-      if (!mute) jumpSound.play();
-    }
+    // Consistent jump velocity, independent of which cactus is next.
+    // We aim for a fixed apex tuned to the tallest cactus variant
+    // (heightScale 1.0 × raptor.h) with a generous clearance multiplier
+    // that matches the "floaty" feel of the original game.
+    //
+    // Real kinematics: v = sqrt(2 * a * h). The `* 25` fudge factor from
+    // the old code is *not* needed — it was overshooting by ~5x.
+    // 1.5× = just enough clearance over the tallest cactus (heightScale 1.0)
+    // with half-a-cactus margin for timing — keeps the jump snappy and
+    // skill-based instead of floaty.
+    const MAX_CACTUS_HEIGHT = this.h; // largest heightScale in CACTUS_VARIANTS
+    const JUMP_CLEARANCE_MULTIPLIER = 1.5;
+    const targetRise = MAX_CACTUS_HEIGHT * JUMP_CLEARANCE_MULTIPLIER;
+    const a = this.downwardAcceleration;
+    const v = sqrt(2 * a * targetRise);
+    this.velocity = -v;
+
+    if (!mute && jumpSound && jumpSound.isLoaded()) jumpSound.play();
   }
 
   collisionPolygon() {
+    // Note: the two tail-tip points that used to reach all the way to
+    // { x: this.x, y: ... } have been removed. They were causing passing
+    // cacti to clip through the tail as they exited the raptor's region
+    // on the left, registering false-positive collisions.
     const points = [
       { x: this.x + this.w * 0.5, y: this.y + this.h * 0.27 },
-      { x: this.x, y: this.y + this.h * 0.1 },
-      { x: this.x, y: this.y + this.h * 0.15 },
       { x: this.x + this.w * 0.5, y: this.y + this.h * 0.4 },
       { x: this.x + this.w * 0.6, y: this.y + this.h * 0.6 },
       { x: this.x + this.w * 0.5, y: this.y + this.h * 0.82 },
@@ -85,12 +93,7 @@ class Raptor {
   }
 
   debugJumpLine() {
-    push();
-    stroke(0);
-    strokeWeight(5);
-    const y = this.jumpHeight;
-    line(0, y, width, y);
-    pop();
+    // no-op — the jump apex is now a fixed distance above the ground.
   }
 
   update() {

@@ -1,31 +1,40 @@
 let cactuses;
 let raptor;
-let sand;
 let white;
-let currentSkyColor, targetSkyColor;
+let currentSkyColor;
 let clouds = [];
 let skyColors = [];
-const initialSky = 1;
-let counter = initialSky;
 let stars;
-let amt = 0;
 let jumpSound;
 let mute = true;
 let music;
-let gradient = [];
-let soundControlBright;
+// Off-screen buffer holding the pre-rendered sky gradient. We only repaint
+// it when the gradient actually changes (every few seconds), then blit it
+// to the main canvas each frame. Avoids drawing `height` lines per frame.
+let skyBuffer;
+// The day/night cycle is tied to the score: night happens around score 30
+// (half-way through the 60-point loop).
+const SKY_CYCLE_SCORE = 60;
+// Only regenerate the sky gradient every N frames even when interpolating,
+// to avoid per-frame `lerpColor × height` cost.
+const SKY_UPDATE_INTERVAL = 10;
+let lastSkyScore = -1;
 
 function preload() {
-  cactuses = new Cactuses(loadImage("assets/cactus.png"));
-  sand = loadImage("assets/some-sand.jpg");
+  const cactusImages = {};
+  for (const variant of CACTUS_VARIANTS) {
+    cactusImages[variant.key] = loadImage(`assets/${variant.key}.png`);
+  }
+  cactuses = new Cactuses(cactusImages);
   raptor = new Raptor(loadImage("assets/raptor.gif"));
   jumpSound = loadSound("assets/jump.mp3");
   music = loadSound("assets/music2.mp3");
-  soundControl = loadImage("assets/audio-play.png");
-  soundControlBright = loadImage("assets/audio-play-invert.png");
 }
 
 function windowResized() {
+  // Guard against resize firing before setup() has fully initialized.
+  if (!raptor || !skyBuffer) return;
+
   clear();
   resizeCanvas(window.innerWidth, window.innerHeight + 1);
   groundHeight = window.innerHeight / 10;
@@ -33,6 +42,8 @@ function windowResized() {
   raptor.resize();
   stars = new Stars();
   clouds = [];
+  skyBuffer = createGraphics(width, height);
+  computeSkyGradient();
   resetGame();
 }
 
@@ -44,34 +55,62 @@ function toggleMusic() {
   }
 }
 
+// Sound toggle is now an HTML button in index.html next to the cog —
+// this function is kept as a no-op so any stale references are safe.
 function controlSound() {
-  if (mouseX > width - 100 && mouseX < width && mouseY > 0 && mouseY < 100) {
-    mute = !mute;
-    toggleMusic();
-    return true;
-  }
   return false;
 }
 
-let released = false;
+function isGameStarted() {
+  return typeof window.isGameStarted !== "function" || window.isGameStarted();
+}
+
+function isMenuOpen() {
+  return typeof window.isMenuOpen === "function" && window.isMenuOpen();
+}
+
 function mouseReleased() {
-  released = true;
   return false;
 }
 
 function mousePressed() {
-  if (!released) {
+  if (!isGameStarted()) return;
+  if (isMenuOpen()) return;
+  if (controlSound()) return;
+  // After a game-over, a single click both resets AND jumps feels bad —
+  // reset first and return so the player starts fresh without an
+  // immediate accidental jump.
+  if (gameOver) {
+    resetGameIfGameOver();
     return;
   }
-  released = false;
-
-  if (controlSound()) return;
   raptor.jump();
-  resetGameIfGameOver();
+}
+
+// Explicit touch handler so mobile taps on the canvas trigger a jump
+// without first firing a synthetic 300ms-delayed click. Returning false
+// also tells the browser to skip default scroll/zoom behaviour so the
+// page doesn't move when the player taps.
+function touchStarted(event) {
+  if (!isGameStarted()) return;
+  if (isMenuOpen()) return;
+  // If the touch originated on an HTML control above the canvas, let the
+  // browser handle it normally (so cog/sound/menu buttons keep working).
+  if (event && event.target && event.target !== document.body) {
+    const tag = event.target.tagName;
+    if (tag === "BUTTON" || tag === "A" || event.target.closest("button, a")) {
+      return;
+    }
+  }
+  if (gameOver) {
+    resetGameIfGameOver();
+    return false;
+  }
+  raptor.jump();
+  return false;
 }
 
 function setup() {
-  toggleMusic();
   createCanvas(window.innerWidth, window.innerHeight + 1);
   const skyBlue = color(80, 180, 205);
   const skyOrange = color(235, 120, 53);
@@ -89,18 +128,28 @@ function setup() {
     skyYellow,
   ];
 
-  currentSkyColor = skyColors[counter - 1];
-  targetSkyColor = skyColors[counter];
+  currentSkyColor = skyColors[0];
   stars = new Stars();
+  skyBuffer = createGraphics(width, height);
   resetGame();
+
+  // Pause the draw loop until the user clicks "Start Game". The start
+  // screen in index.html gives us a real user gesture so music (which
+  // needs a Web Audio context unlocked by user interaction) can play
+  // immediately when the game begins.
+  noLoop();
+
+  // Tell the start screen that assets are loaded and the game is ready.
+  if (typeof window.onGameReady === "function") {
+    window.onGameReady();
+  }
 }
 
 function resetGame() {
   gameOver = false;
   gameOverSince = 0;
-  counter = initialSky;
-  currentSkyColor = skyColors[counter - 1];
-  targetSkyColor = skyColors[counter];
+  currentSkyColor = skyColors[0];
+  lastSkyScore = -1;
   computeSkyGradient();
   stars = new Stars();
   raptor.velocity = 0;
@@ -119,49 +168,46 @@ function resetGameIfGameOver() {
 }
 
 function keyPressed() {
-  if (keyCode === SPACE || keyCode === 87 || keyCode === UP_ARROW) {
-    raptor.jump();
+  // ESC is handled by the HTML menu overlay — let it through.
+  if (keyCode === ESCAPE) return;
+
+  // Block all gameplay input until Start has been clicked or while a
+  // menu/imprint overlay is open.
+  if (!isGameStarted()) return false;
+  if (isMenuOpen()) return false;
+
+  const isJumpKey =
+    keyCode === SPACE || keyCode === 87 || keyCode === UP_ARROW;
+
+  if (isJumpKey) {
+    // Mirror mouse behaviour: after a game-over any jump key resets first
+    // rather than jumping into a fresh obstacle. Return false so the
+    // browser doesn't also scroll the page on space-bar.
+    if (gameOver) {
+      resetGameIfGameOver();
+    } else {
+      raptor.jump();
+    }
+    return false;
   }
+
   if (keyCode === ENTER) {
     resetGameIfGameOver();
+    return false;
   }
 }
+// Paint the gradient into the off-screen buffer. Only called when the sky
+// colour has actually changed (i.e. inside the day/night update block),
+// so the per-pixel loop runs at most a couple of times per second instead
+// of every frame.
 function computeSkyGradient() {
-  gradient = [];
+  if (!skyBuffer) return;
+  skyBuffer.noStroke();
   for (let y = 0; y < height; y++) {
-    const inter = map(y, 0, height, 0, 1);
+    const inter = y / height;
     const c = lerpColor(currentSkyColor, white, inter);
-    gradient.push(c);
-  }
-}
-
-function drawSoundIcon({ black = true } = {}) {
-  const soundIconSize = width / 30;
-
-  image(
-    black ? soundControl : soundControlBright,
-    width - soundIconSize - 20,
-    20,
-    soundIconSize,
-    soundIconSize
-  );
-
-  if (mute) {
-    push();
-    translate(width - soundIconSize - 20, 20);
-    beginShape(LINES);
-    strokeWeight(3);
-    stroke(black ? 0 : 255);
-
-    const off = 5;
-    vertex(off, off);
-    vertex(soundIconSize - off, soundIconSize - off);
-
-    vertex(off, soundIconSize - off);
-    vertex(soundIconSize - off, off);
-
-    endShape(CLOSE);
-    pop();
+    skyBuffer.stroke(c);
+    skyBuffer.line(0, y, width, y);
   }
 }
 
@@ -171,7 +217,6 @@ function draw() {
     push();
     opacity = min(opacity + 0.01, 1);
     background(color(`rgba(0, 0, 0, ${opacity}) `));
-    drawSoundIcon({ black: false });
 
     textAlign(CENTER, CENTER);
     strokeWeight(0);
@@ -194,35 +239,37 @@ function draw() {
 
     return;
   }
-  // console.log(Math.floor(frameRate()));
-  clear();
-  // sky-gradient
 
-  for (let y = 0; y < gradient.length; y++) {
-    stroke(gradient[y]);
-    line(0, y, width, y);
-  }
+  // Sky background — one image blit, no per-pixel loop.
+  image(skyBuffer, 0, 0);
 
-  const index = counter % skyColors.length;
+  // The sky phase is derived from the score, so a full day/night cycle
+  // takes exactly SKY_CYCLE_SCORE cacti-cleared (≈60 jumps). Night peaks
+  // around score 30 (index 4 = skyNight).
+  const phase = (score % SKY_CYCLE_SCORE) / SKY_CYCLE_SCORE; // 0..1
+  const bandF = phase * skyColors.length;                    // 0..8
+  const bandIndex = Math.floor(bandF);
+  const bandT = bandF - bandIndex;
+  const nextBand = (bandIndex + 1) % skyColors.length;
+
+  // Night = we are in or near the two skyNight bands (indices 4 and 5).
   const isNight =
-    (index === 4 && amt > 0.02) ||
-    index === 5 ||
-    index === 6 ||
-    (index === 7 && amt < 0.03);
+    bandIndex === 4 || bandIndex === 5 || (bandIndex === 3 && bandT > 0.7) || (bandIndex === 6 && bandT < 0.3);
   stars.draw(isNight);
 
-  if (frameCount % 30 === 0) {
-    amt += 0.001;
-    if (amt >= 0.1) {
-      amt = 0;
-      counter++;
-      targetSkyColor = skyColors[index];
-    }
-    currentSkyColor = lerpColor(currentSkyColor, targetSkyColor, amt);
+  // Recompute the sky only when it has drifted noticeably or the score
+  // ticked. Throttle the (expensive) gradient regen to every N frames.
+  if (frameCount % SKY_UPDATE_INTERVAL === 0 || score !== lastSkyScore) {
+    const targetSkyColor = lerpColor(
+      skyColors[bandIndex],
+      skyColors[nextBand],
+      bandT
+    );
+    currentSkyColor = lerpColor(currentSkyColor, targetSkyColor, 0.2);
     computeSkyGradient();
+    lastSkyScore = score;
   }
 
-  drawSoundIcon();
   textSize(32);
   noStroke();
 
@@ -267,12 +314,6 @@ function draw() {
   }
 
   fill(0);
-  sandX -= BACKGROUND_VELOCITY * (width / 1000);
-  if (sandX < -window.innerWidth) {
-    sandX = 0;
-  }
-  // image(sand, sandX, GROUND, window.innerWidth, 200);
-  // image(sand, window.innerWidth + sandX, GROUND, window.innerWidth, 200);
 
   raptor.update();
   cactuses.update();
