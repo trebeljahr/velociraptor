@@ -64,7 +64,27 @@
         color: #666;
         font-size: 0.85rem;
       }
+      /* When this page is loaded inside an iframe (as the in-game imprint
+         overlay), hide the "Back to the game" link — the parent window
+         has its own close button, and clicking back would navigate the
+         iframe to index.html which would nest the game. */
+      body.in-frame .back {
+        display: none;
+      }
+      body.in-frame {
+        padding-top: 1rem;
+      }
     </style>
+    <script>
+      // Detect iframe embedding as early as possible so the back link
+      // never flashes visible.
+      if (window.self !== window.top) {
+        document.documentElement.classList.add("in-frame-html");
+        document.addEventListener("DOMContentLoaded", function () {
+          document.body.classList.add("in-frame");
+        });
+      }
+    </script>
   </head>
   <body>
     <main>
@@ -159,13 +179,12 @@
         </li>
       </ul>
 
-      <h3 style="font-size: 1rem; margin-top: 1rem; margin-bottom: 0.3rem; color: #222;">Engine &amp; libraries</h3>
+      <h3 style="font-size: 1rem; margin-top: 1rem; margin-bottom: 0.3rem; color: #222;">Engine &amp; code</h3>
       <ul>
         <li>
-          <a href="https://p5js.org/" target="_blank" rel="noopener">p5.js</a>
-          (LGPL) and
-          <a href="https://github.com/bmoren/p5.collide2D" target="_blank" rel="noopener">p5.collide2D</a>
-          (MIT).
+          Vanilla HTML5 canvas, <code>requestAnimationFrame</code>, and the
+          native <code>&lt;audio&gt;</code> element — no external game
+          engine or library.
         </li>
       </ul>
       <p class="muted">
