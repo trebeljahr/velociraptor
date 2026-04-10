@@ -3,7 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chrome Dino Game</title>
+    <title>Raptor Runner</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
     <style>
       body {
         margin: 0;
@@ -66,8 +70,8 @@
       .start-raptor {
         position: absolute;
         bottom: calc(22vh - 2px);
-        left: 14vw;
-        width: min(25vw, 260px);
+        left: 10vw;
+        width: min(34vw, 360px);
         height: auto;
         pointer-events: none;
       }
@@ -75,13 +79,13 @@
         position: absolute;
         bottom: calc(22vh - 4px);
         right: 14vw;
-        width: min(9vw, 90px);
+        width: min(6vw, 68px);
         height: auto;
         pointer-events: none;
       }
       .start-cactus.small {
-        right: 30vw;
-        width: min(5vw, 55px);
+        right: 28vw;
+        width: min(3.5vw, 40px);
         bottom: calc(22vh - 4px);
       }
 
@@ -382,7 +386,10 @@
       .menu-overlay {
         position: fixed;
         inset: 0;
-        z-index: 1000;
+        /* Must be above the start-screen (1500) so opening the menu from
+           the start screen actually shows it. Below top-right-buttons
+           (2500) so the cog stays clickable to close the menu. */
+        z-index: 2000;
         background: rgba(0, 0, 0, 0.55);
         display: none;
         align-items: center;
@@ -428,7 +435,7 @@
       /* Buttons are content-width and centered in the list so they don't
          stretch into empty whitespace on the right. A fixed `.inner` width
          still gives both items the same optical alignment. */
-      .menu-panel a.menu-item {
+      .menu-panel .menu-item {
         display: inline-flex;
         align-items: center;
         gap: 0.6rem;
@@ -443,20 +450,29 @@
         cursor: pointer;
         transition: background 0.1s, color 0.1s;
       }
-      .menu-panel a.menu-item:hover {
+      .menu-panel .menu-item:hover {
         background: #e8ecf0;
       }
-      .menu-panel a.menu-item .inner {
+      .menu-panel .menu-item .inner {
         display: inline-flex;
         align-items: center;
         gap: 0.6rem;
         width: 9rem;
         text-align: left;
       }
-      .menu-panel a.menu-item svg {
+      .menu-panel .menu-item svg {
         width: 18px;
         height: 18px;
         flex-shrink: 0;
+      }
+      /* Debug-only menu rows are hidden unless the page is in debug
+         mode (body[data-debug="true"] is set by game.js when the URL
+         has ?debug=true). */
+      .menu-panel li.debug-only {
+        display: none;
+      }
+      body[data-debug="true"] .menu-panel li.debug-only {
+        display: block;
       }
       .menu-panel .menu-hint {
         color: #888;
@@ -528,7 +544,9 @@
       .imprint-overlay {
         position: fixed;
         inset: 0;
-        z-index: 1100;
+        /* Above menu-overlay (2000) so clicking Legal Notice from the
+           menu shows the imprint on top. */
+        z-index: 2100;
         background: rgba(0, 0, 0, 0.6);
         display: none;
         overflow: auto;
@@ -611,18 +629,36 @@
       .imprint-sheet .back {
         display: none; /* the standalone "back to game" link is hidden inside the overlay */
       }
+
+      /* ───────── Game canvas ───────── */
+      #game-canvas {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        display: block;
+        z-index: 0;
+        background: #000;
+      }
     </style>
 
-    <script src="https://cdn.jsdelivr.net/npm/p5@1.4.0/lib/p5.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/addons/p5.sound.min.js"></script>
-    <script src="https://unpkg.com/p5.collide2d"></script>
-    <script src="globals.js"></script>
-    <script src="stars.js"></script>
-    <script src="raptor.js"></script>
-    <script src="cactus.js"></script>
-    <script src="sketch.js"></script>
+    <script src="game.js" defer></script>
   </head>
   <body>
+    <!-- Game canvas — sky, ground, clouds, cacti, raptor, score text,
+         and the game-over overlay are all drawn here so layering works
+         correctly (raptor hides under the game-over fade, etc.). -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Native audio elements replace the p5.sound library entirely. -->
+    <audio
+      id="game-music"
+      src="assets/music2.mp3"
+      preload="auto"
+      loop
+    ></audio>
+    <audio id="game-jump" src="assets/jump.mp3" preload="auto"></audio>
+
     <!-- Rotate-to-landscape guard for mobile portrait users.
          Shown via `body.needs-rotate` class toggled by JS. -->
     <div class="rotate-prompt" aria-hidden="true">
@@ -805,7 +841,7 @@
                   <line x1="16" y1="17" x2="8" y2="17"></line>
                   <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
-                <span>Legal Notice</span>
+                <span>Imprint</span>
               </span>
             </a>
           </li>
@@ -825,6 +861,19 @@
               </span>
             </a>
           </li>
+          <li class="debug-only">
+            <button id="menu-hitboxes-toggle" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"
+                    stroke-dasharray="3 3"></rect>
+                </svg>
+                <span id="menu-hitboxes-label">Hitboxes: on</span>
+              </span>
+            </button>
+          </li>
         </ul>
         <div class="close-hint">
           <button id="menu-close" type="button">Resume game</button>
@@ -842,6 +891,12 @@
     </div>
 
     <script>
+      /*
+       * UI chrome — start screen, menu, imprint overlay, sound toggle,
+       * cog button, landscape guard, keyboard shortcuts. Talks to the
+       * game layer exclusively through the public `Game` API defined
+       * in game.js. No direct references to canvas/p5/audio internals.
+       */
       (function () {
         const cog = document.getElementById("settings-cog");
         const overlay = document.getElementById("menu-overlay");
@@ -853,7 +908,6 @@
         const startScreen = document.getElementById("start-screen");
         const startBtn = document.getElementById("start-btn");
         let imprintFetched = false;
-        let gameStarted = false;
         let assetsReady = false;
 
         // ───────── Start screen ─────────
@@ -863,49 +917,33 @@
           startBtn.disabled = false;
           startBtn.querySelector(".label").textContent = "Start Game";
         }
-        window.onGameReady = onGameReady;
+        // The game.js module calls Game.onReady(cb) when assets are loaded.
+        // Guard in case the game script hasn't parsed yet.
+        function registerReady() {
+          if (window.Game && typeof window.Game.onReady === "function") {
+            window.Game.onReady(onGameReady);
+          } else {
+            // game.js may still be loading (it's deferred) — retry soon.
+            setTimeout(registerReady, 30);
+          }
+        }
+        registerReady();
 
         function startGame() {
-          if (!assetsReady || gameStarted) return;
-          // The click is a user gesture, so this is our opportunity to
-          // un-mute and start the music with a valid Web Audio context.
-          if (typeof mute !== "undefined" && mute) {
-            mute = false;
-            if (typeof toggleMusic === "function") toggleMusic();
-          }
+          if (!assetsReady || window.Game.isStarted()) return;
+          // The click is a user gesture, so this unlocks the Web Audio
+          // context and lets the music start with no warning.
+          window.Game.setMuted(false);
           refreshSoundUI();
-          // Defensive: force the raptor gif into the playing state before
-          // the first draw so it animates immediately (without this some
-          // browsers show a frozen frame until the player interacts).
-          if (
-            typeof raptor !== "undefined" &&
-            raptor &&
-            raptor.img &&
-            raptor.img.gifProperties
-          ) {
-            try {
-              raptor.img.reset && raptor.img.reset();
-              raptor.img.play && raptor.img.play();
-              raptor.img.gifProperties.playing = true;
-              raptor.img.gifProperties.lastChangeTime = 0;
-            } catch (e) {
-              /* no-op */
-            }
-          }
+          // Hide the start screen first, then tell the game to run.
           startScreen.classList.add("hidden");
-          if (typeof loop === "function") loop();
-          // Kick one draw immediately so the player sees a fresh frame
-          // instead of the stale state from before start.
-          if (typeof redraw === "function") redraw();
-          // Delay flipping `gameStarted` until after the current click
-          // propagates. Otherwise p5's mousePressed fires on the very
-          // same click that started the game and triggers a jump.
-          setTimeout(() => {
-            gameStarted = true;
-          }, 120);
+          window.Game.start();
         }
 
         startBtn.addEventListener("click", startGame);
+        // Expose a hook so the game.js keydown handler can trigger
+        // Start Game from Space/Enter on the start screen.
+        window.__onStartKey = startGame;
 
         // ───────── Landscape guard ─────────
         const isLikelyTouchDevice = () =>
@@ -924,6 +962,7 @@
         window.addEventListener("resize", refreshRotateGuard);
         window.addEventListener("orientationchange", refreshRotateGuard);
 
+        // ───────── Imprint overlay ─────────
         async function loadImprintContent() {
           if (imprintFetched) return;
           try {
@@ -937,21 +976,19 @@
             }
           } catch (err) {
             imprintContent.innerHTML =
-              '<p>Failed to load legal notice. <a href="imprint.html">Open directly</a>.</p>';
+              '<p>Failed to load imprint. <a href="imprint.html">Open directly</a>.</p>';
           }
         }
 
         function openImprint() {
           imprintOverlay.classList.add("open");
           loadImprintContent();
-          if (typeof noLoop === "function") noLoop();
+          window.Game.pause();
         }
 
         function closeImprint() {
           imprintOverlay.classList.remove("open");
-          // Only resume the draw loop if the game has actually started —
-          // otherwise we'd start the game behind the start screen.
-          if (gameStarted && typeof loop === "function") loop();
+          window.Game.resume();
         }
 
         imprintCloseBtn.addEventListener("click", (e) => {
@@ -962,37 +999,33 @@
           // Click on the dark backdrop closes the overlay.
           if (e.target === imprintOverlay) closeImprint();
         });
-        imprintOverlay.addEventListener("mousedown", (e) => e.stopPropagation());
 
+        // ───────── Sound button ─────────
         function refreshSoundUI() {
-          if (typeof mute === "undefined") return;
-          topSoundBtn.classList.toggle("muted", mute);
-          topSoundBtn.setAttribute("aria-pressed", String(!mute));
-          topSoundBtn.setAttribute(
-            "aria-label",
-            mute ? "Unmute" : "Mute"
-          );
+          const muted = window.Game ? window.Game.isMuted() : true;
+          topSoundBtn.classList.toggle("muted", muted);
+          topSoundBtn.setAttribute("aria-pressed", String(!muted));
+          topSoundBtn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
         }
 
         function toggleSound() {
-          if (typeof mute === "undefined") return;
-          mute = !mute;
-          if (typeof toggleMusic === "function") toggleMusic();
+          window.Game.setMuted(!window.Game.isMuted());
           refreshSoundUI();
         }
 
+        // ───────── Menu overlay ─────────
         function openMenu() {
           overlay.classList.add("open");
           cog.setAttribute("aria-expanded", "true");
           refreshSoundUI();
-          if (typeof noLoop === "function") noLoop();
+          refreshHitboxesUI();
+          window.Game.pause();
         }
 
         function closeMenu() {
           overlay.classList.remove("open");
           cog.setAttribute("aria-expanded", "false");
-          // Only resume the draw loop if the game has actually started.
-          if (gameStarted && typeof loop === "function") loop();
+          window.Game.resume();
         }
 
         function toggleMenu() {
@@ -1003,35 +1036,14 @@
           }
         }
 
-        // Helper: make a top-level icon button respond reliably to both
-        // mouse clicks and touch taps. We listen for both `click` and
-        // `touchend` because on some mobile browsers the synthetic click
-        // after touchend can be swallowed or delayed.
-        function onTap(el, handler) {
-          let handledByTouch = false;
-          el.addEventListener("touchend", (e) => {
-            // Only react to taps that ended on this element
-            if (e.changedTouches && e.changedTouches.length > 1) return;
-            handledByTouch = true;
-            e.preventDefault();
-            e.stopPropagation();
-            handler(e);
-            // Reset shortly so subsequent mouse clicks still work
-            setTimeout(() => {
-              handledByTouch = false;
-            }, 400);
-          });
-          el.addEventListener("click", (e) => {
-            if (handledByTouch) return;
-            e.stopPropagation();
-            handler(e);
-          });
-        }
+        closeBtn.addEventListener("click", closeMenu);
+        overlay.addEventListener("click", (e) => {
+          // Click outside the panel closes the menu.
+          if (e.target === overlay) closeMenu();
+        });
 
-        onTap(cog, toggleMenu);
-
-        // Intercept the menu's "Legal Notice" link so it opens as an inline
-        // overlay (music keeps playing) rather than navigating away.
+        // Intercept the menu's imprint link so it opens as an inline
+        // overlay (music keeps playing) instead of navigating away.
         const menuImprintLink = overlay.querySelector('a[href="imprint.html"]');
         if (menuImprintLink) {
           menuImprintLink.addEventListener("click", (e) => {
@@ -1042,19 +1054,38 @@
           });
         }
 
-        closeBtn.addEventListener("click", closeMenu);
-
-        overlay.addEventListener("click", (e) => {
-          // Click outside the panel closes the menu.
-          if (e.target === overlay) closeMenu();
+        cog.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleMenu();
+        });
+        topSoundBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleSound();
         });
 
-        // Intercept clicks on menu items so they don't also jump the raptor.
-        overlay.addEventListener("mousedown", (e) => e.stopPropagation());
-        cog.addEventListener("mousedown", (e) => e.stopPropagation());
+        // ───────── Debug: hitbox toggle (only visible in ?debug=true) ─────────
+        const hitboxesBtn = document.getElementById("menu-hitboxes-toggle");
+        const hitboxesLabel = document.getElementById("menu-hitboxes-label");
 
-        // ESC handling in a capture listener so it fires before p5's keyPressed.
-        // Priority: close imprint overlay first, then toggle menu.
+        function refreshHitboxesUI() {
+          if (!hitboxesLabel || !window.Game) return;
+          hitboxesLabel.textContent = window.Game.isShowingHitboxes()
+            ? "Hitboxes: on"
+            : "Hitboxes: off";
+        }
+
+        if (hitboxesBtn) {
+          hitboxesBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            window.Game.toggleShowHitboxes();
+            refreshHitboxesUI();
+          });
+        }
+
+        // ───────── Keyboard ─────────
+        // ESC toggles the menu (or closes imprint first if it's open).
+        // We use a capture-phase listener on document so this runs before
+        // game.js' window-level keydown handler.
         document.addEventListener(
           "keydown",
           (e) => {
@@ -1070,26 +1101,8 @@
           true
         );
 
-        topSoundBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          toggleSound();
-        });
-        topSoundBtn.addEventListener("mousedown", (e) => e.stopPropagation());
-
-        // Initial UI sync (in case mute starts in a specific state).
-        // Give p5's setup() a moment to initialise `mute` and `toggleMusic`.
-        setTimeout(refreshSoundUI, 100);
-
-        // Expose a global so p5 code can check "is the menu open?"
-        // before processing gameplay input. True if EITHER the menu OR
-        // the imprint overlay is open.
-        window.isMenuOpen = () =>
-          overlay.classList.contains("open") ||
-          imprintOverlay.classList.contains("open");
-
-        // True only after the user has clicked Start Game. Lets p5 block
-        // gameplay input before that point.
-        window.isGameStarted = () => gameStarted;
+        // Initial UI sync.
+        refreshSoundUI();
       })();
     </script>
   </body>

@@ -1,8 +1,0 @@
-const SPACE = 32;
-const initialVelocity = 7;
-let groundHeight = window.innerHeight / 10;
-let GROUND = window.innerHeight - groundHeight;
-let BACKGROUND_VELOCITY = initialVelocity;
-let score = 0;
-let gameOver = false;
-let gameOverSince = 0;
