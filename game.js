@@ -727,38 +727,70 @@
     return 70 * size * scale;
   }
 
-  function newCloud(xOverride) {
-    // Spread clouds across a wider vertical band than the original
-    // 100-to-200 range so they fill the visible sky more naturally.
-    const ySpan = Math.max(180, state.height * 0.35);
-    // Narrower size range so no single cloud dominates the sky.
-    const size = randRange(0.55, 1.25) * (state.width / 1000);
-    const scale = 2;
-    // Spawn each cloud entirely off-screen so it drifts into view
-    // smoothly (unless xOverride is given, used by seedClouds to
-    // pre-populate the sky at arbitrary positions).
-    const spawnX =
-      xOverride !== undefined
-        ? xOverride
-        : state.width + cloudVisualWidth(size, scale);
-    state.clouds.push({
-      x: spawnX,
-      y: 60 + Math.random() * ySpan,
-      size,
-      scale,
-    });
+  /** Target cloud count for the current viewport — tuned so a typical
+   *  desktop gets ~5-7 clouds and mobile gets ~3-4. The update loop
+   *  maintains this density by spawning a new cloud whenever one
+   *  drifts off-screen, so the sky never clusters or empties. */
+  function targetCloudCount() {
+    return Math.max(3, Math.round(state.width / 380));
   }
 
-  /** Pre-populate the sky with a handful of clouds so the game doesn't
-   *  start with an empty background. Positions are spread across the
-   *  full width so the player sees an active sky from frame one. */
+  /** Minimum horizontal distance between a newly-spawned cloud and the
+   *  previous rightmost cloud, to avoid visual stacking. */
+  function minCloudSpacing() {
+    return Math.max(220, state.width * 0.22);
+  }
+
+  function makeCloudObject(xAbsolute) {
+    // Y range spans from the top of the screen down to roughly half
+    // of the play area so some clouds hang low over the horizon.
+    const yMin = 40;
+    const yMax = Math.max(180, state.ground * 0.55);
+    const size = randRange(0.55, 1.2) * (state.width / 1000);
+    const scale = 2;
+    return {
+      x: xAbsolute,
+      y: yMin + Math.random() * (yMax - yMin),
+      size,
+      scale,
+    };
+  }
+
+  /** Spawn a single new cloud just past the right edge, but only if
+   *  it won't sit on top of the rightmost existing cloud. Returns
+   *  true if the cloud was added. */
+  function trySpawnCloud() {
+    const candidate = makeCloudObject(0);
+    const visualWidth = cloudVisualWidth(candidate.size, candidate.scale);
+    // Find the rightmost existing cloud.
+    let rightmost = -Infinity;
+    for (const c of state.clouds) {
+      if (c.x > rightmost) rightmost = c.x;
+    }
+    const spawnX = state.width + visualWidth * 0.5;
+    if (rightmost > -Infinity && spawnX - rightmost < minCloudSpacing()) {
+      return false;
+    }
+    candidate.x = spawnX;
+    state.clouds.push(candidate);
+    return true;
+  }
+
+  /** Pre-populate the sky with a balanced handful of clouds so the
+   *  game doesn't start with an empty background. Positions are
+   *  deterministically spaced across the full width so no two seed
+   *  clouds collide. */
   function seedClouds() {
     state.clouds = [];
-    const count = Math.max(3, Math.round(state.width / 450));
+    const count = targetCloudCount();
+    const gap = state.width / count;
     for (let i = 0; i < count; i++) {
-      // Use random x positions across the full width so the initial
-      // clouds don't all cluster in one spot.
-      newCloud(Math.random() * state.width);
+      // Base position evenly spaced, plus a small random jitter so
+      // it doesn't look mechanical.
+      const baseX = gap * (i + 0.5);
+      const jitter = (Math.random() - 0.5) * gap * 0.4;
+      const cloud = makeCloudObject(baseX + jitter);
+      state.clouds.push(cloud);
     }
   }
 
@@ -830,25 +862,27 @@
         }
       }
 
-      // Clouds drift — slower than the ground so the parallax reads
-      // as "distant sky". Drift scales with bg velocity but with a
-      // much smaller divisor than the old 900.
+      // Clouds drift — slower than the ground but a bit faster than
+      // the first-pass fix, so the parallax reads as "distant sky"
+      // without feeling sluggish.
       for (const cloud of state.clouds) {
-        cloud.x -= state.bgVelocity * (state.width / 3200);
-        cloud.y += randRange(-0.3, 0.3);
+        cloud.x -= state.bgVelocity * (state.width / 2000);
+        cloud.y += randRange(-0.2, 0.2);
       }
       // Keep clouds until they've fully drifted past the left edge.
       state.clouds = state.clouds.filter((c) => {
         const w = cloudVisualWidth(c.size, c.scale);
         return c.x > -w && c.x < state.width + w * 2;
       });
-      // Lower spawn rate (every 60 frames ≈ once per second) with a
-      // higher threshold so clouds arrive gently instead of stacking.
+      // Maintain a constant cloud density: if we're below the target
+      // count AND the rightmost cloud is far enough away to avoid
+      // visual stacking, add a new cloud just past the right edge.
+      // trySpawnCloud() enforces the min-spacing constraint itself.
       if (
-        state.frame % 60 === 0 &&
-        Math.random() * 100 > 65 - state.bgVelocity * 3
+        state.clouds.length < targetCloudCount() &&
+        state.frame % 8 === 0
       ) {
-        newCloud();
+        trySpawnCloud();
       }
     } else {
       state.gameOverFade = Math.min(state.gameOverFade + 0.01, 1);
