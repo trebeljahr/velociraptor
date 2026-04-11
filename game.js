@@ -605,6 +605,12 @@
   // light sources (stars, sun, moon) keep their full brightness
   // while the foreground gets a uniform sky-light wash.
   let fgCanvas, fgCtx;
+  // Offscreen canvas that captures the main game canvas at the
+  // exact moment of death (before the game-over overlay is drawn).
+  // Used as the background for the shareable score card so the
+  // card literally shows the scene the player just died in.
+  let deathCanvas, deathCtx;
+  let deathSnapshotReady = false;
   let raptor, cactuses, stars;
 
   // ══════════════════════════════════════════════════════════════════
@@ -1548,119 +1554,201 @@
   // download link (desktop). Returns a Promise<Blob>.
   // ══════════════════════════════════════════════════════════════════
 
-  function generateScoreCardBlob() {
+  // Persistent worker reused across calls so we don't pay startup
+  // cost every game-over.
+  let scoreCardWorker = null;
+  function getScoreCardWorker() {
+    if (scoreCardWorker) return scoreCardWorker;
+    try {
+      scoreCardWorker = new Worker("score-card-worker.js");
+    } catch (e) {
+      scoreCardWorker = null;
+    }
+    return scoreCardWorker;
+  }
+
+  async function generateScoreCardBlob() {
+    // Try the web-worker path first — keeps the main thread
+    // free so the raptor keeps animating smoothly under the
+    // game-over scrim.
+    try {
+      if (
+        deathSnapshotReady &&
+        typeof createImageBitmap === "function" &&
+        typeof OffscreenCanvas !== "undefined"
+      ) {
+        const worker = getScoreCardWorker();
+        if (worker) {
+          const bitmap = await createImageBitmap(deathCanvas);
+          const blob = await new Promise((resolve, reject) => {
+            const onMessage = (e) => {
+              worker.removeEventListener("message", onMessage);
+              worker.removeEventListener("error", onError);
+              if (e.data && e.data.blob) resolve(e.data.blob);
+              else reject(new Error(e.data && e.data.error || "worker failed"));
+            };
+            const onError = (ev) => {
+              worker.removeEventListener("message", onMessage);
+              worker.removeEventListener("error", onError);
+              reject(new Error("worker error: " + ev.message));
+            };
+            worker.addEventListener("message", onMessage);
+            worker.addEventListener("error", onError);
+            worker.postMessage(
+              {
+                bitmap,
+                score: state.score,
+                highScore: state.highScore,
+                newHighScore: state.newHighScore,
+              },
+              [bitmap]
+            );
+          });
+          return blob;
+        }
+      }
+    } catch (e) {
+      // Fall through to main-thread path.
+    }
+    return generateScoreCardBlobMainThread();
+  }
+
+  // Main-thread fallback for browsers without OffscreenCanvas /
+  // Web Worker support, or when the worker errors out.
+  function generateScoreCardBlobMainThread() {
     const W = 1200;
     const H = 630;
+    // Render at 2× logical resolution so text and sprites stay
+    // crisp on retina-class devices. All drawing below uses
+    // logical W/H coordinates.
+    const scale = 2;
     const card = document.createElement("canvas");
-    card.width = W;
-    card.height = H;
+    card.width = W * scale;
+    card.height = H * scale;
     const cctx = card.getContext("2d");
+    cctx.scale(scale, scale);
     cctx.imageSmoothingEnabled = true;
     cctx.imageSmoothingQuality = "high";
 
-    // ── Solid black backdrop ───────────────────────────────────
-    // Gradient from a slightly lifted near-black at the top to
-    // pure black at the bottom, so the card reads as "dark card"
-    // rather than "my LCD is off". No transparent pixels anywhere.
-    const bgGrad = cctx.createLinearGradient(0, 0, 0, H);
-    bgGrad.addColorStop(0, "#1a1c24");
-    bgGrad.addColorStop(1, "#07080c");
-    cctx.fillStyle = bgGrad;
-    cctx.fillRect(0, 0, W, H);
-
-    // ── Subtle star specks to give the background texture ─────
-    cctx.save();
-    for (let i = 0; i < 80; i++) {
-      const x = Math.random() * W;
-      const y = Math.random() * H * 0.7;
-      const s = Math.random() < 0.1 ? 2.2 : 1.2;
-      const a = 0.15 + Math.random() * 0.35;
-      cctx.fillStyle = `rgba(255, 255, 255, ${a})`;
-      cctx.fillRect(x, y, s, s);
-    }
-    cctx.restore();
-
-    // ── Decorative ground strip for the raptor to run on ──────
-    const groundY = Math.round(H * 0.78);
-    const groundGrad = cctx.createLinearGradient(0, groundY, 0, H);
-    groundGrad.addColorStop(0, "#23252e");
-    groundGrad.addColorStop(1, "#101118");
-    cctx.fillStyle = groundGrad;
-    cctx.fillRect(0, groundY, W, H - groundY);
-    // A thin accent line where the ground meets the sky.
-    cctx.fillStyle = "rgba(255, 210, 80, 0.6)";
-    cctx.fillRect(0, groundY, W, 2);
-
-    // ── Raptor (with whatever cosmetics the player earned) ────
-    // Temporarily rebind to card coords, call draw(), restore.
-    if (raptor && IMAGES.raptorSheet) {
-      const savedX = raptor.x;
-      const savedY = raptor.y;
-      const savedW = raptor.w;
-      const savedH = raptor.h;
-      const savedFrame = raptor.frame;
-      const savedGround = raptor.ground;
-      raptor.w = W * 0.33;
-      raptor.h = raptor.w * RAPTOR_ASPECT;
-      raptor.ground = groundY - raptor.h + 12;
-      raptor.x = W * 0.05;
-      raptor.y = raptor.ground;
-      raptor.frame = 0;
-      raptor.draw(cctx);
-      raptor.x = savedX;
-      raptor.y = savedY;
-      raptor.w = savedW;
-      raptor.h = savedH;
-      raptor.ground = savedGround;
-      raptor.frame = savedFrame;
-    }
-
-    // ── Score block (right side) ──────────────────────────────
-    cctx.save();
-    cctx.textAlign = "right";
-    cctx.textBaseline = "alphabetic";
-    // Tiny uppercase label above the number.
-    cctx.fillStyle = "rgba(255, 255, 255, 0.55)";
-    cctx.font =
-      '600 28px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    cctx.fillText("FINAL SCORE", W - 80, 220);
-    // Giant score — gradient-filled so it feels "trophy-like".
-    cctx.font =
-      'bold 180px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    const scoreGrad = cctx.createLinearGradient(
-      0, 230, 0, 380
-    );
-    scoreGrad.addColorStop(0, "#ffe99a");
-    scoreGrad.addColorStop(1, "#e89f3a");
-    cctx.fillStyle = scoreGrad;
-    cctx.fillText(`${state.score}`, W - 80, 380);
-    // Personal best / new record line.
-    cctx.font =
-      'italic 34px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    if (state.newHighScore) {
-      cctx.fillStyle = "#ffd84a";
-      cctx.fillText("★ New personal best!", W - 80, 440);
+    // ── Background: the actual game screenshot from death ─────
+    // If we have a death snapshot, draw it as "object-fit: cover"
+    // on the card. Otherwise fall back to a plain dark backdrop.
+    if (
+      deathSnapshotReady &&
+      deathCanvas &&
+      deathCanvas.width > 0 &&
+      deathCanvas.height > 0
+    ) {
+      const srcW = deathCanvas.width;
+      const srcH = deathCanvas.height;
+      const srcAspect = srcW / srcH;
+      const dstAspect = W / H;
+      let sx;
+      let sy;
+      let sw;
+      let sh;
+      if (srcAspect > dstAspect) {
+        // Source is wider than card — crop left/right.
+        sh = srcH;
+        sw = sh * dstAspect;
+        sy = 0;
+        sx = (srcW - sw) / 2;
+      } else {
+        // Source is taller than card — crop top/bottom, biased
+        // toward the upper portion so the raptor + ground stay
+        // in frame.
+        sw = srcW;
+        sh = sw / dstAspect;
+        sx = 0;
+        sy = Math.max(0, (srcH - sh) * 0.75);
+      }
+      cctx.drawImage(deathCanvas, sx, sy, sw, sh, 0, 0, W, H);
     } else {
-      cctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-      cctx.fillText(
-        `Personal best: ${state.highScore}`,
-        W - 80,
-        440
-      );
+      cctx.fillStyle = "#0c0e15";
+      cctx.fillRect(0, 0, W, H);
     }
-    cctx.restore();
+
+    // ── Dark gradient strip at the top for title legibility ──
+    const topShadeH = 220;
+    const topShade = cctx.createLinearGradient(0, 0, 0, topShadeH);
+    topShade.addColorStop(0, "rgba(0, 0, 0, 0.7)");
+    topShade.addColorStop(1, "rgba(0, 0, 0, 0)");
+    cctx.fillStyle = topShade;
+    cctx.fillRect(0, 0, W, topShadeH);
+
+    // Dark gradient strip at the bottom for the score block.
+    const botShadeH = 260;
+    const botShade = cctx.createLinearGradient(
+      0,
+      H - botShadeH,
+      0,
+      H
+    );
+    botShade.addColorStop(0, "rgba(0, 0, 0, 0)");
+    botShade.addColorStop(1, "rgba(0, 0, 0, 0.75)");
+    cctx.fillStyle = botShade;
+    cctx.fillRect(0, H - botShadeH, W, botShadeH);
 
     // ── Title + URL (top left) ────────────────────────────────
     cctx.save();
     cctx.textAlign = "left";
     cctx.textBaseline = "alphabetic";
     cctx.fillStyle = "#ffffff";
+    cctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+    cctx.shadowBlur = 14;
     cctx.font =
       'bold 72px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    cctx.fillText("Raptor Runner", 80, 140);
-    cctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+    cctx.fillText("Raptor Runner", 60, 100);
+    cctx.fillStyle = "rgba(255, 255, 255, 0.8)";
     cctx.font = '26px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    cctx.fillText("raptor.trebeljahr.com", 82, 180);
+    cctx.fillText("raptor.trebeljahr.com", 62, 142);
+    cctx.restore();
+
+    // ── Score block (bottom right) ────────────────────────────
+    cctx.save();
+    cctx.textAlign = "right";
+    cctx.textBaseline = "alphabetic";
+    cctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+    cctx.shadowBlur = 16;
+    // Uppercase label.
+    cctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+    cctx.font =
+      '600 30px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    cctx.fillText("FINAL SCORE", W - 60, H - 180);
+    // Big gradient score.
+    cctx.font =
+      'bold 180px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    const scoreGrad = cctx.createLinearGradient(
+      0,
+      H - 170,
+      0,
+      H - 40
+    );
+    scoreGrad.addColorStop(0, "#ffee9a");
+    scoreGrad.addColorStop(1, "#e89d33");
+    cctx.fillStyle = scoreGrad;
+    cctx.fillText(`${state.score}`, W - 60, H - 50);
+    cctx.restore();
+
+    // Personal best / new record line (left side, bottom).
+    cctx.save();
+    cctx.textAlign = "left";
+    cctx.textBaseline = "alphabetic";
+    cctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+    cctx.shadowBlur = 14;
+    cctx.font =
+      'italic 36px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    if (state.newHighScore) {
+      cctx.fillStyle = "#ffd84a";
+      cctx.fillText("★ New personal best!", 60, H - 60);
+    } else {
+      cctx.fillStyle = "rgba(255, 255, 255, 0.82)";
+      cctx.fillText(
+        `Personal best: ${state.highScore}`,
+        60,
+        H - 60
+      );
+    }
     cctx.restore();
 
     return new Promise((resolve) => {
@@ -1876,14 +1964,10 @@
     );
 
 
-    // Score text — tinted so it stays readable against the current sky.
-    const textBase = state.isNight ? [255, 255, 255] : [0, 0, 0];
-    const textColor = lerpColor(state.currentSky, textBase, 0.6);
-    ctx.fillStyle = rgb(textColor);
-    ctx.font = '32px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    ctx.fillText(`Score: ${state.score}`, 20, 30);
+    // Score text lives in the DOM now (see #score-display in
+    // index.html), not on the canvas. That means it doesn't appear
+    // in the death-snapshot that feeds the share card, and it can
+    // pick up the same pill styling as the top-right icon cluster.
 
     // Debug: draw the raptor and cactus collision polygons on top of
     // everything so the player can see what the collision tests are
@@ -1901,56 +1985,27 @@
       }
     }
 
-    // Game over overlay.
+    // Capture a pristine snapshot of the canvas the first frame
+    // after the player dies — before the Game Over overlay is
+    // drawn on top of it. Used by the share card as its
+    // background, so the card literally shows the scene the
+    // player just died in.
+    if (state.gameOver && !deathSnapshotReady && canvas && deathCanvas) {
+      deathCanvas.width = canvas.width;
+      deathCanvas.height = canvas.height;
+      deathCtx.setTransform(1, 0, 0, 1, 0, 0);
+      deathCtx.drawImage(canvas, 0, 0);
+      deathSnapshotReady = true;
+    }
+
+    // Game-over overlay: just a dim scrim. The DOM score-card
+    // panel (shown by the shell on Game.onGameOver) handles the
+    // "Game Over" / score / personal best / restart hint text
+    // now, so the canvas only needs to provide the dark fade
+    // underneath it for contrast.
     if (state.gameOver) {
-      ctx.fillStyle = `rgba(0, 0, 0, ${state.gameOverFade})`;
+      ctx.fillStyle = `rgba(0, 0, 0, ${state.gameOverFade * 0.6})`;
       ctx.fillRect(0, 0, state.width, state.height);
-      ctx.fillStyle = "#ffffff";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      const titleSize = Math.round(state.width / 15);
-      const smallSize = Math.round(state.width / 40);
-      const tinySize = Math.round(state.width / 60);
-      ctx.font = `bold ${titleSize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
-      ctx.fillText("Game Over", state.width / 2, state.height / 2.6);
-
-      // Score line — current run, and personal best below.
-      ctx.font = `${smallSize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
-      ctx.fillText(
-        `Score: ${state.score}`,
-        state.width / 2,
-        state.height / 2.6 + titleSize * 0.95
-      );
-
-      if (state.newHighScore) {
-        // Celebrate a new personal best with a pulsing warm tint.
-        const pulse =
-          0.7 + 0.3 * Math.sin(state.frame * 0.1);
-        ctx.fillStyle = `rgba(255, 210, 80, ${pulse})`;
-        ctx.font = `bold ${smallSize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
-        ctx.fillText(
-          `★ NEW PERSONAL BEST! ★`,
-          state.width / 2,
-          state.height / 2.6 + titleSize * 0.95 + smallSize * 1.4
-        );
-        ctx.fillStyle = "#ffffff";
-      } else if (state.highScore > 0) {
-        ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
-        ctx.font = `${smallSize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
-        ctx.fillText(
-          `Personal best: ${state.highScore}`,
-          state.width / 2,
-          state.height / 2.6 + titleSize * 0.95 + smallSize * 1.4
-        );
-        ctx.fillStyle = "#ffffff";
-      }
-
-      ctx.font = `italic ${tinySize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
-      ctx.fillText(
-        "Press ENTER or tap to restart!",
-        state.width / 2,
-        state.height / 2.6 + titleSize * 0.95 + smallSize * 3.0
-      );
     }
   }
 
@@ -2051,6 +2106,8 @@
     state.bgVelocity = INITIAL_BG_VELOCITY;
     state.lastNow = null;
     state.shootingStars = [];
+    // Next game-over will capture a fresh snapshot.
+    deathSnapshotReady = false;
     seedClouds();
     if (raptor) {
       raptor.velocity = 0;
@@ -2275,6 +2332,19 @@
       return state.gameOver;
     },
 
+    /** Debug helper: force a game-over immediately without needing
+     *  an actual collision. Lets the shell test the share card
+     *  flow end to end. */
+    _forceGameOver() {
+      if (state.gameOver) return;
+      state.gameOver = true;
+      state.gameOverFrame = state.frame;
+      commitRunScore();
+      for (const cb of GameAPI._gameOverCbs) {
+        try { cb(); } catch (e) { /* ignore */ }
+      }
+    },
+
     /** Reset the game back to its idle pre-start state: paused,
      *  not-started, fresh score and entities. The shell pairs this
      *  with re-showing the start screen when the player picks
@@ -2425,6 +2495,8 @@
     skyCtx = skyCanvas.getContext("2d");
     fgCanvas = document.createElement("canvas");
     fgCtx = fgCanvas.getContext("2d");
+    deathCanvas = document.createElement("canvas");
+    deathCtx = deathCanvas.getContext("2d");
 
     audio.init();
 

@@ -389,32 +389,185 @@
         gap: 8px;
       }
 
-      /* Share-your-score button — shown only during the game-over
-         overlay, centered near the bottom. Shiny: animated
-         blue/green gradient fill, subtle glow halo, gentle hover
-         lift. The keyframe animation shifts a wide gradient across
-         the button so it reads as alive without being distracting. */
-      .share-score-btn {
+      /* Top-left score pill. Same visual language as the top-right
+         icon cluster: frosted white capsule, subtle shadow. */
+      .score-display {
+        position: fixed;
+        top: calc(14px + env(safe-area-inset-top, 0px));
+        left: calc(14px + env(safe-area-inset-left, 0px));
+        z-index: 2500;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.55rem 1.1rem;
+        background: rgba(255, 255, 255, 0.72);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-radius: 999px;
+        color: #222;
+        font: inherit;
+        font-weight: 700;
+        font-size: 1.05rem;
+        letter-spacing: 0.01em;
+        box-shadow:
+          0 2px 6px rgba(0, 0, 0, 0.12),
+          inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        user-select: none;
+        cursor: default;
+      }
+      .score-display[hidden] {
+        display: none;
+      }
+      .score-display .trophy-icon {
+        width: 20px;
+        height: 20px;
+        color: #d4a017;
+        transform-origin: 50% 80%;
+        transition: transform 0.2s ease;
+      }
+      .score-display:hover .trophy-icon {
+        animation: trophy-wiggle 0.6s ease-in-out;
+      }
+      .score-display .score-label {
+        color: #555;
+        font-weight: 600;
+      }
+      .score-display .score-value {
+        color: #222;
+        font-variant-numeric: tabular-nums;
+        min-width: 1.5ch;
+        text-align: right;
+      }
+      @keyframes trophy-wiggle {
+        0%, 100% { transform: rotate(0deg); }
+        15% { transform: rotate(-14deg); }
+        30% { transform: rotate(12deg); }
+        45% { transform: rotate(-10deg); }
+        60% { transform: rotate(8deg); }
+        75% { transform: rotate(-4deg); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .score-display:hover .trophy-icon {
+          animation: none;
+        }
+      }
+
+      /* Score-card panel: appears on game-over, holds the card
+         preview image plus the share button. Positioned at the
+         bottom half of the viewport so it doesn't collide with the
+         "Game Over" text the canvas draws near the top.          */
+      .score-card-panel {
         position: fixed;
         left: 50%;
-        bottom: calc(10vh + env(safe-area-inset-bottom, 0px));
-        transform: translateX(-50%);
+        top: 50%;
+        transform: translate(-50%, -50%);
         z-index: 2400;
         display: none;
+        flex-direction: column;
         align-items: center;
-        gap: 0.65rem;
-        padding: 0.95rem 1.9rem;
+        gap: 1.1rem;
+        pointer-events: none;
+      }
+      .score-card-panel.visible {
+        display: flex;
+        animation: score-card-pop 0.25s ease-out;
+      }
+      .score-card-panel > * {
+        pointer-events: auto;
+      }
+      @keyframes score-card-pop {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -48%) scale(0.96);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
+      /* Card slot: a fixed-aspect box that either shows the
+         rendered image once it's ready, or a loading spinner
+         while the web worker is composing it. */
+      .score-card-slot {
+        position: relative;
+        width: min(560px, 84vw);
+        aspect-ratio: 1200 / 630;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #0c0e15;
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.08),
+          0 24px 72px rgba(0, 0, 0, 0.6);
+      }
+      .score-card-preview {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+      .score-card-slot.loaded .score-card-preview {
+        opacity: 1;
+      }
+      .score-card-spinner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+      .score-card-slot.loaded .score-card-spinner {
+        display: none;
+      }
+      .score-card-spinner::before {
+        content: "";
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.15);
+        border-top-color: rgba(255, 255, 255, 0.75);
+        animation: score-card-spin 0.9s linear infinite;
+      }
+      @keyframes score-card-spin {
+        to { transform: rotate(360deg); }
+      }
+      .score-card-heading {
+        margin: 0;
+        font-size: clamp(2rem, 5vw, 3.2rem);
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: -0.02em;
+        text-shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
+      }
+      .score-card-hint {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.9rem;
+        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+      }
+      .score-card-hint kbd {
+        display: inline-block;
+        padding: 1px 6px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.12);
+        font: inherit;
+        font-size: 0.8rem;
+      }
+
+      /* Shiny share-your-score button: a thin animated blue→green
+         gradient RING wrapping a solid black interior. The outer
+         element has padding that lets the gradient show through
+         around the inner pill. */
+      .share-score-btn {
+        position: relative;
+        display: none;
+        padding: 3px;
         border: none;
         border-radius: 999px;
-        color: #ffffff;
-        font: inherit;
-        font-size: 1.05rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        cursor: pointer;
-        /* Multi-stop gradient so the shimmer has somewhere to
-           travel to. background-size: 300% lets us slide it with
-           background-position. */
         background: linear-gradient(
           120deg,
           #1aa3ff 0%,
@@ -425,61 +578,56 @@
         );
         background-size: 300% 100%;
         animation: share-btn-shimmer 4.5s linear infinite;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+        cursor: pointer;
         box-shadow:
-          0 0 0 0 rgba(26, 163, 255, 0),
-          0 0 32px rgba(21, 216, 161, 0.4),
-          0 10px 28px rgba(0, 0, 0, 0.45),
-          inset 0 1px 0 rgba(255, 255, 255, 0.5),
-          inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-        transition:
-          transform 0.15s ease,
-          box-shadow 0.2s ease,
-          opacity 0.2s ease;
+          0 0 32px rgba(21, 216, 161, 0.35),
+          0 12px 32px rgba(0, 0, 0, 0.55);
+        transition: transform 0.15s ease, box-shadow 0.2s ease;
       }
-      .share-score-btn.visible {
-        display: inline-flex;
-        animation:
-          share-btn-shimmer 4.5s linear infinite,
-          share-btn-pulse 2.4s ease-in-out infinite;
+      .score-card-panel.visible .share-score-btn {
+        display: inline-block;
+      }
+      .share-score-btn .inner {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.8rem 1.7rem;
+        background: #0a0b12;
+        color: #ffffff;
+        border-radius: 999px;
+        font: inherit;
+        font-size: 1.02rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
       }
       .share-score-btn:hover {
-        transform: translateX(-50%) translateY(-2px) scale(1.03);
+        transform: translateY(-2px) scale(1.02);
         box-shadow:
-          0 0 0 4px rgba(26, 163, 255, 0.15),
-          0 0 48px rgba(21, 216, 161, 0.55),
-          0 14px 36px rgba(0, 0, 0, 0.5),
-          inset 0 1px 0 rgba(255, 255, 255, 0.6),
-          inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+          0 0 44px rgba(21, 216, 161, 0.55),
+          0 16px 40px rgba(0, 0, 0, 0.6);
       }
       .share-score-btn:active {
-        transform: translateX(-50%) translateY(0) scale(0.98);
+        transform: translateY(0) scale(0.98);
       }
       .share-score-btn svg {
-        width: 20px;
-        height: 20px;
+        width: 18px;
+        height: 18px;
         stroke: currentColor;
         fill: none;
         stroke-width: 2;
         stroke-linecap: round;
         stroke-linejoin: round;
-        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
       }
       @keyframes share-btn-shimmer {
         from { background-position: 0% 50%; }
         to { background-position: 300% 50%; }
       }
-      @keyframes share-btn-pulse {
-        0%, 100% {
-          filter: brightness(1);
-        }
-        50% {
-          filter: brightness(1.1);
-        }
-      }
       @media (prefers-reduced-motion: reduce) {
-        .share-score-btn,
-        .share-score-btn.visible {
+        .share-score-btn {
+          animation: none;
+        }
+        .score-card-panel.visible {
           animation: none;
         }
       }
@@ -1003,18 +1151,63 @@
       </p>
     </div>
 
-    <!-- Share-your-score button. Fixed-position over the canvas,
-         shown only while the game-over overlay is up. -->
-    <button id="share-score-btn" class="share-score-btn" type="button">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="18" cy="5" r="3"></circle>
-        <circle cx="6" cy="12" r="3"></circle>
-        <circle cx="18" cy="19" r="3"></circle>
-        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+    <!-- Score-card panel: appears on game-over, shows the
+         "Game Over" heading, a preview of the shareable card
+         (with a loading spinner until the worker finishes
+         rendering it), a button to copy/share it, and a
+         restart hint. -->
+    <div id="score-card-panel" class="score-card-panel">
+      <h2 class="score-card-heading">Game Over</h2>
+      <div id="score-card-slot" class="score-card-slot">
+        <div class="score-card-spinner" aria-hidden="true"></div>
+        <img
+          id="score-card-preview"
+          class="score-card-preview"
+          alt="Raptor Runner score card preview"
+        />
+      </div>
+      <button id="share-score-btn" class="share-score-btn" type="button">
+        <span class="inner">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="18" cy="5" r="3"></circle>
+            <circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+          </svg>
+          <span class="label">Share your score</span>
+        </span>
+      </button>
+      <p class="score-card-hint">
+        Press <kbd>Enter</kbd> or tap anywhere to restart
+      </p>
+    </div>
+
+    <!-- Top-left score readout. Mirrors the pill-button look of
+         the top-right icon cluster so both corners feel like one
+         UI layer, and lives in the DOM (not the canvas) so it
+         doesn't end up inside the death-snapshot share card. -->
+    <div id="score-display" class="score-display" hidden>
+      <svg
+        class="trophy-icon"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M8 21h8" />
+        <path d="M12 17v4" />
+        <path d="M7 4h10v5a5 5 0 0 1-10 0V4z" />
+        <path d="M7 6H4a2 2 0 0 0-2 2v1a3 3 0 0 0 3 3h2" />
+        <path d="M17 6h3a2 2 0 0 1 2 2v1a3 3 0 0 1-3 3h-2" />
       </svg>
-      <span>Share your score</span>
-    </button>
+      <span class="score-label">Score</span>
+      <span id="score-value" class="score-value">0</span>
+    </div>
 
     <!-- Top-right icon cluster: sound toggle + settings cog -->
     <div class="top-right-buttons">
@@ -1242,11 +1435,11 @@
             hsEl.hidden = false;
           }
 
-          // Wire the share button to the game's onGameOver /
+          // Wire the share panel to the game's onGameOver /
           // onGameReset events now that the API is ready.
           if (window.Game.onGameOver) {
-            window.Game.onGameOver(showShareBtn);
-            window.Game.onGameReset(hideShareBtn);
+            window.Game.onGameOver(showScoreCard);
+            window.Game.onGameReset(hideScoreCard);
           }
         }
         // The game.js module calls Game.onReady(cb) when assets are loaded.
@@ -1260,6 +1453,45 @@
           }
         }
         registerReady();
+
+        // ───────── Live score readout (DOM) ─────────
+        const scoreDisplay = document.getElementById("score-display");
+        const scoreValueEl = document.getElementById("score-value");
+        let displayedScore = 0;
+        let scoreLoopRunning = false;
+
+        function scoreLoop() {
+          if (!scoreLoopRunning) return;
+          if (window.Game && window.Game.getScore) {
+            const target = window.Game.getScore();
+            const diff = target - displayedScore;
+            if (Math.abs(diff) > 0.01) {
+              // Ease toward target at ~18% per 60fps frame. Under
+              // 0.5 away, snap so the final value is exact.
+              displayedScore += diff * 0.18;
+              if (Math.abs(target - displayedScore) < 0.5) {
+                displayedScore = target;
+              }
+              scoreValueEl.textContent = String(Math.floor(displayedScore));
+            }
+          }
+          requestAnimationFrame(scoreLoop);
+        }
+        function showScoreDisplay() {
+          displayedScore = 0;
+          if (scoreValueEl) scoreValueEl.textContent = "0";
+          if (scoreDisplay) scoreDisplay.hidden = false;
+          if (!scoreLoopRunning) {
+            scoreLoopRunning = true;
+            requestAnimationFrame(scoreLoop);
+          }
+        }
+        function hideScoreDisplay() {
+          if (scoreDisplay) scoreDisplay.hidden = true;
+          displayedScore = 0;
+          if (scoreValueEl) scoreValueEl.textContent = "0";
+          scoreLoopRunning = false;
+        }
 
         function startGame() {
           if (!assetsReady || window.Game.isStarted()) return;
@@ -1276,6 +1508,7 @@
           // Hide the start screen first, then tell the game to run.
           startScreen.classList.add("hidden");
           window.Game.start();
+          showScoreDisplay();
         }
 
         startBtn.addEventListener("click", startGame);
@@ -1423,6 +1656,7 @@
             // case the player just set a new personal best this run.
             startScreen.classList.remove("hidden");
             onGameReady();
+            hideScoreDisplay();
           });
         }
 
@@ -1544,48 +1778,112 @@
         refreshSoundUI();
 
         // ───────── Share your score ─────────
+        const sharePanel = document.getElementById("score-card-panel");
+        const scoreCardImg = document.getElementById("score-card-preview");
         const shareBtn = document.getElementById("share-score-btn");
+        const shareBtnLabel = shareBtn
+          ? shareBtn.querySelector(".label")
+          : null;
+        const originalShareLabel = shareBtnLabel
+          ? shareBtnLabel.textContent
+          : "Share your score";
+        let currentCardBlob = null;
+        let currentCardUrl = null;
         let shareInFlight = false;
 
-        function showShareBtn() {
-          if (shareBtn) shareBtn.classList.add("visible");
-        }
-        function hideShareBtn() {
-          if (shareBtn) shareBtn.classList.remove("visible");
-          shareInFlight = false;
+        function clearCard() {
+          if (currentCardUrl) {
+            URL.revokeObjectURL(currentCardUrl);
+            currentCardUrl = null;
+          }
+          currentCardBlob = null;
+          if (scoreCardImg) scoreCardImg.removeAttribute("src");
         }
 
-        // Touch/mobile detection. Desktop browsers (macOS Safari
-        // in particular) expose navigator.share but their "share
-        // sheet" is a clunky system dialog that doesn't play well
-        // with file payloads — on mobile it drops the image into
-        // WhatsApp / Messages / Twitter cleanly, which is where
-        // we actually want it.
+        const scoreCardSlot = document.getElementById("score-card-slot");
+
+        function showScoreCard() {
+          if (!sharePanel || !scoreCardImg || !window.Game) return;
+          // Open the panel with the spinner visible immediately —
+          // no waiting for the worker to finish composing the
+          // image. The spinner is swapped for the real image once
+          // the worker returns.
+          clearCard();
+          if (scoreCardSlot) scoreCardSlot.classList.remove("loaded");
+          sharePanel.classList.add("visible");
+          if (shareBtnLabel) shareBtnLabel.textContent = originalShareLabel;
+          // Defer card generation by two animation frames so the
+          // death snapshot is captured in render() before the
+          // worker asks for it.
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              window.Game
+                .generateScoreCard()
+                .then((blob) => {
+                  if (
+                    !blob ||
+                    !sharePanel.classList.contains("visible")
+                  ) {
+                    return;
+                  }
+                  currentCardBlob = blob;
+                  currentCardUrl = URL.createObjectURL(blob);
+                  scoreCardImg.onload = () => {
+                    if (scoreCardSlot) scoreCardSlot.classList.add("loaded");
+                  };
+                  scoreCardImg.src = currentCardUrl;
+                })
+                .catch((e) => {
+                  console.warn("score card failed", e);
+                });
+            });
+          });
+        }
+
+        function hideScoreCard() {
+          if (sharePanel) sharePanel.classList.remove("visible");
+          if (scoreCardSlot) scoreCardSlot.classList.remove("loaded");
+          clearCard();
+          shareInFlight = false;
+          if (shareBtnLabel) shareBtnLabel.textContent = originalShareLabel;
+        }
+
+        // Touch/mobile heuristic — on desktop we prefer clipboard
+        // copy, on touch we prefer the OS share sheet.
         const isTouchDevice =
           window.matchMedia("(pointer: coarse)").matches ||
           (navigator.maxTouchPoints || 0) > 1;
 
+        function setShareLabel(text) {
+          if (shareBtnLabel) shareBtnLabel.textContent = text;
+        }
+        function flashShareLabel(text, duration = 1800) {
+          setShareLabel(text);
+          setTimeout(() => {
+            if (!shareInFlight) setShareLabel(originalShareLabel);
+          }, duration);
+        }
+
+        function buildShareText(score) {
+          return `Can you beat my highscore of ${score} at https://raptor.trebeljahr.com?`;
+        }
+
         async function handleShareClick() {
-          if (shareInFlight || !window.Game || !window.Game.generateScoreCard) return;
+          if (shareInFlight || !currentCardBlob) return;
           shareInFlight = true;
-          const originalLabel = shareBtn.querySelector("span").textContent;
-          shareBtn.querySelector("span").textContent = "Generating…";
           try {
-            const blob = await window.Game.generateScoreCard();
-            if (!blob) throw new Error("no blob");
             const score = window.Game.getScore ? window.Game.getScore() : 0;
-            const file = new File([blob], `raptor-runner-${score}.png`, {
-              type: "image/png",
-            });
-            // On touch devices, try the Web Share API so the
-            // player can drop the card straight into their usual
-            // app. On desktop, always download — the native
-            // Share... dialog on macOS is slow and doesn't
-            // meaningfully help.
-            let shared = false;
+            const shareText = buildShareText(score);
+            const file = new File(
+              [currentCardBlob],
+              `raptor-runner-${score}.png`,
+              { type: "image/png" }
+            );
+            // Mobile: native share sheet with the file — the OS
+            // decides whether the image, the text, or both end up
+            // in the target app.
             if (
               isTouchDevice &&
-              typeof navigator !== "undefined" &&
               navigator.canShare &&
               navigator.canShare({ files: [file] }) &&
               navigator.share
@@ -1593,37 +1891,64 @@
               try {
                 await navigator.share({
                   title: "Raptor Runner",
-                  text: `I scored ${score} in Raptor Runner! https://raptor.trebeljahr.com`,
+                  text: shareText,
                   files: [file],
                 });
-                shared = true;
+                flashShareLabel("Shared!");
+                return;
               } catch (e) {
-                // User cancelled or share rejected — silently
-                // fall through to download.
-                if (e && e.name === "AbortError") {
-                  shared = true; // treat cancel as "handled"
+                if (e && e.name === "AbortError") return; // cancelled
+                // fall through to clipboard
+              }
+            }
+            // Desktop / fallback: write BOTH the PNG and the share
+            // text as a single ClipboardItem. Apps that only know
+            // how to paste images (WhatsApp desktop) get the
+            // picture; apps that paste rich content (Gmail, Slack)
+            // get both. A single ClipboardItem is atomic — one
+            // paste delivers both types.
+            const textBlob = new Blob([shareText], {
+              type: "text/plain",
+            });
+            if (
+              navigator.clipboard &&
+              window.ClipboardItem &&
+              navigator.clipboard.write
+            ) {
+              try {
+                await navigator.clipboard.write([
+                  new ClipboardItem({
+                    "image/png": currentCardBlob,
+                    "text/plain": textBlob,
+                  }),
+                ]);
+                flashShareLabel("Copied!");
+                return;
+              } catch (e) {
+                // Some browsers reject multi-type ClipboardItems;
+                // fall back to image-only.
+                try {
+                  await navigator.clipboard.write([
+                    new ClipboardItem({ "image/png": currentCardBlob }),
+                  ]);
+                  flashShareLabel("Copied!");
+                  return;
+                } catch (e2) {
+                  // fall through to text-only copy
                 }
               }
             }
-            if (!shared) triggerDownload(blob, file.name);
-          } catch (e) {
-            console.warn("share failed", e);
+            // Last-resort text fallback: at least copy the share
+            // sentence so the player has something to paste.
+            try {
+              await navigator.clipboard.writeText(shareText);
+              flashShareLabel("Link copied!");
+            } catch (e) {
+              flashShareLabel("Copy failed");
+            }
           } finally {
-            shareBtn.querySelector("span").textContent = originalLabel;
             shareInFlight = false;
           }
-        }
-
-        function triggerDownload(blob, filename) {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          // Revoke after the click is queued so the download starts.
-          setTimeout(() => URL.revokeObjectURL(url), 2000);
         }
 
         if (shareBtn) {
