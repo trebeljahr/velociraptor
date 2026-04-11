@@ -782,9 +782,12 @@
       // 0.5 along from crown toward snout = back a bit from the
       // snout tip, on the upper half of the nose ridge. Far enough
       // from the tip to look like glasses, not a muzzle.
+      // Additional tiny offset — back by 5px-ish (scaled to raptor
+      // width) and down by 2px — so the lenses settle onto the
+      // ridge at the native viewport.
       const t = 0.5;
-      const cx = crown.x + (snout.x - crown.x) * t;
-      const cy = crown.y + (snout.y - crown.y) * t;
+      const cx = crown.x + (snout.x - crown.x) * t - this.w * 0.012;
+      const cy = crown.y + (snout.y - crown.y) * t + this.h * 0.013;
       // Small: 7% of raptor width.
       const gW = this.w * 0.07;
       const gH = gW * (sprite.height / sprite.width);
@@ -1555,32 +1558,41 @@
     cctx.imageSmoothingEnabled = true;
     cctx.imageSmoothingQuality = "high";
 
-    // ── Sky gradient (current sky color) ────────────────────────
-    const sky = state.currentSky;
-    const horizonR = Math.round(sky[0] + (255 - sky[0]) * 0.45);
-    const horizonG = Math.round(sky[1] + (255 - sky[1]) * 0.45);
-    const horizonB = Math.round(sky[2] + (255 - sky[2]) * 0.45);
-    const groundY = Math.round(H * 0.84);
-    const skyGrad = cctx.createLinearGradient(0, 0, 0, groundY);
-    skyGrad.addColorStop(0, rgb(sky));
-    skyGrad.addColorStop(1, `rgb(${horizonR}, ${horizonG}, ${horizonB})`);
-    cctx.fillStyle = skyGrad;
-    cctx.fillRect(0, 0, W, groundY);
+    // ── Solid black backdrop ───────────────────────────────────
+    // Gradient from a slightly lifted near-black at the top to
+    // pure black at the bottom, so the card reads as "dark card"
+    // rather than "my LCD is off". No transparent pixels anywhere.
+    const bgGrad = cctx.createLinearGradient(0, 0, 0, H);
+    bgGrad.addColorStop(0, "#1a1c24");
+    bgGrad.addColorStop(1, "#07080c");
+    cctx.fillStyle = bgGrad;
+    cctx.fillRect(0, 0, W, H);
 
-    // ── Ground bands (same palette as the in-game foreground) ──
-    cctx.fillStyle = "#ebc334";
-    cctx.fillRect(0, groundY, W, 5);
-    cctx.fillStyle = "#ebab21";
-    cctx.fillRect(0, groundY + 5, W, 10);
-    cctx.fillStyle = "#ba8c27";
-    cctx.fillRect(0, groundY + 15, W, 20);
-    cctx.fillStyle = "#EDC9AF";
-    cctx.fillRect(0, groundY + 35, W, H - groundY - 35);
+    // ── Subtle star specks to give the background texture ─────
+    cctx.save();
+    for (let i = 0; i < 80; i++) {
+      const x = Math.random() * W;
+      const y = Math.random() * H * 0.7;
+      const s = Math.random() < 0.1 ? 2.2 : 1.2;
+      const a = 0.15 + Math.random() * 0.35;
+      cctx.fillStyle = `rgba(255, 255, 255, ${a})`;
+      cctx.fillRect(x, y, s, s);
+    }
+    cctx.restore();
 
-    // ── Raptor (with whatever cosmetics the player earned) ─────
-    // Temporarily rebind the raptor to card coords, call draw()
-    // straight from its class (which already handles the hat +
-    // glasses correctly), then restore.
+    // ── Decorative ground strip for the raptor to run on ──────
+    const groundY = Math.round(H * 0.78);
+    const groundGrad = cctx.createLinearGradient(0, groundY, 0, H);
+    groundGrad.addColorStop(0, "#23252e");
+    groundGrad.addColorStop(1, "#101118");
+    cctx.fillStyle = groundGrad;
+    cctx.fillRect(0, groundY, W, H - groundY);
+    // A thin accent line where the ground meets the sky.
+    cctx.fillStyle = "rgba(255, 210, 80, 0.6)";
+    cctx.fillRect(0, groundY, W, 2);
+
+    // ── Raptor (with whatever cosmetics the player earned) ────
+    // Temporarily rebind to card coords, call draw(), restore.
     if (raptor && IMAGES.raptorSheet) {
       const savedX = raptor.x;
       const savedY = raptor.y;
@@ -1588,12 +1600,11 @@
       const savedH = raptor.h;
       const savedFrame = raptor.frame;
       const savedGround = raptor.ground;
-      raptor.w = W / 3;
+      raptor.w = W * 0.33;
       raptor.h = raptor.w * RAPTOR_ASPECT;
-      raptor.ground = groundY - raptor.h + 10;
-      raptor.x = W * 0.08;
+      raptor.ground = groundY - raptor.h + 12;
+      raptor.x = W * 0.05;
       raptor.y = raptor.ground;
-      // Frame 0 is a neutral running pose with the body level.
       raptor.frame = 0;
       raptor.draw(cctx);
       raptor.x = savedX;
@@ -1604,57 +1615,52 @@
       raptor.frame = savedFrame;
     }
 
-    // ── Foreground sky-light tint over the whole lower half ────
-    // Mirrors the in-game compositing so the card doesn't look
-    // uncannily bright compared to the scene the player just died
-    // in. Source-atop over the raptor+ground region only, so it
-    // doesn't darken the sky behind.
-    {
-      const tint = sky;
-      const strength = tintStrength();
-      cctx.save();
-      cctx.globalCompositeOperation = "source-atop";
-      cctx.fillStyle = `rgba(${tint[0]}, ${tint[1]}, ${tint[2]}, ${strength})`;
-      // Only cover the ground/raptor region, not the whole card
-      // — the sky gradient above already represents the sky and
-      // doesn't need extra tinting.
-      cctx.fillRect(0, Math.round(H * 0.55), W, H);
-      cctx.restore();
-    }
-
-    // ── Title + score text ────────────────────────────────────
-    // Drop shadow keeps the text readable at twilight / night.
+    // ── Score block (right side) ──────────────────────────────
     cctx.save();
-    cctx.shadowColor = "rgba(0, 0, 0, 0.35)";
-    cctx.shadowBlur = 18;
-    cctx.shadowOffsetY = 2;
-    cctx.fillStyle = "#ffffff";
     cctx.textAlign = "right";
     cctx.textBaseline = "alphabetic";
+    // Tiny uppercase label above the number.
+    cctx.fillStyle = "rgba(255, 255, 255, 0.55)";
     cctx.font =
-      'bold 140px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    cctx.fillText(`${state.score}`, W - 70, 230);
-
-    cctx.font = '30px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    cctx.fillText("final score", W - 70, 275);
-
-    // Personal best line — highlights if the run WAS the best.
-    const bestLabel = state.newHighScore
-      ? `★ New personal best!`
-      : `Personal best: ${state.highScore}`;
+      '600 28px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    cctx.fillText("FINAL SCORE", W - 80, 220);
+    // Giant score — gradient-filled so it feels "trophy-like".
+    cctx.font =
+      'bold 180px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    const scoreGrad = cctx.createLinearGradient(
+      0, 230, 0, 380
+    );
+    scoreGrad.addColorStop(0, "#ffe99a");
+    scoreGrad.addColorStop(1, "#e89f3a");
+    cctx.fillStyle = scoreGrad;
+    cctx.fillText(`${state.score}`, W - 80, 380);
+    // Personal best / new record line.
     cctx.font =
       'italic 34px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    cctx.fillText(bestLabel, W - 70, 335);
+    if (state.newHighScore) {
+      cctx.fillStyle = "#ffd84a";
+      cctx.fillText("★ New personal best!", W - 80, 440);
+    } else {
+      cctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+      cctx.fillText(
+        `Personal best: ${state.highScore}`,
+        W - 80,
+        440
+      );
+    }
+    cctx.restore();
 
-    // Title + URL on the top-left.
+    // ── Title + URL (top left) ────────────────────────────────
+    cctx.save();
     cctx.textAlign = "left";
-    cctx.shadowBlur = 14;
+    cctx.textBaseline = "alphabetic";
+    cctx.fillStyle = "#ffffff";
     cctx.font =
       'bold 72px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    cctx.fillText("Raptor Runner", 70, 150);
-    cctx.font = '28px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    cctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-    cctx.fillText("raptor.trebeljahr.com", 70, 195);
+    cctx.fillText("Raptor Runner", 80, 140);
+    cctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+    cctx.font = '26px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    cctx.fillText("raptor.trebeljahr.com", 82, 180);
     cctx.restore();
 
     return new Promise((resolve) => {
