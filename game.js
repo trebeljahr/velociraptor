@@ -52,6 +52,15 @@
   const TOTAL_JUMPS_KEY = "raptor-runner:totalJumps";
   const PARTY_HAT_JUMP_THRESHOLD = 100;
   const THUG_GLASSES_JUMP_THRESHOLD = 200;
+  // Per-accessory unlock + wear flags in localStorage. "unlocked"
+  // is a sticky bit set when the player first crosses the jump
+  // threshold; "wear" is the player's current on/off cosmetic
+  // preference, defaults to true the moment the accessory is
+  // earned. Both persist across sessions.
+  const UNLOCKED_PARTY_HAT_KEY = "raptor-runner:unlocked:partyHat";
+  const UNLOCKED_THUG_GLASSES_KEY = "raptor-runner:unlocked:thugGlasses";
+  const WEAR_PARTY_HAT_KEY = "raptor-runner:wear:partyHat";
+  const WEAR_THUG_GLASSES_KEY = "raptor-runner:wear:thugGlasses";
 
   const RAPTOR_NATIVE_W = 578;
   const RAPTOR_NATIVE_H = 212;
@@ -563,12 +572,18 @@
     // At >= 100, the easter-egg party hat starts appearing on the
     // raptor's head as a reward for sticking with the game.
     totalJumps: 0,
-    // Debug overrides for the easter-egg accessories: when set to
-    // true (or false), they force the party hat / thug glasses on
-    // or off regardless of the totalJumps count. Only respected
-    // when ?debug=true is on. null means "follow totalJumps".
-    forcePartyHat: null,
-    forceThugGlasses: null,
+    // Accessory unlocks. Each pair is:
+    //   unlockedX — sticky bit, true once the player has crossed
+    //               the jump threshold for this cosmetic. Never
+    //               flips back to false on its own; cleared only
+    //               by the debug "Reset total jumps" button.
+    //   wearX     — player's on/off preference. Defaults to true
+    //               the instant the accessory unlocks, and is
+    //               freely togglable from the menu.
+    unlockedPartyHat: false,
+    wearPartyHat: true,
+    unlockedThugGlasses: false,
+    wearThugGlasses: true,
     // Active shooting-star flashes. Each entry is {x, y, vx, vy,
     // age, life}. Populated only from the second night onward so
     // the first night feels clean and the easter egg reads as a
@@ -637,9 +652,30 @@
       this.velocity = -v;
       audio.playJump();
       // Track total jumps across all runs — this is what unlocks
-      // the party-hat easter egg at PARTY_HAT_JUMP_THRESHOLD.
+      // the easter-egg accessories.
       state.totalJumps += 1;
       saveTotalJumps(state.totalJumps);
+      // Threshold crossings: first time the player hits the number,
+      // flip the sticky unlock bit and default the wear flag to
+      // true so the new cosmetic shows up immediately.
+      if (
+        !state.unlockedPartyHat &&
+        state.totalJumps >= PARTY_HAT_JUMP_THRESHOLD
+      ) {
+        state.unlockedPartyHat = true;
+        state.wearPartyHat = true;
+        saveBoolFlag(UNLOCKED_PARTY_HAT_KEY, true);
+        saveBoolFlag(WEAR_PARTY_HAT_KEY, true);
+      }
+      if (
+        !state.unlockedThugGlasses &&
+        state.totalJumps >= THUG_GLASSES_JUMP_THRESHOLD
+      ) {
+        state.unlockedThugGlasses = true;
+        state.wearThugGlasses = true;
+        saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, true);
+        saveBoolFlag(WEAR_THUG_GLASSES_KEY, true);
+      }
     }
 
     /**
@@ -699,22 +735,18 @@
         this.w,
         this.h
       );
-      // Thug life glasses unlock at THUG_GLASSES_JUMP_THRESHOLD.
-      // Drawn BEFORE the party hat so the hat's base band sits in
-      // front of the glasses' upper edge if the two ever overlap.
-      // Debug overrides (via the menu's debug-only toggles) win
-      // over the career-jump count.
-      const wantGlasses =
-        state.forceThugGlasses != null
-          ? state.forceThugGlasses
-          : state.totalJumps >= THUG_GLASSES_JUMP_THRESHOLD;
-      if (wantGlasses) this.drawThugGlasses(ctx);
-
-      const wantHat =
-        state.forcePartyHat != null
-          ? state.forcePartyHat
-          : state.totalJumps >= PARTY_HAT_JUMP_THRESHOLD;
-      if (wantHat) this.drawPartyHat(ctx);
+      // Accessories are drawn when they're unlocked AND the player
+      // has the cosmetic toggled on. Debug mode treats everything
+      // as if already unlocked so testers can toggle the look
+      // without grinding to the threshold.
+      const glassesUnlocked = state.debug || state.unlockedThugGlasses;
+      if (glassesUnlocked && state.wearThugGlasses) {
+        this.drawThugGlasses(ctx);
+      }
+      const hatUnlocked = state.debug || state.unlockedPartyHat;
+      if (hatUnlocked && state.wearPartyHat) {
+        this.drawPartyHat(ctx);
+      }
     }
 
     /**
@@ -1835,6 +1867,25 @@
     }
   }
 
+  /** Boolean localStorage helper. Returns `fallback` if the key is
+   *  missing or unparseable (e.g. private mode, denied storage). */
+  function loadBoolFlag(key, fallback) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw == null) return fallback;
+      return raw === "1";
+    } catch (e) {
+      return fallback;
+    }
+  }
+  function saveBoolFlag(key, value) {
+    try {
+      window.localStorage.setItem(key, value ? "1" : "0");
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
   /** Called once the player dies. Checks if this run's score beat
    *  the stored personal best and, if so, saves it and flags the
    *  run for celebration on the game-over overlay. */
@@ -2086,54 +2137,68 @@
       return state.showHitboxes;
     },
 
-    // ── Easter-egg debug toggles ──────────────────────────────
-    // These force the party hat / thug glasses on or off, or
-    // return them to "follow totalJumps" (the default) when
-    // called with null. Only meaningful with ?debug=true.
+    // ── Accessory unlock state (persisted) ─────────────────────
 
-    /** Is the party hat currently showing? */
-    isPartyHatActive() {
-      if (state.forcePartyHat != null) return state.forcePartyHat;
-      return state.totalJumps >= PARTY_HAT_JUMP_THRESHOLD;
+    /** True once the player has crossed PARTY_HAT_JUMP_THRESHOLD
+     *  total career jumps. In debug mode, always true. */
+    isPartyHatUnlocked() {
+      return state.debug || state.unlockedPartyHat;
+    },
+    isThugGlassesUnlocked() {
+      return state.debug || state.unlockedThugGlasses;
     },
 
-    setForcePartyHat(on) {
-      state.forcePartyHat = on == null ? null : !!on;
+    /** True when the accessory is both unlocked and the player has
+     *  the cosmetic turned on. This is what actually gates the
+     *  sprite on the raptor. */
+    isPartyHatActive() {
+      return this.isPartyHatUnlocked() && state.wearPartyHat;
+    },
+    isThugGlassesActive() {
+      return this.isThugGlassesUnlocked() && state.wearThugGlasses;
+    },
+
+    /** Player preference setters. Silently no-op if the accessory
+     *  isn't unlocked yet, so you can't turn something on you
+     *  don't own. Debug mode unlocks everything, so testers can
+     *  still use these. */
+    setWearPartyHat(on) {
+      if (!this.isPartyHatUnlocked()) return false;
+      state.wearPartyHat = !!on;
+      saveBoolFlag(WEAR_PARTY_HAT_KEY, state.wearPartyHat);
+      return state.wearPartyHat;
+    },
+    setWearThugGlasses(on) {
+      if (!this.isThugGlassesUnlocked()) return false;
+      state.wearThugGlasses = !!on;
+      saveBoolFlag(WEAR_THUG_GLASSES_KEY, state.wearThugGlasses);
+      return state.wearThugGlasses;
     },
 
     togglePartyHat() {
-      const next = !this.isPartyHatActive();
-      this.setForcePartyHat(next);
-      return next;
+      return this.setWearPartyHat(!state.wearPartyHat);
     },
-
-    /** Is the thug-life glasses overlay currently showing? */
-    isThugGlassesActive() {
-      if (state.forceThugGlasses != null) return state.forceThugGlasses;
-      return state.totalJumps >= THUG_GLASSES_JUMP_THRESHOLD;
-    },
-
-    setForceThugGlasses(on) {
-      state.forceThugGlasses = on == null ? null : !!on;
-    },
-
     toggleThugGlasses() {
-      const next = !this.isThugGlassesActive();
-      this.setForceThugGlasses(next);
-      return next;
+      return this.setWearThugGlasses(!state.wearThugGlasses);
     },
 
     getTotalJumps() {
       return state.totalJumps;
     },
 
-    /** Wipes the saved career jump count and clears any active
-     *  force-overrides so the raptor reverts to its naked state. */
+    /** Debug: wipe saved career jumps, unlock bits, and wear
+     *  preferences so the raptor reverts to its naked state. */
     resetTotalJumps() {
       state.totalJumps = 0;
-      state.forcePartyHat = null;
-      state.forceThugGlasses = null;
+      state.unlockedPartyHat = false;
+      state.unlockedThugGlasses = false;
+      state.wearPartyHat = true;
+      state.wearThugGlasses = true;
       saveTotalJumps(0);
+      saveBoolFlag(UNLOCKED_PARTY_HAT_KEY, false);
+      saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, false);
+      saveBoolFlag(WEAR_PARTY_HAT_KEY, true);
+      saveBoolFlag(WEAR_THUG_GLASSES_KEY, true);
     },
   };
   window.Game = GameAPI;
@@ -2207,9 +2272,32 @@
     // Load the player's saved personal best (if any) so the start
     // screen and game-over overlay can show it.
     state.highScore = loadHighScore();
-    // Load the cumulative jump count — at ≥ PARTY_HAT_JUMP_THRESHOLD
-    // the raptor gets its birthday hat on.
+    // Load the cumulative jump count + the two accessory unlock
+    // bits. wearX defaults to true so a newly-unlocked accessory
+    // shows up immediately; returning players get whatever they
+    // last saved.
     state.totalJumps = loadTotalJumps();
+    state.unlockedPartyHat = loadBoolFlag(UNLOCKED_PARTY_HAT_KEY, false);
+    state.unlockedThugGlasses = loadBoolFlag(
+      UNLOCKED_THUG_GLASSES_KEY,
+      false
+    );
+    state.wearPartyHat = loadBoolFlag(WEAR_PARTY_HAT_KEY, true);
+    state.wearThugGlasses = loadBoolFlag(WEAR_THUG_GLASSES_KEY, true);
+    // Safety net: if the player already has enough career jumps
+    // from a previous version that didn't track the unlock bit,
+    // flip it on so they don't lose their earned cosmetic.
+    if (!state.unlockedPartyHat && state.totalJumps >= PARTY_HAT_JUMP_THRESHOLD) {
+      state.unlockedPartyHat = true;
+      saveBoolFlag(UNLOCKED_PARTY_HAT_KEY, true);
+    }
+    if (
+      !state.unlockedThugGlasses &&
+      state.totalJumps >= THUG_GLASSES_JUMP_THRESHOLD
+    ) {
+      state.unlockedThugGlasses = true;
+      saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, true);
+    }
 
     onResize();
     window.addEventListener("resize", onResize);

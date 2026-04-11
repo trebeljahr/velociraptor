@@ -1016,7 +1016,7 @@
               </span>
             </button>
           </li>
-          <li class="debug-only">
+          <li id="menu-partyhat-li" hidden>
             <button id="menu-partyhat-toggle" class="menu-item" type="button">
               <span class="inner">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -1029,7 +1029,7 @@
               </span>
             </button>
           </li>
-          <li class="debug-only">
+          <li id="menu-thug-li" hidden>
             <button id="menu-thug-toggle" class="menu-item" type="button">
               <span class="inner">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -1342,20 +1342,33 @@
           });
         }
 
-        // ───────── Debug: party hat / thug glasses toggles ─────────
+        // ───────── Accessory toggles (party hat / thug glasses) ─────────
+        // Both entries are hidden in the markup by default and only
+        // shown once the player actually unlocks them — or always in
+        // debug mode for testing.
+        const partyHatLi = document.getElementById("menu-partyhat-li");
         const partyHatBtn = document.getElementById("menu-partyhat-toggle");
         const partyHatLabel = document.getElementById("menu-partyhat-label");
+        const thugLi = document.getElementById("menu-thug-li");
         const thugBtn = document.getElementById("menu-thug-toggle");
         const thugLabel = document.getElementById("menu-thug-label");
         const jumpsResetBtn = document.getElementById("menu-jumpsreset-toggle");
 
         function refreshEasterEggUI() {
-          if (partyHatLabel && window.Game && window.Game.isPartyHatActive) {
+          if (!window.Game) return;
+          const hatUnlocked =
+            window.Game.isPartyHatUnlocked && window.Game.isPartyHatUnlocked();
+          const glassesUnlocked =
+            window.Game.isThugGlassesUnlocked &&
+            window.Game.isThugGlassesUnlocked();
+          if (partyHatLi) partyHatLi.hidden = !hatUnlocked;
+          if (thugLi) thugLi.hidden = !glassesUnlocked;
+          if (partyHatLabel) {
             partyHatLabel.textContent = window.Game.isPartyHatActive()
               ? "Party hat: on"
               : "Party hat: off";
           }
-          if (thugLabel && window.Game && window.Game.isThugGlassesActive) {
+          if (thugLabel) {
             thugLabel.textContent = window.Game.isThugGlassesActive()
               ? "Thug glasses: on"
               : "Thug glasses: off";
