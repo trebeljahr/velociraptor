@@ -1362,6 +1362,26 @@
       </div>
     </div>
 
+    <!-- About overlay — loads about.html in an iframe, same
+         pattern as the imprint overlay. -->
+    <div
+      id="about-overlay"
+      class="imprint-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="about-title"
+    >
+      <div class="imprint-sheet">
+        <button id="about-close" class="imprint-close" aria-label="Close">×</button>
+        <iframe
+          id="about-iframe"
+          title="About Raptor Runner"
+          src="about:blank"
+          loading="lazy"
+        ></iframe>
+      </div>
+    </div>
+
     <!-- Menu overlay -->
     <div
       id="menu-overlay"
@@ -1464,6 +1484,20 @@
             </button>
           </li>
           <li>
+            <a class="menu-item" href="about.html">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <span>About</span>
+              </span>
+            </a>
+          </li>
+          <li>
             <a class="menu-item" href="imprint.html">
               <span class="inner">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -1526,6 +1560,10 @@
         const closeBtn = document.getElementById("menu-close");
         const topSoundBtn = document.getElementById("sound-toggle");
         const imprintOverlay = document.getElementById("imprint-overlay");
+        const aboutOverlay = document.getElementById("about-overlay");
+        const aboutCloseBtn = document.getElementById("about-close");
+        const aboutIframe = document.getElementById("about-iframe");
+        let aboutLoaded = false;
         const imprintCloseBtn = document.getElementById("imprint-close");
         const imprintIframe = document.getElementById("imprint-iframe");
         const startScreen = document.getElementById("start-screen");
@@ -1683,6 +1721,38 @@
           if (e.target === imprintOverlay) closeImprint();
         });
 
+        // ───────── About overlay ─────────
+        // Same iframe pattern as imprint — lazy src assignment on
+        // first open, hidden in-frame "Back to the game" link,
+        // pauses the game while visible.
+        function openAbout() {
+          if (!aboutLoaded) {
+            aboutIframe.src = "about.html";
+            aboutLoaded = true;
+          }
+          aboutOverlay.classList.add("open");
+          if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
+            window.Game.pause();
+          }
+        }
+        function closeAbout() {
+          aboutOverlay.classList.remove("open");
+          if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
+            window.Game.resume();
+          }
+        }
+        if (aboutCloseBtn) {
+          aboutCloseBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            closeAbout();
+          });
+        }
+        if (aboutOverlay) {
+          aboutOverlay.addEventListener("click", (e) => {
+            if (e.target === aboutOverlay) closeAbout();
+          });
+        }
+
         // ───────── Sound button ─────────
         function refreshSoundUI() {
           const muted = window.Game ? window.Game.isMuted() : true;
@@ -1790,6 +1860,16 @@
             e.stopPropagation();
             closeMenu();
             openImprint();
+          });
+        }
+        // Same for the about link.
+        const menuAboutLink = overlay.querySelector('a[href="about.html"]');
+        if (menuAboutLink) {
+          menuAboutLink.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            closeMenu();
+            openAbout();
           });
         }
 
@@ -1927,7 +2007,9 @@
           (e) => {
             if (e.key === "Escape") {
               e.preventDefault();
-              if (imprintOverlay.classList.contains("open")) {
+              if (aboutOverlay && aboutOverlay.classList.contains("open")) {
+                closeAbout();
+              } else if (imprintOverlay.classList.contains("open")) {
                 closeImprint();
               } else {
                 toggleMenu();
