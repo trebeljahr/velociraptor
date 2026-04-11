@@ -323,11 +323,11 @@
 
   /** Strength of the foreground sky-light tint applied in render().
    *  Continuous: 0.05 at midday under a clean blue sky (so the
-   *  foreground reads as neutral, not blue-cast), rising smoothly
-   *  through ~0.35 at the peak of a magenta-pink twilight, and up
-   *  to ~0.55 at full night. The smooth ramp means clouds, ground,
-   *  and the raptor all naturally pick up the warm pink tones at
-   *  sunset rather than only shifting on the day/night flag flip. */
+   *  foreground reads as neutral, not blue-cast), rising through
+   *  ~0.21 at the peak of a magenta-pink twilight, and up to ~0.37
+   *  at full night. The ramp is quadratic in `t` so twilight stays
+   *  subtle — roughly half of what a linear ramp would give — while
+   *  night still lands at ~2/3 of the "full strength" tint. */
   function tintStrength() {
     const sky = state.currentSky;
     const dayBlue = SKY_COLORS[0];
@@ -337,7 +337,7 @@
     const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
     // Maximum sensible distance is from blue to night (~258).
     const t = Math.min(1, distance / 250);
-    return 0.05 + t * 0.5;
+    return 0.05 + t * t * 0.32;
   }
   /** Per-channel multiply factor that the global tint applies. */
   function tintFactor() {
