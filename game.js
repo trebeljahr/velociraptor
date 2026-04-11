@@ -59,6 +59,43 @@
   // Sprite sheet is the 12 GIF frames stacked vertically (578 × 2544).
   const RAPTOR_FRAMES = 12;
   const RAPTOR_IDLE_FRAME = 11; // pose used when airborne (legs tucked)
+
+  // Per-frame head reference points, extracted by scanning each
+  // frame of assets/raptor-sheet.png for the topmost opaque pixel
+  // (the "crown") and the rightmost opaque pixel in the upper head
+  // band (the "snout tip"). Values are normalized to the native
+  // 578×212 frame dimensions so the game can multiply them by the
+  // current raptor w/h to get exact anchor positions. Used to bob
+  // head-mounted accessories (party hat, thug glasses) so they
+  // track the run cycle animation instead of floating.
+  const RAPTOR_CROWN = [
+    [0.86332, 0.16038], // frame 0
+    [0.86678, 0.16509], // frame 1
+    [0.88062, 0.17925], // frame 2
+    [0.87370, 0.17453], // frame 3
+    [0.86851, 0.16038], // frame 4
+    [0.86851, 0.15566], // frame 5
+    [0.86505, 0.16509], // frame 6
+    [0.86851, 0.16981], // frame 7
+    [0.87024, 0.17925], // frame 8
+    [0.87543, 0.16981], // frame 9
+    [0.87197, 0.16509], // frame 10
+    [0.86851, 0.15566], // frame 11
+  ];
+  const RAPTOR_SNOUT = [
+    [0.98097, 0.25943], // frame 0
+    [0.98616, 0.26415], // frame 1
+    [0.99135, 0.27358], // frame 2
+    [0.99827, 0.26415], // frame 3
+    [0.99135, 0.25943], // frame 4
+    [0.98789, 0.25472], // frame 5
+    [0.98097, 0.25943], // frame 6
+    [0.98616, 0.26887], // frame 7
+    [0.99135, 0.27358], // frame 8
+    [0.99827, 0.26415], // frame 9
+    [0.99135, 0.25943], // frame 10
+    [0.98616, 0.25472], // frame 11
+  ];
   // Frame delay in milliseconds at the initial background velocity.
   // Decreases as the game speeds up, mirroring the old p5 `img.delay(...)`
   // speed-ramp from 70 ms down to 40 ms.
@@ -681,42 +718,52 @@
     }
 
     /**
-     * Vertical bounce offset that follows the raptor's 12-frame run
-     * cycle, so head-mounted accessories (hat, glasses) bob with
-     * the gait instead of floating above the animating sprite. The
-     * raptor's legs pass underneath twice per loop, so the body
-     * bobs at 2× the loop frequency. Zero while airborne — in the
-     * air the sprite holds a single idle pose, so no bounce.
+     * Crown and snout reference points for the current animation
+     * frame, converted to world coords. These come straight out of
+     * the per-frame scan of the sprite sheet (RAPTOR_CROWN /
+     * RAPTOR_SNOUT) so they track the run cycle exactly. While
+     * airborne we lock to the idle frame.
      */
-    headBounceOffset() {
-      if (this.y !== this.ground) return 0;
-      const phase = (this.frame / RAPTOR_FRAMES) * Math.PI * 4;
-      return Math.sin(phase) * this.h * 0.018;
+    currentCrownPoint() {
+      const f = this.y === this.ground ? this.frame : RAPTOR_IDLE_FRAME;
+      const [nx, ny] = RAPTOR_CROWN[f];
+      return { x: this.x + nx * this.w, y: this.y + ny * this.h };
+    }
+    currentSnoutPoint() {
+      const f = this.y === this.ground ? this.frame : RAPTOR_IDLE_FRAME;
+      const [nx, ny] = RAPTOR_SNOUT[f];
+      return { x: this.x + nx * this.w, y: this.y + ny * this.h };
     }
 
     /**
      * Thug-life glasses sprite (Wikimedia Commons, Aboulharakat —
      * CC BY-SA 4.0; see imprint) composited across the raptor's
-     * eye area.
+     * nose. Anchor = interpolation between the crown and snout so
+     * the glasses sit flat across the top of the snout ridge, and
+     * the position follows the head's motion every frame.
      */
     drawThugGlasses(ctx) {
       const sprite = IMAGES.thugGlasses;
       if (!sprite) return;
-      const x = this.x;
-      const y = this.y;
-      const w = this.w;
-      const h = this.h;
-      const bob = this.headBounceOffset();
-      // Eye position on the raptor sprite, in raptor-local coords.
-      const cx = x + w * 0.91;
-      const cy = y + h * 0.26 + bob;
-      // Width tied to the head; height follows the source aspect
-      // ratio so nothing squishes.
-      const gW = w * 0.13;
+      const crown = this.currentCrownPoint();
+      const snout = this.currentSnoutPoint();
+      // 0.65 along from crown toward snout = roughly "on the bridge
+      // of the nose" — close enough to the snout to read as nose
+      // not forehead, far enough from the tip to look like glasses
+      // not a muzzle.
+      const t = 0.65;
+      const cx = crown.x + (snout.x - crown.x) * t;
+      const cy = crown.y + (snout.y - crown.y) * t;
+      // Small: 7% of raptor width.
+      const gW = this.w * 0.07;
       const gH = gW * (sprite.height / sprite.width);
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate(-0.15);
+      // Angle of the line from crown to snout, so the glasses lie
+      // parallel to the nose ridge instead of using a hardcoded
+      // rotation that wouldn't match every frame.
+      const angle = Math.atan2(snout.y - crown.y, snout.x - crown.x);
+      ctx.rotate(angle);
       ctx.drawImage(sprite, -gW / 2, -gH / 2, gW, gH);
       ctx.restore();
     }
@@ -731,23 +778,17 @@
     drawPartyHat(ctx) {
       const sprite = IMAGES.partyHat;
       if (!sprite) return;
-      const x = this.x;
-      const y = this.y;
-      const w = this.w;
-      const h = this.h;
-      const bob = this.headBounceOffset();
-      // Crown-of-head attach point, slightly behind the head tip
-      // so the hat base bridges the skull rather than balancing
-      // on the snout. Nudged DOWN from the previous position so it
-      // sits on the head rather than floating above it, and bobbed
-      // with the run cycle so it doesn't float while the raptor
-      // animates underneath.
-      const anchorX = x + w * 0.87;
-      const anchorY = y + h * 0.3 + bob;
-      // Hat size ~45% of raptor height — reads as a hat at every
-      // scale without dominating the sprite. Width follows the
-      // source aspect ratio so the pom-pom stays round.
-      const hatH = h * 0.45;
+      const crown = this.currentCrownPoint();
+      // Anchor the hat's BASE exactly at the crown of the head —
+      // per-frame accurate position from the sprite scan. Nudged
+      // a tiny bit left (toward the tail) so the hat sits behind
+      // the exact tip of the head rather than balancing on it.
+      const anchorX = crown.x - this.w * 0.01;
+      const anchorY = crown.y;
+      // Hat ~25% of raptor height — small, sits as a hat on top
+      // without covering the head. Width follows the source aspect
+      // ratio so the pom-pom stays round.
+      const hatH = this.h * 0.25;
       const hatW = hatH * (sprite.width / sprite.height);
       // Tilt backwards and to the LEFT — i.e. rotate counter
       // clockwise in canvas coords (negative angle), so the apex
