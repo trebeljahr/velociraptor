@@ -681,19 +681,23 @@
     }
 
     /**
-     * Pixel-art "thug life" glasses: two solid black rectangular
-     * lenses connected by a thin bridge, sitting over the raptor's
-     * eye area. The raptor is a side-view sprite so we fake a
-     * slight front-facing perspective by drawing both lenses as
-     * narrow rectangles offset horizontally — reads unambiguously
-     * as sunglasses at every viewport scale.
+     * Vertical bounce offset that follows the raptor's 12-frame run
+     * cycle, so head-mounted accessories (hat, glasses) bob with
+     * the gait instead of floating above the animating sprite. The
+     * raptor's legs pass underneath twice per loop, so the body
+     * bobs at 2× the loop frequency. Zero while airborne — in the
+     * air the sprite holds a single idle pose, so no bounce.
      */
+    headBounceOffset() {
+      if (this.y !== this.ground) return 0;
+      const phase = (this.frame / RAPTOR_FRAMES) * Math.PI * 4;
+      return Math.sin(phase) * this.h * 0.018;
+    }
+
     /**
      * Thug-life glasses sprite (Wikimedia Commons, Aboulharakat —
      * CC BY-SA 4.0; see imprint) composited across the raptor's
-     * eye area. The raptor is a side-view sprite so the pixel-art
-     * glasses read as one lens close to camera and the other
-     * partially visible — which is exactly the look we want.
+     * eye area.
      */
     drawThugGlasses(ctx) {
       const sprite = IMAGES.thugGlasses;
@@ -702,18 +706,16 @@
       const y = this.y;
       const w = this.w;
       const h = this.h;
+      const bob = this.headBounceOffset();
       // Eye position on the raptor sprite, in raptor-local coords.
-      // Tuned so the glasses sit flat across the eye without
-      // overlapping the snout tip.
-      const cx = x + w * 0.9;
-      const cy = y + h * 0.27;
-      // Width tied to the head, height derived from the source
-      // aspect ratio so nothing squishes.
-      const gW = w * 0.2;
+      const cx = x + w * 0.91;
+      const cy = y + h * 0.26 + bob;
+      // Width tied to the head; height follows the source aspect
+      // ratio so nothing squishes.
+      const gW = w * 0.13;
       const gH = gW * (sprite.height / sprite.width);
       ctx.save();
       ctx.translate(cx, cy);
-      // Gentle forward tilt matching the head line.
       ctx.rotate(-0.15);
       ctx.drawImage(sprite, -gW / 2, -gH / 2, gW, gH);
       ctx.restore();
@@ -733,15 +735,19 @@
       const y = this.y;
       const w = this.w;
       const h = this.h;
+      const bob = this.headBounceOffset();
       // Crown-of-head attach point, slightly behind the head tip
       // so the hat base bridges the skull rather than balancing
-      // on the snout.
-      const anchorX = x + w * 0.86;
-      const anchorY = y + h * 0.2;
-      // Hat size ~75% of raptor height so it reads clearly but
-      // doesn't dominate the frame. Width follows the sprite's
-      // aspect ratio so the pom-pom stays round.
-      const hatH = h * 0.75;
+      // on the snout. Nudged DOWN from the previous position so it
+      // sits on the head rather than floating above it, and bobbed
+      // with the run cycle so it doesn't float while the raptor
+      // animates underneath.
+      const anchorX = x + w * 0.87;
+      const anchorY = y + h * 0.3 + bob;
+      // Hat size ~45% of raptor height — reads as a hat at every
+      // scale without dominating the sprite. Width follows the
+      // source aspect ratio so the pom-pom stays round.
+      const hatH = h * 0.45;
       const hatW = hatH * (sprite.width / sprite.height);
       // Tilt backwards and to the LEFT — i.e. rotate counter
       // clockwise in canvas coords (negative angle), so the apex
