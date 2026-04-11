@@ -747,11 +747,10 @@
       if (!sprite) return;
       const crown = this.currentCrownPoint();
       const snout = this.currentSnoutPoint();
-      // 0.65 along from crown toward snout = roughly "on the bridge
-      // of the nose" — close enough to the snout to read as nose
-      // not forehead, far enough from the tip to look like glasses
-      // not a muzzle.
-      const t = 0.65;
+      // 0.5 along from crown toward snout = back a bit from the
+      // snout tip, on the upper half of the nose ridge. Far enough
+      // from the tip to look like glasses, not a muzzle.
+      const t = 0.5;
       const cx = crown.x + (snout.x - crown.x) * t;
       const cy = crown.y + (snout.y - crown.y) * t;
       // Small: 7% of raptor width.
@@ -759,11 +758,11 @@
       const gH = gW * (sprite.height / sprite.width);
       ctx.save();
       ctx.translate(cx, cy);
-      // Angle of the line from crown to snout, so the glasses lie
-      // parallel to the nose ridge instead of using a hardcoded
-      // rotation that wouldn't match every frame.
-      const angle = Math.atan2(snout.y - crown.y, snout.x - crown.x);
-      ctx.rotate(angle);
+      // Base angle = direction of the nose ridge (crown → snout),
+      // minus a small CCW nudge so the glasses tilt back above the
+      // nose line rather than following it exactly.
+      const rideAngle = Math.atan2(snout.y - crown.y, snout.x - crown.x);
+      ctx.rotate(rideAngle - 0.25);
       ctx.drawImage(sprite, -gW / 2, -gH / 2, gW, gH);
       ctx.restore();
     }
@@ -779,12 +778,12 @@
       const sprite = IMAGES.partyHat;
       if (!sprite) return;
       const crown = this.currentCrownPoint();
-      // Anchor the hat's BASE exactly at the crown of the head —
-      // per-frame accurate position from the sprite scan. Nudged
-      // a tiny bit left (toward the tail) so the hat sits behind
-      // the exact tip of the head rather than balancing on it.
+      // Anchor the hat's BASE a little below the exact crown so
+      // it sits snug on the head instead of teetering on the very
+      // top point. Still nudged slightly left (toward the tail) so
+      // it doesn't balance right on the tip.
       const anchorX = crown.x - this.w * 0.01;
-      const anchorY = crown.y;
+      const anchorY = crown.y + this.h * 0.04;
       // Hat ~25% of raptor height — small, sits as a hat on top
       // without covering the head. Width follows the source aspect
       // ratio so the pom-pom stays round.
