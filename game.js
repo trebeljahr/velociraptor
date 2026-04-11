@@ -941,7 +941,7 @@
     // the solid-blue stretch.
     const arc = celestialArc(0.167, 0.25);
     if (!arc.visible) return;
-    const r = Math.max(14, state.width * 0.02);
+    const r = Math.max(21, state.width * 0.03);
     // Elevation = 1 at the zenith, 0 at the horizon. We bend the
     // curve hard with a high exponent so the disc stays bright white
     // across almost the entire arc, only shifting to yellow in the
@@ -984,7 +984,7 @@
     // same arc width so it traces a matching gentle parabola.
     const arc = celestialArc(0.667, 0.25);
     if (!arc.visible) return;
-    const r = Math.max(11, state.width * 0.016);
+    const r = Math.max(13, state.width * 0.0192);
     // Bright near-white moon. The shadow is the sky color so it
     // reads as the dark side of the disc.
     const core = [250, 250, 252];
