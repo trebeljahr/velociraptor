@@ -40,6 +40,10 @@
   // localStorage key for the player's personal best. Namespaced so it
   // doesn't collide with anything else on the same origin.
   const HIGH_SCORE_KEY = "raptor-runner:highScore";
+  // localStorage key for the mute preference. Persisted across
+  // sessions so players who mute the music don't get blasted every
+  // time they reopen the tab.
+  const MUTED_KEY = "raptor-runner:muted";
 
   const RAPTOR_NATIVE_W = 578;
   const RAPTOR_NATIVE_H = 212;
@@ -392,7 +396,16 @@
   // ══════════════════════════════════════════════════════════════════
 
   const audio = {
+    // Default to muted so autoplay policies don't complain; the
+    // saved preference (if any) is applied later in init() once the
+    // music element is in the DOM.
     muted: true,
+    // True once the player has explicitly saved a mute/unmute
+    // preference (either by clicking the sound toggle, or by having
+    // done so in a previous session). Used to decide whether the
+    // Start Game button should auto-unmute (never touched before) or
+    // honour the saved value (returning visitor).
+    hasSavedPreference: false,
     music: null,
     jump: null,
 
@@ -402,8 +415,19 @@
       if (this.music) this.music.volume = 0.5;
     },
 
-    setMuted(muted) {
+    setMuted(muted, persist = true) {
       this.muted = !!muted;
+      if (persist) {
+        try {
+          window.localStorage.setItem(
+            MUTED_KEY,
+            this.muted ? "1" : "0"
+          );
+          this.hasSavedPreference = true;
+        } catch (e) {
+          /* ignored — storage may be unavailable */
+        }
+      }
       if (!this.music) return;
       if (this.muted) {
         this.music.pause();
@@ -413,6 +437,20 @@
         // user interaction will succeed.
         const p = this.music.play();
         if (p && typeof p.catch === "function") p.catch(() => {});
+      }
+    },
+
+    /** Read the saved mute preference (true/false) from localStorage.
+     *  Returns `null` if no preference has ever been saved, so callers
+     *  can distinguish "never set" (stay muted for autoplay) from an
+     *  explicit previous "unmute" choice (which we honour). */
+    loadSavedMuted() {
+      try {
+        const raw = window.localStorage.getItem(MUTED_KEY);
+        if (raw == null) return null;
+        return raw === "1";
+      } catch (e) {
+        return null;
       }
     },
 
@@ -466,6 +504,11 @@
     // Monotonic frame-based angle used to rotate the night-sky dome
     // (stars + Milky Way) gently across the screen.
     starRotation: 0,
+    // Timestamp of the previous update() call, used to derive the
+    // per-frame delta-time for frame-rate independence. Reset to
+    // null on pause/reset so the first post-resume frame doesn't
+    // see a huge stale delta.
+    lastNow: null,
     clouds: [],
     // Debug mode — toggled on by `?debug=true` query param. When on,
     // the menu grows a "Show hitboxes" toggle and the game draws the
@@ -544,16 +587,20 @@
       return lerp(RAPTOR_FRAME_DELAY_MAX, RAPTOR_FRAME_DELAY_MIN, t);
     }
 
-    update(now) {
-      this.y += this.velocity;
-      this.velocity += this.downwardAcceleration;
+    update(now, frameScale = 1) {
+      // Semi-implicit Euler, scaled by frameScale so the trajectory
+      // stays the same at any frame rate. downwardAcceleration and
+      // jump velocity are already in "pixels per 60fps-frame" units.
+      this.velocity += this.downwardAcceleration * frameScale;
+      this.y += this.velocity * frameScale;
       if (this.y > this.ground) {
         this.y = this.ground;
         this.velocity = 0;
       }
 
       // Frame animation: running while on the ground, locked to the
-      // idle pose (frame 11) while airborne.
+      // idle pose (frame 11) while airborne. Uses real wall-clock
+      // time (ms) already, so it's frame-rate independent for free.
       if (this.y === this.ground) {
         if (now - this.lastFrameAdvanceAt > this.frameDelay) {
           this.frame = (this.frame + 1) % RAPTOR_FRAMES;
@@ -643,8 +690,8 @@
       this._polyCache = null;
     }
 
-    update() {
-      this.x -= state.bgVelocity * (state.width / 1000);
+    update(frameScale = 1) {
+      this.x -= state.bgVelocity * (state.width / 1000) * frameScale;
       // Position changed, invalidate cached polygon.
       this._polyCache = null;
     }
@@ -691,7 +738,7 @@
       this.cacti.push(new Cactus(variant));
     }
 
-    update() {
+    update(frameScale = 1) {
       const last = this.cacti[this.cacti.length - 1];
       if (!last) {
         this.spawn();
@@ -700,7 +747,7 @@
         state.bgVelocity += 0.1;
       }
 
-      for (const c of this.cacti) c.update();
+      for (const c of this.cacti) c.update(frameScale);
 
       this.cacti = this.cacti.filter((c) => {
         if (c.x < -c.w) {
@@ -829,9 +876,10 @@
       }
     }
 
-    update(isNight) {
-      if (isNight) this.opacity = Math.min(1, this.opacity + 0.005);
-      else this.opacity = Math.max(0, this.opacity - 0.005);
+    update(isNight, frameScale = 1) {
+      if (isNight)
+        this.opacity = Math.min(1, this.opacity + 0.005 * frameScale);
+      else this.opacity = Math.max(0, this.opacity - 0.005 * frameScale);
     }
 
     /**
@@ -1205,14 +1253,29 @@
   function update(now) {
     state.frame++;
 
+    // ── Delta-time / frame-rate independence ────────────────────
+    // Every per-frame integration in the game (raptor physics,
+    // cactus and cloud drift, star/smoothPhase advance, sky-color
+    // lerp, star opacity fade) was originally written assuming a
+    // steady 60fps step. `frameScale` is "how many 60fps frames
+    // this actual frame represents", so multiplying any of those
+    // integrations by it makes the game run at the same real-time
+    // speed on a 60Hz display, a 120Hz one, or a 30fps one.
+    //
+    // We clamp the upper bound at 1/20s (≈3 frames at 60fps) so a
+    // browser tab-switch or long GC pause doesn't teleport the
+    // raptor through a cactus when the loop resumes.
+    const prevNow = state.lastNow || now;
+    const rawDtSec = (now - prevNow) / 1000;
+    state.lastNow = now;
+    const dtSec = Math.min(Math.max(rawDtSec, 0), 1 / 20);
+    const frameScale = dtSec * 60; // 1.0 at 60fps, 0.5 at 120fps
+
     // Continuous, monotonic day-phase. Drives the sky color, the
     // sun/moon arc, and the star rotation so they all stay locked
-    // together. Advances at a constant per-frame rate scaled by the
-    // current background velocity so the cycle naturally accelerates
-    // as the game speeds up — without ever stepping discretely the
-    // way a pure score-based phase would.
+    // together.
     const speedMult = state.bgVelocity / INITIAL_BG_VELOCITY;
-    state.smoothPhase += speedMult / (SKY_CYCLE_SCORE * 60);
+    state.smoothPhase += (speedMult / (SKY_CYCLE_SCORE * 60)) * frameScale;
 
     // Slow rotation of the night-sky dome, tied to the cycle phase
     // so every night repeats the same visible arc. The rotation wraps
@@ -1254,16 +1317,20 @@
         SKY_COLORS[nextBand],
         bandT
       );
-      state.currentSky = lerpColor(state.currentSky, target, 0.2);
+      // 0.2-per-60fps-frame lerp, scaled to the real frame delta
+      // (multiplied by SKY_UPDATE_INTERVAL_FRAMES because we're in
+      // the throttled branch that only runs every N frames).
+      const lerpT = Math.min(1, 0.2 * frameScale);
+      state.currentSky = lerpColor(state.currentSky, target, lerpT);
       computeSkyGradient();
       state.lastSkyScore = state.score;
     }
 
-    stars.update(state.isNight);
+    stars.update(state.isNight, frameScale);
 
     if (!state.gameOver) {
-      raptor.update(now);
-      cactuses.update();
+      raptor.update(now, frameScale);
+      cactuses.update(frameScale);
 
       // Collision: raptor concave polygon vs each cactus polygon.
       const raptorPoly = raptor.collisionPolygon();
@@ -1280,8 +1347,8 @@
       // the first-pass fix, so the parallax reads as "distant sky"
       // without feeling sluggish.
       for (const cloud of state.clouds) {
-        cloud.x -= state.bgVelocity * (state.width / 2000);
-        cloud.y += randRange(-0.2, 0.2);
+        cloud.x -= state.bgVelocity * (state.width / 2000) * frameScale;
+        cloud.y += randRange(-0.2, 0.2) * frameScale;
       }
       // Keep clouds until they've fully drifted past the left edge.
       state.clouds = state.clouds.filter((c) => {
@@ -1299,7 +1366,10 @@
         trySpawnCloud();
       }
     } else {
-      state.gameOverFade = Math.min(state.gameOverFade + 0.01, 1);
+      state.gameOverFade = Math.min(
+        state.gameOverFade + 0.01 * frameScale,
+        1
+      );
     }
   }
 
@@ -1508,6 +1578,7 @@
     state.smoothPhase = 0;
     state.score = 0;
     state.bgVelocity = INITIAL_BG_VELOCITY;
+    state.lastNow = null;
     seedClouds();
     if (raptor) {
       raptor.velocity = 0;
@@ -1652,7 +1723,12 @@
     },
 
     resume() {
-      if (state.started) state.paused = false;
+      if (!state.started) return;
+      // Clear the delta-time timestamp so the first post-resume
+      // frame doesn't see a huge elapsed time and teleport
+      // everything forward.
+      state.lastNow = null;
+      state.paused = false;
     },
 
     isStarted() {
@@ -1669,6 +1745,14 @@
 
     isMuted() {
       return audio.muted;
+    },
+
+    /** True when the player has explicitly saved a mute/unmute
+     *  choice (either this session or a previous one). The Start
+     *  Game handler uses this to decide whether to auto-unmute on
+     *  first visit or honour a returning visitor's saved preference. */
+    hasSavedMutePreference() {
+      return audio.hasSavedPreference;
     },
 
     isDebug() {
@@ -1777,6 +1861,17 @@
     fgCtx = fgCanvas.getContext("2d");
 
     audio.init();
+
+    // Load the player's saved mute preference into the audio object's
+    // state, without triggering .play() yet (browser autoplay
+    // policies require a user gesture). The saved value will be
+    // applied for real on the first Start Game click, which IS a
+    // user gesture.
+    const savedMuted = audio.loadSavedMuted();
+    if (savedMuted != null) {
+      audio.muted = savedMuted;
+      audio.hasSavedPreference = true;
+    }
 
     // Load the player's saved personal best (if any) so the start
     // screen and game-over overlay can show it.

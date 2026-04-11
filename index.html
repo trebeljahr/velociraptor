@@ -2,8 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <title>Raptor Runner</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Raptor" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta
       name="description"
       content="A pixel-art homage to the Chrome No Internet dinosaur game, reimagined with a running velociraptor, a full day/night cycle, and a rotating starfield with the Milky Way at night."
@@ -48,10 +59,26 @@
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
     <style>
+      html,
       body {
         margin: 0;
         padding: 0;
         overflow: hidden;
+        /* Disable all default touch gestures (pinch-zoom, double-tap-zoom,
+           pull-to-refresh). The game handles every tap itself via
+           pointerdown on the canvas, so we want the browser to stay out
+           of the way. */
+        touch-action: none;
+        /* Prevent iOS from showing the selection magnifier when the
+           player taps the raptor, and stop the tap-highlight flash. */
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        /* Lock the background color so a rubber-band overscroll on
+           iOS shows sky-blue instead of white. */
+        background: #50b4cd;
+      }
+      body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial,
           sans-serif;
       }
@@ -352,8 +379,11 @@
          clickable even before the game begins. */
       .top-right-buttons {
         position: fixed;
-        top: 14px;
-        right: 14px;
+        /* env(safe-area-inset-*) keeps the buttons clear of iOS
+           notches and the Dynamic Island when the game is added to
+           the home screen and launched in standalone mode. */
+        top: calc(14px + env(safe-area-inset-top, 0px));
+        right: calc(14px + env(safe-area-inset-right, 0px));
         z-index: 2500;
         display: flex;
         gap: 8px;
@@ -587,6 +617,15 @@
       .menu-panel .close-hint button:hover {
         background: #f4f6f8;
         color: #222;
+      }
+      /* Hide "Back to home" + "Resume game" when the menu is opened
+         from the start screen — those actions only make sense once
+         the player has already entered the game. */
+      .menu-panel.pre-game .in-game-only {
+        display: none;
+      }
+      .menu-panel.pre-game .menu-hint {
+        display: none;
       }
       .menu-panel .menu-highscore {
         display: block;
@@ -977,7 +1016,7 @@
               </span>
             </button>
           </li>
-          <li>
+          <li class="in-game-only">
             <button id="menu-home" class="menu-item" type="button">
               <span class="inner">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -991,7 +1030,7 @@
             </button>
           </li>
         </ul>
-        <div class="close-hint">
+        <div class="close-hint in-game-only">
           <button id="menu-close" type="button">Resume game</button>
         </div>
         <p class="menu-hint">Press <kbd>Esc</kbd> to close</p>
@@ -1061,8 +1100,14 @@
         function startGame() {
           if (!assetsReady || window.Game.isStarted()) return;
           // The click is a user gesture, so this unlocks the Web Audio
-          // context and lets the music start with no warning.
-          window.Game.setMuted(false);
+          // context. First-time visitors auto-unmute; returning
+          // visitors who previously saved a preference get that
+          // preference honoured verbatim (including staying muted).
+          const shouldMute =
+            window.Game.hasSavedMutePreference && window.Game.hasSavedMutePreference()
+              ? window.Game.isMuted()
+              : false;
+          window.Game.setMuted(shouldMute);
           refreshSoundUI();
           // Hide the start screen first, then tell the game to run.
           startScreen.classList.add("hidden");
@@ -1154,13 +1199,33 @@
           refreshSoundUI();
           refreshHitboxesUI();
           refreshMenuHighscore();
-          window.Game.pause();
+          // Toggle a "pre-game" class on the panel so items that only
+          // make sense mid-run (Back to home screen, Resume game,
+          // Press Esc hint) are hidden on the start screen.
+          const panel = overlay.querySelector(".menu-panel");
+          if (panel) {
+            if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
+              panel.classList.remove("pre-game");
+            } else {
+              panel.classList.add("pre-game");
+            }
+          }
+          // Only pause an already-running game. Before the player
+          // has hit Start Game, there's nothing to pause.
+          if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
+            window.Game.pause();
+          }
         }
 
         function closeMenu() {
           overlay.classList.remove("open");
           cog.setAttribute("aria-expanded", "false");
-          window.Game.resume();
+          // Only resume if the player is actually in a started game.
+          // Before Start Game, there's nothing to resume — the rAF
+          // loop still renders the start screen behind the menu.
+          if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
+            window.Game.resume();
+          }
         }
 
         function toggleMenu() {
