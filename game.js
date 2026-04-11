@@ -1166,87 +1166,135 @@
   // ════════════════════════════════════════════════════════════════
   // Shooting stars (easter egg)
   //
-  // Spawned only from the SECOND night onward — Math.floor(smoothPhase)
-  // >= 1 means at least one full day/night cycle has already elapsed,
-  // so the player has "earned" the flourish. Each shooting star is a
-  // bright white dot with a fading trail. They're drawn in screen
-  // space (not inside the rotating dome transform) because they're
-  // brief events — dome rotation during their 1-second life would be
-  // imperceptible and would just complicate the math.
+  // Spawned only from the SECOND night onward. Each shooting star
+  // is a pre-rendered trail sprite (baked once into an offscreen
+  // canvas) that we translate + rotate + drawImage per frame —
+  // avoids any per-frame gradient compile or path building, so
+  // the first shooting star doesn't stall the frame.
   // ════════════════════════════════════════════════════════════════
+
+  const SHOOTING_STAR_TRAIL_LEN = 140;
+  const SHOOTING_STAR_TRAIL_H = 8;
+  let shootingStarSprite = null;
+  function getShootingStarSprite() {
+    if (shootingStarSprite) return shootingStarSprite;
+    const c = document.createElement("canvas");
+    // Internal 2× resolution for crisp rendering at any scale.
+    const sc = 2;
+    c.width = SHOOTING_STAR_TRAIL_LEN * sc;
+    c.height = SHOOTING_STAR_TRAIL_H * sc;
+    const sctx = c.getContext("2d");
+    sctx.scale(sc, sc);
+    sctx.imageSmoothingEnabled = true;
+    // Trail: head at the RIGHT edge, fading toward the LEFT.
+    // That way we can drawImage(-W, -H/2) with the world-space
+    // star position translated to 0,0 and the sprite rotated to
+    // match the velocity vector — the head sits at the star's
+    // position and the trail streams out backwards.
+    const grad = sctx.createLinearGradient(
+      SHOOTING_STAR_TRAIL_LEN,
+      0,
+      0,
+      0
+    );
+    grad.addColorStop(0, "rgba(255, 255, 255, 1)");
+    grad.addColorStop(0.25, "rgba(255, 255, 255, 0.75)");
+    grad.addColorStop(1, "rgba(255, 255, 255, 0)");
+    sctx.strokeStyle = grad;
+    sctx.lineCap = "round";
+    sctx.lineWidth = 3;
+    sctx.beginPath();
+    sctx.moveTo(SHOOTING_STAR_TRAIL_LEN - 2, SHOOTING_STAR_TRAIL_H / 2);
+    sctx.lineTo(4, SHOOTING_STAR_TRAIL_H / 2);
+    sctx.stroke();
+    // Bright head dot.
+    sctx.fillStyle = "#ffffff";
+    sctx.beginPath();
+    sctx.arc(
+      SHOOTING_STAR_TRAIL_LEN - 2,
+      SHOOTING_STAR_TRAIL_H / 2,
+      3,
+      0,
+      Math.PI * 2
+    );
+    sctx.fill();
+    shootingStarSprite = c;
+    return c;
+  }
 
   function maybeSpawnShootingStar(frameScale) {
     if (Math.floor(state.smoothPhase) < 1) return;
     if (!state.isNight) return;
-    // Small per-frame chance — averaged roughly one shooting star
-    // every ~6 seconds of real-time night, which is "noticeable but
-    // not spammy".
-    const chance = 0.003 * frameScale;
+    // Per-frame spawn chance — averaged roughly one new shooting
+    // star per second of real-time night.
+    const chance = 0.018 * frameScale;
     if (Math.random() > chance) return;
     const w = state.width;
     const h = state.height;
-    // Start above the upper-right quadrant, fly diagonally down-left.
-    const startX = w * randRange(0.55, 1.05);
-    const startY = h * randRange(-0.05, 0.35);
+    // Spawn in the upper-right corner, flying diagonally toward
+    // the bottom-left. In canvas coords (y-down) that's angles
+    // between 3π/4 (straight down-left) and a bit shallower.
+    const startX = w * randRange(0.6, 1.08);
+    const startY = h * randRange(-0.05, 0.3);
     const speed = Math.max(w, h) * 0.9; // px/sec
-    const angle = Math.PI + randRange(0.25, 0.55); // down-left
+    const angle = randRange(Math.PI * 0.68, Math.PI * 0.82);
     state.shootingStars.push({
       x: startX,
       y: startY,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       age: 0,
-      life: randRange(0.8, 1.4),
+      life: randRange(0.9, 1.5),
     });
   }
 
   function updateShootingStars(dtSec) {
     if (state.shootingStars.length === 0) return;
+    // Walk once — update each star, rebuild the array only if
+    // something actually expires. Keeps the hot path GC-free in
+    // the common case.
+    let expired = 0;
     for (const s of state.shootingStars) {
       s.x += s.vx * dtSec;
       s.y += s.vy * dtSec;
       s.age += dtSec;
+      if (
+        s.age >= s.life ||
+        s.x < -120 ||
+        s.y > state.height + 120
+      ) {
+        s.dead = true;
+        expired += 1;
+      }
     }
-    // Drop expired entries (alive time exceeded life, or off-screen).
-    state.shootingStars = state.shootingStars.filter((s) => {
-      if (s.age >= s.life) return false;
-      if (s.x < -100 || s.y > state.height + 100) return false;
-      return true;
-    });
+    if (expired > 0) {
+      state.shootingStars = state.shootingStars.filter((s) => !s.dead);
+    }
   }
 
   function drawShootingStars(ctx) {
     if (state.shootingStars.length === 0) return;
-    ctx.save();
-    ctx.lineCap = "round";
+    const sprite = getShootingStarSprite();
     for (const s of state.shootingStars) {
-      // Opacity peaks mid-life and fades at both ends so the trail
-      // appears and disappears smoothly.
       const t = s.age / s.life;
       const alpha = Math.sin(Math.PI * t);
       if (alpha <= 0) continue;
-      // Trail length: ~80px worth of velocity, drawn backwards from
-      // the head along the inverse velocity direction.
-      const trailLen = 110;
-      const vMag = Math.hypot(s.vx, s.vy) || 1;
-      const tx = s.x - (s.vx / vMag) * trailLen;
-      const ty = s.y - (s.vy / vMag) * trailLen;
-      const grad = ctx.createLinearGradient(s.x, s.y, tx, ty);
-      grad.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
-      grad.addColorStop(1, "rgba(255, 255, 255, 0)");
-      ctx.strokeStyle = grad;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(s.x, s.y);
-      ctx.lineTo(tx, ty);
-      ctx.stroke();
-      // Bright head dot.
-      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, 2.5, 0, Math.PI * 2);
-      ctx.fill();
+      const angle = Math.atan2(s.vy, s.vx);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(s.x, s.y);
+      ctx.rotate(angle);
+      // Sprite's RIGHT edge is the head — draw it so that edge
+      // lands at the translated origin (the star's world pos).
+      ctx.drawImage(
+        sprite,
+        -SHOOTING_STAR_TRAIL_LEN,
+        -SHOOTING_STAR_TRAIL_H / 2,
+        SHOOTING_STAR_TRAIL_LEN,
+        SHOOTING_STAR_TRAIL_H
+      );
+      ctx.restore();
     }
-    ctx.restore();
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -2312,6 +2360,15 @@
     /** Current run's score. */
     getScore() {
       return state.score;
+    },
+
+    /** Debug helper — overwrite the current run's score. Used by
+     *  the debug menu's score editor so testers can verify unlock
+     *  / personal-best / share-card behavior without waiting for
+     *  natural cactus passes. */
+    setScore(n) {
+      const next = Math.max(0, Math.floor(Number(n) || 0));
+      state.score = next;
     },
 
     /** Best score persisted in localStorage across all runs. */

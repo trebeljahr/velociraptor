@@ -133,13 +133,63 @@
           #EDC9AF 100%
         );
       }
-      .start-raptor {
+      /* Stage wraps the start-screen raptor + any cosmetics
+         (party hat, glasses) so they share one coordinate space.
+         The stage's aspect ratio matches the raptor sprite so
+         percentage-positioned children line up cleanly. */
+      .start-raptor-stage {
         position: absolute;
         bottom: calc(22vh - 2px);
         left: 10vw;
         width: min(34vw, 360px);
-        height: auto;
+        aspect-ratio: 578 / 212;
         pointer-events: none;
+      }
+      .start-raptor-stage .start-raptor {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      /* Party hat: bottom-center at (85.85%, 19.57%) — crown +
+         drawPartyHat's (-0.01 w, +0.04 h) nudges baked in. Height
+         is 25% of the raptor's height, and because the stage has
+         the raptor's aspect ratio (2.726:1), 25% of the stage
+         HEIGHT is ~9.17% of the stage WIDTH. We size via height
+         so the width follows via aspect-ratio. */
+      .start-raptor-hat {
+        position: absolute;
+        display: none;
+        left: 85.85%;
+        top: 19.57%;
+        height: 25%;
+        width: auto;
+        aspect-ratio: 237 / 400;
+        transform: translate(-50%, -100%) rotate(-0.35rad);
+        transform-origin: 50% 100%;
+        pointer-events: none;
+      }
+      .start-raptor-stage.has-hat .start-raptor-hat {
+        display: block;
+      }
+      /* Glasses: centered at (91.53%, 21.82%) — mid-point between
+         crown and snout, minus drawThugGlasses's (-0.012 w, +0.013 h)
+         nudges. Rotated by the world-space angle of the crown→
+         snout vector minus 0.25 rad (~ +2.9° on a native-aspect
+         raptor). */
+      .start-raptor-glasses {
+        position: absolute;
+        display: none;
+        left: 91.53%;
+        top: 21.82%;
+        width: 7%;
+        aspect-ratio: 400 / 79;
+        transform: translate(-50%, -50%) rotate(2.9deg);
+        transform-origin: 50% 50%;
+        pointer-events: none;
+      }
+      .start-raptor-stage.has-glasses .start-raptor-glasses {
+        display: block;
       }
       .start-cactus {
         position: absolute;
@@ -747,10 +797,12 @@
       .menu-overlay {
         position: fixed;
         inset: 0;
-        /* Must be above the start-screen (1500) so opening the menu from
-           the start screen actually shows it. Below top-right-buttons
-           (2500) so the cog stays clickable to close the menu. */
-        z-index: 2000;
+        /* Must be above the start-screen (1500) AND above the
+           score-card panel (2400, shown on game over) so opening
+           the menu from a game-over screen doesn't get the menu
+           buried underneath the share card. Still below
+           top-right-buttons (2500) so the cog stays clickable. */
+        z-index: 2450;
         background: rgba(0, 0, 0, 0.55);
         display: none;
         align-items: center;
@@ -874,6 +926,40 @@
       }
       .menu-panel.pre-game .menu-hint {
         display: none;
+      }
+      /* Debug score editor: a label that acts like a menu item but
+         contains a number input at the right edge. */
+      .menu-panel .menu-score-editor-label {
+        display: flex;
+        width: 100%;
+        cursor: text;
+      }
+      .menu-panel .menu-score-editor-label .inner {
+        flex: 1;
+      }
+      .menu-panel .menu-score-input {
+        flex: 1;
+        min-width: 0;
+        margin-left: auto;
+        padding: 0.25rem 0.5rem;
+        border: 1px solid rgba(0, 0, 0, 0.15);
+        border-radius: 6px;
+        background: #ffffff;
+        color: #222;
+        font: inherit;
+        font-size: 0.9rem;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        -moz-appearance: textfield;
+      }
+      .menu-panel .menu-score-input::-webkit-outer-spin-button,
+      .menu-panel .menu-score-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      .menu-panel .menu-score-input:focus {
+        outline: 2px solid rgba(80, 180, 205, 0.5);
+        outline-offset: 1px;
       }
       .menu-panel .menu-highscore {
         display: block;
@@ -1091,12 +1177,26 @@
           </g>
         </svg>
       </div>
-      <img
-        class="start-raptor"
-        src="assets/raptor-idle.png"
-        alt=""
-        aria-hidden="true"
-      />
+      <div class="start-raptor-stage" id="start-raptor-stage">
+        <img
+          class="start-raptor"
+          src="assets/raptor-idle.png"
+          alt=""
+          aria-hidden="true"
+        />
+        <img
+          class="start-raptor-glasses"
+          src="assets/thug-glasses.png"
+          alt=""
+          aria-hidden="true"
+        />
+        <img
+          class="start-raptor-hat"
+          src="assets/party-hat.png"
+          alt=""
+          aria-hidden="true"
+        />
+      </div>
       <img
         class="start-cactus"
         src="assets/cactus5.png"
@@ -1276,38 +1376,6 @@
           ★ Personal best: <span id="menu-highscore-value">0</span>
         </p>
         <ul>
-          <li>
-            <a class="menu-item" href="imprint.html">
-              <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                  <polyline points="10 9 9 9 8 9"></polyline>
-                </svg>
-                <span>Imprint</span>
-              </span>
-            </a>
-          </li>
-          <li>
-            <a
-              class="menu-item"
-              href="https://github.com/trebeljahr/velociraptor"
-              target="_blank"
-              rel="noopener"
-            >
-              <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="currentColor" aria-hidden="true">
-                  <path d="M12 .5C5.648.5.5 5.648.5 12c0 5.082 3.292 9.393 7.862 10.917.575.106.787-.25.787-.556 0-.275-.01-1.002-.015-1.966-3.198.695-3.874-1.542-3.874-1.542-.522-1.326-1.275-1.679-1.275-1.679-1.044-.714.079-.699.079-.699 1.154.081 1.762 1.185 1.762 1.185 1.025 1.757 2.689 1.249 3.344.955.104-.742.401-1.249.729-1.537-2.553-.29-5.238-1.277-5.238-5.683 0-1.256.45-2.282 1.185-3.087-.119-.29-.513-1.46.112-3.045 0 0 .966-.309 3.164 1.179a11.02 11.02 0 0 1 2.88-.388c.978.004 1.962.132 2.881.388 2.197-1.488 3.16-1.179 3.16-1.179.627 1.585.233 2.755.114 3.045.738.805 1.184 1.831 1.184 3.087 0 4.418-2.69 5.39-5.252 5.674.413.356.78 1.058.78 2.133 0 1.541-.014 2.783-.014 3.162 0 .308.208.668.792.555C20.21 21.39 23.5 17.08 23.5 12c0-6.352-5.148-11.5-11.5-11.5z"/>
-                </svg>
-                <span>GitHub</span>
-              </span>
-            </a>
-          </li>
           <li class="debug-only">
             <button id="menu-hitboxes-toggle" class="menu-item" type="button">
               <span class="inner">
@@ -1361,6 +1429,27 @@
               </span>
             </button>
           </li>
+          <li class="debug-only in-game-only menu-score-editor">
+            <label class="menu-item menu-score-editor-label" for="menu-score-input">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 20h9"></path>
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                </svg>
+                <span>Score</span>
+                <input
+                  id="menu-score-input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value="0"
+                  class="menu-score-input"
+                />
+              </span>
+            </label>
+          </li>
           <li class="in-game-only">
             <button id="menu-home" class="menu-item" type="button">
               <span class="inner">
@@ -1374,12 +1463,44 @@
               </span>
             </button>
           </li>
+          <li>
+            <a class="menu-item" href="imprint.html">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <span>Imprint</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a
+              class="menu-item"
+              href="https://github.com/trebeljahr/velociraptor"
+              target="_blank"
+              rel="noopener"
+            >
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                  fill="currentColor" aria-hidden="true">
+                  <path d="M12 .5C5.648.5.5 5.648.5 12c0 5.082 3.292 9.393 7.862 10.917.575.106.787-.25.787-.556 0-.275-.01-1.002-.015-1.966-3.198.695-3.874-1.542-3.874-1.542-.522-1.326-1.275-1.679-1.275-1.679-1.044-.714.079-.699.079-.699 1.154.081 1.762 1.185 1.762 1.185 1.025 1.757 2.689 1.249 3.344.955.104-.742.401-1.249.729-1.537-2.553-.29-5.238-1.277-5.238-5.683 0-1.256.45-2.282 1.185-3.087-.119-.29-.513-1.46.112-3.045 0 0 .966-.309 3.164 1.179a11.02 11.02 0 0 1 2.88-.388c.978.004 1.962.132 2.881.388 2.197-1.488 3.16-1.179 3.16-1.179.627 1.585.233 2.755.114 3.045.738.805 1.184 1.831 1.184 3.087 0 4.418-2.69 5.39-5.252 5.674.413.356.78 1.058.78 2.133 0 1.541-.014 2.783-.014 3.162 0 .308.208.668.792.555C20.21 21.39 23.5 17.08 23.5 12c0-6.352-5.148-11.5-11.5-11.5z"/>
+                </svg>
+                <span>GitHub</span>
+              </span>
+            </a>
+          </li>
         </ul>
         <div class="close-hint in-game-only">
           <button id="menu-close" type="button">Resume game</button>
         </div>
         <p class="menu-hint">Press <kbd>Esc</kbd> to close</p>
-        <p class="made-by">
+        <p class="made-by in-game-only">
           Made with
           <svg class="heart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"/>
@@ -1436,6 +1557,10 @@
             window.Game.onGameOver(showScoreCard);
             window.Game.onGameReset(hideScoreCard);
           }
+
+          // Initial sync of the start-screen raptor cosmetics with
+          // whatever the player has unlocked + toggled on.
+          refreshStartRaptorCosmetics();
         }
         // The game.js module calls Game.onReady(cb) when assets are loaded.
         // Guard in case the game script hasn't parsed yet.
@@ -1591,6 +1716,7 @@
           refreshSoundUI();
           refreshHitboxesUI();
           refreshEasterEggUI();
+          refreshScoreEditor();
           refreshMenuHighscore();
           // Toggle a "pre-game" class on the panel so items that only
           // make sense mid-run (Back to home screen, Resume game,
@@ -1707,6 +1833,20 @@
         const thugLabel = document.getElementById("menu-thug-label");
         const jumpsResetBtn = document.getElementById("menu-jumpsreset-toggle");
 
+        // Start-screen raptor stage — we flip classes on it to
+        // match the player's unlocked + toggled cosmetics.
+        const startRaptorStage = document.getElementById("start-raptor-stage");
+        function refreshStartRaptorCosmetics() {
+          if (!startRaptorStage || !window.Game) return;
+          const hat =
+            window.Game.isPartyHatActive && window.Game.isPartyHatActive();
+          const glasses =
+            window.Game.isThugGlassesActive &&
+            window.Game.isThugGlassesActive();
+          startRaptorStage.classList.toggle("has-hat", !!hat);
+          startRaptorStage.classList.toggle("has-glasses", !!glasses);
+        }
+
         function refreshEasterEggUI() {
           if (!window.Game) return;
           const hatUnlocked =
@@ -1726,6 +1866,9 @@
               ? "Thug glasses: on"
               : "Thug glasses: off";
           }
+          // Keep the start-screen raptor in sync so toggles update
+          // live even if the panel is under a transparent menu.
+          refreshStartRaptorCosmetics();
         }
 
         if (partyHatBtn) {
@@ -1748,6 +1891,31 @@
             window.Game.resetTotalJumps();
             refreshEasterEggUI();
           });
+        }
+
+        // Debug: live-editable score input. Typing a new number
+        // overwrites state.score on the fly so testers can hop
+        // the raptor past the high-score / unlock thresholds
+        // without grinding.
+        const scoreInput = document.getElementById("menu-score-input");
+        function refreshScoreEditor() {
+          if (!scoreInput || !window.Game || !window.Game.getScore) return;
+          // Only overwrite the input if the user isn't actively
+          // editing it, to avoid stealing focus or caret position.
+          if (document.activeElement === scoreInput) return;
+          scoreInput.value = String(window.Game.getScore() | 0);
+        }
+        if (scoreInput) {
+          scoreInput.addEventListener("input", () => {
+            if (!window.Game || !window.Game.setScore) return;
+            const n = Math.max(0, Math.floor(Number(scoreInput.value) || 0));
+            window.Game.setScore(n);
+            // Sync the HUD's displayed value so it snaps to the
+            // new number instead of slowly tweening up.
+            if (scoreValueEl) scoreValueEl.textContent = String(n);
+            displayedScore = n;
+          });
+          scoreInput.addEventListener("click", (e) => e.stopPropagation());
         }
 
         // ───────── Keyboard ─────────
