@@ -44,6 +44,14 @@
   // sessions so players who mute the music don't get blasted every
   // time they reopen the tab.
   const MUTED_KEY = "raptor-runner:muted";
+  // localStorage key for the cumulative jump count. Earns easter-egg
+  // flair on the raptor: the party hat unlocks at
+  // PARTY_HAT_JUMP_THRESHOLD, and the "thug life" glasses unlock at
+  // THUG_GLASSES_JUMP_THRESHOLD — both persist in localStorage, so
+  // the player only has to earn them once.
+  const TOTAL_JUMPS_KEY = "raptor-runner:totalJumps";
+  const PARTY_HAT_JUMP_THRESHOLD = 100;
+  const THUG_GLASSES_JUMP_THRESHOLD = 200;
 
   const RAPTOR_NATIVE_W = 578;
   const RAPTOR_NATIVE_H = 212;
@@ -246,7 +254,11 @@
     [220, 90, 120],  // 11 magenta-pink (sunrise)
   ];
 
-  const IMAGE_SRCS = { raptorSheet: "assets/raptor-sheet.png" };
+  const IMAGE_SRCS = {
+    raptorSheet: "assets/raptor-sheet.png",
+    partyHat: "assets/party-hat.png",
+    thugGlasses: "assets/thug-glasses.png",
+  };
   for (const v of CACTUS_VARIANTS) IMAGE_SRCS[v.key] = `assets/${v.key}.png`;
   const IMAGES = {};
 
@@ -509,6 +521,22 @@
     // null on pause/reset so the first post-resume frame doesn't
     // see a huge stale delta.
     lastNow: null,
+    // Total jumps the player has ever performed this run. Persists
+    // across game-overs only via localStorage (see TOTAL_JUMPS_KEY).
+    // At >= 100, the easter-egg party hat starts appearing on the
+    // raptor's head as a reward for sticking with the game.
+    totalJumps: 0,
+    // Debug overrides for the easter-egg accessories: when set to
+    // true (or false), they force the party hat / thug glasses on
+    // or off regardless of the totalJumps count. Only respected
+    // when ?debug=true is on. null means "follow totalJumps".
+    forcePartyHat: null,
+    forceThugGlasses: null,
+    // Active shooting-star flashes. Each entry is {x, y, vx, vy,
+    // age, life}. Populated only from the second night onward so
+    // the first night feels clean and the easter egg reads as a
+    // reward for surviving longer.
+    shootingStars: [],
     clouds: [],
     // Debug mode — toggled on by `?debug=true` query param. When on,
     // the menu grows a "Show hitboxes" toggle and the game draws the
@@ -571,6 +599,10 @@
       const v = Math.sqrt(2 * a * targetRise);
       this.velocity = -v;
       audio.playJump();
+      // Track total jumps across all runs — this is what unlocks
+      // the party-hat easter egg at PARTY_HAT_JUMP_THRESHOLD.
+      state.totalJumps += 1;
+      saveTotalJumps(state.totalJumps);
     }
 
     /**
@@ -630,6 +662,98 @@
         this.w,
         this.h
       );
+      // Thug life glasses unlock at THUG_GLASSES_JUMP_THRESHOLD.
+      // Drawn BEFORE the party hat so the hat's base band sits in
+      // front of the glasses' upper edge if the two ever overlap.
+      // Debug overrides (via the menu's debug-only toggles) win
+      // over the career-jump count.
+      const wantGlasses =
+        state.forceThugGlasses != null
+          ? state.forceThugGlasses
+          : state.totalJumps >= THUG_GLASSES_JUMP_THRESHOLD;
+      if (wantGlasses) this.drawThugGlasses(ctx);
+
+      const wantHat =
+        state.forcePartyHat != null
+          ? state.forcePartyHat
+          : state.totalJumps >= PARTY_HAT_JUMP_THRESHOLD;
+      if (wantHat) this.drawPartyHat(ctx);
+    }
+
+    /**
+     * Pixel-art "thug life" glasses: two solid black rectangular
+     * lenses connected by a thin bridge, sitting over the raptor's
+     * eye area. The raptor is a side-view sprite so we fake a
+     * slight front-facing perspective by drawing both lenses as
+     * narrow rectangles offset horizontally — reads unambiguously
+     * as sunglasses at every viewport scale.
+     */
+    /**
+     * Thug-life glasses sprite (Wikimedia Commons, Aboulharakat —
+     * CC BY-SA 4.0; see imprint) composited across the raptor's
+     * eye area. The raptor is a side-view sprite so the pixel-art
+     * glasses read as one lens close to camera and the other
+     * partially visible — which is exactly the look we want.
+     */
+    drawThugGlasses(ctx) {
+      const sprite = IMAGES.thugGlasses;
+      if (!sprite) return;
+      const x = this.x;
+      const y = this.y;
+      const w = this.w;
+      const h = this.h;
+      // Eye position on the raptor sprite, in raptor-local coords.
+      // Tuned so the glasses sit flat across the eye without
+      // overlapping the snout tip.
+      const cx = x + w * 0.9;
+      const cy = y + h * 0.27;
+      // Width tied to the head, height derived from the source
+      // aspect ratio so nothing squishes.
+      const gW = w * 0.2;
+      const gH = gW * (sprite.height / sprite.width);
+      ctx.save();
+      ctx.translate(cx, cy);
+      // Gentle forward tilt matching the head line.
+      ctx.rotate(-0.15);
+      ctx.drawImage(sprite, -gW / 2, -gH / 2, gW, gH);
+      ctx.restore();
+    }
+
+    /**
+     * Party hat sprite (Freepik, see imprint) composited on top
+     * of the raptor's head. The sprite is drawn with its bottom
+     * center sitting on the crown of the head, then rotated
+     * slightly backwards and to the left for a casual "just put
+     * it on" tilt.
+     */
+    drawPartyHat(ctx) {
+      const sprite = IMAGES.partyHat;
+      if (!sprite) return;
+      const x = this.x;
+      const y = this.y;
+      const w = this.w;
+      const h = this.h;
+      // Crown-of-head attach point, slightly behind the head tip
+      // so the hat base bridges the skull rather than balancing
+      // on the snout.
+      const anchorX = x + w * 0.86;
+      const anchorY = y + h * 0.2;
+      // Hat size ~75% of raptor height so it reads clearly but
+      // doesn't dominate the frame. Width follows the sprite's
+      // aspect ratio so the pom-pom stays round.
+      const hatH = h * 0.75;
+      const hatW = hatH * (sprite.width / sprite.height);
+      // Tilt backwards and to the LEFT — i.e. rotate counter
+      // clockwise in canvas coords (negative angle), so the apex
+      // leans toward the raptor's tail.
+      const tiltRad = -0.35;
+      ctx.save();
+      ctx.translate(anchorX, anchorY);
+      ctx.rotate(tiltRad);
+      // Draw the sprite so its bottom-center is at the anchor: the
+      // base of the hat sits on the crown and the tip extends up.
+      ctx.drawImage(sprite, -hatW / 2, -hatH, hatW, hatH);
+      ctx.restore();
     }
 
     /**
@@ -950,6 +1074,92 @@
 
       ctx.restore();
     }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // Shooting stars (easter egg)
+  //
+  // Spawned only from the SECOND night onward — Math.floor(smoothPhase)
+  // >= 1 means at least one full day/night cycle has already elapsed,
+  // so the player has "earned" the flourish. Each shooting star is a
+  // bright white dot with a fading trail. They're drawn in screen
+  // space (not inside the rotating dome transform) because they're
+  // brief events — dome rotation during their 1-second life would be
+  // imperceptible and would just complicate the math.
+  // ════════════════════════════════════════════════════════════════
+
+  function maybeSpawnShootingStar(frameScale) {
+    if (Math.floor(state.smoothPhase) < 1) return;
+    if (!state.isNight) return;
+    // Small per-frame chance — averaged roughly one shooting star
+    // every ~6 seconds of real-time night, which is "noticeable but
+    // not spammy".
+    const chance = 0.003 * frameScale;
+    if (Math.random() > chance) return;
+    const w = state.width;
+    const h = state.height;
+    // Start above the upper-right quadrant, fly diagonally down-left.
+    const startX = w * randRange(0.55, 1.05);
+    const startY = h * randRange(-0.05, 0.35);
+    const speed = Math.max(w, h) * 0.9; // px/sec
+    const angle = Math.PI + randRange(0.25, 0.55); // down-left
+    state.shootingStars.push({
+      x: startX,
+      y: startY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      age: 0,
+      life: randRange(0.8, 1.4),
+    });
+  }
+
+  function updateShootingStars(dtSec) {
+    if (state.shootingStars.length === 0) return;
+    for (const s of state.shootingStars) {
+      s.x += s.vx * dtSec;
+      s.y += s.vy * dtSec;
+      s.age += dtSec;
+    }
+    // Drop expired entries (alive time exceeded life, or off-screen).
+    state.shootingStars = state.shootingStars.filter((s) => {
+      if (s.age >= s.life) return false;
+      if (s.x < -100 || s.y > state.height + 100) return false;
+      return true;
+    });
+  }
+
+  function drawShootingStars(ctx) {
+    if (state.shootingStars.length === 0) return;
+    ctx.save();
+    ctx.lineCap = "round";
+    for (const s of state.shootingStars) {
+      // Opacity peaks mid-life and fades at both ends so the trail
+      // appears and disappears smoothly.
+      const t = s.age / s.life;
+      const alpha = Math.sin(Math.PI * t);
+      if (alpha <= 0) continue;
+      // Trail length: ~80px worth of velocity, drawn backwards from
+      // the head along the inverse velocity direction.
+      const trailLen = 110;
+      const vMag = Math.hypot(s.vx, s.vy) || 1;
+      const tx = s.x - (s.vx / vMag) * trailLen;
+      const ty = s.y - (s.vy / vMag) * trailLen;
+      const grad = ctx.createLinearGradient(s.x, s.y, tx, ty);
+      grad.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+      grad.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(tx, ty);
+      ctx.stroke();
+      // Bright head dot.
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -1327,6 +1537,9 @@
     }
 
     stars.update(state.isNight, frameScale);
+    // Shooting-star easter egg: only runs from the 2nd night onward.
+    maybeSpawnShootingStar(frameScale);
+    updateShootingStars(dtSec);
 
     if (!state.gameOver) {
       raptor.update(now, frameScale);
@@ -1380,6 +1593,8 @@
 
     // Stars + Milky Way (fade in only at night).
     stars.draw(ctx);
+    // Shooting stars (easter egg, second night onward).
+    drawShootingStars(ctx);
 
     // Sun + moon ride parabolic arcs across the sky. Drawn at full
     // brightness — they're light sources, not lit objects, and they
@@ -1555,6 +1770,25 @@
     }
   }
 
+  function loadTotalJumps() {
+    try {
+      const raw = window.localStorage.getItem(TOTAL_JUMPS_KEY);
+      if (raw == null) return 0;
+      const n = parseInt(raw, 10);
+      return Number.isFinite(n) && n >= 0 ? n : 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function saveTotalJumps(value) {
+    try {
+      window.localStorage.setItem(TOTAL_JUMPS_KEY, String(value));
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
   /** Called once the player dies. Checks if this run's score beat
    *  the stored personal best and, if so, saves it and flags the
    *  run for celebration on the game-over overlay. */
@@ -1579,6 +1813,7 @@
     state.score = 0;
     state.bgVelocity = INITIAL_BG_VELOCITY;
     state.lastNow = null;
+    state.shootingStars = [];
     seedClouds();
     if (raptor) {
       raptor.velocity = 0;
@@ -1804,6 +2039,56 @@
       state.showHitboxes = !state.showHitboxes;
       return state.showHitboxes;
     },
+
+    // ── Easter-egg debug toggles ──────────────────────────────
+    // These force the party hat / thug glasses on or off, or
+    // return them to "follow totalJumps" (the default) when
+    // called with null. Only meaningful with ?debug=true.
+
+    /** Is the party hat currently showing? */
+    isPartyHatActive() {
+      if (state.forcePartyHat != null) return state.forcePartyHat;
+      return state.totalJumps >= PARTY_HAT_JUMP_THRESHOLD;
+    },
+
+    setForcePartyHat(on) {
+      state.forcePartyHat = on == null ? null : !!on;
+    },
+
+    togglePartyHat() {
+      const next = !this.isPartyHatActive();
+      this.setForcePartyHat(next);
+      return next;
+    },
+
+    /** Is the thug-life glasses overlay currently showing? */
+    isThugGlassesActive() {
+      if (state.forceThugGlasses != null) return state.forceThugGlasses;
+      return state.totalJumps >= THUG_GLASSES_JUMP_THRESHOLD;
+    },
+
+    setForceThugGlasses(on) {
+      state.forceThugGlasses = on == null ? null : !!on;
+    },
+
+    toggleThugGlasses() {
+      const next = !this.isThugGlassesActive();
+      this.setForceThugGlasses(next);
+      return next;
+    },
+
+    getTotalJumps() {
+      return state.totalJumps;
+    },
+
+    /** Wipes the saved career jump count and clears any active
+     *  force-overrides so the raptor reverts to its naked state. */
+    resetTotalJumps() {
+      state.totalJumps = 0;
+      state.forcePartyHat = null;
+      state.forceThugGlasses = null;
+      saveTotalJumps(0);
+    },
   };
   window.Game = GameAPI;
 
@@ -1876,6 +2161,9 @@
     // Load the player's saved personal best (if any) so the start
     // screen and game-over overlay can show it.
     state.highScore = loadHighScore();
+    // Load the cumulative jump count — at ≥ PARTY_HAT_JUMP_THRESHOLD
+    // the raptor gets its birthday hat on.
+    state.totalJumps = loadTotalJumps();
 
     onResize();
     window.addEventListener("resize", onResize);

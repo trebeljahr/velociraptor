@@ -1016,6 +1016,46 @@
               </span>
             </button>
           </li>
+          <li class="debug-only">
+            <button id="menu-partyhat-toggle" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 2L19 18H5L12 2z"></path>
+                  <circle cx="12" cy="2" r="1.5" fill="currentColor"></circle>
+                </svg>
+                <span id="menu-partyhat-label">Party hat: off</span>
+              </span>
+            </button>
+          </li>
+          <li class="debug-only">
+            <button id="menu-thug-toggle" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="9" width="7" height="6" rx="1"></rect>
+                  <rect x="14" y="9" width="7" height="6" rx="1"></rect>
+                  <line x1="10" y1="12" x2="14" y2="12"></line>
+                </svg>
+                <span id="menu-thug-label">Thug glasses: off</span>
+              </span>
+            </button>
+          </li>
+          <li class="debug-only">
+            <button id="menu-jumpsreset-toggle" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 12a9 9 0 1 0 3-6.7"></path>
+                  <polyline points="3 4 3 10 9 10"></polyline>
+                </svg>
+                <span>Reset total jumps</span>
+              </span>
+            </button>
+          </li>
           <li class="in-game-only">
             <button id="menu-home" class="menu-item" type="button">
               <span class="inner">
@@ -1198,6 +1238,7 @@
           cog.setAttribute("aria-expanded", "true");
           refreshSoundUI();
           refreshHitboxesUI();
+          refreshEasterEggUI();
           refreshMenuHighscore();
           // Toggle a "pre-game" class on the panel so items that only
           // make sense mid-run (Back to home screen, Resume game,
@@ -1298,6 +1339,48 @@
             e.stopPropagation();
             window.Game.toggleShowHitboxes();
             refreshHitboxesUI();
+          });
+        }
+
+        // ───────── Debug: party hat / thug glasses toggles ─────────
+        const partyHatBtn = document.getElementById("menu-partyhat-toggle");
+        const partyHatLabel = document.getElementById("menu-partyhat-label");
+        const thugBtn = document.getElementById("menu-thug-toggle");
+        const thugLabel = document.getElementById("menu-thug-label");
+        const jumpsResetBtn = document.getElementById("menu-jumpsreset-toggle");
+
+        function refreshEasterEggUI() {
+          if (partyHatLabel && window.Game && window.Game.isPartyHatActive) {
+            partyHatLabel.textContent = window.Game.isPartyHatActive()
+              ? "Party hat: on"
+              : "Party hat: off";
+          }
+          if (thugLabel && window.Game && window.Game.isThugGlassesActive) {
+            thugLabel.textContent = window.Game.isThugGlassesActive()
+              ? "Thug glasses: on"
+              : "Thug glasses: off";
+          }
+        }
+
+        if (partyHatBtn) {
+          partyHatBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            window.Game.togglePartyHat();
+            refreshEasterEggUI();
+          });
+        }
+        if (thugBtn) {
+          thugBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            window.Game.toggleThugGlasses();
+            refreshEasterEggUI();
+          });
+        }
+        if (jumpsResetBtn) {
+          jumpsResetBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            window.Game.resetTotalJumps();
+            refreshEasterEggUI();
           });
         }
 
