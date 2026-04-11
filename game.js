@@ -208,15 +208,34 @@
     },
   ];
 
+  // 12-band day/night cycle. Day and night are roughly equal, with
+  // shorter sunset/sunrise transitions in between.
+  //   bands 0–1 → solid blue (early day, wraps from end of cycle)
+  //   band 2   → blue → magenta-pink (sunset color shift)
+  //   band 3   → magenta-pink → night (twilight darkening)
+  //   bands 4–6 → solid night (when stars and moon are out)
+  //   band 7   → night → magenta-pink (pre-dawn glow)
+  //   band 8   → magenta-pink → blue (sunrise color shift)
+  //   bands 9–11 → solid blue (long sunny day)
+  //
+  // The transition color is magenta-pink rather than orange because
+  // a linear RGB lerp from blue→orange passes through an ugly
+  // desaturated grey-green midpoint. Blue→magenta passes through
+  // light purple, and magenta→night through deep twilight purple —
+  // both pleasant intermediate colors.
   const SKY_COLORS = [
-    [80, 180, 205], // blue
-    [80, 180, 205], // blue
-    [255, 201, 34], // yellow
-    [235, 120, 53], // orange
-    [21, 34, 56], // night
-    [21, 34, 56], // night
-    [235, 120, 53], // orange
-    [255, 201, 34], // yellow
+    [80, 180, 205],  // 0  blue
+    [80, 180, 205],  // 1  blue
+    [80, 180, 205],  // 2  blue
+    [80, 180, 205],  // 3  blue
+    [80, 180, 205],  // 4  blue
+    [220, 90, 120],  // 5  magenta-pink (sunset)
+    [21, 34, 56],    // 6  night
+    [21, 34, 56],    // 7  night
+    [21, 34, 56],    // 8  night
+    [21, 34, 56],    // 9  night
+    [21, 34, 56],    // 10 night
+    [220, 90, 120],  // 11 magenta-pink (sunrise)
   ];
 
   const IMAGE_SRCS = { raptorSheet: "assets/raptor-sheet.png" };
@@ -235,6 +254,48 @@
   ];
   const rgb = (c) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
   const rgba = (c, a) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
+
+  /** Strength of the foreground sky-light tint applied in render().
+   *  Continuous: 0.05 at midday under a clean blue sky (so the
+   *  foreground reads as neutral, not blue-cast), rising smoothly
+   *  through ~0.35 at the peak of a magenta-pink twilight, and up
+   *  to ~0.55 at full night. The smooth ramp means clouds, ground,
+   *  and the raptor all naturally pick up the warm pink tones at
+   *  sunset rather than only shifting on the day/night flag flip. */
+  function tintStrength() {
+    const sky = state.currentSky;
+    const dayBlue = SKY_COLORS[0];
+    const dx = sky[0] - dayBlue[0];
+    const dy = sky[1] - dayBlue[1];
+    const dz = sky[2] - dayBlue[2];
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    // Maximum sensible distance is from blue to night (~258).
+    const t = Math.min(1, distance / 250);
+    return 0.05 + t * 0.5;
+  }
+  /** Per-channel multiply factor that the global tint applies. */
+  function tintFactor() {
+    const sky = state.currentSky;
+    const s = tintStrength();
+    return [
+      255 + (sky[0] - 255) * s,
+      255 + (sky[1] - 255) * s,
+      255 + (sky[2] - 255) * s,
+    ];
+  }
+  /** Brighten `target` so that, after the global multiply-tint, it
+   *  ends up reading as `target` again. Clamped to [0, 255]; for very
+   *  bright targets through a strong tint the result clips at 255 and
+   *  the visible color is darker than the target — that's the best
+   *  we can do without using a different blend mode. */
+  function preCompensate(target) {
+    const f = tintFactor();
+    return [
+      Math.max(0, Math.min(255, Math.round((target[0] * 255) / f[0]))),
+      Math.max(0, Math.min(255, Math.round((target[1] * 255) / f[1]))),
+      Math.max(0, Math.min(255, Math.round((target[2] * 255) / f[2]))),
+    ];
+  }
   const randRange = (min, max) => min + Math.random() * (max - min);
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -388,6 +449,13 @@
     currentSky: [...SKY_COLORS[0]],
     lastSkyScore: -1,
     isNight: false,
+    // Continuous version of (state.score / SKY_CYCLE_SCORE), smoothed
+    // every frame so the sun/moon arc and star rotation move smoothly
+    // even though score is integer-stepped.
+    smoothPhase: 0,
+    // Monotonic frame-based angle used to rotate the night-sky dome
+    // (stars + Milky Way) gently across the screen.
+    starRotation: 0,
     clouds: [],
     // Debug mode — toggled on by `?debug=true` query param. When on,
     // the menu grows a "Show hitboxes" toggle and the game draws the
@@ -398,6 +466,12 @@
 
   let canvas, ctx;
   let skyCanvas, skyCtx;
+  // Offscreen canvas for the foreground layer (clouds, ground,
+  // cacti, raptor). We tint just this canvas with the sky color and
+  // then composite it over the main canvas — that way the sky and
+  // light sources (stars, sun, moon) keep their full brightness
+  // while the foreground gets a uniform sky-light wash.
+  let fgCanvas, fgCtx;
   let raptor, cactuses, stars;
 
   // ══════════════════════════════════════════════════════════════════
@@ -636,16 +710,111 @@
     }
   }
 
+  // ════════════════════════════════════════════════════════════════
+  // Stars + Milky Way
+  //
+  // The night sky is a "dome" that we rotate around a pivot point
+  // far above the visible viewport. Star positions are generated
+  // once across an area wider/taller than the viewport so that as
+  // the dome rotates, stars enter from one edge and exit the other
+  // without empty patches appearing at the corners.
+  //
+  // The Milky Way is a denser band of small stars + a soft haze
+  // strip drawn along a tilted line. It lives in the same rotated
+  // frame so it drifts in/out with the rest of the sky.
+  // ════════════════════════════════════════════════════════════════
+
   class Stars {
     constructor() {
-      this.array = [];
       this.opacity = 0;
-      const count = Math.floor(state.width / 30);
+      this.field = [];
+      this.milkyWay = [];
+
+      // Generate stars over an area much larger than the viewport so
+      // the rotation transform never sweeps the visible area empty.
+      // The rotation pivot sits 1.5 screen-heights above the viewport,
+      // so even small rotation angles move stars along long arcs —
+      // the field needs to extend far enough in every direction to
+      // cover where stars rotate in from.
+      const w = state.width;
+      const h = state.height;
+      const padX = w * 1.2;
+      const padY = h * 1.2;
+      const fieldW = w + padX * 2;
+      const fieldH = h * 0.8 + padY * 2;
+      // Density: roughly one star per 8000 px² of star-field area —
+      // lower density than before because the field is much larger
+      // and we don't want to overwhelm the sky with pinpricks.
+      const count = Math.max(80, Math.floor((fieldW * fieldH) / 8000));
       for (let i = 0; i < count; i++) {
-        this.array.push({
-          x: Math.random() * state.width,
-          y: Math.random() * (state.height / 2),
-          size: randRange(3, 6),
+        // ~15% of stars are "bright" — noticeably bigger and at full
+        // brightness. The rest are background dimmer pinpricks.
+        const bright = Math.random() < 0.15;
+        // ~65% of stars twinkle. Dimmer ones twinkle more so the
+        // pulsing reads against the dark sky.
+        const twinkles = Math.random() < 0.65;
+        this.field.push({
+          x: -padX + Math.random() * fieldW,
+          y: -padY + Math.random() * fieldH,
+          size: bright ? randRange(4, 6.5) : randRange(1.6, 3.5),
+          brightness: bright ? randRange(0.92, 1.0) : randRange(0.45, 0.85),
+          twinklePhase: Math.random() * Math.PI * 2,
+          twinkleRate: twinkles ? randRange(0.02, 0.06) : 0,
+          twinkleDepth: twinkles ? randRange(0.3, 0.7) : 0,
+        });
+      }
+
+      // Milky Way: a tilted band of small stars + a few soft "puffs"
+      // of haze along the band. Stars are distributed with a Gaussian
+      // density across the band so the edges fade naturally rather
+      // than ending in a hard rectangle.
+      this.mwTilt = -Math.PI / 7;
+      this.mwCenterX = w * 0.55;
+      this.mwCenterY = h * 0.28;
+      this.mwLength = Math.max(w, h) * 1.6;
+      this.mwThickness = h * 0.22;
+      const mwCos = Math.cos(this.mwTilt);
+      const mwSin = Math.sin(this.mwTilt);
+      const mwStarCount = 220;
+      for (let i = 0; i < mwStarCount; i++) {
+        const along = (Math.random() - 0.5) * this.mwLength;
+        // Box-Muller-ish: average two uniforms for a roughly Gaussian
+        // distribution across the band's thickness, so star density
+        // peaks in the middle and tapers smoothly to nothing at the
+        // edges. Squared bias toward the center.
+        const u = (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
+        const across = u * (this.mwThickness * 0.5);
+        // Long-axis intensity also tapers off toward the band ends.
+        const endFade = 1 - Math.pow(Math.abs(along) / (this.mwLength / 2), 2);
+        if (endFade < 0.05) continue;
+        const x = this.mwCenterX + along * mwCos - across * mwSin;
+        const y = this.mwCenterY + along * mwSin + across * mwCos;
+        this.milkyWay.push({
+          x,
+          y,
+          size: randRange(0.5, 1.6),
+          brightness: randRange(0.35, 0.8) * endFade,
+        });
+      }
+
+      // A few soft haze "puffs" placed along the band — drawn as
+      // radial gradients in draw(). Position them at evenly spaced
+      // points along the centerline with small random jitter so the
+      // glow looks irregular instead of beaded.
+      this.mwHazePuffs = [];
+      const puffCount = 7;
+      for (let i = 0; i < puffCount; i++) {
+        const t = (i + 0.5) / puffCount - 0.5;
+        const along = t * this.mwLength * 0.95 + (Math.random() - 0.5) * this.mwLength * 0.05;
+        const across = (Math.random() - 0.5) * this.mwThickness * 0.15;
+        const x = this.mwCenterX + along * mwCos - across * mwSin;
+        const y = this.mwCenterY + along * mwSin + across * mwCos;
+        const endFade = 1 - Math.pow(Math.abs(along) / (this.mwLength / 2), 2);
+        this.mwHazePuffs.push({
+          x,
+          y,
+          radius: this.mwThickness * randRange(0.55, 0.9),
+          brightness: 0.10 * endFade,
         });
       }
     }
@@ -655,15 +824,206 @@
       else this.opacity = Math.max(0, this.opacity - 0.005);
     }
 
+    /**
+     * Apply the rotation transform around the celestial pivot. The
+     * pivot sits well above the visible viewport so that on-screen
+     * stars all trace gentle, near-parallel arcs (rather than
+     * spinning around a visible center point).
+     */
+    _applyRotation(ctx) {
+      const px = state.width * 0.5;
+      const py = -state.height * 1.5;
+      ctx.translate(px, py);
+      ctx.rotate(state.starRotation);
+      ctx.translate(-px, -py);
+    }
+
     draw(ctx) {
       if (this.opacity <= 0) return;
-      ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
-      for (const s of this.array) {
+      const starWhite = [255, 255, 255];
+      const mwStar = [235, 235, 255];
+      const mwHaze1 = [220, 225, 255];
+      const mwHaze2 = [200, 210, 245];
+      const mwHazeOuter = [180, 190, 230];
+
+      ctx.save();
+      this._applyRotation(ctx);
+
+      // Soft Milky Way haze: a few overlapping radial-gradient puffs
+      // along the band. Radial gradients fade smoothly to transparent
+      // at their edge so the band feels diffuse rather than rectangular.
+      for (const puff of this.mwHazePuffs) {
+        const a = puff.brightness * this.opacity;
+        if (a <= 0.001) continue;
+        const grad = ctx.createRadialGradient(puff.x, puff.y, 0, puff.x, puff.y, puff.radius);
+        grad.addColorStop(0, rgba(mwHaze1, a));
+        grad.addColorStop(0.6, rgba(mwHaze2, a * 0.4));
+        grad.addColorStop(1, rgba(mwHazeOuter, 0));
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(puff.x, puff.y, puff.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Milky Way star points.
+      for (const s of this.milkyWay) {
+        ctx.fillStyle = rgba(mwStar, s.brightness * this.opacity);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Foreground star field. Stars with a non-zero twinkleDepth
+      // pulse softly via a sin wave; the rest hold steady.
+      for (const s of this.field) {
+        let twinkle = 1;
+        if (s.twinkleDepth) {
+          twinkle =
+            1 -
+            s.twinkleDepth *
+              (0.5 + 0.5 * Math.sin(s.twinklePhase + state.frame * s.twinkleRate));
+        }
+        const a = s.brightness * twinkle * this.opacity;
+        ctx.fillStyle = rgba(starWhite, a);
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.size / 2, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      ctx.restore();
     }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // Sun + Moon
+  //
+  // Both bodies travel along a parabolic arc across the visible sky
+  // tied to `state.smoothPhase`. The sun is visible during the day
+  // half of the cycle (centered on phase 0 = blue daytime), the moon
+  // during the night half (centered on phase 0.5 = night).
+  // ════════════════════════════════════════════════════════════════
+
+  /**
+   * Returns {visible, x, y, t} for a celestial body whose visible arc
+   * is centered on cycle `phaseCenter` and lasts half a cycle. `t` is
+   * 0 at rise (right edge) and 1 at set (left edge), or null if not
+   * visible.
+   */
+  function celestialArc(phaseCenter, halfWidth) {
+    // Wrap so that `rel` is in [-0.5, 0.5] around phaseCenter.
+    let rel = (state.smoothPhase % 1 + 1) % 1 - phaseCenter;
+    if (rel > 0.5) rel -= 1;
+    if (rel < -0.5) rel += 1;
+    // The "above-horizon" arc spans rel ∈ [-halfWidth, +halfWidth].
+    // We extend the computed range a bit past those bounds so the
+    // body actually travels below the horizon (and off-screen at the
+    // left/right edge) rather than stopping at the horizon and
+    // fading out — that's how a real sun sets. The ground bands
+    // drawn over the top of the canvas naturally occlude the disc
+    // once it dips below.
+    const extension = halfWidth * 0.18;
+    if (rel < -halfWidth - extension || rel > halfWidth + extension) {
+      return { visible: false, x: 0, y: 0, t: 0, alpha: 0 };
+    }
+    // No clamp on t — beyond [0, 1] the parabola pushes y below the
+    // ground (sun has already dipped below the horizon) and x off
+    // the screen edge.
+    const t = (rel + halfWidth) / (halfWidth * 2);
+    const x = state.width * (1 - t);
+    const arcH = state.height * 0.7;
+    const y = state.ground - 4 * arcH * t * (1 - t);
+    return { visible: true, x, y, t, alpha: 1 };
+  }
+
+  function drawSun(ctx) {
+    // Sun is visible during the entire day half (solid blue + half
+    // of each twilight transition). Its peak sits at the middle of
+    // the solid-blue stretch.
+    const arc = celestialArc(0.167, 0.25);
+    if (!arc.visible) return;
+    const r = Math.max(14, state.width * 0.02);
+    // Elevation = 1 at the zenith, 0 at the horizon. We bend the
+    // curve hard with a high exponent so the disc stays bright white
+    // across almost the entire arc, only shifting to yellow in the
+    // final stretch and to red right at the horizon. The lerp logic
+    // below splits the elevation range into "white half" (near
+    // zenith) and "warm half" (near horizon) — with this curve, the
+    // warm half only kicks in for the last ~10% of the arc on each
+    // side, so red is a brief sunset/sunrise moment, not the norm.
+    // Clamp to [0, 1] — t can extend slightly below 0 / above 1
+    // when the sun is dipping below the horizon, which would
+    // otherwise produce a negative elevation.
+    const elevation = Math.max(0, 1 - Math.pow(Math.abs(arc.t - 0.5) * 2, 4));
+    const cZenith = [255, 250, 235];
+    const cMid = [255, 200, 110];
+    const cHorizon = [220, 60, 25];
+    let core, halo;
+    if (elevation > 0.5) {
+      const k = (elevation - 0.5) * 2; // 0..1 across upper half
+      core = lerpColor(cMid, cZenith, k);
+      halo = lerpColor([255, 180, 100], [255, 230, 170], k);
+    } else {
+      const k = elevation * 2; // 0..1 across lower half
+      core = lerpColor(cHorizon, cMid, k);
+      halo = lerpColor([225, 70, 30], [255, 180, 100], k);
+    }
+
+    ctx.save();
+    // Solid disc only — no halo glare. The sun reads as a clean
+    // bright circle against the sky, no soft bleeding glow.
+    ctx.fillStyle = rgb(core);
+    ctx.beginPath();
+    ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawMoon(ctx) {
+    // Moon mirrors the sun: visible during the entire night half
+    // (solid night + half of each twilight transition), with the
+    // same arc width so it traces a matching gentle parabola.
+    const arc = celestialArc(0.667, 0.25);
+    if (!arc.visible) return;
+    const r = Math.max(11, state.width * 0.016);
+    // Bright near-white moon. The shadow is the sky color so it
+    // reads as the dark side of the disc.
+    const core = [250, 250, 252];
+    const halo = [220, 230, 250];
+    const shadow = [
+      Math.round(state.currentSky[0] * 0.5),
+      Math.round(state.currentSky[1] * 0.5),
+      Math.round(state.currentSky[2] * 0.5),
+    ];
+
+    ctx.save();
+    ctx.globalAlpha = arc.alpha;
+    // Halo.
+    const glow = ctx.createRadialGradient(arc.x, arc.y, r * 0.3, arc.x, arc.y, r * 2.6);
+    glow.addColorStop(0, rgba(halo, 0.45));
+    glow.addColorStop(0.5, rgba(halo, 0.14));
+    glow.addColorStop(1, rgba(halo, 0));
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(arc.x, arc.y, r * 2.6, 0, Math.PI * 2);
+    ctx.fill();
+    // Disc.
+    ctx.fillStyle = rgb(core);
+    ctx.beginPath();
+    ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    // Subtle shadow on one side — gives a hint of phase without
+    // turning the whole disc dark. Clipped to the moon disc so the
+    // shadow doesn't bleed onto the surrounding halo.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = rgba(shadow, 0.35);
+    ctx.beginPath();
+    ctx.arc(arc.x - r * 0.55, arc.y - r * 0.25, r * 0.95, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.restore();
   }
 
   // ══════════════════════════════════════════════════════════════════
@@ -702,6 +1062,10 @@
     // PI = left, 3*PI/2 = up. Going CW (counterclockwise=false) from
     // PI to 0 traces: left → up → right, giving the TOP half of the
     // ellipse — a dome pointing upward, matching the original p5 shape.
+    //
+    // Drawn pure white — the global multiply tint applied at the end
+    // of render() picks up the sky color and tints clouds to match
+    // (peachy at sunset, blue-grey at night, white at midday).
     ctx.fillStyle = "#ffffff";
     for (const b of CLOUD_BUMPS) {
       ctx.beginPath();
@@ -805,9 +1169,21 @@
     const h = state.height;
     if (skyCanvas.width !== w) skyCanvas.width = w;
     if (skyCanvas.height !== h) skyCanvas.height = h;
+    // Fade from the current sky color at the top to a slightly
+    // brighter, desaturated version at the horizon for atmospheric
+    // depth. Both stops are pre-divided by the foreground multiply
+    // tint that gets applied over the whole canvas in render(), so
+    // that AFTER the multiply, the visible sky still looks like
+    // `currentSky` rather than darkened. Without this compensation
+    // the sky reads too dark, especially at night where the multiply
+    // factor is highest.
+    const sky = state.currentSky;
+    const horizonR = Math.round(sky[0] + (255 - sky[0]) * 0.45);
+    const horizonG = Math.round(sky[1] + (255 - sky[1]) * 0.45);
+    const horizonB = Math.round(sky[2] + (255 - sky[2]) * 0.45);
     const grad = skyCtx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, rgb(state.currentSky));
-    grad.addColorStop(1, "rgb(255, 255, 255)");
+    grad.addColorStop(0, rgb(sky));
+    grad.addColorStop(1, `rgb(${horizonR}, ${horizonG}, ${horizonB})`);
     skyCtx.fillStyle = grad;
     skyCtx.fillRect(0, 0, w, h);
   }
@@ -819,18 +1195,45 @@
   function update(now) {
     state.frame++;
 
-    // Score-based day/night cycle.
-    const phase = (state.score % SKY_CYCLE_SCORE) / SKY_CYCLE_SCORE;
+    // Continuous, monotonic day-phase. Drives the sky color, the
+    // sun/moon arc, and the star rotation so they all stay locked
+    // together. Advances at a constant per-frame rate scaled by the
+    // current background velocity so the cycle naturally accelerates
+    // as the game speeds up — without ever stepping discretely the
+    // way a pure score-based phase would.
+    const speedMult = state.bgVelocity / INITIAL_BG_VELOCITY;
+    state.smoothPhase += speedMult / (SKY_CYCLE_SCORE * 60);
+
+    // Slow rotation of the night-sky dome, tied to the cycle phase
+    // so every night repeats the same visible arc. The rotation wraps
+    // from its max angle back to zero at phase 1 → 0, which happens
+    // during solid daylight when stars are fully faded out — so the
+    // discontinuity is never visible.
+    //
+    // The total rotation per cycle is intentionally small (~18°):
+    // because the pivot sits ~1.5 screen-heights above the viewport,
+    // a star at screen-center is ~2h from the pivot, so even a
+    // modest rotation traces a long arc. At 0.1π/cycle the drift
+    // across a single night is ~7.5° — enough to see the sky move,
+    // not enough to drift stars off before the night ends.
+    const wrappedPhase = ((state.smoothPhase % 1) + 1) % 1;
+    state.starRotation = wrappedPhase * Math.PI * 0.1;
+
+    // Day/night cycle driven by smoothPhase (continuous), not score
+    // (discrete) — so the sun/moon position never jumps when the
+    // player passes a cactus.
+    const phase = (state.smoothPhase % 1 + 1) % 1;
     const bandF = phase * SKY_COLORS.length;
     const bandIndex = Math.floor(bandF);
     const bandT = bandF - bandIndex;
     const nextBand = (bandIndex + 1) % SKY_COLORS.length;
 
+    // Stars fade in when the sky is genuinely dark — solid-night
+    // bands 6–9 plus the dark half of each twilight transition.
     state.isNight =
-      bandIndex === 4 ||
-      bandIndex === 5 ||
-      (bandIndex === 3 && bandT > 0.7) ||
-      (bandIndex === 6 && bandT < 0.3);
+      (bandIndex >= 6 && bandIndex <= 9) ||
+      (bandIndex === 5 && bandT > 0.5) ||
+      (bandIndex === 10 && bandT < 0.5);
 
     if (
       state.frame % SKY_UPDATE_INTERVAL_FRAMES === 0 ||
@@ -890,38 +1293,74 @@
   }
 
   function render() {
+    // === Background pass (no tint) =================================
     // Sky background (single blit of the cached gradient buffer).
     if (skyCanvas) ctx.drawImage(skyCanvas, 0, 0);
 
-    // Stars (only visible at night).
+    // Stars + Milky Way (fade in only at night).
     stars.draw(ctx);
 
-    // Clouds.
+    // Sun + moon ride parabolic arcs across the sky. Drawn at full
+    // brightness — they're light sources, not lit objects, and they
+    // sit behind the foreground because the foreground gets drawn
+    // on top of them below.
+    drawSun(ctx);
+    drawMoon(ctx);
+
+    // === Foreground pass (rendered on offscreen canvas, then       =
+    // === uniformly sky-tinted, then composited onto the main pass) =
+    fgCtx.clearRect(0, 0, state.width, state.height);
+
+    // Clouds — drawn pure white here, the source-atop tint below
+    // picks up the sky color and washes them toward it.
     for (const cloud of state.clouds) {
-      drawCloud(ctx, cloud.x, cloud.y, cloud.size * cloud.scale);
+      drawCloud(fgCtx, cloud.x, cloud.y, cloud.size * cloud.scale);
     }
 
     // Ground bands.
-    ctx.fillStyle = "#ebc334";
-    ctx.fillRect(0, state.ground, state.width, 5);
-    ctx.fillStyle = "#ebab21";
-    ctx.fillRect(0, state.ground + 5, state.width, 10);
-    ctx.fillStyle = "#ba8c27";
-    ctx.fillRect(0, state.ground + 15, state.width, 20);
-    ctx.fillStyle = "#EDC9AF";
-    ctx.fillRect(0, state.ground + 35, state.width, 200);
-
-    // Haze overlay on top of the ground, tinted by current sky.
-    const haze = lerpColor(state.currentSky, [255, 255, 255], 0.6);
-    ctx.fillStyle = rgba(haze, 100 / 255);
-    ctx.fillRect(0, state.ground, state.width, 200);
+    fgCtx.fillStyle = "#ebc334";
+    fgCtx.fillRect(0, state.ground, state.width, 5);
+    fgCtx.fillStyle = "#ebab21";
+    fgCtx.fillRect(0, state.ground + 5, state.width, 10);
+    fgCtx.fillStyle = "#ba8c27";
+    fgCtx.fillRect(0, state.ground + 15, state.width, 20);
+    fgCtx.fillStyle = "#EDC9AF";
+    fgCtx.fillRect(0, state.ground + 35, state.width, 200);
 
     // Cacti.
-    cactuses.draw(ctx);
+    cactuses.draw(fgCtx);
 
-    // Raptor (drawn on the canvas so the game-over overlay properly
-    // covers it and so we can frame-lock to the idle pose during jumps).
-    raptor.draw(ctx);
+    // Raptor.
+    raptor.draw(fgCtx);
+
+    // Sky-light tint applied ONLY where the foreground has drawn
+    // pixels. `source-atop` performs alpha blending only over
+    // existing dest pixels, leaving transparent areas untouched —
+    // so the tint doesn't bleed into the sky region around the
+    // raptor or above the cacti.
+    {
+      const sky = state.currentSky;
+      const strength = tintStrength();
+      fgCtx.save();
+      fgCtx.globalCompositeOperation = "source-atop";
+      fgCtx.fillStyle = `rgba(${sky[0]}, ${sky[1]}, ${sky[2]}, ${strength})`;
+      fgCtx.fillRect(0, 0, state.width, state.height);
+      fgCtx.restore();
+    }
+
+    // Composite the tinted foreground over the background.
+    ctx.drawImage(
+      fgCanvas,
+      0,
+      0,
+      fgCanvas.width,
+      fgCanvas.height,
+      0,
+      0,
+      state.width,
+      state.height
+    );
+
 
     // Score text — tinted so it stays readable against the current sky.
     const textBase = state.isNight ? [255, 255, 255] : [0, 0, 0];
@@ -984,6 +1423,7 @@
     state.gameOverFrame = 0;
     state.currentSky = [...SKY_COLORS[0]];
     state.lastSkyScore = -1;
+    state.smoothPhase = 0;
     state.score = 0;
     state.bgVelocity = INITIAL_BG_VELOCITY;
     seedClouds();
@@ -1027,6 +1467,18 @@
       // ugly jagged edges.
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "medium";
+    }
+
+    // Resize the offscreen foreground canvas to match the main one
+    // (in device pixels, with a matching scale transform).
+    if (fgCanvas && fgCtx) {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      fgCanvas.width = Math.round(state.width * dpr);
+      fgCanvas.height = Math.round(state.height * dpr);
+      fgCtx.setTransform(1, 0, 0, 1, 0, 0);
+      fgCtx.scale(dpr, dpr);
+      fgCtx.imageSmoothingEnabled = true;
+      fgCtx.imageSmoothingQuality = "medium";
     }
 
     if (raptor) raptor.resize();
@@ -1206,6 +1658,8 @@
 
     skyCanvas = document.createElement("canvas");
     skyCtx = skyCanvas.getContext("2d");
+    fgCanvas = document.createElement("canvas");
+    fgCtx = fgCanvas.getContext("2d");
 
     audio.init();
 
