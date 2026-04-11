@@ -1175,9 +1175,14 @@
 
   const SHOOTING_STAR_TRAIL_LEN = 140;
   const SHOOTING_STAR_TRAIL_H = 8;
+  // Baked trail sprite. Populated ONCE at init time (see
+  // bakeShootingStarSprite below) so the first shooting star
+  // doesn't trigger any lazy canvas/context/gradient setup on
+  // the hot path. Prefer an ImageBitmap (GPU-backed, fast
+  // drawImage) when available, fall back to the canvas element.
   let shootingStarSprite = null;
-  function getShootingStarSprite() {
-    if (shootingStarSprite) return shootingStarSprite;
+
+  function bakeShootingStarSprite() {
     const c = document.createElement("canvas");
     // Internal 2× resolution for crisp rendering at any scale.
     const sc = 2;
@@ -1187,10 +1192,6 @@
     sctx.scale(sc, sc);
     sctx.imageSmoothingEnabled = true;
     // Trail: head at the RIGHT edge, fading toward the LEFT.
-    // That way we can drawImage(-W, -H/2) with the world-space
-    // star position translated to 0,0 and the sprite rotated to
-    // match the velocity vector — the head sits at the star's
-    // position and the trail streams out backwards.
     const grad = sctx.createLinearGradient(
       SHOOTING_STAR_TRAIL_LEN,
       0,
@@ -1218,8 +1219,20 @@
       Math.PI * 2
     );
     sctx.fill();
+    // Start with the canvas as the sprite so the game can draw
+    // immediately. Upgrade to an ImageBitmap (faster drawImage)
+    // as soon as createImageBitmap resolves.
     shootingStarSprite = c;
-    return c;
+    if (typeof createImageBitmap === "function") {
+      createImageBitmap(c).then(
+        (bitmap) => {
+          shootingStarSprite = bitmap;
+        },
+        () => {
+          /* keep the canvas fallback */
+        }
+      );
+    }
   }
 
   function maybeSpawnShootingStar(frameScale) {
@@ -1274,7 +1287,8 @@
 
   function drawShootingStars(ctx) {
     if (state.shootingStars.length === 0) return;
-    const sprite = getShootingStarSprite();
+    const sprite = shootingStarSprite;
+    if (!sprite) return;
     for (const s of state.shootingStars) {
       const t = s.age / s.life;
       const alpha = Math.sin(Math.PI * t);
@@ -2608,6 +2622,21 @@
     cactuses = new Cactuses();
     stars = new Stars();
     computeSkyGradient();
+
+    // Eagerly bake the shooting-star trail sprite BEFORE the
+    // first frame so the first star to spawn doesn't pay a
+    // canvas / gradient compile cost on the hot path.
+    bakeShootingStarSprite();
+    // Warm-up draw: invisible (globalAlpha=0) drawImage pass
+    // that primes any lazy GPU upload / texture bind path in
+    // the main canvas ctx. Without this, the first real draw
+    // on some browsers can still hitch a frame.
+    if (ctx && shootingStarSprite) {
+      ctx.save();
+      ctx.globalAlpha = 0;
+      ctx.drawImage(shootingStarSprite, 0, 0, 1, 1);
+      ctx.restore();
+    }
 
     canvas.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
