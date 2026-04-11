@@ -1535,6 +1535,134 @@
   }
 
   // ══════════════════════════════════════════════════════════════════
+  // Shareable score card
+  //
+  // Composes a 1200×630 PNG with the current sky color, a fresh
+  // raptor (carrying whatever cosmetics the player has unlocked
+  // AND toggled on), the final score, and the personal best. The
+  // shell exposes this through Game.generateScoreCard() and hands
+  // the resulting Blob to either navigator.share (mobile) or a
+  // download link (desktop). Returns a Promise<Blob>.
+  // ══════════════════════════════════════════════════════════════════
+
+  function generateScoreCardBlob() {
+    const W = 1200;
+    const H = 630;
+    const card = document.createElement("canvas");
+    card.width = W;
+    card.height = H;
+    const cctx = card.getContext("2d");
+    cctx.imageSmoothingEnabled = true;
+    cctx.imageSmoothingQuality = "high";
+
+    // ── Sky gradient (current sky color) ────────────────────────
+    const sky = state.currentSky;
+    const horizonR = Math.round(sky[0] + (255 - sky[0]) * 0.45);
+    const horizonG = Math.round(sky[1] + (255 - sky[1]) * 0.45);
+    const horizonB = Math.round(sky[2] + (255 - sky[2]) * 0.45);
+    const groundY = Math.round(H * 0.84);
+    const skyGrad = cctx.createLinearGradient(0, 0, 0, groundY);
+    skyGrad.addColorStop(0, rgb(sky));
+    skyGrad.addColorStop(1, `rgb(${horizonR}, ${horizonG}, ${horizonB})`);
+    cctx.fillStyle = skyGrad;
+    cctx.fillRect(0, 0, W, groundY);
+
+    // ── Ground bands (same palette as the in-game foreground) ──
+    cctx.fillStyle = "#ebc334";
+    cctx.fillRect(0, groundY, W, 5);
+    cctx.fillStyle = "#ebab21";
+    cctx.fillRect(0, groundY + 5, W, 10);
+    cctx.fillStyle = "#ba8c27";
+    cctx.fillRect(0, groundY + 15, W, 20);
+    cctx.fillStyle = "#EDC9AF";
+    cctx.fillRect(0, groundY + 35, W, H - groundY - 35);
+
+    // ── Raptor (with whatever cosmetics the player earned) ─────
+    // Temporarily rebind the raptor to card coords, call draw()
+    // straight from its class (which already handles the hat +
+    // glasses correctly), then restore.
+    if (raptor && IMAGES.raptorSheet) {
+      const savedX = raptor.x;
+      const savedY = raptor.y;
+      const savedW = raptor.w;
+      const savedH = raptor.h;
+      const savedFrame = raptor.frame;
+      const savedGround = raptor.ground;
+      raptor.w = W / 3;
+      raptor.h = raptor.w * RAPTOR_ASPECT;
+      raptor.ground = groundY - raptor.h + 10;
+      raptor.x = W * 0.08;
+      raptor.y = raptor.ground;
+      // Frame 0 is a neutral running pose with the body level.
+      raptor.frame = 0;
+      raptor.draw(cctx);
+      raptor.x = savedX;
+      raptor.y = savedY;
+      raptor.w = savedW;
+      raptor.h = savedH;
+      raptor.ground = savedGround;
+      raptor.frame = savedFrame;
+    }
+
+    // ── Foreground sky-light tint over the whole lower half ────
+    // Mirrors the in-game compositing so the card doesn't look
+    // uncannily bright compared to the scene the player just died
+    // in. Source-atop over the raptor+ground region only, so it
+    // doesn't darken the sky behind.
+    {
+      const tint = sky;
+      const strength = tintStrength();
+      cctx.save();
+      cctx.globalCompositeOperation = "source-atop";
+      cctx.fillStyle = `rgba(${tint[0]}, ${tint[1]}, ${tint[2]}, ${strength})`;
+      // Only cover the ground/raptor region, not the whole card
+      // — the sky gradient above already represents the sky and
+      // doesn't need extra tinting.
+      cctx.fillRect(0, Math.round(H * 0.55), W, H);
+      cctx.restore();
+    }
+
+    // ── Title + score text ────────────────────────────────────
+    // Drop shadow keeps the text readable at twilight / night.
+    cctx.save();
+    cctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+    cctx.shadowBlur = 18;
+    cctx.shadowOffsetY = 2;
+    cctx.fillStyle = "#ffffff";
+    cctx.textAlign = "right";
+    cctx.textBaseline = "alphabetic";
+    cctx.font =
+      'bold 140px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    cctx.fillText(`${state.score}`, W - 70, 230);
+
+    cctx.font = '30px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    cctx.fillText("final score", W - 70, 275);
+
+    // Personal best line — highlights if the run WAS the best.
+    const bestLabel = state.newHighScore
+      ? `★ New personal best!`
+      : `Personal best: ${state.highScore}`;
+    cctx.font =
+      'italic 34px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    cctx.fillText(bestLabel, W - 70, 335);
+
+    // Title + URL on the top-left.
+    cctx.textAlign = "left";
+    cctx.shadowBlur = 14;
+    cctx.font =
+      'bold 72px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    cctx.fillText("Raptor Runner", 70, 150);
+    cctx.font = '28px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    cctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+    cctx.fillText("raptor.trebeljahr.com", 70, 195);
+    cctx.restore();
+
+    return new Promise((resolve) => {
+      card.toBlob((blob) => resolve(blob), "image/png");
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════
   // Update + render
   // ══════════════════════════════════════════════════════════════════
 
@@ -1630,6 +1758,12 @@
           state.gameOver = true;
           state.gameOverFrame = state.frame;
           commitRunScore();
+          // Notify any listeners (e.g. the shell's share button)
+          // that a game-over just happened. Fired exactly once per
+          // run, directly from the transition instead of via a poll.
+          for (const cb of GameAPI._gameOverCbs) {
+            try { cb(); } catch (e) { /* ignore listener errors */ }
+          }
           break;
         }
       }
@@ -1921,6 +2055,11 @@
     if (cactuses) cactuses.clear();
     stars = new Stars();
     computeSkyGradient();
+    // Notify any listeners (e.g. the shell's share button) that
+    // the game has transitioned back to a fresh state.
+    for (const cb of GameAPI._gameResetCbs) {
+      try { cb(); } catch (e) { /* ignore listener errors */ }
+    }
   }
 
   function maybeResetAfterGameOver() {
@@ -2038,10 +2177,26 @@
   const GameAPI = {
     _ready: false,
     _readyCb: null,
+    // Game-over / reset listener arrays. Fired synchronously from
+    // the game loop on the exact transition so the shell can
+    // show/hide its share button without polling.
+    _gameOverCbs: [],
+    _gameResetCbs: [],
 
     onReady(cb) {
       if (this._ready) cb();
       else this._readyCb = cb;
+    },
+
+    /** Register a callback to run the moment the player dies.
+     *  Fired once per run, synchronously from the game loop. */
+    onGameOver(cb) {
+      if (typeof cb === "function") this._gameOverCbs.push(cb);
+    },
+    /** Register a callback to run every time the game resets
+     *  (after an auto-restart, or a manual Back-to-home). */
+    onGameReset(cb) {
+      if (typeof cb === "function") this._gameResetCbs.push(cb);
     },
 
     start() {
@@ -2122,6 +2277,15 @@
       resetGame();
       state.started = false;
       state.paused = true;
+    },
+
+    /** Compose a 1200×630 "share your score" PNG on an offscreen
+     *  canvas, using whatever sky/time-of-day and cosmetics the
+     *  player had on during the run they just finished. Resolves
+     *  to a Blob the shell can hand to navigator.share or a
+     *  download link. */
+    generateScoreCard() {
+      return generateScoreCardBlob();
     },
 
     isShowingHitboxes() {

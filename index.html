@@ -388,6 +388,48 @@
         display: flex;
         gap: 8px;
       }
+
+      /* Share-your-score button — shown only during the game-over
+         overlay, centered near the bottom of the screen so it
+         doesn't collide with the "Game Over" text the canvas
+         draws higher up. */
+      .share-score-btn {
+        position: fixed;
+        left: 50%;
+        bottom: calc(10vh + env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%);
+        z-index: 2400;
+        display: none;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.85rem 1.6rem;
+        border: none;
+        border-radius: 999px;
+        background: #2a1d13;
+        color: #fff;
+        font: inherit;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+        transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+      }
+      .share-score-btn.visible {
+        display: inline-flex;
+      }
+      .share-score-btn:hover {
+        transform: translateX(-50%) translateY(-2px);
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+      }
+      .share-score-btn svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
       .icon-btn {
         width: 44px;
         height: 44px;
@@ -533,14 +575,17 @@
         background: #ffffff;
         color: #222;
         border-radius: 12px;
-        padding: 2rem 2.25rem;
-        min-width: 300px;
-        max-width: 90vw;
+        padding: 1.75rem 1.75rem 1.5rem;
+        /* Scales across mobile to desktop: at least 280px, prefers
+           340px, never more than 90% of the viewport width. */
+        width: clamp(280px, 340px, 90vw);
+        max-height: 90vh;
+        overflow-y: auto;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
         text-align: center;
       }
       .menu-panel h2 {
-        margin: 0 0 1.25rem;
+        margin: 0 0 1rem;
         font-size: 1.4rem;
       }
       .menu-panel ul {
@@ -549,27 +594,30 @@
         margin: 0 0 1rem;
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
       }
       .menu-panel li {
-        margin: 0.5rem 0;
+        margin: 0.4rem 0;
       }
-      /* Buttons are content-width and centered in the list so they don't
-         stretch into empty whitespace on the right. A fixed `.inner` width
-         still gives both items the same optical alignment. */
+      /* Buttons fill the panel's content width so every item is the
+         same size, with the icon + text left-aligned inside. Wraps
+         are disabled so labels like "Back to home screen" and
+         "Thug glasses: off" always sit on a single line. */
       .menu-panel .menu-item {
-        display: inline-flex;
+        display: flex;
+        width: 100%;
+        box-sizing: border-box;
         align-items: center;
-        gap: 0.6rem;
-        padding: 0.7rem 1.4rem;
+        padding: 0.7rem 1rem;
         background: #f4f6f8;
         border: none;
-        border-radius: 6px;
+        border-radius: 8px;
         color: #222;
         text-decoration: none;
         font: inherit;
         font-size: 0.95rem;
         cursor: pointer;
+        white-space: nowrap;
         transition: background 0.1s, color 0.1s;
       }
       .menu-panel .menu-item:hover {
@@ -578,9 +626,12 @@
       .menu-panel .menu-item .inner {
         display: inline-flex;
         align-items: center;
-        gap: 0.6rem;
-        width: 9rem;
+        gap: 0.7rem;
+        width: 100%;
         text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .menu-panel .menu-item svg {
         width: 18px;
@@ -899,6 +950,19 @@
       </p>
     </div>
 
+    <!-- Share-your-score button. Fixed-position over the canvas,
+         shown only while the game-over overlay is up. -->
+    <button id="share-score-btn" class="share-score-btn" type="button">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="18" cy="5" r="3"></circle>
+        <circle cx="6" cy="12" r="3"></circle>
+        <circle cx="18" cy="19" r="3"></circle>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+      </svg>
+      <span>Share your score</span>
+    </button>
+
     <!-- Top-right icon cluster: sound toggle + settings cog -->
     <div class="top-right-buttons">
       <button
@@ -1123,6 +1187,13 @@
           if (hs > 0 && hsEl && hsVal) {
             hsVal.textContent = String(hs);
             hsEl.hidden = false;
+          }
+
+          // Wire the share button to the game's onGameOver /
+          // onGameReset events now that the API is ready.
+          if (window.Game.onGameOver) {
+            window.Game.onGameOver(showShareBtn);
+            window.Game.onGameReset(hideShareBtn);
           }
         }
         // The game.js module calls Game.onReady(cb) when assets are loaded.
@@ -1418,6 +1489,84 @@
 
         // Initial UI sync.
         refreshSoundUI();
+
+        // ───────── Share your score ─────────
+        const shareBtn = document.getElementById("share-score-btn");
+        let shareInFlight = false;
+
+        function showShareBtn() {
+          if (shareBtn) shareBtn.classList.add("visible");
+        }
+        function hideShareBtn() {
+          if (shareBtn) shareBtn.classList.remove("visible");
+          shareInFlight = false;
+        }
+
+        async function handleShareClick() {
+          if (shareInFlight || !window.Game || !window.Game.generateScoreCard) return;
+          shareInFlight = true;
+          const originalLabel = shareBtn.querySelector("span").textContent;
+          shareBtn.querySelector("span").textContent = "Generating…";
+          try {
+            const blob = await window.Game.generateScoreCard();
+            if (!blob) throw new Error("no blob");
+            const score = window.Game.getScore ? window.Game.getScore() : 0;
+            const file = new File([blob], `raptor-runner-${score}.png`, {
+              type: "image/png",
+            });
+            const shareData = {
+              title: "Raptor Runner",
+              text: `I scored ${score} in Raptor Runner! https://raptor.trebeljahr.com`,
+              files: [file],
+            };
+            // Prefer Web Share API on mobile so the player can drop
+            // the card straight into their usual app. Fall back to
+            // a download on desktop (or anywhere share is
+            // unsupported or rejects files).
+            if (
+              typeof navigator !== "undefined" &&
+              navigator.canShare &&
+              navigator.canShare({ files: [file] }) &&
+              navigator.share
+            ) {
+              try {
+                await navigator.share(shareData);
+              } catch (e) {
+                // User cancelled or share failed — silently fall
+                // through to the download path.
+                if (e && e.name !== "AbortError") {
+                  triggerDownload(blob, file.name);
+                }
+              }
+            } else {
+              triggerDownload(blob, file.name);
+            }
+          } catch (e) {
+            console.warn("share failed", e);
+          } finally {
+            shareBtn.querySelector("span").textContent = originalLabel;
+            shareInFlight = false;
+          }
+        }
+
+        function triggerDownload(blob, filename) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          // Revoke after the click is queued so the download starts.
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }
+
+        if (shareBtn) {
+          shareBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            handleShareClick();
+          });
+        }
       })();
     </script>
   </body>
