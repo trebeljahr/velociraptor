@@ -184,10 +184,26 @@
       }
       .start-content .homage {
         font-size: clamp(0.72rem, 1.1vw, 0.85rem);
-        margin: 0 0 2.5rem;
+        margin: 0 0 1.4rem;
         color: #2a1d13;
         font-style: italic;
         opacity: 0.85;
+      }
+      .start-highscore {
+        display: block;
+        width: fit-content;
+        margin: 0 auto 1.4rem;
+        padding: 0.4rem 1rem;
+        border: 1px solid rgba(42, 29, 19, 0.25);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.35);
+        color: #2a1d13;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .start-highscore[hidden] {
+        display: none;
       }
       .start-btn {
         display: inline-flex;
@@ -249,6 +265,43 @@
         background: rgba(255, 255, 255, 0.5);
         font: inherit;
         font-size: 0.75rem;
+      }
+      /* Byline pinned to the bottom of the start screen. Two explicit
+         links so high-intent visitors can pick between the portfolio
+         (lead capture) and the newsletter on ricos.site (writing). */
+      .start-byline {
+        margin: auto 0 1.2rem;
+        padding: 0 1rem;
+        font-size: 0.78rem;
+        color: #2a1d13;
+        text-align: center;
+        opacity: 0.8;
+        z-index: 3;
+      }
+      .start-byline a {
+        color: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        text-decoration-thickness: 1px;
+        text-decoration-color: rgba(42, 29, 19, 0.35);
+        transition: text-decoration-color 0.15s, opacity 0.15s;
+      }
+      .start-byline a:hover {
+        text-decoration-color: rgba(42, 29, 19, 0.9);
+      }
+      .start-byline .dot {
+        display: inline-block;
+        margin: 0 0.3rem;
+        opacity: 0.5;
+      }
+      .start-byline .heart {
+        display: inline-block;
+        color: #e8839b;
+        fill: currentColor;
+        width: 14px;
+        height: 14px;
+        vertical-align: -0.2em;
+        animation: heartbeat 2s ease-in-out infinite;
       }
 
       /* ───────── Rotate-to-landscape guard (mobile portrait) ───────── */
@@ -535,6 +588,22 @@
         background: #f4f6f8;
         color: #222;
       }
+      .menu-panel .menu-highscore {
+        display: block;
+        width: fit-content;
+        margin: -0.25rem auto 1rem;
+        padding: 0.45rem 1rem;
+        border: 1px solid rgba(42, 29, 19, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 236, 170, 0.45);
+        color: #2a1d13;
+        font-size: 0.9rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+      .menu-panel .menu-highscore[hidden] {
+        display: none;
+      }
       .menu-panel .made-by {
         margin-top: 1.25rem;
         padding-top: 1rem;
@@ -759,6 +828,9 @@
         <p class="homage">
           A homage to the Google "No Internet" idle game.
         </p>
+        <p id="start-highscore" class="start-highscore" hidden>
+          ★ Personal best: <span id="start-highscore-value">0</span>
+        </p>
         <button id="start-btn" class="start-btn loading" type="button" disabled>
           <span class="spinner" aria-hidden="true"></span>
           <svg
@@ -776,6 +848,16 @@
           Tip: press <kbd>Space</kbd> or tap to jump · <kbd>Esc</kbd> for menu
         </p>
       </div>
+      <p class="start-byline">
+        Made with
+        <svg class="heart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"/>
+        </svg>
+        by
+        <a href="https://portfolio.trebeljahr.com" target="_blank" rel="noopener">Rico Trebeljahr</a>
+        <span class="dot">·</span>
+        <a href="https://ricos.site/newsletters" target="_blank" rel="noopener">Writing at ricos.site</a>
+      </p>
     </div>
 
     <!-- Top-right icon cluster: sound toggle + settings cog -->
@@ -846,6 +928,9 @@
     >
       <div class="menu-panel">
         <h2 id="menu-title">Menu</h2>
+        <p id="menu-highscore" class="menu-highscore" hidden>
+          ★ Personal best: <span id="menu-highscore-value">0</span>
+        </p>
         <ul>
           <li>
             <a class="menu-item" href="imprint.html">
@@ -892,6 +977,19 @@
               </span>
             </button>
           </li>
+          <li>
+            <button id="menu-home" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 12L12 3l9 9"></path>
+                  <path d="M5 10v10h14V10"></path>
+                </svg>
+                <span>Back to home screen</span>
+              </span>
+            </button>
+          </li>
         </ul>
         <div class="close-hint">
           <button id="menu-close" type="button">Resume game</button>
@@ -903,7 +1001,9 @@
             <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"/>
           </svg>
           by
-          <a href="https://ricos.site" target="_blank" rel="noopener">Rico</a>
+          <a href="https://portfolio.trebeljahr.com" target="_blank" rel="noopener">Rico Trebeljahr</a>
+          ·
+          <a href="https://ricos.site/newsletters" target="_blank" rel="noopener">Writing at ricos.site</a>
         </p>
       </div>
     </div>
@@ -934,6 +1034,17 @@
           startBtn.classList.remove("loading");
           startBtn.disabled = false;
           startBtn.querySelector(".label").textContent = "Start Game";
+
+          // Show the saved personal best (if any) as a badge above
+          // the Start Game button so returning players see their
+          // previous record immediately.
+          const hs = (window.Game.getHighScore && window.Game.getHighScore()) || 0;
+          const hsEl = document.getElementById("start-highscore");
+          const hsVal = document.getElementById("start-highscore-value");
+          if (hs > 0 && hsEl && hsVal) {
+            hsVal.textContent = String(hs);
+            hsEl.hidden = false;
+          }
         }
         // The game.js module calls Game.onReady(cb) when assets are loaded.
         // Guard in case the game script hasn't parsed yet.
@@ -1024,11 +1135,25 @@
         }
 
         // ───────── Menu overlay ─────────
+        function refreshMenuHighscore() {
+          const hsEl = document.getElementById("menu-highscore");
+          const hsVal = document.getElementById("menu-highscore-value");
+          if (!hsEl || !hsVal || !window.Game || !window.Game.getHighScore) return;
+          const hs = window.Game.getHighScore() || 0;
+          if (hs > 0) {
+            hsVal.textContent = String(hs);
+            hsEl.hidden = false;
+          } else {
+            hsEl.hidden = true;
+          }
+        }
+
         function openMenu() {
           overlay.classList.add("open");
           cog.setAttribute("aria-expanded", "true");
           refreshSoundUI();
           refreshHitboxesUI();
+          refreshMenuHighscore();
           window.Game.pause();
         }
 
@@ -1051,6 +1176,25 @@
           // Click outside the panel closes the menu.
           if (e.target === overlay) closeMenu();
         });
+
+        // "Back to home screen" — reset the game, close the menu, and
+        // re-show the start screen with its current personal-best badge.
+        const homeBtn = document.getElementById("menu-home");
+        if (homeBtn) {
+          homeBtn.addEventListener("click", () => {
+            if (window.Game && window.Game.returnToHome) {
+              window.Game.returnToHome();
+            }
+            // Close menu without a Game.resume() side-effect, since we
+            // just moved the game back to its paused pre-start state.
+            overlay.classList.remove("open");
+            cog.setAttribute("aria-expanded", "false");
+            // Re-show the start screen. Refresh its high-score badge in
+            // case the player just set a new personal best this run.
+            startScreen.classList.remove("hidden");
+            onGameReady();
+          });
+        }
 
         // Intercept the menu's imprint link so it opens as an inline
         // overlay (music keeps playing) instead of navigating away.

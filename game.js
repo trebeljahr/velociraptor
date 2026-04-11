@@ -37,6 +37,10 @@
   const SKY_CYCLE_SCORE = 60;
   const SKY_UPDATE_INTERVAL_FRAMES = 10;
 
+  // localStorage key for the player's personal best. Namespaced so it
+  // doesn't collide with anything else on the same origin.
+  const HIGH_SCORE_KEY = "raptor-runner:highScore";
+
   const RAPTOR_NATIVE_W = 578;
   const RAPTOR_NATIVE_H = 212;
   const RAPTOR_ASPECT = RAPTOR_NATIVE_H / RAPTOR_NATIVE_W;
@@ -440,6 +444,12 @@
     ground: 0,
     bgVelocity: INITIAL_BG_VELOCITY,
     score: 0,
+    // Personal best, persisted to localStorage under HIGH_SCORE_KEY.
+    // Loaded once at init, updated on game-over if the current run
+    // beat it. `newHighScore` is set true for the run that just broke
+    // the previous record, so the game-over overlay can celebrate it.
+    highScore: 0,
+    newHighScore: false,
     gameOver: false,
     gameOverFade: 0,
     gameOverFrame: 0,
@@ -1261,6 +1271,7 @@
         if (polygonsOverlap(raptorPoly, c.collisionPolygon())) {
           state.gameOver = true;
           state.gameOverFrame = state.frame;
+          commitRunScore();
           break;
         }
       }
@@ -1394,15 +1405,48 @@
       ctx.fillStyle = "#ffffff";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.font = `bold ${Math.round(state.width / 15)}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
-      ctx.fillText("Game Over", state.width / 2, state.height / 2.2);
-      ctx.font = `italic ${Math.round(
-        state.width / 60
-      )}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+      const titleSize = Math.round(state.width / 15);
+      const smallSize = Math.round(state.width / 40);
+      const tinySize = Math.round(state.width / 60);
+      ctx.font = `bold ${titleSize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+      ctx.fillText("Game Over", state.width / 2, state.height / 2.6);
+
+      // Score line — current run, and personal best below.
+      ctx.font = `${smallSize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+      ctx.fillText(
+        `Score: ${state.score}`,
+        state.width / 2,
+        state.height / 2.6 + titleSize * 0.95
+      );
+
+      if (state.newHighScore) {
+        // Celebrate a new personal best with a pulsing warm tint.
+        const pulse =
+          0.7 + 0.3 * Math.sin(state.frame * 0.1);
+        ctx.fillStyle = `rgba(255, 210, 80, ${pulse})`;
+        ctx.font = `bold ${smallSize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+        ctx.fillText(
+          `★ NEW PERSONAL BEST! ★`,
+          state.width / 2,
+          state.height / 2.6 + titleSize * 0.95 + smallSize * 1.4
+        );
+        ctx.fillStyle = "#ffffff";
+      } else if (state.highScore > 0) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+        ctx.font = `${smallSize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+        ctx.fillText(
+          `Personal best: ${state.highScore}`,
+          state.width / 2,
+          state.height / 2.6 + titleSize * 0.95 + smallSize * 1.4
+        );
+        ctx.fillStyle = "#ffffff";
+      }
+
+      ctx.font = `italic ${tinySize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
       ctx.fillText(
         "Press ENTER or tap to restart!",
         state.width / 2,
-        state.height / 1.8
+        state.height / 2.6 + titleSize * 0.95 + smallSize * 3.0
       );
     }
   }
@@ -1417,10 +1461,48 @@
   // Lifecycle
   // ══════════════════════════════════════════════════════════════════
 
+  // ── Persistent high score (localStorage) ──────────────────────────
+
+  /** Read the saved personal best. Returns 0 if storage is
+   *  unavailable (private mode, denied permission) or unparseable. */
+  function loadHighScore() {
+    try {
+      const raw = window.localStorage.getItem(HIGH_SCORE_KEY);
+      if (raw == null) return 0;
+      const n = parseInt(raw, 10);
+      return Number.isFinite(n) && n >= 0 ? n : 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  /** Persist the high score. Silently no-ops if storage is unavailable. */
+  function saveHighScore(value) {
+    try {
+      window.localStorage.setItem(HIGH_SCORE_KEY, String(value));
+    } catch (e) {
+      /* ignore — no-op in environments without localStorage */
+    }
+  }
+
+  /** Called once the player dies. Checks if this run's score beat
+   *  the stored personal best and, if so, saves it and flags the
+   *  run for celebration on the game-over overlay. */
+  function commitRunScore() {
+    if (state.score > state.highScore) {
+      state.highScore = state.score;
+      state.newHighScore = true;
+      saveHighScore(state.highScore);
+    } else {
+      state.newHighScore = false;
+    }
+  }
+
   function resetGame() {
     state.gameOver = false;
     state.gameOverFade = 0;
     state.gameOverFrame = 0;
+    state.newHighScore = false;
     state.currentSky = [...SKY_COLORS[0]];
     state.lastSkyScore = -1;
     state.smoothPhase = 0;
@@ -1593,6 +1675,39 @@
       return state.debug;
     },
 
+    /** Current run's score. */
+    getScore() {
+      return state.score;
+    },
+
+    /** Best score persisted in localStorage across all runs. */
+    getHighScore() {
+      return state.highScore;
+    },
+
+    /** True while a game-over overlay is showing for a run that
+     *  broke the previous personal best. */
+    isNewHighScore() {
+      return state.newHighScore;
+    },
+
+    /** True if the player is currently looking at the game-over
+     *  screen. Used by the shell to decide when to show the
+     *  "Share your score" button. */
+    isGameOver() {
+      return state.gameOver;
+    },
+
+    /** Reset the game back to its idle pre-start state: paused,
+     *  not-started, fresh score and entities. The shell pairs this
+     *  with re-showing the start screen when the player picks
+     *  "Back to home screen" from the menu. */
+    returnToHome() {
+      resetGame();
+      state.started = false;
+      state.paused = true;
+    },
+
     isShowingHitboxes() {
       return state.showHitboxes;
     },
@@ -1662,6 +1777,10 @@
     fgCtx = fgCanvas.getContext("2d");
 
     audio.init();
+
+    // Load the player's saved personal best (if any) so the start
+    // screen and game-over overlay can show it.
+    state.highScore = loadHighScore();
 
     onResize();
     window.addEventListener("resize", onResize);
