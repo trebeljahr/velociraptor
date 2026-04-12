@@ -471,6 +471,9 @@
       this.music = document.getElementById("game-music");
       this.jump = document.getElementById("game-jump");
       if (this.music) this.music.volume = 0.5;
+      // Jump SFX sits around 2/3 of default loudness so it
+      // doesn't clip over the music during a long run.
+      if (this.jump) this.jump.volume = 0.67;
     },
 
     setMuted(muted, persist = true) {
@@ -897,6 +900,20 @@
       this.h = raptor.h * variant.heightScale;
       this.w = this.h * this.aspectRatio;
       this.x = state.width;
+      this.y = state.ground - this.h;
+      this._polyCache = null;
+    }
+
+    /**
+     * Recompute this cactus's height / width / y-anchor after a
+     * viewport resize (e.g. entering or leaving fullscreen). The
+     * horizontal world position stays the same, but the bottom of
+     * the cactus has to re-bind to the NEW state.ground so it
+     * doesn't visibly jump when the viewport dimensions change.
+     */
+    resize() {
+      this.h = raptor.h * this.variant.heightScale;
+      this.w = this.h * this.aspectRatio;
       this.y = state.ground - this.h;
       this._polyCache = null;
     }
@@ -2231,6 +2248,12 @@
     }
 
     if (raptor) raptor.resize();
+    // Re-anchor every currently-alive cactus to the new
+    // state.ground so they don't visibly jump when the viewport
+    // dimensions change (most obvious when toggling fullscreen).
+    if (cactuses && raptor) {
+      for (const c of cactuses.cacti) c.resize();
+    }
     if (stars) stars = new Stars();
     state.clouds = [];
     computeSkyGradient();
