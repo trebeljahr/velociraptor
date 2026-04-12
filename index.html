@@ -13,7 +13,8 @@
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
-    <meta name="apple-mobile-web-app-title" content="Raptor" />
+    <meta name="apple-mobile-web-app-title" content="Raptor Runner" />
+    <meta name="application-name" content="Raptor Runner" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta
       name="description"
@@ -334,6 +335,14 @@
         color: #2a1d13;
         opacity: 0.9;
       }
+      /* Desktop: show keyboard hint, hide touch hint.
+         Swap on touch devices OR narrow viewports as a fallback
+         for browsers that don't report pointer/hover correctly. */
+      .start-hint-touch { display: none; }
+      @media (hover: none) and (pointer: coarse), (max-width: 600px) {
+        .start-hint-desktop { display: none; }
+        .start-hint-touch { display: block; }
+      }
       .start-hint kbd {
         display: inline-block;
         padding: 1px 6px;
@@ -439,6 +448,114 @@
         gap: 8px;
       }
 
+      /* Achievement toasts: small cards that slide down from the
+         top center of the viewport. Each one auto-dismisses
+         after a few seconds; the stack is CSS grid-ish so
+         multiple toasts flow vertically. */
+      .achievement-toasts {
+        position: fixed;
+        top: calc(14px + env(safe-area-inset-top, 0px));
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2800;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        pointer-events: none;
+        width: auto;
+        max-width: min(92vw, 420px);
+      }
+      .achievement-toast {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.55rem 1.1rem 0.55rem 0.55rem;
+        /* Frosted-white capsule — same visual language as the
+           top-right icon cluster and the score pill. */
+        background: rgba(255, 255, 255, 0.82);
+        color: #222;
+        border: 1px solid rgba(255, 255, 255, 0.65);
+        border-radius: 999px;
+        box-shadow: 0 10px 28px rgba(20, 30, 60, 0.18);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        font-family: inherit;
+        min-width: 240px;
+        max-width: 92vw;
+        pointer-events: auto;
+        /* Transition-based entry rather than @keyframes, because
+           CSS animations can stall in throttled / backgrounded
+           tabs and the toast would never become visible. A
+           transition on opacity + transform runs reliably the
+           moment a class swap happens. */
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        transition:
+          opacity 0.35s ease-out,
+          transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+      }
+      .achievement-toast.leaving {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.97);
+      }
+      .achievement-toast-icon {
+        flex: 0 0 auto;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+      }
+      .achievement-toast-icon svg,
+      .achievement-toast-icon img.achievement-icon-image {
+        width: 28px;
+        height: 28px;
+        display: block;
+      }
+      /* Party-hat / thug-glasses sprites are pixel-art; keep the
+         crisp blocky look instead of letting the browser blur
+         them on scale-up. */
+      .achievement-icon-image {
+        image-rendering: pixelated;
+        image-rendering: -moz-crisp-edges;
+        object-fit: contain;
+      }
+      .achievement-toast-body {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        line-height: 1.25;
+        padding-right: 0.2rem;
+      }
+      .achievement-toast-kicker {
+        font-size: 0.62rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(0, 0, 0, 0.5);
+        font-weight: 700;
+      }
+      .achievement-toast-title {
+        font-size: 0.98rem;
+        font-weight: 800;
+        color: #1a1a1a;
+        letter-spacing: -0.005em;
+      }
+      .achievement-toast-desc {
+        font-size: 0.8rem;
+        color: rgba(0, 0, 0, 0.6);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .achievement-toast,
+        .achievement-toast.leaving {
+          transition: none;
+        }
+      }
+
       /* Top-left score pill. Same visual language as the top-right
          icon cluster: frosted white capsule, subtle shadow. */
       .score-display {
@@ -504,22 +621,26 @@
          to the available height so it always fits on short / short-
          and-wide viewports (mobile landscape with the browser
          URL bar eating vertical space).                            */
-      .score-card-panel {
+      .score-card-overlay {
         position: fixed;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
+        inset: 0;
         z-index: 2400;
+        /* No additional background tint — the canvas already
+           draws its own game-over fade. This overlay just
+           provides a full-screen click target + flex centering. */
+        background: transparent;
+        display: none;
+        align-items: center;
+        justify-content: center;
+      }
+      .score-card-overlay.visible {
+        display: flex;
+      }
+      .score-card-panel {
         display: none;
         flex-direction: column;
         align-items: center;
-        /* Spacing tightens on short viewports. */
         gap: clamp(0.35rem, 1.2vh, 1.1rem);
-        /* Bound the panel by the viewport so nothing overflows.
-           On very short viewports (mobile landscape with the URL
-           bar) we let the panel scroll its own content via
-           overflow-y: auto, and touch-action: pan-y so the
-           browser handles the drag instead of the canvas below. */
         max-width: min(92vw, 640px);
         max-height: 96vh;
         padding: 10px 16px;
@@ -528,9 +649,6 @@
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
         touch-action: pan-y;
-        /* CAPTURE pointer events on the panel itself so taps on
-           the card / buttons / hint don't fall through to the
-           canvas and trigger "tap anywhere to restart". */
         pointer-events: auto;
       }
       .score-card-panel.visible {
@@ -540,11 +658,11 @@
       @keyframes score-card-pop {
         from {
           opacity: 0;
-          transform: translate(-50%, -48%) scale(0.96);
+          transform: translateY(-8px) scale(0.96);
         }
         to {
           opacity: 1;
-          transform: translate(-50%, -50%) scale(1);
+          transform: translateY(0) scale(1);
         }
       }
       /* Card slot: a fixed-aspect box that either shows the
@@ -566,9 +684,6 @@
         border-radius: 14px;
         overflow: hidden;
         background: #0c0e15;
-        box-shadow:
-          0 0 0 1px rgba(255, 255, 255, 0.08),
-          0 24px 72px rgba(0, 0, 0, 0.6);
       }
       .score-card-preview {
         position: absolute;
@@ -617,7 +732,7 @@
         text-shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
       }
       .score-card-hint {
-        margin: 0;
+        margin: 0.6rem 0 0;
         color: rgba(255, 255, 255, 0.8);
         font-size: clamp(0.72rem, min(1.8vw, 2.2vh), 0.9rem);
         text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
@@ -654,8 +769,8 @@
         animation: share-btn-shimmer 4.5s linear infinite;
         cursor: pointer;
         box-shadow:
-          0 0 32px rgba(21, 216, 161, 0.35),
-          0 12px 32px rgba(0, 0, 0, 0.55);
+          0 0 24px rgba(21, 216, 161, 0.3),
+          0 8px 20px rgba(0, 0, 0, 0.3);
         transition: transform 0.15s ease, box-shadow 0.2s ease;
       }
       .score-card-panel.visible .share-score-btn {
@@ -960,12 +1075,10 @@
       .menu-overlay {
         position: fixed;
         inset: 0;
-        /* Must be above the start-screen (1500) AND above the
-           score-card panel (2400, shown on game over) so opening
-           the menu from a game-over screen doesn't get the menu
-           buried underneath the share card. Still below
-           top-right-buttons (2500) so the cog stays clickable. */
-        z-index: 2450;
+        /* Above everything except toasts (2800) and the rotate
+           prompt (3000). Same tier as the imprint/about/achievements
+           overlays so they all layer predictably. */
+        z-index: 2700;
         background: rgba(0, 0, 0, 0.55);
         display: none;
         align-items: center;
@@ -991,10 +1104,24 @@
         /* Scales across mobile to desktop: at least 280px, prefers
            340px, never more than 90% of the viewport width. */
         width: clamp(280px, 340px, 90vw);
-        max-height: 90vh;
+        max-height: 80vh;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
         text-align: center;
+      }
+      /* Short mobile screens: tighter menu so it doesn't press
+         against the top/bottom edges. */
+      @media (max-height: 500px) {
+        .menu-panel {
+          max-height: 70vh;
+          padding: 1.1rem 1.25rem 1rem;
+          border-radius: 10px;
+        }
+        .menu-panel h2 {
+          font-size: 1.15rem;
+          margin-bottom: 0.6rem;
+        }
       }
       .menu-panel h2 {
         margin: 0 0 1rem;
@@ -1188,9 +1315,10 @@
       .imprint-overlay {
         position: fixed;
         inset: 0;
-        /* Above menu-overlay (2000) so clicking Legal Notice from the
-           menu shows the imprint on top. */
-        z-index: 2100;
+        /* Above everything except toasts + rotate prompt, so any
+           overlay (imprint, about, achievements) renders on top of
+           the score-card panel and the menu. */
+        z-index: 2700;
         background: rgba(0, 0, 0, 0.6);
         display: none;
       }
@@ -1220,6 +1348,165 @@
         display: block;
         background: #ffffff;
       }
+
+      /* Achievements sheet: same outer shell as imprint/about,
+         but the content is rendered directly into a scrollable
+         inner div instead of an iframe. */
+      /* Achievements overlay inherits z-index 2700 from
+         .imprint-overlay — no per-ID override needed. */
+      .achievements-sheet {
+        background: #ffffff;
+      }
+      .achievements-scroll {
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        padding: 2.25rem 1.75rem 2rem;
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Arial, sans-serif;
+        color: #333;
+      }
+      .achievements-heading {
+        font-size: 2rem;
+        margin: 0 0 0.25rem;
+        color: #222;
+        letter-spacing: -0.02em;
+      }
+      .achievements-progress {
+        margin: 0 0 1.4rem;
+        color: #777;
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+      .achievements-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+      }
+      .achievement-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.7rem 1rem 0.7rem 0.7rem;
+        /* Same frosted-white capsule as the top-right buttons,
+           the score pill, and the unlock toast — one cohesive
+           visual language across every overlay surface. */
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.85);
+        border: 1px solid rgba(20, 30, 60, 0.08);
+        box-shadow: 0 4px 12px rgba(20, 30, 60, 0.08);
+      }
+      .achievement-item.unlocked {
+        background: rgba(255, 255, 255, 0.96);
+        border-color: rgba(247, 209, 72, 0.6);
+        box-shadow:
+          0 4px 14px rgba(20, 30, 60, 0.1),
+          inset 0 0 0 1px rgba(247, 209, 72, 0.35);
+      }
+      .achievement-item .icon {
+        flex: 0 0 auto;
+        width: 52px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(20, 30, 60, 0.08);
+      }
+      .achievement-item.unlocked .icon {
+        background: #ffffff;
+        border-color: rgba(247, 209, 72, 0.55);
+        box-shadow: 0 2px 6px rgba(247, 178, 30, 0.22);
+      }
+      .achievement-item .icon svg,
+      .achievement-item .icon img.achievement-icon-image {
+        width: 32px;
+        height: 32px;
+        display: block;
+      }
+      .achievement-item .body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        min-width: 0;
+      }
+      .achievement-item .title {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #1a1a1a;
+        letter-spacing: -0.005em;
+      }
+      .achievement-item.locked .title {
+        color: #6e7a88;
+      }
+      .achievement-item .desc {
+        font-size: 0.86rem;
+        color: rgba(0, 0, 0, 0.55);
+      }
+      .achievement-item.locked .icon {
+        filter: grayscale(0.8) opacity(0.55);
+      }
+      /* Reset-progress confirmation dialog — must sit above both
+         the menu (2700) and any other overlay so the prompt is
+         unmissable. */
+      #reset-confirm-overlay {
+        z-index: 2750;
+      }
+      .reset-confirm-sheet {
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 1.75rem 2rem 1.5rem;
+        max-width: 380px;
+        width: 90vw;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      }
+      .reset-confirm-sheet h2 {
+        margin: 0 0 0.6rem;
+        font-size: 1.2rem;
+        color: #222;
+      }
+      .reset-confirm-sheet p {
+        margin: 0 0 1.25rem;
+        font-size: 0.9rem;
+        color: #555;
+        line-height: 1.45;
+      }
+      .reset-confirm-actions {
+        display: flex;
+        gap: 0.6rem;
+        justify-content: center;
+      }
+      .reset-confirm-btn {
+        padding: 0.55rem 1.2rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #f4f6f8;
+        color: #333;
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+        touch-action: manipulation;
+      }
+      .reset-confirm-btn:hover {
+        background: #e8ecf0;
+      }
+      .reset-confirm-danger {
+        background: #e53935;
+        color: #fff;
+        border-color: #c62828;
+      }
+      .reset-confirm-danger:hover {
+        background: #c62828;
+      }
+
       .imprint-close {
         position: absolute;
         top: 0.75rem;
@@ -1413,8 +1700,11 @@
           </svg>
           <span class="label">Loading…</span>
         </button>
-        <p class="start-hint">
+        <p class="start-hint start-hint-desktop">
           Tip: press <kbd>Space</kbd> or tap to jump · <kbd>Esc</kbd> for menu
+        </p>
+        <p class="start-hint start-hint-touch">
+          Tip: Tap to jump
         </p>
       </div>
       <p class="start-byline">
@@ -1434,6 +1724,10 @@
          (with a loading spinner until the worker finishes
          rendering it), a button to copy/share it, and a
          restart hint. -->
+    <div
+      id="score-card-overlay"
+      class="score-card-overlay"
+    >
     <div
       id="score-card-panel"
       class="score-card-panel"
@@ -1484,9 +1778,10 @@
           </button>
         </div>
       </div>
-      <p class="score-card-hint">
+      <p class="score-card-hint" id="score-card-hint" role="button" tabindex="0" style="cursor:pointer">
         Press <kbd>Enter</kbd> to restart
       </p>
+    </div>
     </div>
 
     <!-- Top-left score readout. Mirrors the pill-button look of
@@ -1520,6 +1815,16 @@
       </svg>
       <span id="score-value" class="score-value">0</span>
     </div>
+
+    <!-- Achievement toast stack: top-center, slides in/out when a
+         new achievement unlocks. Queued — multiple toasts stack
+         vertically and auto-dismiss on their own timers. -->
+    <div
+      id="achievement-toasts"
+      class="achievement-toasts"
+      aria-live="polite"
+      aria-atomic="false"
+    ></div>
 
     <!-- Top-right icon cluster: sound toggle + settings cog -->
     <div class="top-right-buttons">
@@ -1639,6 +1944,38 @@
       </div>
     </div>
 
+    <!-- Achievements overlay — rendered in the parent window
+         (no iframe) because the list is data-driven from the
+         Game API. -->
+    <div
+      id="achievements-overlay"
+      class="imprint-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Achievements"
+    >
+      <div class="imprint-sheet achievements-sheet">
+        <button id="achievements-close" class="imprint-close" aria-label="Close">×</button>
+        <div class="achievements-scroll">
+          <h1 class="achievements-heading">Achievements</h1>
+          <p id="achievements-progress" class="achievements-progress">0 / 0 unlocked</p>
+          <ul id="achievements-list" class="achievements-list"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reset-progress confirmation dialog -->
+    <div id="reset-confirm-overlay" class="imprint-overlay" role="dialog" aria-modal="true" aria-label="Confirm reset">
+      <div class="reset-confirm-sheet">
+        <h2>Reset all progress?</h2>
+        <p>This will erase your high score, achievements and cosmetic unlocks. This cannot be undone.</p>
+        <div class="reset-confirm-actions">
+          <button id="reset-confirm-yes" class="reset-confirm-btn reset-confirm-danger" type="button">Reset everything</button>
+          <button id="reset-confirm-no" class="reset-confirm-btn" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Menu overlay -->
     <div
       id="menu-overlay"
@@ -1653,7 +1990,7 @@
           ★ Personal best: <span id="menu-highscore-value">0</span>
         </p>
         <ul>
-          <li class="debug-only">
+          <li class="debug-only in-game-only">
             <button id="menu-hitboxes-toggle" class="menu-item" type="button">
               <span class="inner">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -1693,19 +2030,6 @@
               </span>
             </button>
           </li>
-          <li class="debug-only">
-            <button id="menu-jumpsreset-toggle" class="menu-item" type="button">
-              <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M3 12a9 9 0 1 0 3-6.7"></path>
-                  <polyline points="3 4 3 10 9 10"></polyline>
-                </svg>
-                <span>Reset total jumps</span>
-              </span>
-            </button>
-          </li>
           <li class="debug-only in-game-only menu-score-editor">
             <label class="menu-item menu-score-editor-label" for="menu-score-input">
               <span class="inner">
@@ -1737,6 +2061,49 @@
                   <path d="M5 10v10h14V10"></path>
                 </svg>
                 <span>Back to home screen</span>
+              </span>
+            </button>
+          </li>
+          <li>
+            <button id="menu-achievements" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M8 21h8"/>
+                  <path d="M12 17v4"/>
+                  <path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/>
+                  <path d="M7 6H4a2 2 0 0 0-2 2v1a3 3 0 0 0 3 3h2"/>
+                  <path d="M17 6h3a2 2 0 0 1 2 2v1a3 3 0 0 1-3 3h-2"/>
+                </svg>
+                <span>Achievements</span>
+              </span>
+            </button>
+          </li>
+          <li>
+            <button id="menu-jumpsreset-toggle" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 12a9 9 0 1 0 3-6.7"></path>
+                  <polyline points="3 4 3 10 9 10"></polyline>
+                </svg>
+                <span>Reset all progress</span>
+              </span>
+            </button>
+          </li>
+          <li id="menu-install-li" style="display:none">
+            <button id="menu-install" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>Install App</span>
               </span>
             </button>
           </li>
@@ -1822,6 +2189,18 @@
         const aboutCloseBtn = document.getElementById("about-close");
         const aboutIframe = document.getElementById("about-iframe");
         let aboutLoaded = false;
+        const achievementsOverlay = document.getElementById(
+          "achievements-overlay"
+        );
+        const achievementsCloseBtn = document.getElementById(
+          "achievements-close"
+        );
+        const achievementsList = document.getElementById(
+          "achievements-list"
+        );
+        const achievementsProgress = document.getElementById(
+          "achievements-progress"
+        );
         const imprintCloseBtn = document.getElementById("imprint-close");
         const imprintIframe = document.getElementById("imprint-iframe");
         const startScreen = document.getElementById("start-screen");
@@ -1852,6 +2231,10 @@
           if (window.Game.onGameOver) {
             window.Game.onGameOver(showScoreCard);
             window.Game.onGameReset(hideScoreCard);
+          }
+          // Achievement toasts.
+          if (window.Game.onAchievementUnlock) {
+            window.Game.onAchievementUnlock(showAchievementToast);
           }
 
           // Initial sync of the start-screen raptor cosmetics with
@@ -2019,6 +2402,73 @@
         if (aboutOverlay) {
           aboutOverlay.addEventListener("click", (e) => {
             if (e.target === aboutOverlay) closeAbout();
+          });
+        }
+
+        // ───────── Achievements overlay ─────────
+        function renderAchievementsList() {
+          if (!achievementsList || !window.Game || !window.Game.getAchievements) {
+            return;
+          }
+          const list = window.Game.getAchievements();
+          // Clear previous content safely.
+          while (achievementsList.firstChild) {
+            achievementsList.removeChild(achievementsList.firstChild);
+          }
+          let unlockedCount = 0;
+          for (const a of list) {
+            if (a.unlocked) unlockedCount += 1;
+            const li = document.createElement("li");
+            li.className =
+              "achievement-item " + (a.unlocked ? "unlocked" : "locked");
+            const iconDiv = document.createElement("div");
+            iconDiv.className = "icon";
+            iconDiv.appendChild(buildAchievementIconNode(a));
+            li.appendChild(iconDiv);
+
+            const body = document.createElement("div");
+            body.className = "body";
+            const title = document.createElement("div");
+            title.className = "title";
+            title.textContent = a.title;
+            const desc = document.createElement("div");
+            desc.className = "desc";
+            desc.textContent = a.desc;
+            body.appendChild(title);
+            body.appendChild(desc);
+            li.appendChild(body);
+
+            achievementsList.appendChild(li);
+          }
+          if (achievementsProgress) {
+            achievementsProgress.textContent =
+              unlockedCount + " / " + list.length + " unlocked";
+          }
+        }
+
+        function openAchievements() {
+          renderAchievementsList();
+          if (achievementsOverlay) achievementsOverlay.classList.add("open");
+          if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
+            window.Game.pause();
+          }
+        }
+        function closeAchievements() {
+          if (achievementsOverlay)
+            achievementsOverlay.classList.remove("open");
+          if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
+            window.Game.resume();
+          }
+        }
+        if (achievementsCloseBtn) {
+          achievementsCloseBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            closeAchievements();
+          });
+        }
+        if (achievementsOverlay) {
+          achievementsOverlay.addEventListener("click", (e) => {
+            if (e.target === achievementsOverlay) closeAchievements();
           });
         }
 
@@ -2200,6 +2650,42 @@
             openAbout();
           });
         }
+        // Achievements button.
+        const menuAchievementsBtn = document.getElementById(
+          "menu-achievements"
+        );
+        if (menuAchievementsBtn) {
+          menuAchievementsBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            closeMenu();
+            openAchievements();
+          });
+        }
+
+        // ───────── PWA Install button ─────────
+        let deferredInstallPrompt = null;
+        const installLi = document.getElementById("menu-install-li");
+        const installBtn = document.getElementById("menu-install");
+        window.addEventListener("beforeinstallprompt", (e) => {
+          e.preventDefault();
+          deferredInstallPrompt = e;
+          if (installLi) installLi.style.display = "";
+        });
+        if (installBtn) {
+          installBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (!deferredInstallPrompt) return;
+            deferredInstallPrompt.prompt();
+            const { outcome } = await deferredInstallPrompt.userChoice;
+            deferredInstallPrompt = null;
+            if (installLi) installLi.style.display = "none";
+            if (outcome === "accepted") closeMenu();
+          });
+        }
+        window.addEventListener("appinstalled", () => {
+          deferredInstallPrompt = null;
+          if (installLi) installLi.style.display = "none";
+        });
 
         cog.addEventListener("click", (e) => {
           e.stopPropagation();
@@ -2293,11 +2779,39 @@
             refreshEasterEggUI();
           });
         }
+        // ───────── Reset-progress confirmation ─────────
+        const resetOverlay = document.getElementById("reset-confirm-overlay");
+        const resetYes = document.getElementById("reset-confirm-yes");
+        const resetNo = document.getElementById("reset-confirm-no");
+
+        function openResetConfirm() {
+          if (resetOverlay) resetOverlay.classList.add("open");
+        }
+        function closeResetConfirm() {
+          if (resetOverlay) resetOverlay.classList.remove("open");
+        }
+        function doReset() {
+          window.Game.resetAllProgress();
+          refreshEasterEggUI();
+          if (achievementsOverlay && achievementsOverlay.classList.contains("open")) {
+            renderAchievementsList();
+          }
+          const pbEl = document.getElementById("personal-best");
+          if (pbEl) pbEl.textContent = "Personal best: 0";
+          closeResetConfirm();
+          closeMenu();
+        }
         if (jumpsResetBtn) {
           jumpsResetBtn.addEventListener("click", (e) => {
             e.stopPropagation();
-            window.Game.resetTotalJumps();
-            refreshEasterEggUI();
+            openResetConfirm();
+          });
+        }
+        if (resetYes) resetYes.addEventListener("click", doReset);
+        if (resetNo) resetNo.addEventListener("click", closeResetConfirm);
+        if (resetOverlay) {
+          resetOverlay.addEventListener("click", (e) => {
+            if (e.target === resetOverlay) closeResetConfirm();
           });
         }
 
@@ -2335,7 +2849,15 @@
           (e) => {
             if (e.key === "Escape") {
               e.preventDefault();
-              if (aboutOverlay && aboutOverlay.classList.contains("open")) {
+              if (
+                achievementsOverlay &&
+                achievementsOverlay.classList.contains("open")
+              ) {
+                closeAchievements();
+              } else if (
+                aboutOverlay &&
+                aboutOverlay.classList.contains("open")
+              ) {
                 closeAbout();
               } else if (imprintOverlay.classList.contains("open")) {
                 closeImprint();
@@ -2351,6 +2873,7 @@
         refreshSoundUI();
 
         // ───────── Share your score ─────────
+        const scoreCardOverlay = document.getElementById("score-card-overlay");
         const sharePanel = document.getElementById("score-card-panel");
         const scoreCardImg = document.getElementById("score-card-preview");
         const shareBtn = document.getElementById("share-score-btn");
@@ -2384,6 +2907,7 @@
           clearCard();
           if (scoreCardSlot) scoreCardSlot.classList.remove("loaded");
           sharePanel.classList.add("visible");
+          if (scoreCardOverlay) scoreCardOverlay.classList.add("visible");
           if (shareBtnLabel) shareBtnLabel.textContent = originalShareLabel;
           // Defer card generation by two animation frames so the
           // death snapshot is captured in render() before the
@@ -2413,8 +2937,82 @@
           });
         }
 
+        // ───────── Achievement toasts ─────────
+        const achievementToastStack = document.getElementById(
+          "achievement-toasts"
+        );
+        // Shared renderer for achievement icons. Supports two
+        // shapes from game.js:
+        //   - { iconHTML }  — inline multi-colour SVG fragment
+        //                     (drawn inside a 24×24 viewBox).
+        //   - { iconImage } — path to a sprite under /assets,
+        //                     rendered as a plain <img>. Used
+        //                     for the party-hat / thug-glasses
+        //                     cosmetics so the reward preview
+        //                     is literally the thing you unlock.
+        // Both input fields come from static strings in game.js,
+        // so it's safe to use innerHTML for the SVG fragment.
+        function buildAchievementIconNode(ach) {
+          if (ach && ach.iconImage) {
+            const img = document.createElement("img");
+            img.src = ach.iconImage;
+            img.alt = "";
+            img.setAttribute("aria-hidden", "true");
+            img.className = "achievement-icon-image";
+            return img;
+          }
+          const svg = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "svg"
+          );
+          svg.setAttribute("viewBox", "0 0 24 24");
+          svg.setAttribute("aria-hidden", "true");
+          svg.innerHTML = (ach && ach.iconHTML) || "";
+          return svg;
+        }
+
+        function showAchievementToast(ach) {
+          if (!achievementToastStack || !ach) return;
+          const el = document.createElement("div");
+          el.className = "achievement-toast";
+          const iconWrap = document.createElement("div");
+          iconWrap.className = "achievement-toast-icon";
+          iconWrap.appendChild(buildAchievementIconNode(ach));
+          el.appendChild(iconWrap);
+
+          const body = document.createElement("div");
+          body.className = "achievement-toast-body";
+          const kicker = document.createElement("div");
+          kicker.className = "achievement-toast-kicker";
+          kicker.textContent = "Achievement Unlocked";
+          const title = document.createElement("div");
+          title.className = "achievement-toast-title";
+          title.textContent = ach.title;
+          const desc = document.createElement("div");
+          desc.className = "achievement-toast-desc";
+          desc.textContent = ach.desc;
+          body.appendChild(kicker);
+          body.appendChild(title);
+          body.appendChild(desc);
+          el.appendChild(body);
+
+          achievementToastStack.appendChild(el);
+          // Entry animation fires from the CSS `toast-in`
+          // keyframe the instant the element is in the DOM —
+          // no explicit class toggle needed.
+          // Slide out after a few seconds and remove from DOM
+          // once the leave animation is done.
+          setTimeout(() => {
+            el.classList.add("leaving");
+            setTimeout(() => {
+              if (el.parentNode) el.parentNode.removeChild(el);
+            }, 420);
+          }, 4200);
+        }
+
         function hideScoreCard() {
           if (sharePanel) sharePanel.classList.remove("visible");
+          if (scoreCardOverlay) scoreCardOverlay.classList.remove("visible");
           if (scoreCardSlot) scoreCardSlot.classList.remove("loaded");
           clearCard();
           shareInFlight = false;
@@ -2534,13 +3132,35 @@
         // Play again button — explicit restart action. Uses
         // Game.restartFromGameOver which honours the short
         // death-animation cooldown built into game.js.
+        function doRestart() {
+          if (window.Game && window.Game.restartFromGameOver) {
+            window.Game.restartFromGameOver();
+          }
+        }
         const playAgainBtn = document.getElementById("play-again-btn");
         if (playAgainBtn) {
           playAgainBtn.addEventListener("click", (e) => {
             e.stopPropagation();
-            if (window.Game && window.Game.restartFromGameOver) {
-              window.Game.restartFromGameOver();
+            doRestart();
+          });
+        }
+        // Clicking anywhere on the game-over overlay backdrop
+        // (but not the panel itself) restarts the game via mouse
+        // only — touch devices already use "tap to restart" via
+        // the canvas pointerdown handler.
+        if (scoreCardOverlay) {
+          scoreCardOverlay.addEventListener("click", (e) => {
+            if (e.target === scoreCardOverlay) {
+              doRestart();
             }
+          });
+        }
+        // Make the "Press Enter to restart" hint clickable too.
+        const scoreCardHint = document.getElementById("score-card-hint");
+        if (scoreCardHint) {
+          scoreCardHint.addEventListener("click", (e) => {
+            e.stopPropagation();
+            doRestart();
           });
         }
       })();

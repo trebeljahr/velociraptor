@@ -44,14 +44,16 @@
   // sessions so players who mute the music don't get blasted every
   // time they reopen the tab.
   const MUTED_KEY = "raptor-runner:muted";
-  // localStorage key for the cumulative jump count. Earns easter-egg
-  // flair on the raptor: the party hat unlocks at
-  // PARTY_HAT_JUMP_THRESHOLD, and the "thug life" glasses unlock at
-  // THUG_GLASSES_JUMP_THRESHOLD — both persist in localStorage, so
-  // the player only has to earn them once.
+  // localStorage key for the cumulative jump count. Kept for
+  // backwards-compatibility with earlier versions that gated the
+  // cosmetic unlocks on total jumps.
   const TOTAL_JUMPS_KEY = "raptor-runner:totalJumps";
-  const PARTY_HAT_JUMP_THRESHOLD = 100;
-  const THUG_GLASSES_JUMP_THRESHOLD = 200;
+  // Cosmetic unlocks are earned by scoring this many points (i.e.
+  // cleared cacti) in a SINGLE run. Score is the honest measure of
+  // skill — a player can pad their jump count by tapping in place,
+  // but they can't fake clearing actual obstacles.
+  const PARTY_HAT_SCORE_THRESHOLD = 100;
+  const THUG_GLASSES_SCORE_THRESHOLD = 200;
   // Per-accessory unlock + wear flags in localStorage. "unlocked"
   // is a sticky bit set when the player first crosses the jump
   // threshold; "wear" is the player's current on/off cosmetic
@@ -61,6 +63,174 @@
   const UNLOCKED_THUG_GLASSES_KEY = "raptor-runner:unlocked:thugGlasses";
   const WEAR_PARTY_HAT_KEY = "raptor-runner:wear:partyHat";
   const WEAR_THUG_GLASSES_KEY = "raptor-runner:wear:thugGlasses";
+  // Career-wide run counter + unlocked achievement IDs live
+  // under their own keys so storage is namespaced and easy to
+  // wipe independently of the jump / mute preferences.
+  const CAREER_RUNS_KEY = "raptor-runner:careerRuns";
+  const ACHIEVEMENTS_KEY = "raptor-runner:achievements";
+
+  // ── Achievement catalog ────────────────────────────────────
+  // Each entry carries a stable `id` (used for storage), a
+  // short display title, and a one-line description of how to
+  // earn it.
+  //
+  // Icons are inline SVG fragments, drawn at 24×24 inside a
+  // shared viewBox. Unlike Lucide-style monochrome line icons,
+  // these are multi-colour vector illustrations coloured from
+  // the game's own palette — cactus greens, sky blues, sunset
+  // golds, moon creams — so the shell can render them directly
+  // without a CSS `currentColor` pass.
+  //
+  // A few entries use `iconImage` to pull an actual sprite from
+  // /assets (the party hat and thug glasses cosmetics) so the
+  // reward preview is pixel-accurate to the thing you unlock.
+  const ACHIEVEMENTS = [
+    {
+      id: "first-run",
+      title: "First Steps",
+      desc: "Complete your first run",
+      // Classic 3-toed dinosaur footprint — wide splaying toes
+      // with pointed claw tips from a teardrop heel. Matches the
+      // top-left silhouette from the reference image.
+      iconHTML:
+        '<path d="M12 22 C9.5 22 8.5 20.5 9 18.5 L10.5 14 C9 13.5 6.5 12 5.5 9 C4.8 6.8 6 5.5 7.5 6.2 C8.8 6.8 9.5 9 10.5 12 L11.5 14.5 L11.5 9.5 C11 7 11.2 3.5 12 2 C12.8 3.5 13 7 12.5 9.5 L12.5 14.5 L13.5 12 C14.5 9 15.2 6.8 16.5 6.2 C18 5.5 19.2 6.8 18.5 9 C17.5 12 15 13.5 13.5 14 L15 18.5 C15.5 20.5 14.5 22 12 22Z" fill="#6d7580"/>',
+    },
+    {
+      id: "first-jump",
+      title: "Up And Over",
+      desc: "Clear your first cactus",
+      // The small flowering cactus sprite with a solid curved
+      // arrow arcing high above it, ending in an arrowhead on the
+      // right — reads as "jumped clean over the obstacle".
+      iconHTML:
+        '<image href="assets/cactus2.png" x="5" y="10" width="14" height="14" preserveAspectRatio="xMidYMax meet"/>' +
+        '<path d="M3 10 A12 12 0 0 1 21 10" fill="none" stroke="#3498db" stroke-width="1.5" stroke-linecap="round"/>' +
+        '<polygon points="22,7 22,13 18,10" fill="#3498db"/>',
+    },
+    {
+      id: "score-25",
+      title: "Getting The Hang Of It",
+      desc: "Score 25 points in a single run",
+      // The tall saguaro cactus sprite with a green check badge
+      // — same design language as the first-jump icon but with a
+      // "you've got this" confirmation overlay.
+      iconHTML:
+        '<image href="assets/cactus7.png" x="3" y="2" width="13" height="22" preserveAspectRatio="xMidYMax meet"/>' +
+        '<circle cx="18" cy="7" r="5" fill="#ffffff" stroke="#3498db" stroke-width="1.2"/>' +
+        '<path d="M15.5 7l2 2 3.2-3.4" fill="none" stroke="#2d9d55" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+    },
+    {
+      id: "party-time",
+      title: "Party Time",
+      desc: "Score 100 points in a single run",
+      // The actual party hat cosmetic sprite.
+      iconImage: "assets/party-hat.png",
+    },
+    {
+      id: "dinosaurs-forever",
+      title: "Dinosaurs Forever",
+      desc: "Score 200 points in a single run",
+      // The actual thug-glasses cosmetic sprite.
+      iconImage: "assets/thug-glasses.png",
+    },
+    {
+      id: "score-250",
+      title: "Raptor Legend",
+      desc: "Score 500 points in a single run",
+      // Trophy with a star in the cup.
+      iconHTML:
+        '<path d="M9 20h6v1.5H9z" fill="#7a4a00"/>' +
+        '<path d="M10.5 17h3l.4 3h-3.8z" fill="#c78a12"/>' +
+        '<path d="M7 4h10v5a5 5 0 0 1-10 0V4z" fill="#f7d148" stroke="#c78a12" stroke-width="1"/>' +
+        '<path d="M7 5H5a1 1 0 0 0-1 1v1a3 3 0 0 0 3 3h.4" fill="none" stroke="#c78a12" stroke-width="1.2"/>' +
+        '<path d="M17 5h2a1 1 0 0 1 1 1v1a3 3 0 0 1-3 3h-.4" fill="none" stroke="#c78a12" stroke-width="1.2"/>' +
+        '<path d="M12 5.2l.9 1.9 2.1.3-1.5 1.5.3 2.1-1.8-1-1.8 1 .3-2.1L9 7.4l2.1-.3z" fill="#ffffff"/>',
+    },
+    {
+      id: "first-night",
+      title: "Night Owl",
+      desc: "Survive your first full night",
+      // Full night-sky circle with a crescent moon — no loose
+      // stars, just a clean moon on the dark field.
+      iconHTML:
+        '<circle cx="12" cy="12" r="12" fill="#1e2a44"/>' +
+        '<path d="M16 7a6 6 0 1 0 1 9 5 5 0 0 1-1-9z" fill="#f4f0d6"/>',
+    },
+    {
+      id: "ten-nights",
+      title: "Insomniac",
+      desc: "Survive 10 nights in a single run",
+      // Full night-sky circle with a smaller crescent moon and
+      // ten stars equally spaced in a ring around the centre.
+      // r=10, centre 12,12, angle = i*36° starting at 0°.
+      iconHTML:
+        '<circle cx="12" cy="12" r="12" fill="#1e2a44"/>' +
+        '<path d="M14 8a4 4 0 1 0 .8 6.5 3.2 3.2 0 0 1-.8-6.5z" fill="#f4f0d6"/>' +
+        '<circle cx="22" cy="12" r="0.7" fill="#fff"/>' +     // 0°
+        '<circle cx="20.1" cy="5.9" r="0.7" fill="#fff"/>' +  // 36°
+        '<circle cx="15.1" cy="2.2" r="0.7" fill="#fff"/>' +  // 72°
+        '<circle cx="8.9" cy="2.2" r="0.7" fill="#fff"/>' +   // 108°
+        '<circle cx="3.9" cy="5.9" r="0.7" fill="#fff"/>' +   // 144°
+        '<circle cx="2" cy="12" r="0.7" fill="#fff"/>' +      // 180°
+        '<circle cx="3.9" cy="18.1" r="0.7" fill="#fff"/>' +  // 216°
+        '<circle cx="8.9" cy="21.8" r="0.7" fill="#fff"/>' +  // 252°
+        '<circle cx="15.1" cy="21.8" r="0.7" fill="#fff"/>' + // 288°
+        '<circle cx="20.1" cy="18.1" r="0.7" fill="#fff"/>',  // 324°
+    },
+    {
+      id: "twenty-nights",
+      title: "Marathon Sleeper",
+      desc: "Survive 20 nights in a single run",
+      // Sun + moon pair — you've lived through the full cycle a
+      // lot of times.
+      iconHTML:
+        '<circle cx="8" cy="12" r="4" fill="#ffd455" stroke="#c78a12" stroke-width="0.8"/>' +
+        '<g stroke="#ffd455" stroke-width="1.2" stroke-linecap="round">' +
+        '<line x1="8" y1="4" x2="8" y2="6"/>' +
+        '<line x1="8" y1="18" x2="8" y2="20"/>' +
+        '<line x1="1.5" y1="12" x2="3.5" y2="12"/>' +
+        '<line x1="3.5" y1="7.5" x2="4.9" y2="8.9"/>' +
+        '<line x1="3.5" y1="16.5" x2="4.9" y2="15.1"/>' +
+        '</g>' +
+        '<circle cx="17" cy="12" r="4.5" fill="#1e2a44"/>' +
+        '<path d="M18.5 9a3.5 3.5 0 1 0 0 6 3 3 0 0 1 0-6z" fill="#f4f0d6"/>',
+    },
+    {
+      id: "first-shooting-star",
+      title: "Make A Wish",
+      desc: "See your first shooting star",
+      // Gold star with a trailing streak fading into sky blue.
+      iconHTML:
+        '<path d="M3 20l9-9" stroke="#8fd1ff" stroke-width="2.4" stroke-linecap="round"/>' +
+        '<path d="M5 18l5-5" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>' +
+        '<path d="M16 3l1.6 3.4 3.7.5-2.7 2.6.7 3.7-3.3-1.8-3.3 1.8.7-3.7L9.7 6.9l3.7-.5z" fill="#f7d148" stroke="#c78a12" stroke-width="0.8" stroke-linejoin="round"/>',
+    },
+    {
+      id: "century-runner",
+      title: "Century Runner",
+      desc: "Complete 100 runs",
+      // Ribbon medal: gold disc + two ribbon tails. Larger disc
+      // with compact text so "100" has room to breathe.
+      iconHTML:
+        '<path d="M8 13l-3 9 4-2 4 2-3-9z" fill="#3498db" stroke="#1e6aa8" stroke-width="0.8" stroke-linejoin="round"/>' +
+        '<path d="M16 13l3 9-4-2-4 2 3-9z" fill="#50b4cd" stroke="#1e6aa8" stroke-width="0.8" stroke-linejoin="round"/>' +
+        '<circle cx="12" cy="10" r="9" fill="#f7d148" stroke="#c78a12" stroke-width="1"/>' +
+        '<text x="12" y="12.8" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="5.5" font-weight="900" fill="#7a4a00">100</text>',
+    },
+    {
+      id: "sound-of-silence",
+      title: "The Sound Of Silence",
+      desc: "Play muted through an entire run",
+      // Speaker with a diagonal slash — same visual language as
+      // the game's own mute button up in the top-right cluster.
+      iconHTML:
+        '<path d="M10 8L6 11H3v4h3l4 3V8z" fill="#6d7580" stroke="#333" stroke-width="0.8" stroke-linejoin="round"/>' +
+        '<line x1="14" y1="9" x2="20" y2="17" stroke="#e53935" stroke-width="2.2" stroke-linecap="round"/>' +
+        '<line x1="20" y1="9" x2="14" y2="17" stroke="#e53935" stroke-width="2.2" stroke-linecap="round"/>',
+    },
+  ];
+  const ACHIEVEMENTS_BY_ID = Object.create(null);
+  for (const a of ACHIEVEMENTS) ACHIEVEMENTS_BY_ID[a.id] = a;
 
   const RAPTOR_NATIVE_W = 578;
   const RAPTOR_NATIVE_H = 212;
@@ -478,6 +648,11 @@
 
     setMuted(muted, persist = true) {
       this.muted = !!muted;
+      // If the player unmutes during a live run, they broke the
+      // "muted the whole way through" streak for Sound of Silence.
+      if (!this.muted && state && state.started && !state.gameOver) {
+        state._runMutedThroughout = false;
+      }
       if (persist) {
         try {
           window.localStorage.setItem(
@@ -570,11 +745,39 @@
     // null on pause/reset so the first post-resume frame doesn't
     // see a huge stale delta.
     lastNow: null,
-    // Total jumps the player has ever performed this run. Persists
-    // across game-overs only via localStorage (see TOTAL_JUMPS_KEY).
-    // At >= 100, the easter-egg party hat starts appearing on the
-    // raptor's head as a reward for sticking with the game.
+    // Total jumps the player has ever performed. Persists across
+    // sessions via localStorage (see TOTAL_JUMPS_KEY).
     totalJumps: 0,
+    // Jumps performed within the current run only. Resets on
+    // every resetGame(). Drives the per-run cosmetic unlocks
+    // (party hat at 100, thug glasses at 200) so the player
+    // has to actually earn them in a single go.
+    runJumps: 0,
+    // Nights fully survived within the current run. Incremented
+    // when state.isNight goes from true → false (i.e. dawn
+    // arrives while the raptor is still alive). Used for the
+    // "survive N nights" achievements.
+    runNightsSurvived: 0,
+    // Was the raptor in the night portion of the cycle on the
+    // previous frame? Tracked so we can detect the night → day
+    // transition without double-counting.
+    _wasInNight: false,
+    // Shooting stars seen during the current run. Used for the
+    // "first shooting star" achievement.
+    runShootingStars: 0,
+    // Total career stats, persisted across sessions.
+    careerRuns: 0,
+    // Set of unlocked achievement IDs. Serialized as a JSON
+    // array in localStorage so the player keeps their trophies
+    // across visits.
+    unlockedAchievements: {},
+    // Was the player muted for the entire current run? Set to
+    // the audio mute state the moment the run actually starts,
+    // and flipped to false the instant the player touches the
+    // mute toggle mid-run (either direction — any audio change
+    // invalidates the "silent the whole way through" claim).
+    // Drives the "Sound of Silence" achievement.
+    _runMutedThroughout: false,
     // Accessory unlocks. Each pair is:
     //   unlockedX — sticky bit, true once the player has crossed
     //               the jump threshold for this cosmetic. Never
@@ -592,6 +795,10 @@
     // the first night feels clean and the easter egg reads as a
     // reward for surviving longer.
     shootingStars: [],
+    // Confetti particles, spawned in bursts when a cosmetic
+    // unlocks so the moment reads as a celebration. Drawn over
+    // the foreground tint so the colors pop at any time of day.
+    confetti: [],
     clouds: [],
     // Debug mode — toggled on by `?debug=true` query param. When on,
     // the menu grows a "Show hitboxes" toggle and the game draws the
@@ -660,31 +867,20 @@
       const v = Math.sqrt(2 * a * targetRise);
       this.velocity = -v;
       audio.playJump();
-      // Track total jumps across all runs — this is what unlocks
-      // the easter-egg accessories.
+      // Bump both the career-wide total and the per-run counter.
       state.totalJumps += 1;
+      state.runJumps += 1;
       saveTotalJumps(state.totalJumps);
-      // Threshold crossings: first time the player hits the number,
-      // flip the sticky unlock bit and default the wear flag to
-      // true so the new cosmetic shows up immediately.
-      if (
-        !state.unlockedPartyHat &&
-        state.totalJumps >= PARTY_HAT_JUMP_THRESHOLD
-      ) {
-        state.unlockedPartyHat = true;
-        state.wearPartyHat = true;
-        saveBoolFlag(UNLOCKED_PARTY_HAT_KEY, true);
-        saveBoolFlag(WEAR_PARTY_HAT_KEY, true);
-      }
-      if (
-        !state.unlockedThugGlasses &&
-        state.totalJumps >= THUG_GLASSES_JUMP_THRESHOLD
-      ) {
-        state.unlockedThugGlasses = true;
-        state.wearThugGlasses = true;
-        saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, true);
-        saveBoolFlag(WEAR_THUG_GLASSES_KEY, true);
-      }
+      // Count a jump over a cactus as a "first jump" achievement
+      // — the player has clearly worked out the controls once
+      // they've pushed space even once.
+      // "Up And Over" used to fire here on the first jump press,
+      // but now fires from the score-++ branch when the first
+      // cactus is actually cleared — feels earned, not premature.
+      // Cosmetic unlocks no longer live here — they're triggered
+      // in the score-++ branch inside Cactuses.update(), so the
+      // player has to actually clear cacti rather than padding
+      // their jump count.
     }
 
     /**
@@ -745,15 +941,11 @@
         this.h
       );
       // Accessories are drawn when they're unlocked AND the player
-      // has the cosmetic toggled on. Debug mode treats everything
-      // as if already unlocked so testers can toggle the look
-      // without grinding to the threshold.
-      const glassesUnlocked = state.debug || state.unlockedThugGlasses;
-      if (glassesUnlocked && state.wearThugGlasses) {
+      // has the cosmetic toggled on.
+      if (state.unlockedThugGlasses && state.wearThugGlasses) {
         this.drawThugGlasses(ctx);
       }
-      const hatUnlocked = state.debug || state.unlockedPartyHat;
-      if (hatUnlocked && state.wearPartyHat) {
+      if (state.unlockedPartyHat && state.wearPartyHat) {
         this.drawPartyHat(ctx);
       }
     }
@@ -980,6 +1172,45 @@
       this.cacti = this.cacti.filter((c) => {
         if (c.x < -c.w) {
           state.score++;
+          // Score-threshold achievements.
+          if (state.score === 1) unlockAchievement("first-jump");
+          if (state.score === 25) unlockAchievement("score-25");
+          if (state.score === 100) unlockAchievement("party-time");
+          if (state.score === 200) unlockAchievement("dinosaurs-forever");
+          if (state.score === 500) unlockAchievement("score-250");
+          // Cosmetic unlocks — party hat at 100 points, thug
+          // glasses at 200. Both fire at most once per save and
+          // burst a little confetti off the raptor's head so the
+          // player actually notices. The achievement toasts fire
+          // from the score-threshold block above (not here) so
+          // they trigger on every qualifying run, even if the
+          // cosmetic was already earned.
+          if (
+            !state.unlockedPartyHat &&
+            state.score >= PARTY_HAT_SCORE_THRESHOLD
+          ) {
+            state.unlockedPartyHat = true;
+            state.wearPartyHat = true;
+            saveBoolFlag(UNLOCKED_PARTY_HAT_KEY, true);
+            saveBoolFlag(WEAR_PARTY_HAT_KEY, true);
+            if (raptor) {
+              const crown = raptor.currentCrownPoint();
+              spawnConfettiBurst(crown.x, crown.y);
+            }
+          }
+          if (
+            !state.unlockedThugGlasses &&
+            state.score >= THUG_GLASSES_SCORE_THRESHOLD
+          ) {
+            state.unlockedThugGlasses = true;
+            state.wearThugGlasses = true;
+            saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, true);
+            saveBoolFlag(WEAR_THUG_GLASSES_KEY, true);
+            if (raptor) {
+              const crown = raptor.currentCrownPoint();
+              spawnConfettiBurst(crown.x, crown.y);
+            }
+          }
           return false;
         }
         return true;
@@ -1276,6 +1507,8 @@
       age: 0,
       life: randRange(0.9, 1.5),
     });
+    state.runShootingStars += 1;
+    unlockAchievement("first-shooting-star");
   }
 
   function updateShootingStars(dtSec) {
@@ -1299,6 +1532,93 @@
     }
     if (expired > 0) {
       state.shootingStars = state.shootingStars.filter((s) => !s.dead);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // Confetti burst
+  //
+  // Fires when a cosmetic unlocks (party hat, thug glasses). Each
+  // burst spawns ~60 pieces at the raptor's head, each with a
+  // short random-direction velocity + gentle gravity and a
+  // tumbling rotation. Cheap per-piece: a single fillRect /
+  // ellipse per frame. Particles auto-expire after ~1.5s.
+  // ════════════════════════════════════════════════════════════════
+
+  const CONFETTI_COLORS = [
+    "#ff4d6d",
+    "#ffb703",
+    "#06d6a0",
+    "#118ab2",
+    "#8338ec",
+    "#ffd60a",
+    "#ff7b00",
+    "#ef476f",
+  ];
+
+  function spawnConfettiBurst(worldX, worldY) {
+    const count = 70;
+    for (let i = 0; i < count; i++) {
+      const angle = randRange(-Math.PI, 0); // upward hemisphere
+      const speed = randRange(180, 520);
+      state.confetti.push({
+        x: worldX,
+        y: worldY,
+        vx: Math.cos(angle) * speed + randRange(-40, 40),
+        vy: Math.sin(angle) * speed,
+        rot: randRange(0, Math.PI * 2),
+        vrot: randRange(-8, 8),
+        size: randRange(6, 11),
+        color:
+          CONFETTI_COLORS[
+            Math.floor(Math.random() * CONFETTI_COLORS.length)
+          ],
+        age: 0,
+        life: randRange(1.1, 1.9),
+      });
+    }
+  }
+
+  function updateConfetti(dtSec) {
+    if (state.confetti.length === 0) return;
+    let expired = 0;
+    const GRAV = 900; // px/sec² downward
+    const DRAG = 0.985;
+    for (const p of state.confetti) {
+      p.vx *= DRAG;
+      p.vy += GRAV * dtSec;
+      p.x += p.vx * dtSec;
+      p.y += p.vy * dtSec;
+      p.rot += p.vrot * dtSec;
+      p.age += dtSec;
+      if (p.age >= p.life || p.y > state.height + 40) {
+        p.dead = true;
+        expired += 1;
+      }
+    }
+    if (expired > 0) {
+      state.confetti = state.confetti.filter((p) => !p.dead);
+    }
+  }
+
+  function drawConfetti(ctx) {
+    if (state.confetti.length === 0) return;
+    for (const p of state.confetti) {
+      const t = p.age / p.life;
+      const alpha = t < 0.85 ? 1 : Math.max(0, 1 - (t - 0.85) / 0.15);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      // Rectangular confetti piece, slightly taller than wide.
+      ctx.fillRect(
+        -p.size / 2,
+        -p.size / 3,
+        p.size,
+        (p.size * 2) / 3
+      );
+      ctx.restore();
     }
   }
 
@@ -1897,6 +2217,32 @@
       (bandIndex === 5 && bandT > 0.5) ||
       (bandIndex === 10 && bandT < 0.5);
 
+    // Night-survival tracking for the "survive N nights"
+    // achievements. Two-phase detection:
+    //   1. When isNight goes true → false, mark a pending night
+    //      (the raptor survived through the dark).
+    //   2. Only count it + fire achievements once the sky is
+    //      solidly in daytime (bands 0-4) — i.e. fully past the
+    //      sunrise phase — so the toast appears when the sun is
+    //      clearly out, not mid-transition.
+    if (state._wasInNight && !state.isNight && !state.gameOver) {
+      state._pendingNights = (state._pendingNights || 0) + 1;
+    }
+    if (state._pendingNights > 0 && bandIndex <= 4 && !state.gameOver) {
+      state.runNightsSurvived += state._pendingNights;
+      state._pendingNights = 0;
+      if (state.runNightsSurvived >= 1) {
+        unlockAchievement("first-night");
+      }
+      if (state.runNightsSurvived >= 10) {
+        unlockAchievement("ten-nights");
+      }
+      if (state.runNightsSurvived >= 20) {
+        unlockAchievement("twenty-nights");
+      }
+    }
+    state._wasInNight = state.isNight;
+
     if (
       state.frame % SKY_UPDATE_INTERVAL_FRAMES === 0 ||
       state.score !== state.lastSkyScore
@@ -1919,6 +2265,8 @@
     // Shooting-star easter egg: only runs from the 2nd night onward.
     maybeSpawnShootingStar(frameScale);
     updateShootingStars(dtSec);
+    // Confetti particles from cosmetic unlocks.
+    updateConfetti(dtSec);
 
     if (!state.gameOver) {
       raptor.update(now, frameScale);
@@ -1931,6 +2279,19 @@
           state.gameOver = true;
           state.gameOverFrame = state.frame;
           commitRunScore();
+          // Bump the career run counter and unlock the
+          // "first-run" / "century-runner" milestones.
+          state.careerRuns += 1;
+          saveCareerRuns(state.careerRuns);
+          if (state.careerRuns >= 1) unlockAchievement("first-run");
+          if (state.careerRuns >= 100) unlockAchievement("century-runner");
+          // Sound-of-silence is awarded for surviving a full
+          // run (any length) with audio muted the whole time.
+          // We ignore trivial zero-jump runs so the player
+          // can't game it by instantly dying.
+          if (state._runMutedThroughout && state.runJumps >= 5) {
+            unlockAchievement("sound-of-silence");
+          }
           // Notify any listeners (e.g. the shell's share button)
           // that a game-over just happened. Fired exactly once per
           // run, directly from the transition instead of via a poll.
@@ -2042,6 +2403,10 @@
       state.height
     );
 
+    // Confetti — drawn AFTER the tinted foreground so the
+    // colors pop at any time of day (no sky-tint washing them
+    // out). Only alive when a cosmetic was just unlocked.
+    drawConfetti(ctx);
 
     // Score text lives in the DOM now (see #score-display in
     // index.html), not on the canvas. That means it doesn't appear
@@ -2122,6 +2487,65 @@
     }
   }
 
+  function loadCareerRuns() {
+    try {
+      const raw = window.localStorage.getItem(CAREER_RUNS_KEY);
+      if (raw == null) return 0;
+      const n = parseInt(raw, 10);
+      return Number.isFinite(n) && n >= 0 ? n : 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+  function saveCareerRuns(value) {
+    try {
+      window.localStorage.setItem(CAREER_RUNS_KEY, String(value));
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  function loadUnlockedAchievements() {
+    const set = Object.create(null);
+    try {
+      const raw = window.localStorage.getItem(ACHIEVEMENTS_KEY);
+      if (!raw) return set;
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        for (const id of arr) if (typeof id === "string") set[id] = true;
+      }
+    } catch (e) {
+      /* ignore corrupt values */
+    }
+    return set;
+  }
+  function saveUnlockedAchievements(set) {
+    try {
+      const arr = Object.keys(set);
+      window.localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(arr));
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  /** Unlock an achievement by id. Silently no-ops if the id is
+   *  unknown or already unlocked. Fires the onAchievementUnlock
+   *  callbacks so the shell can show a toast. */
+  function unlockAchievement(id) {
+    const def = ACHIEVEMENTS_BY_ID[id];
+    if (!def) return;
+    if (state.unlockedAchievements[id]) return;
+    state.unlockedAchievements[id] = true;
+    saveUnlockedAchievements(state.unlockedAchievements);
+    for (const cb of GameAPI._achievementCbs) {
+      try {
+        cb(def);
+      } catch (e) {
+        /* ignore listener errors */
+      }
+    }
+  }
+
   function loadTotalJumps() {
     try {
       const raw = window.localStorage.getItem(TOTAL_JUMPS_KEY);
@@ -2173,6 +2597,21 @@
     }
   }
 
+  /** Reset per-run tracking state. Called from both start()
+   *  (first run) and resetGame() (subsequent runs) so the
+   *  initialization is identical regardless of code path. */
+  function initRunState() {
+    state.runJumps = 0;
+    state.runNightsSurvived = 0;
+    state._pendingNights = 0;
+    state.runShootingStars = 0;
+    state._wasInNight = false;
+    // Sound of Silence: snapshot the mute state right now.
+    // If the player unmutes at any point during the run,
+    // setMuted() flips this to false. Checked at game-over.
+    state._runMutedThroughout = !!(audio && audio.muted);
+  }
+
   function resetGame() {
     state.gameOver = false;
     state.gameOverFade = 0;
@@ -2185,6 +2624,8 @@
     state.bgVelocity = INITIAL_BG_VELOCITY;
     state.lastNow = null;
     state.shootingStars = [];
+    state.confetti = [];
+    initRunState();
     // Next game-over will capture a fresh snapshot.
     deathSnapshotReady = false;
     seedClouds();
@@ -2330,6 +2771,7 @@
     // show/hide its share button without polling.
     _gameOverCbs: [],
     _gameResetCbs: [],
+    _achievementCbs: [],
 
     onReady(cb) {
       if (this._ready) cb();
@@ -2347,10 +2789,37 @@
       if (typeof cb === "function") this._gameResetCbs.push(cb);
     },
 
+    /** Register a callback fired whenever a new achievement is
+     *  unlocked. Receives the achievement definition
+     *  ({id, title, desc, iconPath, iconStroke}) so the shell
+     *  can render a toast. */
+    onAchievementUnlock(cb) {
+      if (typeof cb === "function" && !this._achievementCbs.includes(cb)) {
+        this._achievementCbs.push(cb);
+      }
+    },
+
+    /** Full achievement catalog with unlocked status. Used by
+     *  the Achievements menu overlay. Returns a shallow copy so
+     *  callers can't mutate the source. */
+    getAchievements() {
+      return ACHIEVEMENTS.map((a) => ({
+        id: a.id,
+        title: a.title,
+        desc: a.desc,
+        iconHTML: a.iconHTML || null,
+        iconImage: a.iconImage || null,
+        unlocked: !!state.unlockedAchievements[a.id],
+      }));
+    },
+
     start() {
       if (state.started) return;
       state.started = true;
       state.paused = false;
+      // Reset per-run state identically to resetGame() so the
+      // very first run after page load starts clean.
+      initRunState();
     },
 
     pause() {
@@ -2406,6 +2875,27 @@
     setScore(n) {
       const next = Math.max(0, Math.floor(Number(n) || 0));
       state.score = next;
+      // Fire any score-threshold achievements the player just
+      // skipped over so debug-setting the score to e.g. 6000
+      // unlocks everything in one go.
+      if (next >= 1) unlockAchievement("first-jump");
+      if (next >= 25) unlockAchievement("score-25");
+      if (next >= 100) unlockAchievement("party-time");
+      if (next >= 200) unlockAchievement("dinosaurs-forever");
+      if (next >= 500) unlockAchievement("score-250");
+      // Also trigger cosmetic unlocks if thresholds are met.
+      if (!state.unlockedPartyHat && next >= PARTY_HAT_SCORE_THRESHOLD) {
+        state.unlockedPartyHat = true;
+        state.wearPartyHat = true;
+        saveBoolFlag(UNLOCKED_PARTY_HAT_KEY, true);
+        saveBoolFlag(WEAR_PARTY_HAT_KEY, true);
+      }
+      if (!state.unlockedThugGlasses && next >= THUG_GLASSES_SCORE_THRESHOLD) {
+        state.unlockedThugGlasses = true;
+        state.wearThugGlasses = true;
+        saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, true);
+        saveBoolFlag(WEAR_THUG_GLASSES_KEY, true);
+      }
     },
 
     /** Best score persisted in localStorage across all runs. */
@@ -2480,13 +2970,13 @@
 
     // ── Accessory unlock state (persisted) ─────────────────────
 
-    /** True once the player has crossed PARTY_HAT_JUMP_THRESHOLD
-     *  total career jumps. In debug mode, always true. */
+    /** True once the player has cleared PARTY_HAT_SCORE_THRESHOLD
+     *  cacti in a single run. In debug mode, always true. */
     isPartyHatUnlocked() {
-      return state.debug || state.unlockedPartyHat;
+      return state.unlockedPartyHat;
     },
     isThugGlassesUnlocked() {
-      return state.debug || state.unlockedThugGlasses;
+      return state.unlockedThugGlasses;
     },
 
     /** True when the accessory is both unlocked and the player has
@@ -2529,17 +3019,26 @@
 
     /** Debug: wipe saved career jumps, unlock bits, and wear
      *  preferences so the raptor reverts to its naked state. */
-    resetTotalJumps() {
+    /** Wipe all persistent progress — jumps, cosmetic unlocks,
+     *  career runs, achievements, and high score — back to a
+     *  fresh-install state. Debug-only affordance. */
+    resetAllProgress() {
       state.totalJumps = 0;
+      state.highScore = 0;
+      state.careerRuns = 0;
       state.unlockedPartyHat = false;
       state.unlockedThugGlasses = false;
-      state.wearPartyHat = true;
-      state.wearThugGlasses = true;
+      state.wearPartyHat = false;
+      state.wearThugGlasses = false;
+      state.unlockedAchievements = {};
       saveTotalJumps(0);
+      saveHighScore(0);
+      saveCareerRuns(0);
+      saveUnlockedAchievements({});
       saveBoolFlag(UNLOCKED_PARTY_HAT_KEY, false);
       saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, false);
-      saveBoolFlag(WEAR_PARTY_HAT_KEY, true);
-      saveBoolFlag(WEAR_THUG_GLASSES_KEY, true);
+      saveBoolFlag(WEAR_PARTY_HAT_KEY, false);
+      saveBoolFlag(WEAR_THUG_GLASSES_KEY, false);
     },
   };
   window.Game = GameAPI;
@@ -2577,9 +3076,9 @@
       state.debug = params.get("debug") === "true";
       if (state.debug) {
         document.body.setAttribute("data-debug", "true");
-        // Enable hitboxes by default when debug mode is on; the user
-        // can still toggle them off via the menu.
-        state.showHitboxes = true;
+        // Hitboxes default to off even in debug mode — the toggle
+        // is in the menu if the tester wants to turn them on.
+        state.showHitboxes = false;
       }
     } catch (e) {
       /* no-op */
@@ -2620,6 +3119,8 @@
     // shows up immediately; returning players get whatever they
     // last saved.
     state.totalJumps = loadTotalJumps();
+    state.careerRuns = loadCareerRuns();
+    state.unlockedAchievements = loadUnlockedAchievements();
     state.unlockedPartyHat = loadBoolFlag(UNLOCKED_PARTY_HAT_KEY, false);
     state.unlockedThugGlasses = loadBoolFlag(
       UNLOCKED_THUG_GLASSES_KEY,
@@ -2627,17 +3128,15 @@
     );
     state.wearPartyHat = loadBoolFlag(WEAR_PARTY_HAT_KEY, true);
     state.wearThugGlasses = loadBoolFlag(WEAR_THUG_GLASSES_KEY, true);
-    // Safety net: if the player already has enough career jumps
-    // from a previous version that didn't track the unlock bit,
-    // flip it on so they don't lose their earned cosmetic.
-    if (!state.unlockedPartyHat && state.totalJumps >= PARTY_HAT_JUMP_THRESHOLD) {
+    // Backwards-compat: earlier versions gated cosmetic unlocks
+    // on cumulative jumps. If a returning player has already
+    // banked enough jumps from that era, respect the old reward
+    // rather than asking them to re-earn it under the new rules.
+    if (!state.unlockedPartyHat && state.totalJumps >= 100) {
       state.unlockedPartyHat = true;
       saveBoolFlag(UNLOCKED_PARTY_HAT_KEY, true);
     }
-    if (
-      !state.unlockedThugGlasses &&
-      state.totalJumps >= THUG_GLASSES_JUMP_THRESHOLD
-    ) {
+    if (!state.unlockedThugGlasses && state.totalJumps >= 200) {
       state.unlockedThugGlasses = true;
       saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, true);
     }
