@@ -555,11 +555,13 @@
       .score-card-slot {
         position: relative;
         /* Width tries 560px, but is capped so the implied height
-           (width / aspect) never eats more than ~58vh of the
-           viewport. That leaves room for the Game Over heading,
-           the share button, and the restart hint even in mobile
-           landscape. */
-        width: min(560px, 84vw, calc(58vh * 1200 / 630));
+           (width / aspect) never eats more than ~48vh of the
+           viewport. That keeps the Game Over heading, the button
+           row, and the restart hint inside the viewport even on
+           a 320px-tall phone in landscape with the URL bar up.
+           If the viewport is still too tight, the panel's
+           overflow-y: auto lets the player scroll it. */
+        width: min(560px, 84vw, calc(48vh * 1200 / 630));
         aspect-ratio: 1200 / 630;
         border-radius: 14px;
         overflow: hidden;
@@ -684,6 +686,18 @@
         transform: translateY(0) scale(0.98);
       }
 
+      /* Body wrapper: holds the card slot + the action row. By
+         default the card is on top and the actions below (column).
+         On short landscape viewports the layout flips to a row
+         with the actions stacked in a narrow column next to the
+         card, which buys vertical room for the image. */
+      .score-card-body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: clamp(0.35rem, 1.2vh, 1.1rem);
+      }
+
       /* Action row: Share + Play again sit side by side on
          desktop, wrap / stack on very narrow viewports. */
       .score-card-actions {
@@ -695,6 +709,49 @@
       }
       .score-card-panel.visible .score-card-actions {
         display: flex;
+      }
+
+      /* Short-landscape layout: card and actions sit side by side.
+         Frees vertical space so the card image can be taller
+         when the viewport is shorter than it is wide and under
+         ~520px tall (mobile landscape with the URL bar). */
+      @media (max-height: 520px) and (orientation: landscape) {
+        .score-card-body {
+          flex-direction: row;
+          align-items: center;
+          justify-content: center;
+          gap: 0.9rem;
+          width: 100%;
+        }
+        /* The card slot can now take up more vertical room since
+           the buttons live beside it rather than below. */
+        .score-card-slot {
+          width: min(560px, 60vw, calc(66vh * 1200 / 630));
+        }
+        /* Stack the action buttons vertically next to the card. */
+        .score-card-panel.visible .score-card-actions {
+          flex-direction: column;
+          flex-wrap: nowrap;
+          align-items: stretch;
+          gap: 0.5rem;
+        }
+        .score-card-panel.visible .score-card-actions > * {
+          width: 100%;
+        }
+        /* Shrink the Game Over heading a touch so the side-by-
+           side row has room to breathe. */
+        .score-card-heading {
+          font-size: clamp(1.1rem, 4.8vh, 1.8rem);
+        }
+      }
+
+      /* Hide the "Press Enter to restart" hint on pure-touch
+         devices — those users don't have a keyboard anyway, and
+         the new Play again button is the obvious restart path. */
+      @media (hover: none) and (pointer: coarse) {
+        .score-card-hint {
+          display: none;
+        }
       }
       .play-again-btn {
         display: inline-flex;
@@ -1385,45 +1442,47 @@
       aria-label="Game over — share your score"
     >
       <h2 class="score-card-heading">Game Over</h2>
-      <div id="score-card-slot" class="score-card-slot">
-        <div class="score-card-spinner" aria-hidden="true"></div>
-        <img
-          id="score-card-preview"
-          class="score-card-preview"
-          alt="Raptor Runner score card preview"
-        />
-      </div>
-      <div class="score-card-actions">
-        <button
-          id="share-score-btn"
-          class="share-score-btn"
-          type="button"
-          aria-label="Share your score"
-        >
-          <span class="inner">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="18" cy="5" r="3"></circle>
-              <circle cx="6" cy="12" r="3"></circle>
-              <circle cx="18" cy="19" r="3"></circle>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+      <div class="score-card-body">
+        <div id="score-card-slot" class="score-card-slot">
+          <div class="score-card-spinner" aria-hidden="true"></div>
+          <img
+            id="score-card-preview"
+            class="score-card-preview"
+            alt="Raptor Runner score card preview"
+          />
+        </div>
+        <div class="score-card-actions">
+          <button
+            id="share-score-btn"
+            class="share-score-btn"
+            type="button"
+            aria-label="Share your score"
+          >
+            <span class="inner">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="18" cy="5" r="3"></circle>
+                <circle cx="6" cy="12" r="3"></circle>
+                <circle cx="18" cy="19" r="3"></circle>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              </svg>
+              <span class="label">Share your score</span>
+            </span>
+          </button>
+          <button
+            id="play-again-btn"
+            class="play-again-btn"
+            type="button"
+            aria-label="Play again"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polygon points="6 4 20 12 6 20 6 4"></polygon>
             </svg>
-            <span class="label">Share your score</span>
-          </span>
-        </button>
-        <button
-          id="play-again-btn"
-          class="play-again-btn"
-          type="button"
-          aria-label="Play again"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polygon points="6 4 20 12 6 20 6 4"></polygon>
-          </svg>
-          <span>Play again</span>
-        </button>
+            <span>Play again</span>
+          </button>
+        </div>
       </div>
       <p class="score-card-hint">
         Press <kbd>Enter</kbd> to restart
