@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -11,7 +11,8 @@
       body {
         margin: 0;
         padding: 2rem 1.5rem;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
         background: #ffffff;
         color: #333;
         line-height: 1.65;
@@ -110,144 +111,103 @@
 
       <h1>About Raptor Runner</h1>
       <p class="tagline">
-        A pixel-art homage to the Chrome "No Internet" dinosaur
-        game — with a running velociraptor, a full day/night
-        cycle, and a starry sky.
+        This is a pixel-art homage to the Chrome "No Internet" dinosaur game.
       </p>
 
       <h2>The story</h2>
       <p>
-        I made the first version of this game a few years ago,
-        mostly for fun. It already had the thing that matters:
-        a core loop that felt good to play, a charming
-        pixel-art raptor, a blue sky, a handful of cacti. For
-        a quick weekend thing, it worked. I shelved it anyway
-        — the kind of shelving where you tell yourself you'll
-        come back to it and then years quietly go past.
+        I made the first version of this game a few years ago, mostly for fun as
+        a little side project. It already had the things that matter: a core
+        loop that felt good to play, a charming pixel-art raptor, a changing
+        sky, some clouds, a handful of cacti. For a quick weekend thing, it
+        worked. I shelved it as good enough, but with a list of things that
+        could still be improved if I ever felt like coming back to it.
       </p>
       <p>
-        What you're playing now is that same game, brought back
-        and polished with the time and care I never found the
-        first time around. The bones are still the same. Most
-        of the new work is the finishing — the thousand small
-        things between "runs" and "feels finished".
+        What you're playing now is that same game, brought back and polished
+        with the time and care I never found the first time around. The bones
+        are still the same. Most of the new work went into the finishing
+        details. All the small things that make something like this feel more
+        *polished*. More alive, more like a real game and less like a prototype.
       </p>
 
       <h2>What "polishing" means, in practice</h2>
       <p>
-        If you've only ever shipped the fun 80% of a side
-        project, it's easy to underestimate the last 20%.
-        Polish isn't glamorous — it's a pile of quiet
-        decisions, most of which nobody will consciously
-        notice, but which together make the difference between
-        "cute" and "finished". Some of what went into this one:
+        If you've only ever shipped the fun 80% of a side project, it's easy to
+        underestimate the last 20%. Polish isn't glamorous. It's a pile of quiet
+        decisions, most of which nobody will consciously notice, but which
+        together make a big difference.
       </p>
       <ul>
         <li>
-          Tuning jump physics until they feel deliberate
-          instead of floaty — and making the whole loop
-          frame-rate independent, so the game feels the same
-          on a 60Hz laptop, a 120Hz phone, and a throttled
-          background tab.
+          The sky gradient and a small overlay so that the raptor colors adjust
+          to the sky tint.
+        </li>
+        <li>Different cacti types with more beautiful sprites.</li>
+        <li>
+          Unlockable cosmetics that let you customize the raptor with small, fun
+          details that reward you for playing the game. Easter eggs.
         </li>
         <li>
-          Drawing hand-authored, concave collision polygons
-          for every cactus so near-misses actually read as
-          near-misses instead of punishing the player.
+          A night sky that feels alive, with the moon and stars moving across
+          it.
         </li>
         <li>
-          Building a full day/night cycle where the sky color,
-          the sun and moon, and the lighting on the raptor,
-          cacti, and ground are all one coherent system — so
-          dusk genuinely reads as dusk on the whole scene, not
-          just in the sky.
-        </li>
-        <li>
-          A rotating night sky with a Milky Way band, stars
-          that twinkle at different rates, and the occasional
-          shooting star on longer runs. None of it matters
-          individually. Together, the sky feels alive.
-        </li>
-        <li>
-          Measuring the exact head position in every frame of
-          the run animation, so head-mounted cosmetics sit on
-          the raptor instead of bobbing around above it.
-        </li>
-        <li>
-          A proper start screen, a settings menu, music and
-          SFX with a remembered mute preference, persistent
-          personal bests, unlockable cosmetics, a shareable
-          score card rendered in a web worker, an offline
-          install path, real accessibility labels, and all
-          the other small quality-of-life things a finished
-          web game is supposed to have.
+          A proper start screen, a settings menu, achievements + unlocks with
+          remembered preference, persistent personal high-scores, a shareable
+          score card, an installable app... the list of improvements goes on and
+          on, but now this is something that I am genuinely happy with.
         </li>
       </ul>
       <p>
-        None of this is hard in isolation. All of it, together,
-        is the part I never had the patience for before.
+        None of these is hard to do in isolation. They just take time to get
+        right, and getting all of them right, is the part I never had the
+        patience to do before. My ADHD brain loves the fun, creative part of
+        building something new and shiny... but the polishing is difficult,
+        especially when something doesn't work right away. It can be hard to
+        keep the motivation up when I have to stare at the same thing for hours,
+        trying to figure out why a small detail isn't looking quite right, or
+        why a new feature isn't clicking with the rest of the game. Now, I don't
+        have to do this anymore.
       </p>
 
-      <h2>Why now</h2>
+      <h2>Why?</h2>
       <p>
-        Honestly? Because AI pair programming finally made the
-        polishing fun. The grunt work that used to feel like a
-        chore — chasing a floaty frame, reworking a compositing
-        pass, writing copy for the fifth time — is now a
-        conversation, and that conversation has a collaborator
-        who doesn't get bored. I have a pile of half-finished
-        side projects I intend to walk back through with the
-        same energy.
+        Honestly? Because AI code agents finally made the polishing fun. The
+        grunt work that used to feel like a chore, is now a conversation, and
+        that conversation has a collaborator who doesn't get bored, who can
+        manage all these little details, where you can just dump it a list of
+        things you would like and *magic* it get's done. I have a pile of
+        half-finished side projects that I intend to give this same treatment,
+        to give them the attention and polish that they always deserved, but
+        that I never had the patience to give them.
       </p>
       <blockquote>
-        Raptor Runner is the first of them. If you enjoyed it,
-        stick around — there are more coming.
+        Raptor Runner is the first of them. If you enjoyed it, stick around, I
+        am building at a speed that I previously thought impossible.
       </blockquote>
 
       <h2>Made by</h2>
       <p>
-        <a
-          href="https://portfolio.trebeljahr.com"
-          target="_blank"
-          rel="noopener"
+        <a href="https://portfolio.trebeljahr.com" target="_blank"
           >Rico Trebeljahr</a
         >
-        — freelance developer, writer, and side-project
-        enthusiast. If this resonated, come say hi on the
-        <a
-          href="https://ricos.site/newsletters"
-          target="_blank"
-          rel="noopener"
-          >ricos.site newsletter</a
-        >, or poke at the
-        <a
-          href="https://github.com/trebeljahr/velociraptor"
-          target="_blank"
-          rel="noopener"
+        —freelance developer, writer, and side-project enthusiast. If this
+        resonated, come say hi on
+        <a href="https://ricos.site/" target="_blank">ricos.site</a>, or poke at
+        the
+        <a href="https://github.com/trebeljahr/velociraptor" target="_blank"
           >source on GitHub</a
         >.
       </p>
 
       <div class="footer-links">
-        <a href="imprint.html">Imprint / Legal Notice</a>
-        <a
-          href="https://github.com/trebeljahr/velociraptor"
-          target="_blank"
-          rel="noopener"
+        <a href="imprint.html">Imprint</a>
+        <a href="https://github.com/trebeljahr/velociraptor" target="_blank"
           >GitHub</a
         >
-        <a
-          href="https://portfolio.trebeljahr.com"
-          target="_blank"
-          rel="noopener"
-          >Portfolio</a
-        >
-        <a
-          href="https://ricos.site"
-          target="_blank"
-          rel="noopener"
-          >ricos.site</a
-        >
+        <a href="https://portfolio.trebeljahr.com" target="_blank">Portfolio</a>
+        <a href="https://ricos.site" target="_blank">ricos.site</a>
       </div>
     </main>
   </body>

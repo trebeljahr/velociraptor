@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -56,9 +56,23 @@
 
     <link rel="canonical" href="https://raptor.trebeljahr.com/" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="16x16"
+      href="assets/favicon-16.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="assets/favicon-32.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="assets/apple-touch-icon.png"
+    />
     <style>
       html,
       body {
@@ -80,8 +94,8 @@
         background: #50b4cd;
       }
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial,
-          sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
       }
       @keyframes spin {
         from {
@@ -109,7 +123,9 @@
           rgb(170, 210, 205) 55%,
           rgb(245, 220, 170) 80%
         );
-        transition: opacity 0.4s ease-out, visibility 0.4s;
+        transition:
+          opacity 0.4s ease-out,
+          visibility 0.4s;
       }
       .start-screen.hidden {
         opacity: 0;
@@ -130,8 +146,8 @@
           #ebab21 13px,
           #ba8c27 13px,
           #ba8c27 33px,
-          #EDC9AF 33px,
-          #EDC9AF 100%
+          #edc9af 33px,
+          #edc9af 100%
         );
       }
       /* Stage wraps the start-screen raptor + any cosmetics
@@ -299,7 +315,10 @@
         font-weight: 600;
         cursor: pointer;
         box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
-        transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+        transition:
+          transform 0.15s,
+          box-shadow 0.15s,
+          opacity 0.2s;
       }
       .start-btn:not(:disabled):hover {
         transform: translateY(-2px);
@@ -338,10 +357,16 @@
       /* Desktop: show keyboard hint, hide touch hint.
          Swap on touch devices OR narrow viewports as a fallback
          for browsers that don't report pointer/hover correctly. */
-      .start-hint-touch { display: none; }
+      .start-hint-touch {
+        display: none;
+      }
       @media (hover: none) and (pointer: coarse), (max-width: 600px) {
-        .start-hint-desktop { display: none; }
-        .start-hint-touch { display: block; }
+        .start-hint-desktop {
+          display: none;
+        }
+        .start-hint-touch {
+          display: block;
+        }
       }
       .start-hint kbd {
         display: inline-block;
@@ -370,7 +395,9 @@
         text-underline-offset: 2px;
         text-decoration-thickness: 1px;
         text-decoration-color: rgba(42, 29, 19, 0.35);
-        transition: text-decoration-color 0.15s, opacity 0.15s;
+        transition:
+          text-decoration-color 0.15s,
+          opacity 0.15s;
       }
       .start-byline a:hover {
         text-decoration-color: rgba(42, 29, 19, 0.9);
@@ -416,10 +443,13 @@
         animation: rotateHint 2.5s ease-in-out infinite;
       }
       @keyframes rotateHint {
-        0%, 70%, 100% {
+        0%,
+        70%,
+        100% {
           transform: rotate(0deg);
         }
-        40%, 50% {
+        40%,
+        50% {
           transform: rotate(-90deg);
         }
       }
@@ -602,12 +632,25 @@
         text-align: right;
       }
       @keyframes trophy-wiggle {
-        0%, 100% { transform: rotate(0deg); }
-        15% { transform: rotate(-14deg); }
-        30% { transform: rotate(12deg); }
-        45% { transform: rotate(-10deg); }
-        60% { transform: rotate(8deg); }
-        75% { transform: rotate(-4deg); }
+        0%,
+        100% {
+          transform: rotate(0deg);
+        }
+        15% {
+          transform: rotate(-14deg);
+        }
+        30% {
+          transform: rotate(12deg);
+        }
+        45% {
+          transform: rotate(-10deg);
+        }
+        60% {
+          transform: rotate(8deg);
+        }
+        75% {
+          transform: rotate(-4deg);
+        }
       }
       @media (prefers-reduced-motion: reduce) {
         .score-display:hover .trophy-icon {
@@ -718,7 +761,9 @@
         animation: score-card-spin 0.9s linear infinite;
       }
       @keyframes score-card-spin {
-        to { transform: rotate(360deg); }
+        to {
+          transform: rotate(360deg);
+        }
       }
       .score-card-heading {
         margin: 0;
@@ -771,7 +816,9 @@
         box-shadow:
           0 0 24px rgba(21, 216, 161, 0.3),
           0 8px 20px rgba(0, 0, 0, 0.3);
-        transition: transform 0.15s ease, box-shadow 0.2s ease;
+        transition:
+          transform 0.15s ease,
+          box-shadow 0.2s ease;
       }
       .score-card-panel.visible .share-score-btn {
         display: inline-block;
@@ -780,8 +827,7 @@
         display: flex;
         align-items: center;
         gap: 0.65rem;
-        padding: clamp(0.55rem, 1.6vh, 0.85rem)
-          clamp(1.1rem, 3.2vh, 1.75rem);
+        padding: clamp(0.55rem, 1.6vh, 0.85rem) clamp(1.1rem, 3.2vh, 1.75rem);
         background: #0a0b12;
         color: #ffffff;
         border-radius: 999px;
@@ -872,8 +918,7 @@
         display: inline-flex;
         align-items: center;
         gap: 0.55rem;
-        padding: clamp(0.6rem, 1.6vh, 0.85rem)
-          clamp(1rem, 3vh, 1.55rem);
+        padding: clamp(0.6rem, 1.6vh, 0.85rem) clamp(1rem, 3vh, 1.55rem);
         border: 1px solid rgba(255, 255, 255, 0.4);
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.1);
@@ -911,8 +956,12 @@
         stroke-linejoin: round;
       }
       @keyframes share-btn-shimmer {
-        from { background-position: 0% 50%; }
-        to { background-position: 300% 50%; }
+        from {
+          background-position: 0% 50%;
+        }
+        to {
+          background-position: 300% 50%;
+        }
       }
       @media (prefers-reduced-motion: reduce) {
         .share-score-btn {
@@ -934,7 +983,9 @@
         color: #333;
         cursor: pointer;
         padding: 0;
-        transition: background 0.15s, transform 0.2s;
+        transition:
+          background 0.15s,
+          transform 0.2s;
         /* Eliminate tap delay + disable double-tap zoom on mobile. */
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
@@ -987,10 +1038,19 @@
         animation: fullscreen-wiggle 0.5s ease-in-out;
       }
       @keyframes fullscreen-wiggle {
-        0%, 100% { transform: scale(1) rotate(0deg); }
-        25% { transform: scale(1.12) rotate(-4deg); }
-        55% { transform: scale(1.08) rotate(4deg); }
-        80% { transform: scale(1.05) rotate(-2deg); }
+        0%,
+        100% {
+          transform: scale(1) rotate(0deg);
+        }
+        25% {
+          transform: scale(1.12) rotate(-4deg);
+        }
+        55% {
+          transform: scale(1.08) rotate(4deg);
+        }
+        80% {
+          transform: scale(1.05) rotate(-2deg);
+        }
       }
       @media (prefers-reduced-motion: reduce) {
         .fullscreen-btn:hover svg {
@@ -1012,7 +1072,10 @@
         stroke-dasharray: 10;
         stroke-dashoffset: 0;
         transform-origin: 10px 10px;
-        transition: stroke-dashoffset 0.3s, opacity 0.2s, transform 0.2s;
+        transition:
+          stroke-dashoffset 0.3s,
+          opacity 0.2s,
+          transform 0.2s;
       }
       .sound-btn.muted .speaker {
         opacity: 0.5;
@@ -1028,7 +1091,9 @@
         stroke-dasharray: 8;
         stroke-dashoffset: 8;
         opacity: 0;
-        transition: stroke-dashoffset 0.2s 0.1s, opacity 0.2s 0.1s;
+        transition:
+          stroke-dashoffset 0.2s 0.1s,
+          opacity 0.2s 0.1s;
       }
       .sound-btn.muted .mute-x {
         stroke-dashoffset: 0;
@@ -1157,7 +1222,9 @@
         font-size: 0.95rem;
         cursor: pointer;
         white-space: nowrap;
-        transition: background 0.1s, color 0.1s;
+        transition:
+          background 0.1s,
+          color 0.1s;
       }
       .menu-panel .menu-item:hover {
         background: #e8ecf0;
@@ -1363,8 +1430,8 @@
         overflow-y: auto;
         padding: 2.25rem 1.75rem 2rem;
         box-sizing: border-box;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
-          Arial, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
         color: #333;
       }
       .achievements-heading {
@@ -1524,7 +1591,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: background 0.15s, color 0.15s;
+        transition:
+          background 0.15s,
+          color 0.15s;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
       }
       .imprint-close:hover {
@@ -1554,13 +1623,11 @@
       // (file:// dev, older browsers).
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {
-          navigator.serviceWorker
-            .register("sw.js")
-            .catch(function (e) {
-              // Intentionally quiet — a failed registration
-              // shouldn't break the game for anyone.
-              console.warn("sw register failed", e);
-            });
+          navigator.serviceWorker.register("sw.js").catch(function (e) {
+            // Intentionally quiet — a failed registration
+            // shouldn't break the game for anyone.
+            console.warn("sw register failed", e);
+          });
         });
       }
     </script>
@@ -1572,12 +1639,7 @@
     <canvas id="game-canvas"></canvas>
 
     <!-- Native audio elements replace the p5.sound library entirely. -->
-    <audio
-      id="game-music"
-      src="assets/music2.mp3"
-      preload="auto"
-      loop
-    ></audio>
+    <audio id="game-music" src="assets/music2.mp3" preload="auto" loop></audio>
     <!-- Jump SFX now uses the Web Audio API (decoded in game.js)
          so it can play simultaneously with the music <audio> on
          mobile browsers that only allow one HTMLAudioElement. -->
@@ -1586,9 +1648,16 @@
          Shown via `body.needs-rotate` class toggled by JS. -->
     <div class="rotate-prompt" aria-hidden="true">
       <div class="rotate-card">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
-          stroke-linejoin="round" aria-hidden="true">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
           <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
           <line x1="12" y1="18" x2="12.01" y2="18"></line>
         </svg>
@@ -1608,43 +1677,45 @@
       <div class="start-cloud c1" aria-hidden="true">
         <svg viewBox="-15 -25 75 25" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <clipPath id="cloud-dome"><rect x="-20" y="-30" width="100" height="30"/></clipPath>
+            <clipPath id="cloud-dome">
+              <rect x="-20" y="-30" width="100" height="30" />
+            </clipPath>
           </defs>
           <g fill="#fff" clip-path="url(#cloud-dome)">
-            <ellipse cx="0" cy="0" rx="12.5" ry="10"/>
-            <ellipse cx="10" cy="0" rx="12.5" ry="22.5"/>
-            <ellipse cx="25" cy="0" rx="12.5" ry="17.5"/>
-            <ellipse cx="40" cy="0" rx="15" ry="10"/>
+            <ellipse cx="0" cy="0" rx="12.5" ry="10" />
+            <ellipse cx="10" cy="0" rx="12.5" ry="22.5" />
+            <ellipse cx="25" cy="0" rx="12.5" ry="17.5" />
+            <ellipse cx="40" cy="0" rx="15" ry="10" />
           </g>
         </svg>
       </div>
       <div class="start-cloud c2" aria-hidden="true">
         <svg viewBox="-15 -25 75 25" xmlns="http://www.w3.org/2000/svg">
           <g fill="#fff" clip-path="url(#cloud-dome)">
-            <ellipse cx="0" cy="0" rx="12.5" ry="10"/>
-            <ellipse cx="10" cy="0" rx="12.5" ry="22.5"/>
-            <ellipse cx="25" cy="0" rx="12.5" ry="17.5"/>
-            <ellipse cx="40" cy="0" rx="15" ry="10"/>
+            <ellipse cx="0" cy="0" rx="12.5" ry="10" />
+            <ellipse cx="10" cy="0" rx="12.5" ry="22.5" />
+            <ellipse cx="25" cy="0" rx="12.5" ry="17.5" />
+            <ellipse cx="40" cy="0" rx="15" ry="10" />
           </g>
         </svg>
       </div>
       <div class="start-cloud c3" aria-hidden="true">
         <svg viewBox="-15 -25 75 25" xmlns="http://www.w3.org/2000/svg">
           <g fill="#fff" clip-path="url(#cloud-dome)">
-            <ellipse cx="0" cy="0" rx="12.5" ry="10"/>
-            <ellipse cx="10" cy="0" rx="12.5" ry="22.5"/>
-            <ellipse cx="25" cy="0" rx="12.5" ry="17.5"/>
-            <ellipse cx="40" cy="0" rx="15" ry="10"/>
+            <ellipse cx="0" cy="0" rx="12.5" ry="10" />
+            <ellipse cx="10" cy="0" rx="12.5" ry="22.5" />
+            <ellipse cx="25" cy="0" rx="12.5" ry="17.5" />
+            <ellipse cx="40" cy="0" rx="15" ry="10" />
           </g>
         </svg>
       </div>
       <div class="start-cloud c4" aria-hidden="true">
         <svg viewBox="-15 -25 75 25" xmlns="http://www.w3.org/2000/svg">
           <g fill="#fff" clip-path="url(#cloud-dome)">
-            <ellipse cx="0" cy="0" rx="12.5" ry="10"/>
-            <ellipse cx="10" cy="0" rx="12.5" ry="22.5"/>
-            <ellipse cx="25" cy="0" rx="12.5" ry="17.5"/>
-            <ellipse cx="40" cy="0" rx="15" ry="10"/>
+            <ellipse cx="0" cy="0" rx="12.5" ry="10" />
+            <ellipse cx="10" cy="0" rx="12.5" ry="22.5" />
+            <ellipse cx="25" cy="0" rx="12.5" ry="17.5" />
+            <ellipse cx="40" cy="0" rx="15" ry="10" />
           </g>
         </svg>
       </div>
@@ -1683,9 +1754,7 @@
       <div class="start-content">
         <h1>Raptor Runner</h1>
         <p class="subtitle">Jump the cacti. Don't let the raptor die.</p>
-        <p class="homage">
-          A homage to the Google "No Internet" idle game.
-        </p>
+        <p class="homage">A homage to the Google "No Internet" idle game.</p>
         <p id="start-highscore" class="start-highscore" hidden>
           ★ Personal best: <span id="start-highscore-value">0</span>
         </p>
@@ -1705,19 +1774,28 @@
         <p class="start-hint start-hint-desktop">
           Tip: press <kbd>Space</kbd> or tap to jump · <kbd>Esc</kbd> for menu
         </p>
-        <p class="start-hint start-hint-touch">
-          Tip: Tap to jump
-        </p>
+        <p class="start-hint start-hint-touch">Tip: Tap to jump</p>
       </div>
       <p class="start-byline">
         Made with
-        <svg class="heart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"/>
+        <svg
+          class="heart"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"
+          />
         </svg>
         by
-        <a href="https://portfolio.trebeljahr.com" target="_blank" rel="noopener">Rico Trebeljahr</a>
+        <a href="https://portfolio.trebeljahr.com" target="_blank"
+          >Rico Trebeljahr</a
+        >
         <span class="dot">·</span>
-        <a href="https://ricos.site/newsletters" target="_blank" rel="noopener">Writing at ricos.site</a>
+        <a href="https://ricos.site/newsletters" target="_blank"
+          >Writing at ricos.site</a
+        >
       </p>
     </div>
 
@@ -1726,64 +1804,78 @@
          (with a loading spinner until the worker finishes
          rendering it), a button to copy/share it, and a
          restart hint. -->
-    <div
-      id="score-card-overlay"
-      class="score-card-overlay"
-    >
-    <div
-      id="score-card-panel"
-      class="score-card-panel"
-      role="dialog"
-      aria-modal="false"
-      aria-label="Game over — share your score"
-    >
-      <h2 class="score-card-heading">Game Over</h2>
-      <div class="score-card-body">
-        <div id="score-card-slot" class="score-card-slot">
-          <div class="score-card-spinner" aria-hidden="true"></div>
-          <img
-            id="score-card-preview"
-            class="score-card-preview"
-            alt="Raptor Runner score card preview"
-          />
-        </div>
-        <div class="score-card-actions">
-          <button
-            id="share-score-btn"
-            class="share-score-btn"
-            type="button"
-            aria-label="Share your score"
-          >
-            <span class="inner">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="18" cy="5" r="3"></circle>
-                <circle cx="6" cy="12" r="3"></circle>
-                <circle cx="18" cy="19" r="3"></circle>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+    <div id="score-card-overlay" class="score-card-overlay">
+      <div
+        id="score-card-panel"
+        class="score-card-panel"
+        role="dialog"
+        aria-modal="false"
+        aria-label="Game over — share your score"
+      >
+        <h2 class="score-card-heading">Game Over</h2>
+        <div class="score-card-body">
+          <div id="score-card-slot" class="score-card-slot">
+            <div class="score-card-spinner" aria-hidden="true"></div>
+            <img
+              id="score-card-preview"
+              class="score-card-preview"
+              alt="Raptor Runner score card preview"
+            />
+          </div>
+          <div class="score-card-actions">
+            <button
+              id="share-score-btn"
+              class="share-score-btn"
+              type="button"
+              aria-label="Share your score"
+            >
+              <span class="inner">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+                <span class="label">Share your score</span>
+              </span>
+            </button>
+            <button
+              id="play-again-btn"
+              class="play-again-btn"
+              type="button"
+              aria-label="Play again"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polygon points="6 4 20 12 6 20 6 4"></polygon>
               </svg>
-              <span class="label">Share your score</span>
-            </span>
-          </button>
-          <button
-            id="play-again-btn"
-            class="play-again-btn"
-            type="button"
-            aria-label="Play again"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polygon points="6 4 20 12 6 20 6 4"></polygon>
-            </svg>
-            <span>Play again</span>
-          </button>
+              <span>Play again</span>
+            </button>
+          </div>
         </div>
+        <p
+          class="score-card-hint"
+          id="score-card-hint"
+          role="button"
+          tabindex="0"
+          style="cursor: pointer"
+        >
+          Press <kbd>Enter</kbd> to restart
+        </p>
       </div>
-      <p class="score-card-hint" id="score-card-hint" role="button" tabindex="0" style="cursor:pointer">
-        Press <kbd>Enter</kbd> to restart
-      </p>
-    </div>
     </div>
 
     <!-- Top-left score readout. Mirrors the pill-button look of
@@ -1841,8 +1933,14 @@
             class="speaker"
             d="M10 3.5L5.5 7H3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h2.5L10 16.5V3.5Z"
           ></path>
-          <path class="wave" d="M13 7.5c.8.7 1.25 1.6 1.25 2.5s-.45 1.8-1.25 2.5"></path>
-          <path class="wave" d="M15 5.5c1.4 1.2 2.25 2.8 2.25 4.5s-.85 3.3-2.25 4.5"></path>
+          <path
+            class="wave"
+            d="M13 7.5c.8.7 1.25 1.6 1.25 2.5s-.45 1.8-1.25 2.5"
+          ></path>
+          <path
+            class="wave"
+            d="M15 5.5c1.4 1.2 2.25 2.8 2.25 4.5s-.85 3.3-2.25 4.5"
+          ></path>
           <line class="mute-x" x1="13" y1="7.5" x2="17.5" y2="12.5"></line>
           <line class="mute-x" x1="17.5" y1="7.5" x2="13" y2="12.5"></line>
         </svg>
@@ -1894,11 +1992,19 @@
         aria-expanded="false"
         aria-controls="menu-overlay"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round"
-          stroke-linejoin="round">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+          ></path>
         </svg>
       </button>
     </div>
@@ -1916,7 +2022,9 @@
       aria-label="Imprint and legal notice"
     >
       <div class="imprint-sheet">
-        <button id="imprint-close" class="imprint-close" aria-label="Close">×</button>
+        <button id="imprint-close" class="imprint-close" aria-label="Close">
+          ×
+        </button>
         <iframe
           id="imprint-iframe"
           title="Imprint"
@@ -1936,7 +2044,9 @@
       aria-label="About Raptor Runner"
     >
       <div class="imprint-sheet">
-        <button id="about-close" class="imprint-close" aria-label="Close">×</button>
+        <button id="about-close" class="imprint-close" aria-label="Close">
+          ×
+        </button>
         <iframe
           id="about-iframe"
           title="About Raptor Runner"
@@ -1957,23 +2067,48 @@
       aria-label="Achievements"
     >
       <div class="imprint-sheet achievements-sheet">
-        <button id="achievements-close" class="imprint-close" aria-label="Close">×</button>
+        <button
+          id="achievements-close"
+          class="imprint-close"
+          aria-label="Close"
+        >
+          ×
+        </button>
         <div class="achievements-scroll">
           <h1 class="achievements-heading">Achievements</h1>
-          <p id="achievements-progress" class="achievements-progress">0 / 0 unlocked</p>
+          <p id="achievements-progress" class="achievements-progress">
+            0 / 0 unlocked
+          </p>
           <ul id="achievements-list" class="achievements-list"></ul>
         </div>
       </div>
     </div>
 
     <!-- Reset-progress confirmation dialog -->
-    <div id="reset-confirm-overlay" class="imprint-overlay" role="dialog" aria-modal="true" aria-label="Confirm reset">
+    <div
+      id="reset-confirm-overlay"
+      class="imprint-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Confirm reset"
+    >
       <div class="reset-confirm-sheet">
         <h2>Reset all progress?</h2>
-        <p>This will erase your high score, achievements and cosmetic unlocks. This cannot be undone.</p>
+        <p>
+          This will erase your high score, achievements and cosmetic unlocks.
+          This cannot be undone.
+        </p>
         <div class="reset-confirm-actions">
-          <button id="reset-confirm-yes" class="reset-confirm-btn reset-confirm-danger" type="button">Reset everything</button>
-          <button id="reset-confirm-no" class="reset-confirm-btn" type="button">Cancel</button>
+          <button
+            id="reset-confirm-yes"
+            class="reset-confirm-btn reset-confirm-danger"
+            type="button"
+          >
+            Reset everything
+          </button>
+          <button id="reset-confirm-no" class="reset-confirm-btn" type="button">
+            Cancel
+          </button>
         </div>
       </div>
     </div>
@@ -1995,11 +2130,25 @@
           <li class="debug-only in-game-only">
             <button id="menu-hitboxes-toggle" class="menu-item" type="button">
               <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"
-                    stroke-dasharray="3 3"></rect>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect
+                    x="3"
+                    y="3"
+                    width="18"
+                    height="18"
+                    rx="2"
+                    ry="2"
+                    stroke-dasharray="3 3"
+                  ></rect>
                 </svg>
                 <span id="menu-hitboxes-label">Hitboxes: on</span>
               </span>
@@ -2008,9 +2157,16 @@
           <li id="menu-partyhat-li" hidden>
             <button id="menu-partyhat-toggle" class="menu-item" type="button">
               <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
                   <path d="M12 2L19 18H5L12 2z"></path>
                   <circle cx="12" cy="2" r="1.5" fill="currentColor"></circle>
                 </svg>
@@ -2021,9 +2177,16 @@
           <li id="menu-thug-li" hidden>
             <button id="menu-thug-toggle" class="menu-item" type="button">
               <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
                   <rect x="3" y="9" width="7" height="6" rx="1"></rect>
                   <rect x="14" y="9" width="7" height="6" rx="1"></rect>
                   <line x1="10" y1="12" x2="14" y2="12"></line>
@@ -2033,13 +2196,25 @@
             </button>
           </li>
           <li class="debug-only in-game-only menu-score-editor">
-            <label class="menu-item menu-score-editor-label" for="menu-score-input">
+            <label
+              class="menu-item menu-score-editor-label"
+              for="menu-score-input"
+            >
               <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
                   <path d="M12 20h9"></path>
-                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                  <path
+                    d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"
+                  ></path>
                 </svg>
                 <span>Score</span>
                 <input
@@ -2056,9 +2231,16 @@
           <li class="in-game-only">
             <button id="menu-home" class="menu-item" type="button">
               <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
                   <path d="M3 12L12 3l9 9"></path>
                   <path d="M5 10v10h14V10"></path>
                 </svg>
@@ -2069,14 +2251,21 @@
           <li>
             <button id="menu-achievements" class="menu-item" type="button">
               <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M8 21h8"/>
-                  <path d="M12 17v4"/>
-                  <path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/>
-                  <path d="M7 6H4a2 2 0 0 0-2 2v1a3 3 0 0 0 3 3h2"/>
-                  <path d="M17 6h3a2 2 0 0 1 2 2v1a3 3 0 0 1-3 3h-2"/>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M8 21h8" />
+                  <path d="M12 17v4" />
+                  <path d="M7 4h10v5a5 5 0 0 1-10 0V4z" />
+                  <path d="M7 6H4a2 2 0 0 0-2 2v1a3 3 0 0 0 3 3h2" />
+                  <path d="M17 6h3a2 2 0 0 1 2 2v1a3 3 0 0 1-3 3h-2" />
                 </svg>
                 <span>Achievements</span>
               </span>
@@ -2085,9 +2274,16 @@
           <li>
             <button id="menu-jumpsreset-toggle" class="menu-item" type="button">
               <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
                   <path d="M3 12a9 9 0 1 0 3-6.7"></path>
                   <polyline points="3 4 3 10 9 10"></polyline>
                 </svg>
@@ -2095,15 +2291,22 @@
               </span>
             </button>
           </li>
-          <li id="menu-install-li" style="display:none">
+          <li id="menu-install-li" style="display: none">
             <button id="menu-install" class="menu-item" type="button">
               <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
                 <span>Install App</span>
               </span>
@@ -2112,9 +2315,16 @@
           <li>
             <a class="menu-item" href="about.html">
               <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="12" y1="16" x2="12" y2="12"></line>
                   <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -2126,10 +2336,19 @@
           <li>
             <a class="menu-item" href="imprint.html">
               <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                  ></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
                   <line x1="16" y1="13" x2="8" y2="13"></line>
                   <line x1="16" y1="17" x2="8" y2="17"></line>
@@ -2144,12 +2363,17 @@
               class="menu-item"
               href="https://github.com/trebeljahr/velociraptor"
               target="_blank"
-              rel="noopener"
             >
               <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                  fill="currentColor" aria-hidden="true">
-                  <path d="M12 .5C5.648.5.5 5.648.5 12c0 5.082 3.292 9.393 7.862 10.917.575.106.787-.25.787-.556 0-.275-.01-1.002-.015-1.966-3.198.695-3.874-1.542-3.874-1.542-.522-1.326-1.275-1.679-1.275-1.679-1.044-.714.079-.699.079-.699 1.154.081 1.762 1.185 1.762 1.185 1.025 1.757 2.689 1.249 3.344.955.104-.742.401-1.249.729-1.537-2.553-.29-5.238-1.277-5.238-5.683 0-1.256.45-2.282 1.185-3.087-.119-.29-.513-1.46.112-3.045 0 0 .966-.309 3.164 1.179a11.02 11.02 0 0 1 2.88-.388c.978.004 1.962.132 2.881.388 2.197-1.488 3.16-1.179 3.16-1.179.627 1.585.233 2.755.114 3.045.738.805 1.184 1.831 1.184 3.087 0 4.418-2.69 5.39-5.252 5.674.413.356.78 1.058.78 2.133 0 1.541-.014 2.783-.014 3.162 0 .308.208.668.792.555C20.21 21.39 23.5 17.08 23.5 12c0-6.352-5.148-11.5-11.5-11.5z"/>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 .5C5.648.5.5 5.648.5 12c0 5.082 3.292 9.393 7.862 10.917.575.106.787-.25.787-.556 0-.275-.01-1.002-.015-1.966-3.198.695-3.874-1.542-3.874-1.542-.522-1.326-1.275-1.679-1.275-1.679-1.044-.714.079-.699.079-.699 1.154.081 1.762 1.185 1.762 1.185 1.025 1.757 2.689 1.249 3.344.955.104-.742.401-1.249.729-1.537-2.553-.29-5.238-1.277-5.238-5.683 0-1.256.45-2.282 1.185-3.087-.119-.29-.513-1.46.112-3.045 0 0 .966-.309 3.164 1.179a11.02 11.02 0 0 1 2.88-.388c.978.004 1.962.132 2.881.388 2.197-1.488 3.16-1.179 3.16-1.179.627 1.585.233 2.755.114 3.045.738.805 1.184 1.831 1.184 3.087 0 4.418-2.69 5.39-5.252 5.674.413.356.78 1.058.78 2.133 0 1.541-.014 2.783-.014 3.162 0 .308.208.668.792.555C20.21 21.39 23.5 17.08 23.5 12c0-6.352-5.148-11.5-11.5-11.5z"
+                  />
                 </svg>
                 <span>GitHub</span>
               </span>
@@ -2162,13 +2386,24 @@
         <p class="menu-hint">Press <kbd>Esc</kbd> to close</p>
         <p class="made-by in-game-only">
           Made with
-          <svg class="heart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"/>
+          <svg
+            class="heart"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"
+            />
           </svg>
           by
-          <a href="https://portfolio.trebeljahr.com" target="_blank" rel="noopener">Rico Trebeljahr</a>
+          <a href="https://portfolio.trebeljahr.com" target="_blank"
+            >Rico Trebeljahr</a
+          >
           ·
-          <a href="https://ricos.site/newsletters" target="_blank" rel="noopener">Writing at ricos.site</a>
+          <a href="https://ricos.site/newsletters" target="_blank"
+            >Writing at ricos.site</a
+          >
         </p>
       </div>
     </div>
@@ -2192,16 +2427,13 @@
         const aboutIframe = document.getElementById("about-iframe");
         let aboutLoaded = false;
         const achievementsOverlay = document.getElementById(
-          "achievements-overlay"
+          "achievements-overlay",
         );
-        const achievementsCloseBtn = document.getElementById(
-          "achievements-close"
-        );
-        const achievementsList = document.getElementById(
-          "achievements-list"
-        );
+        const achievementsCloseBtn =
+          document.getElementById("achievements-close");
+        const achievementsList = document.getElementById("achievements-list");
         const achievementsProgress = document.getElementById(
-          "achievements-progress"
+          "achievements-progress",
         );
         const imprintCloseBtn = document.getElementById("imprint-close");
         const imprintIframe = document.getElementById("imprint-iframe");
@@ -2220,7 +2452,8 @@
           // Show the saved personal best (if any) as a badge above
           // the Start Game button so returning players see their
           // previous record immediately.
-          const hs = (window.Game.getHighScore && window.Game.getHighScore()) || 0;
+          const hs =
+            (window.Game.getHighScore && window.Game.getHighScore()) || 0;
           const hsEl = document.getElementById("start-highscore");
           const hsVal = document.getElementById("start-highscore-value");
           if (hs > 0 && hsEl && hsVal) {
@@ -2280,10 +2513,7 @@
             // changes, not on every tween frame, so assistive
             // tech doesn't get spammed with intermediate values.
             if (target !== lastAriaScore && scoreDisplay) {
-              scoreDisplay.setAttribute(
-                "aria-label",
-                "Score: " + target
-              );
+              scoreDisplay.setAttribute("aria-label", "Score: " + target);
               lastAriaScore = target;
             }
           }
@@ -2312,7 +2542,8 @@
           // visitors who previously saved a preference get that
           // preference honoured verbatim (including staying muted).
           const shouldMute =
-            window.Game.hasSavedMutePreference && window.Game.hasSavedMutePreference()
+            window.Game.hasSavedMutePreference &&
+            window.Game.hasSavedMutePreference()
               ? window.Game.isMuted()
               : false;
           window.Game.setMuted(shouldMute);
@@ -2409,7 +2640,11 @@
 
         // ───────── Achievements overlay ─────────
         function renderAchievementsList() {
-          if (!achievementsList || !window.Game || !window.Game.getAchievements) {
+          if (
+            !achievementsList ||
+            !window.Game ||
+            !window.Game.getAchievements
+          ) {
             return;
           }
           const list = window.Game.getAchievements();
@@ -2456,8 +2691,7 @@
           }
         }
         function closeAchievements() {
-          if (achievementsOverlay)
-            achievementsOverlay.classList.remove("open");
+          if (achievementsOverlay) achievementsOverlay.classList.remove("open");
           if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
             window.Game.resume();
           }
@@ -2503,7 +2737,7 @@
           fullscreenBtn.setAttribute("aria-pressed", String(on));
           fullscreenBtn.setAttribute(
             "aria-label",
-            on ? "Exit fullscreen" : "Enter fullscreen"
+            on ? "Exit fullscreen" : "Enter fullscreen",
           );
         }
         async function toggleFullscreen() {
@@ -2550,7 +2784,8 @@
         function refreshMenuHighscore() {
           const hsEl = document.getElementById("menu-highscore");
           const hsVal = document.getElementById("menu-highscore-value");
-          if (!hsEl || !hsVal || !window.Game || !window.Game.getHighScore) return;
+          if (!hsEl || !hsVal || !window.Game || !window.Game.getHighScore)
+            return;
           const hs = window.Game.getHighScore() || 0;
           if (hs > 0) {
             hsVal.textContent = String(hs);
@@ -2573,7 +2808,11 @@
           // Press Esc hint) are hidden on the start screen.
           const panel = overlay.querySelector(".menu-panel");
           if (panel) {
-            if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
+            if (
+              window.Game &&
+              window.Game.isStarted &&
+              window.Game.isStarted()
+            ) {
               panel.classList.remove("pre-game");
             } else {
               panel.classList.add("pre-game");
@@ -2653,9 +2892,8 @@
           });
         }
         // Achievements button.
-        const menuAchievementsBtn = document.getElementById(
-          "menu-achievements"
-        );
+        const menuAchievementsBtn =
+          document.getElementById("menu-achievements");
         if (menuAchievementsBtn) {
           menuAchievementsBtn.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -2795,7 +3033,10 @@
         function doReset() {
           window.Game.resetAllProgress();
           refreshEasterEggUI();
-          if (achievementsOverlay && achievementsOverlay.classList.contains("open")) {
+          if (
+            achievementsOverlay &&
+            achievementsOverlay.classList.contains("open")
+          ) {
             renderAchievementsList();
           }
           const pbEl = document.getElementById("personal-best");
@@ -2868,7 +3109,7 @@
               }
             }
           },
-          true
+          true,
         );
 
         // Initial UI sync.
@@ -2916,13 +3157,9 @@
           // worker asks for it.
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              window.Game
-                .generateScoreCard()
+              window.Game.generateScoreCard()
                 .then((blob) => {
-                  if (
-                    !blob ||
-                    !sharePanel.classList.contains("visible")
-                  ) {
+                  if (!blob || !sharePanel.classList.contains("visible")) {
                     return;
                   }
                   currentCardBlob = blob;
@@ -2940,9 +3177,8 @@
         }
 
         // ───────── Achievement toasts ─────────
-        const achievementToastStack = document.getElementById(
-          "achievement-toasts"
-        );
+        const achievementToastStack =
+          document.getElementById("achievement-toasts");
         // Shared renderer for achievement icons. Supports two
         // shapes from game.js:
         //   - { iconHTML }  — inline multi-colour SVG fragment
@@ -2965,7 +3201,7 @@
           }
           const svg = document.createElementNS(
             "http://www.w3.org/2000/svg",
-            "svg"
+            "svg",
           );
           svg.setAttribute("viewBox", "0 0 24 24");
           svg.setAttribute("aria-hidden", "true");
@@ -3050,7 +3286,7 @@
             const file = new File(
               [currentCardBlob],
               `raptor-runner-${score}.png`,
-              { type: "image/png" }
+              { type: "image/png" },
             );
             // Mobile: native share sheet with the file — the OS
             // decides whether the image, the text, or both end up
