@@ -499,9 +499,11 @@
       }
 
       /* Score-card panel: appears on game-over, holds the card
-         preview image plus the share button. Positioned at the
-         bottom half of the viewport so it doesn't collide with the
-         "Game Over" text the canvas draws near the top.          */
+         preview image plus the share button. Uses a flex column
+         centered on the viewport, with every child sized relative
+         to the available height so it always fits on short / short-
+         and-wide viewports (mobile landscape with the browser
+         URL bar eating vertical space).                            */
       .score-card-panel {
         position: fixed;
         left: 50%;
@@ -511,15 +513,29 @@
         display: none;
         flex-direction: column;
         align-items: center;
-        gap: 1.1rem;
-        pointer-events: none;
+        /* Spacing tightens on short viewports. */
+        gap: clamp(0.35rem, 1.2vh, 1.1rem);
+        /* Bound the panel by the viewport so nothing overflows.
+           On very short viewports (mobile landscape with the URL
+           bar) we let the panel scroll its own content via
+           overflow-y: auto, and touch-action: pan-y so the
+           browser handles the drag instead of the canvas below. */
+        max-width: min(92vw, 640px);
+        max-height: 96vh;
+        padding: 10px 16px;
+        box-sizing: border-box;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+        /* CAPTURE pointer events on the panel itself so taps on
+           the card / buttons / hint don't fall through to the
+           canvas and trigger "tap anywhere to restart". */
+        pointer-events: auto;
       }
       .score-card-panel.visible {
         display: flex;
         animation: score-card-pop 0.25s ease-out;
-      }
-      .score-card-panel > * {
-        pointer-events: auto;
       }
       @keyframes score-card-pop {
         from {
@@ -533,10 +549,17 @@
       }
       /* Card slot: a fixed-aspect box that either shows the
          rendered image once it's ready, or a loading spinner
-         while the web worker is composing it. */
+         while the web worker is composing it. On short viewports
+         we cap its height so the header + button + hint still
+         fit without the image overflowing. */
       .score-card-slot {
         position: relative;
-        width: min(560px, 84vw);
+        /* Width tries 560px, but is capped so the implied height
+           (width / aspect) never eats more than ~58vh of the
+           viewport. That leaves room for the Game Over heading,
+           the share button, and the restart hint even in mobile
+           landscape. */
+        width: min(560px, 84vw, calc(58vh * 1200 / 630));
         aspect-ratio: 1200 / 630;
         border-radius: 14px;
         overflow: hidden;
@@ -582,7 +605,10 @@
       }
       .score-card-heading {
         margin: 0;
-        font-size: clamp(2rem, 5vw, 3.2rem);
+        /* Scales with both viewport width AND height, so it
+           shrinks on short mobile-landscape viewports instead of
+           pushing the card image off-screen. */
+        font-size: clamp(1.4rem, min(5vw, 6vh), 3.2rem);
         font-weight: 800;
         color: #ffffff;
         letter-spacing: -0.02em;
@@ -591,7 +617,7 @@
       .score-card-hint {
         margin: 0;
         color: rgba(255, 255, 255, 0.8);
-        font-size: 0.9rem;
+        font-size: clamp(0.72rem, min(1.8vw, 2.2vh), 0.9rem);
         text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
       }
       .score-card-hint kbd {
@@ -637,12 +663,13 @@
         display: flex;
         align-items: center;
         gap: 0.65rem;
-        padding: 0.8rem 1.7rem;
+        padding: clamp(0.55rem, 1.6vh, 0.85rem)
+          clamp(1.1rem, 3.2vh, 1.75rem);
         background: #0a0b12;
         color: #ffffff;
         border-radius: 999px;
         font: inherit;
-        font-size: 1.02rem;
+        font-size: clamp(0.85rem, min(2.2vw, 2.6vh), 1.02rem);
         font-weight: 700;
         letter-spacing: 0.02em;
         white-space: nowrap;
@@ -655,6 +682,52 @@
       }
       .share-score-btn:active {
         transform: translateY(0) scale(0.98);
+      }
+
+      /* Action row: Share + Play again sit side by side on
+         desktop, wrap / stack on very narrow viewports. */
+      .score-card-actions {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+      }
+      .score-card-panel.visible .score-card-actions {
+        display: flex;
+      }
+      .play-again-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: clamp(0.6rem, 1.6vh, 0.85rem)
+          clamp(1rem, 3vh, 1.55rem);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        font: inherit;
+        font-size: clamp(0.82rem, min(2.2vw, 2.6vh), 1rem);
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        white-space: nowrap;
+        transition:
+          background 0.15s ease,
+          transform 0.15s ease,
+          border-color 0.15s ease;
+      }
+      .play-again-btn:hover {
+        background: rgba(255, 255, 255, 0.18);
+        border-color: rgba(255, 255, 255, 0.7);
+        transform: translateY(-1px);
+      }
+      .play-again-btn:active {
+        transform: translateY(0) scale(0.97);
+      }
+      .play-again-btn svg {
+        width: 16px;
+        height: 16px;
       }
       .share-score-btn svg {
         width: 18px;
@@ -718,6 +791,39 @@
       }
       .settings-cog:hover {
         transform: rotate(30deg);
+      }
+
+      /* Fullscreen button: toggles between an "enter" (four corners
+         pointing outward) and an "exit" (four corners pointing in)
+         icon using a class on the button. Matches the cog/sound
+         hover-wiggle vibe — tiny scale-up on hover, plus a brief
+         wiggle kickoff. */
+      .fullscreen-btn .fs-enter,
+      .fullscreen-btn .fs-exit {
+        transition: opacity 0.15s;
+      }
+      .fullscreen-btn .fs-exit {
+        display: none;
+      }
+      .fullscreen-btn.is-fullscreen .fs-enter {
+        display: none;
+      }
+      .fullscreen-btn.is-fullscreen .fs-exit {
+        display: inline;
+      }
+      .fullscreen-btn:hover svg {
+        animation: fullscreen-wiggle 0.5s ease-in-out;
+      }
+      @keyframes fullscreen-wiggle {
+        0%, 100% { transform: scale(1) rotate(0deg); }
+        25% { transform: scale(1.12) rotate(-4deg); }
+        55% { transform: scale(1.08) rotate(4deg); }
+        80% { transform: scale(1.05) rotate(-2deg); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .fullscreen-btn:hover svg {
+          animation: none;
+        }
       }
 
       /* Sound button: animated waves + mute X using CSS transitions.
@@ -1095,6 +1201,25 @@
     </style>
 
     <script src="game.js" defer></script>
+    <script>
+      // Register the service worker so the game installs as a
+      // real PWA and works offline after the first load. Runs
+      // on window load so it doesn't fight for bandwidth with
+      // the initial asset preloads. Silently no-ops on browsers
+      // or protocols that don't support service workers
+      // (file:// dev, older browsers).
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker
+            .register("sw.js")
+            .catch(function (e) {
+              // Intentionally quiet — a failed registration
+              // shouldn't break the game for anyone.
+              console.warn("sw register failed", e);
+            });
+        });
+      }
+    </script>
   </head>
   <body>
     <!-- Game canvas — sky, ground, clouds, cacti, raptor, score text,
@@ -1252,7 +1377,13 @@
          (with a loading spinner until the worker finishes
          rendering it), a button to copy/share it, and a
          restart hint. -->
-    <div id="score-card-panel" class="score-card-panel">
+    <div
+      id="score-card-panel"
+      class="score-card-panel"
+      role="dialog"
+      aria-modal="false"
+      aria-label="Game over — share your score"
+    >
       <h2 class="score-card-heading">Game Over</h2>
       <div id="score-card-slot" class="score-card-slot">
         <div class="score-card-spinner" aria-hidden="true"></div>
@@ -1262,20 +1393,40 @@
           alt="Raptor Runner score card preview"
         />
       </div>
-      <button id="share-score-btn" class="share-score-btn" type="button">
-        <span class="inner">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="18" cy="5" r="3"></circle>
-            <circle cx="6" cy="12" r="3"></circle>
-            <circle cx="18" cy="19" r="3"></circle>
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+      <div class="score-card-actions">
+        <button
+          id="share-score-btn"
+          class="share-score-btn"
+          type="button"
+          aria-label="Share your score"
+        >
+          <span class="inner">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="18" cy="5" r="3"></circle>
+              <circle cx="6" cy="12" r="3"></circle>
+              <circle cx="18" cy="19" r="3"></circle>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
+            <span class="label">Share your score</span>
+          </span>
+        </button>
+        <button
+          id="play-again-btn"
+          class="play-again-btn"
+          type="button"
+          aria-label="Play again"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="6 4 20 12 6 20 6 4"></polygon>
           </svg>
-          <span class="label">Share your score</span>
-        </span>
-      </button>
+          <span>Play again</span>
+        </button>
+      </div>
       <p class="score-card-hint">
-        Press <kbd>Enter</kbd> or tap anywhere to restart
+        Press <kbd>Enter</kbd> to restart
       </p>
     </div>
 
@@ -1283,7 +1434,14 @@
          the top-right icon cluster so both corners feel like one
          UI layer, and lives in the DOM (not the canvas) so it
          doesn't end up inside the death-snapshot share card. -->
-    <div id="score-display" class="score-display" hidden>
+    <div
+      id="score-display"
+      class="score-display"
+      role="status"
+      aria-live="off"
+      aria-label="Score: 0"
+      hidden
+    >
       <svg
         class="trophy-icon"
         xmlns="http://www.w3.org/2000/svg"
@@ -1324,6 +1482,46 @@
         </svg>
       </button>
       <button
+        id="fullscreen-toggle"
+        class="icon-btn fullscreen-btn"
+        aria-label="Enter fullscreen"
+        aria-pressed="false"
+        type="button"
+      >
+        <svg
+          class="fs-enter"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+          <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+          <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+          <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+        </svg>
+        <svg
+          class="fs-exit"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M8 3v3a2 2 0 0 1-2 2H3"></path>
+          <path d="M21 8h-3a2 2 0 0 1-2-2V3"></path>
+          <path d="M3 16h3a2 2 0 0 1 2 2v3"></path>
+          <path d="M16 21v-3a2 2 0 0 1 2-2h3"></path>
+        </svg>
+      </button>
+      <button
         id="settings-cog"
         class="icon-btn settings-cog"
         aria-label="Open menu"
@@ -1349,7 +1547,7 @@
       class="imprint-overlay"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="imprint-title"
+      aria-label="Imprint and legal notice"
     >
       <div class="imprint-sheet">
         <button id="imprint-close" class="imprint-close" aria-label="Close">×</button>
@@ -1369,7 +1567,7 @@
       class="imprint-overlay"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="about-title"
+      aria-label="About Raptor Runner"
     >
       <div class="imprint-sheet">
         <button id="about-close" class="imprint-close" aria-label="Close">×</button>
@@ -1559,6 +1757,7 @@
         const overlay = document.getElementById("menu-overlay");
         const closeBtn = document.getElementById("menu-close");
         const topSoundBtn = document.getElementById("sound-toggle");
+        const fullscreenBtn = document.getElementById("fullscreen-toggle");
         const imprintOverlay = document.getElementById("imprint-overlay");
         const aboutOverlay = document.getElementById("about-overlay");
         const aboutCloseBtn = document.getElementById("about-close");
@@ -1616,6 +1815,7 @@
         const scoreDisplay = document.getElementById("score-display");
         const scoreValueEl = document.getElementById("score-value");
         let displayedScore = 0;
+        let lastAriaScore = -1;
         let scoreLoopRunning = false;
 
         function scoreLoop() {
@@ -1631,6 +1831,16 @@
                 displayedScore = target;
               }
               scoreValueEl.textContent = String(Math.floor(displayedScore));
+            }
+            // Update the aria-label only when the REAL score
+            // changes, not on every tween frame, so assistive
+            // tech doesn't get spammed with intermediate values.
+            if (target !== lastAriaScore && scoreDisplay) {
+              scoreDisplay.setAttribute(
+                "aria-label",
+                "Score: " + target
+              );
+              lastAriaScore = target;
             }
           }
           requestAnimationFrame(scoreLoop);
@@ -1764,6 +1974,65 @@
         function toggleSound() {
           window.Game.setMuted(!window.Game.isMuted());
           refreshSoundUI();
+        }
+
+        // ───────── Fullscreen button ─────────
+        function isFullscreen() {
+          return !!(
+            document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.mozFullScreenElement ||
+            document.msFullscreenElement
+          );
+        }
+        function refreshFullscreenUI() {
+          if (!fullscreenBtn) return;
+          const on = isFullscreen();
+          fullscreenBtn.classList.toggle("is-fullscreen", on);
+          fullscreenBtn.setAttribute("aria-pressed", String(on));
+          fullscreenBtn.setAttribute(
+            "aria-label",
+            on ? "Exit fullscreen" : "Enter fullscreen"
+          );
+        }
+        async function toggleFullscreen() {
+          try {
+            if (!isFullscreen()) {
+              const el = document.documentElement;
+              const req =
+                el.requestFullscreen ||
+                el.webkitRequestFullscreen ||
+                el.mozRequestFullScreen ||
+                el.msRequestFullscreen;
+              if (req) await req.call(el);
+            } else {
+              const exit =
+                document.exitFullscreen ||
+                document.webkitExitFullscreen ||
+                document.mozCancelFullScreen ||
+                document.msExitFullscreen;
+              if (exit) await exit.call(document);
+            }
+          } catch (e) {
+            /* User-cancelled or not allowed — silently ignore. */
+          }
+        }
+        if (fullscreenBtn) {
+          fullscreenBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleFullscreen();
+          });
+          // Keep the button in sync whenever fullscreen state
+          // changes, including via the browser's own Esc-to-exit.
+          const fsEvents = [
+            "fullscreenchange",
+            "webkitfullscreenchange",
+            "mozfullscreenchange",
+            "MSFullscreenChange",
+          ];
+          for (const ev of fsEvents) {
+            document.addEventListener(ev, refreshFullscreenUI);
+          }
         }
 
         // ───────── Menu overlay ─────────
@@ -2200,6 +2469,19 @@
           shareBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             handleShareClick();
+          });
+        }
+
+        // Play again button — explicit restart action. Uses
+        // Game.restartFromGameOver which honours the short
+        // death-animation cooldown built into game.js.
+        const playAgainBtn = document.getElementById("play-again-btn");
+        if (playAgainBtn) {
+          playAgainBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (window.Game && window.Game.restartFromGameOver) {
+              window.Game.restartFromGameOver();
+            }
           });
         }
       })();

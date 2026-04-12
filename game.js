@@ -2403,6 +2403,13 @@
       return state.gameOver;
     },
 
+    /** Reset to a fresh run right now. Safe to call any time
+     *  during a game-over state; the short death animation
+     *  cooldown is still applied inside maybeResetAfterGameOver. */
+    restartFromGameOver() {
+      maybeResetAfterGameOver();
+    },
+
     /** Debug helper: force a game-over immediately without needing
      *  an actual collision. Lets the shell test the share card
      *  flow end to end. */
