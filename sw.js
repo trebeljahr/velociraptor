@@ -19,7 +19,7 @@
  * Bump CACHE_NAME to invalidate all cached content on deploy.
  */
 
-const CACHE_NAME = "raptor-runner-v2";
+const CACHE_NAME = "raptor-runner-v3";
 
 const PRECACHE = [
   "./",

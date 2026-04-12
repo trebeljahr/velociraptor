@@ -635,15 +635,58 @@
     // honour the saved value (returning visitor).
     hasSavedPreference: false,
     music: null,
-    jump: null,
+    // Jump SFX uses the Web Audio API instead of a second <audio>
+    // element. Mobile browsers (Chrome Android in particular) only
+    // allow one HTMLAudioElement to play at a time — calling
+    // jump.play() would pause the music. Web Audio runs through a
+    // separate pipeline and can layer any number of sounds on top
+    // of the <audio> music without interference.
+    _audioCtx: null,
+    _jumpBuffer: null,
+    _jumpVolume: 0.67,
 
     init() {
       this.music = document.getElementById("game-music");
-      this.jump = document.getElementById("game-jump");
       if (this.music) this.music.volume = 0.5;
-      // Jump SFX sits around 2/3 of default loudness so it
-      // doesn't clip over the music during a long run.
-      if (this.jump) this.jump.volume = 0.67;
+      // Pre-decode the jump SFX into a Web Audio buffer. The
+      // AudioContext is created lazily on the first user gesture
+      // (required by autoplay policy), but we fetch + decode the
+      // file eagerly so the first jump has zero latency.
+      this._preloadJumpBuffer();
+    },
+
+    /** Fetch jump.mp3, decode it into an AudioBuffer, and stash it
+     *  for instant playback via Web Audio. Falls back gracefully if
+     *  Web Audio isn't available (old browsers). */
+    _preloadJumpBuffer() {
+      if (typeof AudioContext === "undefined" &&
+          typeof webkitAudioContext === "undefined") return;
+      fetch("assets/jump.mp3")
+        .then((r) => r.arrayBuffer())
+        .then((buf) => {
+          // AudioContext may not exist yet (needs user gesture on
+          // some browsers). Create it now — decodeAudioData doesn't
+          // require a running context, just an instance.
+          this._ensureAudioCtx();
+          if (!this._audioCtx) return;
+          return this._audioCtx.decodeAudioData(buf);
+        })
+        .then((decoded) => {
+          if (decoded) this._jumpBuffer = decoded;
+        })
+        .catch(() => {
+          /* no-op — jump SFX simply won't play */
+        });
+    },
+
+    _ensureAudioCtx() {
+      if (this._audioCtx) return;
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) this._audioCtx = new Ctx();
+      } catch (e) {
+        /* Web Audio not available */
+      }
     },
 
     setMuted(muted, persist = true) {
@@ -668,6 +711,12 @@
       if (this.muted) {
         this.music.pause();
       } else {
+        // Resume the Web Audio context on the first unmute — mobile
+        // browsers suspend it until a user gesture unblocks it.
+        this._ensureAudioCtx();
+        if (this._audioCtx && this._audioCtx.state === "suspended") {
+          this._audioCtx.resume().catch(() => {});
+        }
         // .play() returns a Promise that can reject (autoplay policy,
         // user-gesture required). Swallow the rejection — the next
         // user interaction will succeed.
@@ -696,14 +745,26 @@
     },
 
     playJump() {
-      if (this.muted || !this.jump) return;
-      try {
-        this.jump.currentTime = 0;
-      } catch (e) {
-        /* ignored */
+      if (this.muted) return;
+      if (!this._audioCtx || !this._jumpBuffer) return;
+      // Resume context if it was suspended (e.g. after a tab switch).
+      if (this._audioCtx.state === "suspended") {
+        this._audioCtx.resume().catch(() => {});
       }
-      const p = this.jump.play();
-      if (p && typeof p.catch === "function") p.catch(() => {});
+      try {
+        // Each play creates a fresh source node — they're cheap,
+        // single-use objects designed for this pattern. A gain node
+        // controls volume without touching the global output.
+        const src = this._audioCtx.createBufferSource();
+        src.buffer = this._jumpBuffer;
+        const gain = this._audioCtx.createGain();
+        gain.gain.value = this._jumpVolume;
+        src.connect(gain);
+        gain.connect(this._audioCtx.destination);
+        src.start(0);
+      } catch (e) {
+        /* swallow — SFX is non-critical */
+      }
     },
   };
 
@@ -1508,7 +1569,9 @@
       life: randRange(0.9, 1.5),
     });
     state.runShootingStars += 1;
-    unlockAchievement("first-shooting-star");
+    if (state.runShootingStars === 1) {
+      unlockAchievement("first-shooting-star");
+    }
   }
 
   function updateShootingStars(dtSec) {
@@ -2453,9 +2516,73 @@
     }
   }
 
+  // ── Debug performance instrumentation ──────────────────────────
+  // When ?debug=true, tracks per-frame timings and draws an
+  // overlay with FPS + frame budget breakdown. Updated every 30
+  // frames to avoid the readout itself costing performance.
+  const perf = {
+    enabled: false,
+    samples: [],
+    maxSamples: 60,
+    lastDisplay: { fps: 0, update: 0, render: 0, total: 0 },
+    frameCount: 0,
+  };
+
+  function drawPerfOverlay() {
+    if (!perf.enabled || !ctx) return;
+    if (++perf.frameCount % 30 === 0 && perf.samples.length > 0) {
+      const n = perf.samples.length;
+      let sumU = 0, sumR = 0, sumT = 0;
+      for (const s of perf.samples) {
+        sumU += s.update;
+        sumR += s.render;
+        sumT += s.total;
+      }
+      perf.lastDisplay = {
+        fps: Math.round(1000 / (sumT / n)),
+        update: (sumU / n).toFixed(2),
+        render: (sumR / n).toFixed(2),
+        total: (sumT / n).toFixed(2),
+      };
+      perf.samples.length = 0;
+    }
+    const d = perf.lastDisplay;
+    const lines = [
+      `FPS: ${d.fps}`,
+      `Update: ${d.update} ms`,
+      `Render: ${d.render} ms`,
+      `Frame:  ${d.total} ms`,
+    ];
+    ctx.save();
+    ctx.font = "bold 11px monospace";
+    ctx.textBaseline = "top";
+    const x = 10, y = state.height - 70;
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(x - 4, y - 4, 150, lines.length * 15 + 8);
+    ctx.fillStyle = "#0f0";
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], x, y + i * 15);
+    }
+    ctx.restore();
+  }
+
   function loop(now) {
-    if (!state.paused) update(now || performance.now());
+    const t0 = performance.now();
+    let tUpdate = t0;
+    if (!state.paused) {
+      update(now || t0);
+      tUpdate = performance.now();
+    }
     render();
+    const tRender = performance.now();
+    if (perf.enabled) {
+      perf.samples.push({
+        update: tUpdate - t0,
+        render: tRender - tUpdate,
+        total: tRender - t0,
+      });
+      drawPerfOverlay();
+    }
     requestAnimationFrame(loop);
   }
 
@@ -3079,6 +3206,9 @@
         // Hitboxes default to off even in debug mode — the toggle
         // is in the menu if the tester wants to turn them on.
         state.showHitboxes = false;
+        // Enable the performance overlay so frame-time spikes
+        // are visible at a glance.
+        perf.enabled = true;
       }
     } catch (e) {
       /* no-op */

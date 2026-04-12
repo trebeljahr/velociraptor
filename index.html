@@ -1578,7 +1578,9 @@
       preload="auto"
       loop
     ></audio>
-    <audio id="game-jump" src="assets/jump.mp3" preload="auto"></audio>
+    <!-- Jump SFX now uses the Web Audio API (decoded in game.js)
+         so it can play simultaneously with the music <audio> on
+         mobile browsers that only allow one HTMLAudioElement. -->
 
     <!-- Rotate-to-landscape guard for mobile portrait users.
          Shown via `body.needs-rotate` class toggled by JS. -->
