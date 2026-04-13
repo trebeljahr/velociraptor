@@ -1334,6 +1334,64 @@
       .menu-panel .menu-highscore[hidden] {
         display: none;
       }
+
+      /* ─── Sound Settings (collapsible <details>) ─── */
+      .sound-settings {
+        margin: 0 0 0.75rem;
+        border-radius: 8px;
+        background: #f4f6f8;
+        overflow: hidden;
+      }
+      .sound-settings-summary {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        padding: 0.7rem 1rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+        border-radius: 8px;
+        transition: background 0.1s;
+      }
+      .sound-settings-summary::-webkit-details-marker {
+        display: none;
+      }
+      .sound-settings-summary::after {
+        content: "";
+        margin-left: auto;
+        width: 6px;
+        height: 6px;
+        border-right: 2px solid #888;
+        border-bottom: 2px solid #888;
+        transform: rotate(-45deg);
+        transition: transform 0.15s;
+        flex-shrink: 0;
+      }
+      .sound-settings[open] > .sound-settings-summary::after {
+        transform: rotate(45deg);
+      }
+      .sound-settings-summary:hover {
+        background: #e8ecf0;
+      }
+      .sound-settings-summary svg {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+      .sound-settings-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        padding: 0 0.5rem 0.6rem;
+      }
+      .sound-settings-body .menu-item {
+        background: #ebeef1;
+      }
+      .sound-settings-body .menu-item:hover {
+        background: #dde1e6;
+      }
       .menu-panel .made-by {
         margin-top: 1.25rem;
         padding-top: 1rem;
@@ -2126,6 +2184,51 @@
         <p id="menu-highscore" class="menu-highscore" hidden>
           ★ Personal best: <span id="menu-highscore-value">0</span>
         </p>
+
+        <!-- Sound Settings (collapsible) -->
+        <details id="sound-settings" class="sound-settings">
+          <summary class="sound-settings-summary">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+            </svg>
+            Sound Settings
+          </summary>
+          <div class="sound-settings-body">
+            <button id="menu-sound-toggle" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
+                <span id="menu-sound-label">Sound: off</span>
+              </span>
+            </button>
+            <button id="menu-music-toggle" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M9 18V5l12-2v13"></path>
+                  <circle cx="6" cy="18" r="3"></circle>
+                  <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+                <span id="menu-music-label">Music: on</span>
+              </span>
+            </button>
+            <button id="menu-jump-toggle" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="17 1 21 5 17 9"></polyline>
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                  <polyline points="7 23 3 19 7 15"></polyline>
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                </svg>
+                <span id="menu-jump-label">Jump sound: on</span>
+              </span>
+            </button>
+          </div>
+        </details>
+
         <ul>
           <li class="debug-only in-game-only">
             <button id="menu-hitboxes-toggle" class="menu-item" type="button">
@@ -2537,16 +2640,11 @@
 
         function startGame() {
           if (!assetsReady || window.Game.isStarted()) return;
-          // The click is a user gesture, so this unlocks the Web Audio
-          // context. First-time visitors auto-unmute; returning
-          // visitors who previously saved a preference get that
-          // preference honoured verbatim (including staying muted).
-          const shouldMute =
-            window.Game.hasSavedMutePreference &&
-            window.Game.hasSavedMutePreference()
-              ? window.Game.isMuted()
-              : false;
-          window.Game.setMuted(shouldMute);
+          // The click/keypress is a user gesture — unlock the Web Audio
+          // context so jump SFX works, but do NOT change the mute state.
+          // The user's preference (or the default "muted") is already
+          // applied from loadSavedMuted() at init time.
+          window.Game.unlockAudio();
           refreshSoundUI();
           // Hide the start screen first, then tell the game to run.
           startScreen.classList.add("hidden");
@@ -2709,16 +2807,56 @@
         }
 
         // ───────── Sound button ─────────
+        const menuSoundToggle = document.getElementById("menu-sound-toggle");
+        const menuSoundLabel = document.getElementById("menu-sound-label");
+        const menuMusicToggle = document.getElementById("menu-music-toggle");
+        const menuMusicLabel = document.getElementById("menu-music-label");
+        const menuJumpToggle = document.getElementById("menu-jump-toggle");
+        const menuJumpLabel = document.getElementById("menu-jump-label");
+
         function refreshSoundUI() {
           const muted = window.Game ? window.Game.isMuted() : true;
           topSoundBtn.classList.toggle("muted", muted);
           topSoundBtn.setAttribute("aria-pressed", String(!muted));
           topSoundBtn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
+          // Master sound label in the menu
+          if (menuSoundLabel) {
+            menuSoundLabel.textContent = "Sound: " + (muted ? "off" : "on");
+          }
+          // Per-channel labels in the menu
+          if (menuMusicLabel) {
+            menuMusicLabel.textContent = "Music: " + (window.Game && window.Game.isMusicMuted() ? "off" : "on");
+          }
+          if (menuJumpLabel) {
+            menuJumpLabel.textContent = "Jump sound: " + (window.Game && window.Game.isJumpMuted() ? "off" : "on");
+          }
         }
 
         function toggleSound() {
           window.Game.setMuted(!window.Game.isMuted());
           refreshSoundUI();
+        }
+
+        if (menuSoundToggle) {
+          menuSoundToggle.addEventListener("click", () => {
+            if (!window.Game) return;
+            window.Game.setMuted(!window.Game.isMuted());
+            refreshSoundUI();
+          });
+        }
+        if (menuMusicToggle) {
+          menuMusicToggle.addEventListener("click", () => {
+            if (!window.Game) return;
+            window.Game.setMusicMuted(!window.Game.isMusicMuted());
+            refreshSoundUI();
+          });
+        }
+        if (menuJumpToggle) {
+          menuJumpToggle.addEventListener("click", () => {
+            if (!window.Game) return;
+            window.Game.setJumpMuted(!window.Game.isJumpMuted());
+            refreshSoundUI();
+          });
         }
 
         // ───────── Fullscreen button ─────────

@@ -44,6 +44,8 @@
   // sessions so players who mute the music don't get blasted every
   // time they reopen the tab.
   const MUTED_KEY = "raptor-runner:muted";
+  const MUSIC_MUTED_KEY = "raptor-runner:musicMuted";
+  const JUMP_MUTED_KEY = "raptor-runner:jumpMuted";
   // localStorage key for the cumulative jump count. Kept for
   // backwards-compatibility with earlier versions that gated the
   // cosmetic unlocks on total jumps.
@@ -641,6 +643,8 @@
     // jump.play() would pause the music. Web Audio runs through a
     // separate pipeline and can layer any number of sounds on top
     // of the <audio> music without interference.
+    musicMuted: false,
+    jumpMuted: false,
     _audioCtx: null,
     _jumpBuffer: null,
     _jumpVolume: 0.67,
@@ -648,11 +652,22 @@
     init() {
       this.music = document.getElementById("game-music");
       if (this.music) this.music.volume = 0.5;
+      // Load per-channel mute preferences from localStorage.
+      this._loadChannelPrefs();
       // Pre-decode the jump SFX into a Web Audio buffer. The
       // AudioContext is created lazily on the first user gesture
       // (required by autoplay policy), but we fetch + decode the
       // file eagerly so the first jump has zero latency.
       this._preloadJumpBuffer();
+    },
+
+    _loadChannelPrefs() {
+      try {
+        const m = window.localStorage.getItem(MUSIC_MUTED_KEY);
+        if (m != null) this.musicMuted = m === "1";
+        const j = window.localStorage.getItem(JUMP_MUTED_KEY);
+        if (j != null) this.jumpMuted = j === "1";
+      } catch (e) { /* ignored */ }
     },
 
     /** Fetch jump.mp3, decode it into an AudioBuffer, and stash it
@@ -708,7 +723,7 @@
         }
       }
       if (!this.music) return;
-      if (this.muted) {
+      if (this.muted || this.musicMuted) {
         this.music.pause();
       } else {
         // Resume the Web Audio context on the first unmute — mobile
@@ -745,7 +760,7 @@
     },
 
     playJump() {
-      if (this.muted) return;
+      if (this.muted || this.jumpMuted) return;
       if (!this._audioCtx || !this._jumpBuffer) return;
       // Resume context if it was suspended (e.g. after a tab switch).
       if (this._audioCtx.state === "suspended") {
@@ -765,6 +780,37 @@
       } catch (e) {
         /* swallow — SFX is non-critical */
       }
+    },
+
+    /** Unlock the Web Audio context (requires a user gesture). Called
+     *  from the Start Game handler so the first jump SFX plays
+     *  without delay, regardless of mute state. */
+    unlockAudio() {
+      this._ensureAudioCtx();
+      if (this._audioCtx && this._audioCtx.state === "suspended") {
+        this._audioCtx.resume().catch(() => {});
+      }
+    },
+
+    setMusicMuted(muted) {
+      this.musicMuted = !!muted;
+      try {
+        window.localStorage.setItem(MUSIC_MUTED_KEY, this.musicMuted ? "1" : "0");
+      } catch (e) { /* ignored */ }
+      if (!this.music || this.muted) return;
+      if (this.musicMuted) {
+        this.music.pause();
+      } else {
+        const p = this.music.play();
+        if (p && typeof p.catch === "function") p.catch(() => {});
+      }
+    },
+
+    setJumpMuted(muted) {
+      this.jumpMuted = !!muted;
+      try {
+        window.localStorage.setItem(JUMP_MUTED_KEY, this.jumpMuted ? "1" : "0");
+      } catch (e) { /* ignored */ }
     },
   };
 
@@ -2984,6 +3030,26 @@
      *  first visit or honour a returning visitor's saved preference. */
     hasSavedMutePreference() {
       return audio.hasSavedPreference;
+    },
+
+    unlockAudio() {
+      audio.unlockAudio();
+    },
+
+    setMusicMuted(muted) {
+      audio.setMusicMuted(muted);
+    },
+
+    isMusicMuted() {
+      return audio.musicMuted;
+    },
+
+    setJumpMuted(muted) {
+      audio.setJumpMuted(muted);
+    },
+
+    isJumpMuted() {
+      return audio.jumpMuted;
     },
 
     isDebug() {
