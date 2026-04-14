@@ -46,6 +46,7 @@
   const MUTED_KEY = "raptor-runner:muted";
   const MUSIC_MUTED_KEY = "raptor-runner:musicMuted";
   const JUMP_MUTED_KEY = "raptor-runner:jumpMuted";
+  const RAIN_MUTED_KEY = "raptor-runner:rainMuted";
   // localStorage key for the cumulative jump count. Kept for
   // backwards-compatibility with earlier versions that gated the
   // cosmetic unlocks on total jumps.
@@ -747,6 +748,7 @@
     // of the <audio> music without interference.
     musicMuted: false,
     jumpMuted: false,
+    rainMuted: false,
     _audioCtx: null,
     _jumpBuffer: null,
     _jumpVolume: 0.67,
@@ -771,6 +773,8 @@
         if (m != null) this.musicMuted = m === "1";
         const j = window.localStorage.getItem(JUMP_MUTED_KEY);
         if (j != null) this.jumpMuted = j === "1";
+        const r = window.localStorage.getItem(RAIN_MUTED_KEY);
+        if (r != null) this.rainMuted = r === "1";
       } catch (e) { /* ignored */ }
     },
 
@@ -928,6 +932,16 @@
       } catch (e) { /* ignored */ }
     },
 
+    setRainMuted(muted) {
+      this.rainMuted = !!muted;
+      try {
+        window.localStorage.setItem(RAIN_MUTED_KEY, this.rainMuted ? "1" : "0");
+      } catch (e) { /* ignored */ }
+      if (this.rainMuted && this._isRainPlaying) {
+        this.stopRain();
+      }
+    },
+
     // ── Rain ambience (file-based <audio> element) ──────────────
     rain: null,
     _isRainPlaying: false,
@@ -942,7 +956,7 @@
 
     startRain() {
       if (this._isRainPlaying) return;
-      if (this.muted || this.musicMuted) return;
+      if (this.muted || this.musicMuted || this.rainMuted) return;
       if (!this.rain) return;
       const p = this.rain.play();
       if (p && typeof p.catch === "function") p.catch(() => {});
@@ -3701,7 +3715,7 @@
 
     // Rainbow: rare chance after rain fades out during daytime.
     // Never on the first storm, ~30% chance thereafter.
-    if (!raining && state.rainIntensity < 0.1 && state.rainIntensity > 0 && !state.rainbow) {
+    if (!state.gameOver && !raining && state.rainIntensity < 0.1 && state.rainIntensity > 0 && !state.rainbow) {
       const phase = (state.smoothPhase % 1 + 1) % 1;
       const bi = Math.floor(phase * SKY_COLORS.length);
       if (!_isNightBand[bi] && !_isNightBand[(bi + 1) % SKY_COLORS.length]) {
@@ -3804,13 +3818,14 @@
 
     stars.update(state.isNight, frameScale);
     // Shooting-star easter egg: only runs from the 2nd night onward.
-    maybeSpawnShootingStar(frameScale);
+    // Don't spawn new shooting stars or rare events on the death screen.
+    if (!state.gameOver) maybeSpawnShootingStar(frameScale);
     updateShootingStars(dtSec);
     // Confetti particles from cosmetic unlocks.
     updateConfetti(dtSec);
     updateDust(dtSec);
     updateAsh(dtSec);
-    updateRareEvent(dtSec);
+    if (!state.gameOver) updateRareEvent(dtSec);
 
     if (!state.gameOver) {
       raptor.update(now, frameScale);
@@ -4670,6 +4685,14 @@
       return audio.jumpMuted;
     },
 
+    setRainMuted(muted) {
+      audio.setRainMuted(muted);
+    },
+
+    isRainMuted() {
+      return audio.rainMuted;
+    },
+
     isDebug() {
       return state.debug;
     },
@@ -5078,6 +5101,11 @@
     window.addEventListener("orientationchange", onResize);
 
     await preloadImages();
+
+    // Re-init dunes now that images are loaded so background cacti
+    // don't "plop in" on the first frame (onResize already called
+    // initDunes, but IMAGES were still empty at that point).
+    initDunes();
 
     raptor = new Raptor();
     cactuses = new Cactuses();

@@ -116,7 +116,9 @@
         align-items: center;
         justify-content: flex-start;
         padding-top: 6vh;
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
         background: linear-gradient(
           to bottom,
           rgb(80, 180, 205) 0%,
@@ -380,6 +382,9 @@
         }
         .start-hint-touch {
           display: block;
+        }
+        .start-raptor-stage {
+          left: 2vw;
         }
       }
       .start-hint kbd {
@@ -1295,6 +1300,9 @@
       .menu-panel.pre-game .in-game-only {
         display: none;
       }
+      .menu-panel:not(.pre-game) .pre-game-only {
+        display: none;
+      }
       .menu-panel.pre-game .menu-hint {
         display: none;
       }
@@ -1398,7 +1406,7 @@
         display: flex;
         flex-direction: column;
         gap: 0.35rem;
-        padding: 0 0.5rem 0.6rem;
+        padding: 0.45rem 0.5rem 0.6rem;
       }
       .sound-settings-body .menu-item {
         background: #ebeef1;
@@ -1875,6 +1883,11 @@
         <a href="https://ricos.site/newsletters" target="_blank"
           >Writing at ricos.site</a
         >
+        <span class="dot">·</span>
+        Dino Art by
+        <a href="https://www.instagram.com/chrismasna" target="_blank"
+          >Chris Masna</a
+        >
       </p>
     </div>
 
@@ -2247,6 +2260,17 @@
                 <span id="menu-jump-label">Jump sound: on</span>
               </span>
             </button>
+            <button id="menu-rain-sound-toggle" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
+                  <path d="M16 14v6"></path>
+                  <path d="M8 14v6"></path>
+                  <path d="M12 16v6"></path>
+                </svg>
+                <span id="menu-rain-sound-label">Rain sound: on</span>
+              </span>
+            </button>
           </div>
         </details>
 
@@ -2425,7 +2449,7 @@
               </span>
             </button>
           </li>
-          <li>
+          <li class="pre-game-only">
             <button id="menu-jumpsreset-toggle" class="menu-item" type="button">
               <span class="inner">
                 <svg
@@ -2900,6 +2924,8 @@
         const menuMusicLabel = document.getElementById("menu-music-label");
         const menuJumpToggle = document.getElementById("menu-jump-toggle");
         const menuJumpLabel = document.getElementById("menu-jump-label");
+        const menuRainSoundToggle = document.getElementById("menu-rain-sound-toggle");
+        const menuRainSoundLabel = document.getElementById("menu-rain-sound-label");
 
         function refreshSoundUI() {
           const muted = window.Game ? window.Game.isMuted() : true;
@@ -2918,6 +2944,10 @@
           if (menuJumpLabel) {
             const jumpOff = window.Game && window.Game.isJumpMuted && window.Game.isJumpMuted();
             menuJumpLabel.textContent = "Jump sound: " + (jumpOff ? "off" : "on");
+          }
+          if (menuRainSoundLabel) {
+            const rainOff = window.Game && window.Game.isRainMuted && window.Game.isRainMuted();
+            menuRainSoundLabel.textContent = "Rain sound: " + (rainOff ? "off" : "on");
           }
         }
 
@@ -2947,6 +2977,13 @@
           menuJumpToggle.addEventListener("click", () => {
             if (!window.Game || !window.Game.setJumpMuted) return;
             window.Game.setJumpMuted(!window.Game.isJumpMuted());
+            refreshSoundUI();
+          });
+        }
+        if (menuRainSoundToggle) {
+          menuRainSoundToggle.addEventListener("click", () => {
+            if (!window.Game || !window.Game.setRainMuted) return;
+            window.Game.setRainMuted(!window.Game.isRainMuted());
             refreshSoundUI();
           });
         }
