@@ -37,6 +37,101 @@
   const SKY_CYCLE_SCORE = 60;
   const SKY_UPDATE_INTERVAL_FRAMES = 10;
 
+  // ── Gameplay & Physics ──────────────────────────────────────
+  const RAPTOR_WIDTH_RATIO = 1 / 3;
+  const VELOCITY_SCALE_DIVISOR = 1000;
+  const DOWNWARD_ACCEL_DIVISOR = 10;
+  const SPEED_INCREMENT = 0.1;
+  const MAX_BG_VELOCITY = 17;
+  const CACTUS_SPAWN_GAP_BASE = 1.5;
+  const CACTUS_SPAWN_GAP_SPEED_FACTOR = 0.3;
+  const JUMP_BUFFER_MS = 100;
+  const JUMP_VIBRATION_MS = 15;
+  const FRAME_DELAY_SPEED_RANGE = 15;
+
+  // ── Ground Rendering ───────────────────────────────────────
+  const GROUND_HEIGHT_RATIO = 1 / 10;
+  const GROUND_BAND_HEIGHTS_PX = [5, 10, 20, 200];
+  const GROUND_BAND_COLORS = ["#ebc334", "#ebab21", "#ba8c27", "#EDC9AF"];
+
+  // ── Celestial Bodies (Sun & Moon) ──────────────────────────
+  const SUN_PHASE_CENTER = 1 / 6;
+  const MOON_PHASE_CENTER = 2 / 3;
+  const CELESTIAL_ARC_HALF_WIDTH = 0.25;
+  const CELESTIAL_ARC_EXTENSION = 0.18;
+  const CELESTIAL_ARC_HEIGHT_RATIO = 0.7;
+  const SUN_MIN_RADIUS_PX = 21;
+  const SUN_RADIUS_SCALE = 0.03;
+  const MOON_MIN_RADIUS_PX = 13;
+  const MOON_RADIUS_SCALE = 0.0192;
+  const MOON_SYNODIC_CYCLE = 30;
+
+  // ── Dunes & Parallax ──────────────────────────────────────
+  const DUNE_SCROLL_SPEED = 0.08;
+  const DUNE_BASE_HEIGHT_RATIO = 0.09;
+  const DUNE_CACTUS_MIN_HEIGHT_PX = 18;
+  const DUNE_CACTUS_HEIGHT_RANGE_PX = 20;
+  const DUNE_CACTUS_MIN_SPACING_PX = 80;
+  const DUNE_CACTUS_SPACING_RANGE_PX = 200;
+  const CLOUD_PARALLAX_DIVISOR = 2000;
+
+  // ── Cloud Spawning ─────────────────────────────────────────
+  const CLOUD_DENSITY_DIVISOR = 380;
+  const CLOUD_MIN_COUNT = 3;
+  const CLOUD_RAIN_MULTIPLIER_MAX = 2;
+  const CLOUD_MIN_SPACING_RATIO = 0.22;
+  const CLOUD_MIN_SPACING_FLOOR_PX = 220;
+  const CLOUD_HEAVY_RAIN_SPACING = 0.3;
+  const CLOUD_SPAWN_INTERVAL = 8;
+
+  // ── Stars & Night Sky ──────────────────────────────────────
+  const STAR_AREA_PER_STAR_PX2 = 8000;
+  const STAR_MIN_COUNT = 80;
+  const STAR_BRIGHT_PROBABILITY = 0.15;
+  const STAR_TWINKLE_PROBABILITY = 0.65;
+  const MILKY_WAY_STAR_COUNT = 220;
+  const MILKY_WAY_TILT = -Math.PI / 7;
+  const MILKY_WAY_LENGTH_SCALE = 1.6;
+  const MILKY_WAY_THICKNESS_RATIO = 0.22;
+  const STAR_ROTATION_PER_CYCLE = Math.PI * 0.1;
+  const STAR_PIVOT_HEIGHT_RATIO = -1.5;
+
+  // ── Weather (Rain & Lightning) ─────────────────────────────
+  const RAIN_SPAWN_DENSITY_DIVISOR = 300;
+  const RAIN_FADE_IN_RATE = 0.008;
+  const RAIN_FADE_OUT_RATE = 0.02;
+  const RAIN_AUDIO_MAX_VOLUME = 0.2;
+  const LIGHTNING_INTENSITY_THRESHOLD = 0.8;
+  const LIGHTNING_FLASH_PROBABILITY = 0.002;
+  const LIGHTNING_MIN_COOLDOWN_MS = 5000;
+  const LIGHTNING_MAX_COOLDOWN_MS = 10000;
+  const THUNDER_DELAY_MIN_MS = 100;
+  const THUNDER_DELAY_MAX_MS = 600;
+  const LIGHTNING_BOLT_MIN_SEGMENTS = 8;
+  const LIGHTNING_BOLT_MAX_SEGMENTS = 13;
+
+  // ── Shooting Stars ─────────────────────────────────────────
+  const SHOOTING_STAR_SPAWN_RATE = 0.018;
+  const SHOOTING_STAR_SPEED_SCALE = 0.9;
+  const SHOOTING_STAR_LIFETIME_MIN_SEC = 0.9;
+  const SHOOTING_STAR_LIFETIME_MAX_SEC = 1.5;
+  const SHOOTING_STAR_RAIN_THRESHOLD = 0.1;
+
+  // ── Particle Effects ───────────────────────────────────────
+  const CONFETTI_BURST_COUNT = 70;
+  const CONFETTI_GRAVITY_PX_S2 = 900;
+  const CONFETTI_DRAG = 0.985;
+  const DUST_BURST_MIN = 8;
+  const DUST_BURST_MAX = 12;
+  const DUST_GRAVITY_PX_S2 = 200;
+  const RAINBOW_LIFETIME_SEC = 6;
+  const RAINBOW_MAX_OPACITY = 0.55;
+  const RAINBOW_SPAWN_CHANCE = 0.5;
+
+  // ── Game Over & Timing ─────────────────────────────────────
+  const GAME_OVER_FADE_RATE = 0.01;
+  const DELTA_TIME_CLAMP = 1 / 20;
+
   // localStorage key for the player's personal best. Namespaced so it
   // doesn't collide with anything else on the same origin.
   const HIGH_SCORE_KEY = "raptor-runner:highScore";
@@ -166,16 +261,16 @@
       iconHTML:
         '<circle cx="12" cy="12" r="12" fill="#1e2a44"/>' +
         '<path d="M14 8a4 4 0 1 0 .8 6.5 3.2 3.2 0 0 1-.8-6.5z" fill="#f4f0d6"/>' +
-        '<circle cx="22" cy="12" r="0.7" fill="#fff"/>' +     // 0°
-        '<circle cx="20.1" cy="5.9" r="0.7" fill="#fff"/>' +  // 36°
-        '<circle cx="15.1" cy="2.2" r="0.7" fill="#fff"/>' +  // 72°
-        '<circle cx="8.9" cy="2.2" r="0.7" fill="#fff"/>' +   // 108°
-        '<circle cx="3.9" cy="5.9" r="0.7" fill="#fff"/>' +   // 144°
-        '<circle cx="2" cy="12" r="0.7" fill="#fff"/>' +      // 180°
-        '<circle cx="3.9" cy="18.1" r="0.7" fill="#fff"/>' +  // 216°
-        '<circle cx="8.9" cy="21.8" r="0.7" fill="#fff"/>' +  // 252°
+        '<circle cx="22" cy="12" r="0.7" fill="#fff"/>' + // 0°
+        '<circle cx="20.1" cy="5.9" r="0.7" fill="#fff"/>' + // 36°
+        '<circle cx="15.1" cy="2.2" r="0.7" fill="#fff"/>' + // 72°
+        '<circle cx="8.9" cy="2.2" r="0.7" fill="#fff"/>' + // 108°
+        '<circle cx="3.9" cy="5.9" r="0.7" fill="#fff"/>' + // 144°
+        '<circle cx="2" cy="12" r="0.7" fill="#fff"/>' + // 180°
+        '<circle cx="3.9" cy="18.1" r="0.7" fill="#fff"/>' + // 216°
+        '<circle cx="8.9" cy="21.8" r="0.7" fill="#fff"/>' + // 252°
         '<circle cx="15.1" cy="21.8" r="0.7" fill="#fff"/>' + // 288°
-        '<circle cx="20.1" cy="18.1" r="0.7" fill="#fff"/>',  // 324°
+        '<circle cx="20.1" cy="18.1" r="0.7" fill="#fff"/>', // 324°
     },
     {
       id: "twenty-nights",
@@ -191,7 +286,7 @@
         '<line x1="1.5" y1="12" x2="3.5" y2="12"/>' +
         '<line x1="3.5" y1="7.5" x2="4.9" y2="8.9"/>' +
         '<line x1="3.5" y1="16.5" x2="4.9" y2="15.1"/>' +
-        '</g>' +
+        "</g>" +
         '<circle cx="17" cy="12" r="4.5" fill="#1e2a44"/>' +
         '<path d="M18.5 9a3.5 3.5 0 1 0 0 6 3 3 0 0 1 0-6z" fill="#f4f0d6"/>',
     },
@@ -323,7 +418,7 @@
     [0.86332, 0.16038], // frame 0
     [0.86678, 0.16509], // frame 1
     [0.88062, 0.17925], // frame 2
-    [0.87370, 0.17453], // frame 3
+    [0.8737, 0.17453], // frame 3
     [0.86851, 0.16038], // frame 4
     [0.86851, 0.15566], // frame 5
     [0.86505, 0.16509], // frame 6
@@ -528,25 +623,28 @@
   // light purple, and magenta→night through deep twilight purple —
   // both pleasant intermediate colors.
   const SKY_COLORS = [
-    [80, 180, 205],  // 0  blue
-    [80, 180, 205],  // 1  blue
-    [80, 180, 205],  // 2  blue
-    [80, 180, 205],  // 3  blue
-    [80, 180, 205],  // 4  blue
-    [220, 90, 120],  // 5  magenta-pink (sunset)
-    [21, 34, 56],    // 6  night
-    [21, 34, 56],    // 7  night
-    [21, 34, 56],    // 8  night
-    [21, 34, 56],    // 9  night
-    [21, 34, 56],    // 10 night
-    [220, 90, 120],  // 11 magenta-pink (sunrise)
+    [80, 180, 205], // 0  blue
+    [80, 180, 205], // 1  blue
+    [80, 180, 205], // 2  blue
+    [80, 180, 205], // 3  blue
+    [80, 180, 205], // 4  blue
+    [220, 90, 120], // 5  magenta-pink (sunset)
+    [21, 34, 56], // 6  night
+    [21, 34, 56], // 7  night
+    [21, 34, 56], // 8  night
+    [21, 34, 56], // 9  night
+    [21, 34, 56], // 10 night
+    [220, 90, 120], // 11 magenta-pink (sunrise)
   ];
 
   // Night detection derived from SKY_COLORS so it adapts
   // automatically if bands are added, removed, or reordered.
   const NIGHT_COLOR = [21, 34, 56];
   const _isNightBand = SKY_COLORS.map(
-    (c) => c[0] === NIGHT_COLOR[0] && c[1] === NIGHT_COLOR[1] && c[2] === NIGHT_COLOR[2]
+    (c) =>
+      c[0] === NIGHT_COLOR[0] &&
+      c[1] === NIGHT_COLOR[1] &&
+      c[2] === NIGHT_COLOR[2],
   );
   /** True when bandIndex (+ fractional bandT) is in the dark zone:
    *  solid-night bands, plus the dark half of each adjacent twilight. */
@@ -622,19 +720,6 @@
       255 + (sky[0] - 255) * s,
       255 + (sky[1] - 255) * s,
       255 + (sky[2] - 255) * s,
-    ];
-  }
-  /** Brighten `target` so that, after the global multiply-tint, it
-   *  ends up reading as `target` again. Clamped to [0, 255]; for very
-   *  bright targets through a strong tint the result clips at 255 and
-   *  the visible color is darker than the target — that's the best
-   *  we can do without using a different blend mode. */
-  function preCompensate(target) {
-    const f = tintFactor();
-    return [
-      Math.max(0, Math.min(255, Math.round((target[0] * 255) / f[0]))),
-      Math.max(0, Math.min(255, Math.round((target[1] * 255) / f[1]))),
-      Math.max(0, Math.min(255, Math.round((target[2] * 255) / f[2]))),
     ];
   }
   const randRange = (min, max) => min + Math.random() * (max - min);
@@ -775,15 +860,20 @@
         if (j != null) this.jumpMuted = j === "1";
         const r = window.localStorage.getItem(RAIN_MUTED_KEY);
         if (r != null) this.rainMuted = r === "1";
-      } catch (e) { /* ignored */ }
+      } catch (e) {
+        /* ignored */
+      }
     },
 
     /** Fetch jump.mp3, decode it into an AudioBuffer, and stash it
      *  for instant playback via Web Audio. Falls back gracefully if
      *  Web Audio isn't available (old browsers). */
     _preloadJumpBuffer() {
-      if (typeof AudioContext === "undefined" &&
-          typeof webkitAudioContext === "undefined") return;
+      if (
+        typeof AudioContext === "undefined" &&
+        typeof webkitAudioContext === "undefined"
+      )
+        return;
       fetch("assets/jump.mp3")
         .then((r) => r.arrayBuffer())
         .then((buf) => {
@@ -821,10 +911,7 @@
       }
       if (persist) {
         try {
-          window.localStorage.setItem(
-            MUTED_KEY,
-            this.muted ? "1" : "0"
-          );
+          window.localStorage.setItem(MUTED_KEY, this.muted ? "1" : "0");
           this.hasSavedPreference = true;
         } catch (e) {
           /* ignored — storage may be unavailable */
@@ -909,8 +996,13 @@
     setMusicMuted(muted) {
       this.musicMuted = !!muted;
       try {
-        window.localStorage.setItem(MUSIC_MUTED_KEY, this.musicMuted ? "1" : "0");
-      } catch (e) { /* ignored */ }
+        window.localStorage.setItem(
+          MUSIC_MUTED_KEY,
+          this.musicMuted ? "1" : "0",
+        );
+      } catch (e) {
+        /* ignored */
+      }
       if (!this.music || this.muted) return;
       if (this.musicMuted) {
         this.music.pause();
@@ -929,14 +1021,18 @@
       this.jumpMuted = !!muted;
       try {
         window.localStorage.setItem(JUMP_MUTED_KEY, this.jumpMuted ? "1" : "0");
-      } catch (e) { /* ignored */ }
+      } catch (e) {
+        /* ignored */
+      }
     },
 
     setRainMuted(muted) {
       this.rainMuted = !!muted;
       try {
         window.localStorage.setItem(RAIN_MUTED_KEY, this.rainMuted ? "1" : "0");
-      } catch (e) { /* ignored */ }
+      } catch (e) {
+        /* ignored */
+      }
       if (this.rainMuted && this._isRainPlaying) {
         this.stopRain();
       }
@@ -949,7 +1045,7 @@
     initRain() {
       this.rain = document.getElementById("rain-audio");
       if (this.rain) {
-        this.rain.volume = 0.2;
+        this.rain.volume = RAIN_AUDIO_MAX_VOLUME;
         this.rain.loop = true;
       }
     },
@@ -972,8 +1068,11 @@
     _thunderBuffer: null,
 
     _preloadThunderBuffer() {
-      if (typeof AudioContext === "undefined" &&
-          typeof webkitAudioContext === "undefined") return;
+      if (
+        typeof AudioContext === "undefined" &&
+        typeof webkitAudioContext === "undefined"
+      )
+        return;
       fetch("assets/thunder.mp3")
         .then((r) => r.arrayBuffer())
         .then((buf) => {
@@ -984,7 +1083,9 @@
         .then((decoded) => {
           if (decoded) this._thunderBuffer = decoded;
         })
-        .catch(() => { /* thunder SFX simply won't play */ });
+        .catch(() => {
+          /* thunder SFX simply won't play */
+        });
     },
 
     playThunder() {
@@ -1001,7 +1102,9 @@
         src.connect(gain);
         gain.connect(this._audioCtx.destination);
         src.start(0);
-      } catch (e) { /* non-critical */ }
+      } catch (e) {
+        /* non-critical */
+      }
     },
   };
 
@@ -1080,7 +1183,7 @@
     //   unlockedX — sticky bit, true once the player has crossed
     //               the jump threshold for this cosmetic. Never
     //               flips back to false on its own; cleared only
-    //               by the debug "Reset total jumps" button.
+    //               by the debug "Reset Progress" button.
     //   wearX     — player's on/off preference. Defaults to true
     //               the instant the accessory unlocks, and is
     //               freely togglable from the menu.
@@ -1163,7 +1266,7 @@
     }
 
     resize() {
-      this.w = state.width / 3;
+      this.w = state.width * RAPTOR_WIDTH_RATIO;
       this.h = this.w * RAPTOR_ASPECT;
       this.x = 0;
       this.ground = state.ground - this.h;
@@ -1175,8 +1278,8 @@
         (this.gravity *
           state.bgVelocity *
           state.bgVelocity *
-          (state.width / 1000)) /
-        10
+          (state.width / VELOCITY_SCALE_DIVISOR)) /
+        DOWNWARD_ACCEL_DIVISOR
       );
     }
 
@@ -1188,7 +1291,7 @@
       this.velocity = -v;
       this._jumpBufferedAt = 0;
       audio.playJump();
-      if (!audio.muted && navigator.vibrate) navigator.vibrate(15);
+      if (!audio.muted && navigator.vibrate) navigator.vibrate(JUMP_VIBRATION_MS);
       // Bump both the career-wide total and the per-run counter.
       state.totalJumps += 1;
       state.runJumps += 1;
@@ -1203,11 +1306,7 @@
      * `img.delay(...)` speed-ramp from the p5 version.
      */
     get frameDelay() {
-      const t = clamp(
-        (state.bgVelocity - INITIAL_BG_VELOCITY) / 15,
-        0,
-        1
-      );
+      const t = clamp((state.bgVelocity - INITIAL_BG_VELOCITY) / FRAME_DELAY_SPEED_RANGE, 0, 1);
       return lerp(RAPTOR_FRAME_DELAY_MAX, RAPTOR_FRAME_DELAY_MIN, t);
     }
 
@@ -1230,8 +1329,7 @@
         }
         // Input buffer: if the player pressed jump while airborne
         // (within 100ms), fire the jump now that we've landed.
-        if (this._jumpBufferedAt &&
-            now - this._jumpBufferedAt < 100) {
+        if (this._jumpBufferedAt && now - this._jumpBufferedAt < JUMP_BUFFER_MS) {
           this.jump();
         }
         this._jumpBufferedAt = 0;
@@ -1267,7 +1365,7 @@
         this.x,
         this.y,
         this.w,
-        this.h
+        this.h,
       );
       // Accessories are drawn when they're unlocked AND the player
       // has the cosmetic toggled on.
@@ -1377,7 +1475,7 @@
       // The neck is below and behind the crown — offset downward
       // and slightly toward the body center.
       const neckX = crown.x - this.w * 0.02;
-      const neckY = crown.y + this.h * 0.20;
+      const neckY = crown.y + this.h * 0.2;
       // Bow tie ~6% of raptor width, aspect ratio from source.
       const btW = this.w * 0.06;
       const btH = btW * (sprite.height / sprite.width);
@@ -1461,7 +1559,7 @@
     }
 
     update(frameScale = 1) {
-      this.x -= state.bgVelocity * (state.width / 1000) * frameScale;
+      this.x -= state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * frameScale;
       // Position changed, invalidate cached polygon.
       this._polyCache = null;
     }
@@ -1485,8 +1583,10 @@
       if (this.img)
         ctx.drawImage(
           this.img,
-          Math.round(this.x), Math.round(this.y),
-          Math.round(this.w), Math.round(this.h)
+          Math.round(this.x),
+          Math.round(this.y),
+          Math.round(this.w),
+          Math.round(this.h),
         );
     }
   }
@@ -1500,7 +1600,7 @@
       // At higher speeds, increase the minimum gap so tight doubles
       // don't appear — keeps the game humanly playable.
       const speedFactor = Math.max(1, state.bgVelocity / INITIAL_BG_VELOCITY);
-      const minGap = raptor.w * (1.5 + speedFactor * 0.3);
+      const minGap = raptor.w * (CACTUS_SPAWN_GAP_BASE + speedFactor * CACTUS_SPAWN_GAP_SPEED_FACTOR);
       return minGap + Math.floor(Math.random() * raptor.w * 10);
     }
 
@@ -1516,7 +1616,7 @@
         this.spawn();
       } else if (state.width - last.x >= this.minSpawnDistance) {
         this.spawn();
-        state.bgVelocity = Math.min(state.bgVelocity + 0.1, 17);
+        state.bgVelocity = Math.min(state.bgVelocity + SPEED_INCREMENT, MAX_BG_VELOCITY);
       }
 
       for (const c of this.cacti) c.update(frameScale);
@@ -1528,8 +1628,10 @@
           if (state.score === 1) unlockAchievement("first-jump");
           if (state.score === 25) unlockAchievement("score-25");
           if (state.score === 100) unlockAchievement("party-time");
-          if (state.score === BOW_TIE_SCORE_THRESHOLD) unlockAchievement("dinosaurs-forever");
-          if (state.score === THUG_GLASSES_SCORE_THRESHOLD) unlockAchievement("score-250");
+          if (state.score === BOW_TIE_SCORE_THRESHOLD)
+            unlockAchievement("dinosaurs-forever");
+          if (state.score === THUG_GLASSES_SCORE_THRESHOLD)
+            unlockAchievement("score-250");
           // Cosmetic unlocks — party hat at 100 points, thug
           // glasses at 200. Both fire at most once per save and
           // burst a little confetti off the raptor's head so the
@@ -1563,10 +1665,7 @@
               spawnConfettiBurst(crown.x, crown.y);
             }
           }
-          if (
-            !state.unlockedBowTie &&
-            state.score >= BOW_TIE_SCORE_THRESHOLD
-          ) {
+          if (!state.unlockedBowTie && state.score >= BOW_TIE_SCORE_THRESHOLD) {
             state.unlockedBowTie = true;
             state.wearBowTie = true;
             saveBoolFlag(UNLOCKED_BOW_TIE_KEY, true);
@@ -1626,21 +1725,22 @@
       // Density: roughly one star per 8000 px² of star-field area —
       // lower density than before because the field is much larger
       // and we don't want to overwhelm the sky with pinpricks.
-      const count = Math.max(80, Math.floor((fieldW * fieldH) / 8000));
+      const count = Math.max(STAR_MIN_COUNT, Math.floor((fieldW * fieldH) / STAR_AREA_PER_STAR_PX2));
       for (let i = 0; i < count; i++) {
         // ~15% of stars are "bright" — noticeably bigger and at full
         // brightness. The rest are background dimmer pinpricks.
-        const bright = Math.random() < 0.15;
+        const bright = Math.random() < STAR_BRIGHT_PROBABILITY;
         // ~65% of stars twinkle. Dimmer ones twinkle more so the
         // pulsing reads against the dark sky.
-        const twinkles = Math.random() < 0.65;
+        const twinkles = Math.random() < STAR_TWINKLE_PROBABILITY;
         // Color variation: 85% white, 10% warm, 5% cool
         const colorRoll = Math.random();
-        const color = colorRoll < 0.85
-          ? [255, 255, 255]
-          : colorRoll < 0.95
-            ? [255, 240, 220]
-            : [220, 230, 255];
+        const color =
+          colorRoll < 0.85
+            ? [255, 255, 255]
+            : colorRoll < 0.95
+              ? [255, 240, 220]
+              : [220, 230, 255];
         // ~5% of twinkling stars get sharp "flash" spikes
         const flash = twinkles && Math.random() < 0.05;
         this.field.push({
@@ -1660,14 +1760,14 @@
       // of haze along the band. Stars are distributed with a Gaussian
       // density across the band so the edges fade naturally rather
       // than ending in a hard rectangle.
-      this.mwTilt = -Math.PI / 7;
+      this.mwTilt = MILKY_WAY_TILT;
       this.mwCenterX = w * 0.55;
       this.mwCenterY = h * 0.28;
-      this.mwLength = Math.max(w, h) * 1.6;
-      this.mwThickness = h * 0.22;
+      this.mwLength = Math.max(w, h) * MILKY_WAY_LENGTH_SCALE;
+      this.mwThickness = h * MILKY_WAY_THICKNESS_RATIO;
       const mwCos = Math.cos(this.mwTilt);
       const mwSin = Math.sin(this.mwTilt);
-      const mwStarCount = 220;
+      const mwStarCount = MILKY_WAY_STAR_COUNT;
       for (let i = 0; i < mwStarCount; i++) {
         const along = (Math.random() - 0.5) * this.mwLength;
         // Box-Muller-ish: average two uniforms for a roughly Gaussian
@@ -1697,7 +1797,9 @@
       const puffCount = 7;
       for (let i = 0; i < puffCount; i++) {
         const t = (i + 0.5) / puffCount - 0.5;
-        const along = t * this.mwLength * 0.95 + (Math.random() - 0.5) * this.mwLength * 0.05;
+        const along =
+          t * this.mwLength * 0.95 +
+          (Math.random() - 0.5) * this.mwLength * 0.05;
         const across = (Math.random() - 0.5) * this.mwThickness * 0.15;
         const x = this.mwCenterX + along * mwCos - across * mwSin;
         const y = this.mwCenterY + along * mwSin + across * mwCos;
@@ -1706,7 +1808,7 @@
           x,
           y,
           radius: this.mwThickness * randRange(0.55, 0.9),
-          brightness: 0.10 * endFade,
+          brightness: 0.1 * endFade,
         });
       }
     }
@@ -1725,7 +1827,7 @@
      */
     _applyRotation(ctx) {
       const px = state.width * 0.5;
-      const py = -state.height * 1.5;
+      const py = state.height * STAR_PIVOT_HEIGHT_RATIO;
       ctx.translate(px, py);
       ctx.rotate(state.starRotation);
       ctx.translate(-px, -py);
@@ -1748,7 +1850,14 @@
       for (const puff of this.mwHazePuffs) {
         const a = puff.brightness * this.opacity;
         if (a <= 0.001) continue;
-        const grad = ctx.createRadialGradient(puff.x, puff.y, 0, puff.x, puff.y, puff.radius);
+        const grad = ctx.createRadialGradient(
+          puff.x,
+          puff.y,
+          0,
+          puff.x,
+          puff.y,
+          puff.radius,
+        );
         grad.addColorStop(0, rgba(mwHaze1, a));
         grad.addColorStop(0.6, rgba(mwHaze2, a * 0.4));
         grad.addColorStop(1, rgba(mwHazeOuter, 0));
@@ -1771,7 +1880,8 @@
       for (const s of this.field) {
         let twinkle = 1;
         if (s.twinkleDepth) {
-          const raw = 0.5 + 0.5 * Math.sin(s.twinklePhase + state.frame * s.twinkleRate);
+          const raw =
+            0.5 + 0.5 * Math.sin(s.twinklePhase + state.frame * s.twinkleRate);
           twinkle = s.flash
             ? 0.4 + 1.1 * Math.pow(raw, 8) // sharp bright spikes
             : 1 - s.twinkleDepth * raw;
@@ -1818,12 +1928,7 @@
     sctx.scale(sc, sc);
     sctx.imageSmoothingEnabled = true;
     // Trail: head at the RIGHT edge, fading toward the LEFT.
-    const grad = sctx.createLinearGradient(
-      SHOOTING_STAR_TRAIL_LEN,
-      0,
-      0,
-      0
-    );
+    const grad = sctx.createLinearGradient(SHOOTING_STAR_TRAIL_LEN, 0, 0, 0);
     grad.addColorStop(0, "rgba(255, 255, 255, 1)");
     grad.addColorStop(0.25, "rgba(255, 255, 255, 0.75)");
     grad.addColorStop(1, "rgba(255, 255, 255, 0)");
@@ -1842,7 +1947,7 @@
       SHOOTING_STAR_TRAIL_H / 2,
       3,
       0,
-      Math.PI * 2
+      Math.PI * 2,
     );
     sctx.fill();
     // Start with the canvas as the sprite so the game can draw
@@ -1856,7 +1961,7 @@
         },
         () => {
           /* keep the canvas fallback */
-        }
+        },
       );
     }
   }
@@ -1864,10 +1969,10 @@
   function maybeSpawnShootingStar(frameScale) {
     if (Math.floor(state.smoothPhase) < 1) return;
     if (!state.isNight) return;
-    if (state.rainIntensity > 0.1) return; // no shooting stars in overcast
+    if (state.rainIntensity > SHOOTING_STAR_RAIN_THRESHOLD) return; // no shooting stars in overcast
     // Per-frame spawn chance — averaged roughly one new shooting
     // star per second of real-time night.
-    const chance = 0.018 * frameScale;
+    const chance = SHOOTING_STAR_SPAWN_RATE * frameScale;
     if (Math.random() > chance) return;
     const w = state.width;
     const h = state.height;
@@ -1876,7 +1981,7 @@
     // between 3π/4 (straight down-left) and a bit shallower.
     const startX = w * randRange(0.6, 1.08);
     const startY = h * randRange(-0.05, 0.3);
-    const speed = Math.max(w, h) * 0.9; // px/sec
+    const speed = Math.max(w, h) * SHOOTING_STAR_SPEED_SCALE;
     const angle = randRange(Math.PI * 0.68, Math.PI * 0.82);
     state.shootingStars.push({
       x: startX,
@@ -1884,7 +1989,7 @@
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       age: 0,
-      life: randRange(0.9, 1.5),
+      life: randRange(SHOOTING_STAR_LIFETIME_MIN_SEC, SHOOTING_STAR_LIFETIME_MAX_SEC),
     });
     state.runShootingStars += 1;
     if (state.runShootingStars === 1) {
@@ -1902,11 +2007,7 @@
       s.x += s.vx * dtSec;
       s.y += s.vy * dtSec;
       s.age += dtSec;
-      if (
-        s.age >= s.life ||
-        s.x < -120 ||
-        s.y > state.height + 120
-      ) {
+      if (s.age >= s.life || s.x < -120 || s.y > state.height + 120) {
         s.dead = true;
         expired += 1;
       }
@@ -1938,8 +2039,7 @@
   ];
 
   function spawnConfettiBurst(worldX, worldY) {
-    const count = 70;
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < CONFETTI_BURST_COUNT; i++) {
       const angle = randRange(-Math.PI, 0); // upward hemisphere
       const speed = randRange(180, 520);
       state.confetti.push({
@@ -1951,9 +2051,7 @@
         vrot: randRange(-8, 8),
         size: randRange(6, 11),
         color:
-          CONFETTI_COLORS[
-            Math.floor(Math.random() * CONFETTI_COLORS.length)
-          ],
+          CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
         age: 0,
         life: randRange(1.1, 1.9),
       });
@@ -1963,11 +2061,9 @@
   function updateConfetti(dtSec) {
     if (state.confetti.length === 0) return;
     let expired = 0;
-    const GRAV = 900; // px/sec² downward
-    const DRAG = 0.985;
     for (const p of state.confetti) {
-      p.vx *= DRAG;
-      p.vy += GRAV * dtSec;
+      p.vx *= CONFETTI_DRAG;
+      p.vy += CONFETTI_GRAVITY_PX_S2 * dtSec;
       p.x += p.vx * dtSec;
       p.y += p.vy * dtSec;
       p.rot += p.vrot * dtSec;
@@ -1993,19 +2089,14 @@
       ctx.translate(p.x, p.y);
       ctx.rotate(p.rot);
       // Rectangular confetti piece, slightly taller than wide.
-      ctx.fillRect(
-        -p.size / 2,
-        -p.size / 3,
-        p.size,
-        (p.size * 2) / 3
-      );
+      ctx.fillRect(-p.size / 2, -p.size / 3, p.size, (p.size * 2) / 3);
       ctx.restore();
     }
   }
 
   // ── Dust particles (landing puff) ──────────────────────────────
   function spawnDust(x, y) {
-    const count = 8 + Math.floor(Math.random() * 5);
+    const count = DUST_BURST_MIN + Math.floor(Math.random() * (DUST_BURST_MAX - DUST_BURST_MIN + 1));
     for (let i = 0; i < count; i++) {
       const angle = Math.PI + Math.random() * Math.PI; // upper hemisphere fan
       const speed = 30 + Math.random() * 70;
@@ -2025,13 +2116,16 @@
     if (state.dust.length === 0) return;
     let expired = 0;
     for (const p of state.dust) {
-      p.vy += 200 * dtSec; // light gravity
+      p.vy += DUST_GRAVITY_PX_S2 * dtSec; // light gravity
       p.vx *= 0.96;
       p.vy *= 0.96;
       p.x += p.vx * dtSec;
       p.y += p.vy * dtSec;
       p.age += dtSec;
-      if (p.age >= p.life) { p.dead = true; expired++; }
+      if (p.age >= p.life) {
+        p.dead = true;
+        expired++;
+      }
     }
     if (expired > 0) {
       state.dust = state.dust.filter((p) => !p.dead);
@@ -2079,7 +2173,10 @@
       p.y += p.vy * dtSec;
       p.rot += p.vrot * dtSec;
       p.age += dtSec;
-      if (p.age >= p.life) { p.dead = true; expired++; }
+      if (p.age >= p.life) {
+        p.dead = true;
+        expired++;
+      }
     }
     if (expired > 0) state.ash = state.ash.filter((p) => !p.dead);
   }
@@ -2150,11 +2247,16 @@
     try {
       const raw = window.localStorage.getItem(RARE_EVENTS_SEEN_KEY);
       return raw ? JSON.parse(raw) : {};
-    } catch (e) { return {}; }
+    } catch (e) {
+      return {};
+    }
   }
   function saveRareEventsSeen(seen) {
-    try { window.localStorage.setItem(RARE_EVENTS_SEEN_KEY, JSON.stringify(seen)); }
-    catch (e) { /* ignored */ }
+    try {
+      window.localStorage.setItem(RARE_EVENTS_SEEN_KEY, JSON.stringify(seen));
+    } catch (e) {
+      /* ignored */
+    }
   }
 
   /** Check whether to trigger a rare event on this jump. Called from
@@ -2163,10 +2265,13 @@
     if (state.activeRareEvent) return; // one at a time
     // Build candidate list: prefer unseen events, then allow repeats.
     // On shooting star nights (phase >= 1, night), only comet/meteor allowed.
-    const shootingStarNight = state.isNight && Math.floor(state.smoothPhase) >= 1;
+    const shootingStarNight =
+      state.isNight && Math.floor(state.smoothPhase) >= 1;
     const eligible = RARE_EVENTS.filter(
-      (e) => e.avgInterval > 0 && e.condition() &&
-             (!shootingStarNight || e.id === "comet" || e.id === "meteor")
+      (e) =>
+        e.avgInterval > 0 &&
+        e.condition() &&
+        (!shootingStarNight || e.id === "comet" || e.id === "meteor"),
     );
     if (eligible.length === 0) return;
     const unseen = eligible.filter((e) => !state._rareEventsSeen[e.id]);
@@ -2299,7 +2404,11 @@
         e.impact = true;
         e.impactX = e.impactX || e.targetX;
         // Recalculate impact Y from current dune position (dunes scroll)
-        e.impactY = e.impactY || (state.ground - _duneHeight(e.impactX || e.targetX, state.duneOffset) + 3);
+        e.impactY =
+          e.impactY ||
+          state.ground -
+            _duneHeight(e.impactX || e.targetX, state.duneOffset) +
+            3;
       }
     }
     if (e.age >= e.life) state.activeRareEvent = null;
@@ -2320,8 +2429,10 @@
     const e = state.activeRareEvent;
     if (!e.beam) return;
     const ufoH = IMAGES.ufo ? 60 * (IMAGES.ufo.height / IMAGES.ufo.width) : 35;
-    const scan = 0.4 + 0.2 * Math.sin(e.age * 4.5) + 0.1 * Math.sin(e.age * 7.3);
-    const beamBottomL = e.x - 30, beamBottomR = e.x + 30;
+    const scan =
+      0.4 + 0.2 * Math.sin(e.age * 4.5) + 0.1 * Math.sin(e.age * 7.3);
+    const beamBottomL = e.x - 30,
+      beamBottomR = e.x + 30;
     ctx.save();
     ctx.fillStyle = `rgba(245, 250, 255, ${scan})`;
     ctx.beginPath();
@@ -2358,7 +2469,8 @@
 
     if (e.id === "ufo") {
       const img = IMAGES.ufo;
-      const ufoW = 60, ufoH = img ? 60 * (img.height / img.width) : 35;
+      const ufoW = 60,
+        ufoH = img ? 60 * (img.height / img.width) : 35;
       if (img) {
         ctx.drawImage(img, e.x - ufoW / 2, e.y - ufoH / 2, ufoW, ufoH);
       }
@@ -2371,7 +2483,10 @@
           const grabX = e.abductSx || e.x;
           const grabY = e.abductDuneY || state.ground;
           const liftT = e.cactusLift;
-          const cx = grabX + (e.x - grabX) * liftT + Math.sin(e.age * 6) * 8 * (1 - liftT);
+          const cx =
+            grabX +
+            (e.x - grabX) * liftT +
+            Math.sin(e.age * 6) * 8 * (1 - liftT);
           const cy = grabY + (e.y + ufoH / 2 - grabY) * liftT;
           const cScale = 1 - liftT * 0.5; // shrinks as it gets "further"
           const cw = dc.w * cScale;
@@ -2384,12 +2499,13 @@
           ctx.restore();
         }
       }
-
     } else if (e.id === "santa") {
       const sleighImg = IMAGES.santaSleigh;
       const deerImg = IMAGES.reindeer;
-      const sleighW = 55, sleighH = sleighImg ? 55 * (sleighImg.height / sleighImg.width) : 30;
-      const deerW = 22, deerH = deerImg ? 22 * (deerImg.height / deerImg.width) : 25;
+      const sleighW = 55,
+        sleighH = sleighImg ? 55 * (sleighImg.height / sleighImg.width) : 30;
+      const deerW = 22,
+        deerH = deerImg ? 22 * (deerImg.height / deerImg.width) : 25;
       // Sleigh harness attachment — measured from sprite (165/200, 55/128)
       const harnessX = e.x + sleighW * 0.325;
       const harnessY = e.y - sleighH * 0.07;
@@ -2414,12 +2530,24 @@
         ctx.quadraticCurveTo(midX, midY, collarX, collarY);
         ctx.stroke();
         if (deerImg) {
-          ctx.drawImage(deerImg, deerX - deerW / 2, deerY - deerH / 2, deerW, deerH);
+          ctx.drawImage(
+            deerImg,
+            deerX - deerW / 2,
+            deerY - deerH / 2,
+            deerW,
+            deerH,
+          );
         }
       }
       // Draw sleigh (on top of harness lines)
       if (sleighImg) {
-        ctx.drawImage(sleighImg, e.x - sleighW / 2, e.y - sleighH / 2, sleighW, sleighH);
+        ctx.drawImage(
+          sleighImg,
+          e.x - sleighW / 2,
+          e.y - sleighH / 2,
+          sleighW,
+          sleighH,
+        );
       }
       // Rudolph's red nose on the lead reindeer
       if (Math.sin(e.age * 8) > 0 && deerPositions[1]) {
@@ -2431,7 +2559,6 @@
         ctx.arc(noseX, noseY, 2, 0, Math.PI * 2);
         ctx.fill();
       }
-
     } else if (e.id === "tumbleweed") {
       const twImg = IMAGES.tumbleweed;
       const twSize = 20;
@@ -2442,7 +2569,6 @@
         ctx.drawImage(twImg, -twSize / 2, -twSize / 2, twSize, twSize);
       }
       ctx.restore();
-
     } else if (e.id === "comet") {
       // "Your Name" style comet — very bright, multi-tailed, sparkly.
       const tailAngle = Math.atan2(state.height * 0.25, state.width * 1.6);
@@ -2488,28 +2614,82 @@
       // Tail helper
       const _ct = (c0, c1, c2, w, x1, y1, x2, y2, ex, ey) => {
         const g = ctx.createLinearGradient(0, 0, ex, 0);
-        g.addColorStop(0, c0); g.addColorStop(0.35, c1); g.addColorStop(1, c2);
-        ctx.strokeStyle = g; ctx.lineWidth = w;
-        ctx.beginPath(); ctx.moveTo(0, 0);
+        g.addColorStop(0, c0);
+        g.addColorStop(0.35, c1);
+        g.addColorStop(1, c2);
+        ctx.strokeStyle = g;
+        ctx.lineWidth = w;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
         ctx.bezierCurveTo(x1, y1, x2, y2, ex, ey);
         ctx.stroke();
       };
       const L = tailLen;
       // Main blue-white dust tail
-      _ct(`rgba(200,225,255,${0.75*a})`,`rgba(130,180,250,${0.3*a})`,"rgba(70,120,210,0)",
-        9, L*0.3,-10, L*0.6,-18, L,-30);
+      _ct(
+        `rgba(200,225,255,${0.75 * a})`,
+        `rgba(130,180,250,${0.3 * a})`,
+        "rgba(70,120,210,0)",
+        9,
+        L * 0.3,
+        -10,
+        L * 0.6,
+        -18,
+        L,
+        -30,
+      );
       // Cyan ion tail
-      _ct(`rgba(0,250,255,${0.6*a})`,`rgba(50,210,250,${0.25*a})`,"rgba(30,140,230,0)",
-        3, L*0.4,5, L*0.9,8, L*1.4,6);
+      _ct(
+        `rgba(0,250,255,${0.6 * a})`,
+        `rgba(50,210,250,${0.25 * a})`,
+        "rgba(30,140,230,0)",
+        3,
+        L * 0.4,
+        5,
+        L * 0.9,
+        8,
+        L * 1.4,
+        6,
+      );
       // Bright crimson
-      _ct(`rgba(255,60,35,${0.5*a})`,`rgba(230,35,20,${0.18*a})`,"rgba(150,10,5,0)",
-        5, L*0.2,-20, L*0.55,-38, L*1.15,-55);
+      _ct(
+        `rgba(255,60,35,${0.5 * a})`,
+        `rgba(230,35,20,${0.18 * a})`,
+        "rgba(150,10,5,0)",
+        5,
+        L * 0.2,
+        -20,
+        L * 0.55,
+        -38,
+        L * 1.15,
+        -55,
+      );
       // Deep red
-      _ct(`rgba(190,25,12,${0.3*a})`,`rgba(140,12,8,${0.1*a})`,"rgba(80,5,5,0)",
-        3, L*0.15,-28, L*0.4,-50, L*0.85,-70);
+      _ct(
+        `rgba(190,25,12,${0.3 * a})`,
+        `rgba(140,12,8,${0.1 * a})`,
+        "rgba(80,5,5,0)",
+        3,
+        L * 0.15,
+        -28,
+        L * 0.4,
+        -50,
+        L * 0.85,
+        -70,
+      );
       // Warm orange wisp
-      _ct(`rgba(255,170,60,${0.3*a})`,`rgba(230,110,30,${0.1*a})`,"rgba(180,60,10,0)",
-        2.5, L*0.35,-6, L*0.65,-14, L,-22);
+      _ct(
+        `rgba(255,170,60,${0.3 * a})`,
+        `rgba(230,110,30,${0.1 * a})`,
+        "rgba(180,60,10,0)",
+        2.5,
+        L * 0.35,
+        -6,
+        L * 0.65,
+        -14,
+        L,
+        -22,
+      );
 
       // Sparkles — cover the full x/y extent of all tails,
       // similar blink frequency but very different phase offsets,
@@ -2525,9 +2705,9 @@
         const baseX = along * L;
         // Y range covers the full tail fan: from +8 (ion tail)
         // down to -70 (deep red tail), scattered by h2
-        const yTop = 8 * along;                    // ion tail top
+        const yTop = 8 * along; // ion tail top
         const yBot = -15 * along - 55 * along * along; // deep red bottom
-        const sy0 = yTop + (yBot - yTop) * h2;     // spread across full fan
+        const sy0 = yTop + (yBot - yTop) * h2; // spread across full fan
         let sx = baseX + (h3 - 0.5) * 15;
         let sy = sy0;
 
@@ -2544,14 +2724,23 @@
         // Similar blink speed (4.5-6 Hz) but wildly different offsets
         const blinkSpeed = 4.5 + h4 * 1.5;
         const blinkPhase = h1 * 17.3 + h2 * 11.7; // large spread
-        const blink = Math.pow(Math.max(0, Math.sin(e.age * blinkSpeed + blinkPhase)), 5);
+        const blink = Math.pow(
+          Math.max(0, Math.sin(e.age * blinkSpeed + blinkPhase)),
+          5,
+        );
         const baseBright = detaches ? 0.6 : 1;
         const sa = (1 - along * 0.5) * blink * a * baseBright;
         if (sa < 0.05) continue;
 
         const sr = 1.5 + (1 - along) * 2.5 + h4 * 1.5;
         const ci = i % 5;
-        const sC = ["255,255,255","200,240,255","255,180,170","255,230,200","160,250,255"][ci];
+        const sC = [
+          "255,255,255",
+          "200,240,255",
+          "255,180,170",
+          "255,230,200",
+          "160,250,255",
+        ][ci];
         ctx.strokeStyle = `rgba(${sC},${sa})`;
         ctx.fillStyle = `rgba(${sC},${sa})`;
         const shape = Math.floor(h4 * 3);
@@ -2559,16 +2748,21 @@
           // 4-pointed cross
           ctx.lineWidth = 1;
           ctx.beginPath();
-          ctx.moveTo(sx, sy - sr * 1.3); ctx.lineTo(sx, sy + sr * 1.3);
-          ctx.moveTo(sx - sr * 1.3, sy); ctx.lineTo(sx + sr * 1.3, sy);
+          ctx.moveTo(sx, sy - sr * 1.3);
+          ctx.lineTo(sx, sy + sr * 1.3);
+          ctx.moveTo(sx - sr * 1.3, sy);
+          ctx.lineTo(sx + sr * 1.3, sy);
           ctx.stroke();
         } else if (shape === 1) {
           // 6-pointed star
           ctx.lineWidth = 0.8;
           ctx.beginPath();
-          ctx.moveTo(sx, sy - sr); ctx.lineTo(sx, sy + sr);
-          ctx.moveTo(sx - sr * 0.87, sy - sr * 0.5); ctx.lineTo(sx + sr * 0.87, sy + sr * 0.5);
-          ctx.moveTo(sx - sr * 0.87, sy + sr * 0.5); ctx.lineTo(sx + sr * 0.87, sy - sr * 0.5);
+          ctx.moveTo(sx, sy - sr);
+          ctx.lineTo(sx, sy + sr);
+          ctx.moveTo(sx - sr * 0.87, sy - sr * 0.5);
+          ctx.lineTo(sx + sr * 0.87, sy + sr * 0.5);
+          ctx.moveTo(sx - sr * 0.87, sy + sr * 0.5);
+          ctx.lineTo(sx + sr * 0.87, sy - sr * 0.5);
           ctx.stroke();
         } else {
           // Bright dot
@@ -2583,7 +2777,6 @@
         ctx.fill();
       }
       ctx.restore();
-
     } else if (e.id === "meteor") {
       if (!e.impact) {
         const streakLen = 50;
@@ -2625,7 +2818,8 @@
       } else {
         // Impact — particle-based fireball + mushroom cloud
         const it = (e.age / e.life - 0.5) / 0.5;
-        const ix = e.impactX, iy = e.impactY;
+        const ix = e.impactX,
+          iy = e.impactY;
         const S = 1.3; // scale factor
 
         // Initial flash (first 15% of impact)
@@ -2653,13 +2847,19 @@
           // Color: white→yellow→orange→dark as particle ages
           let r, g, b;
           if (pt < 0.2) {
-            r = 255; g = 240; b = 200;
+            r = 255;
+            g = 240;
+            b = 200;
           } else if (pt < 0.5) {
             const k = (pt - 0.2) / 0.3;
-            r = 255; g = Math.round(240 - k * 120); b = Math.round(200 - k * 170);
+            r = 255;
+            g = Math.round(240 - k * 120);
+            b = Math.round(200 - k * 170);
           } else {
             const k = (pt - 0.5) / 0.5;
-            r = Math.round(255 - k * 155); g = Math.round(120 - k * 80); b = Math.round(30 - k * 20);
+            r = Math.round(255 - k * 155);
+            g = Math.round(120 - k * 80);
+            b = Math.round(30 - k * 20);
           }
           ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${pa})`;
           ctx.beginPath();
@@ -2691,7 +2891,7 @@
           for (let i = 0; i < 7; i++) {
             const seed = Math.sin(i * 31.7 + 5.3) * 0.5 + 0.5;
             const cpx = ix + (seed - 0.5) * 40 * S;
-            const cpy = capY + (Math.sin(i * 2.1) * 6);
+            const cpy = capY + Math.sin(i * 2.1) * 6;
             ctx.fillStyle = `rgba(70, 55, 40, ${capA})`;
             ctx.beginPath();
             ctx.arc(cpx, cpy, (10 + seed * 8) * S, 0, Math.PI * 2);
@@ -2710,12 +2910,17 @@
     try {
       const raw = window.localStorage.getItem(TOTAL_DAY_CYCLES_KEY);
       return raw != null ? parseInt(raw, 10) || 0 : 0;
-    } catch (e) { return 0; }
+    } catch (e) {
+      return 0;
+    }
   }
 
   function saveTotalDayCycles(n) {
-    try { window.localStorage.setItem(TOTAL_DAY_CYCLES_KEY, String(n)); }
-    catch (e) { /* ignored */ }
+    try {
+      window.localStorage.setItem(TOTAL_DAY_CYCLES_KEY, String(n));
+    } catch (e) {
+      /* ignored */
+    }
   }
 
   /** Deterministic rain check: within each block of 10 cycles,
@@ -2724,12 +2929,14 @@
     if (cycleIndex % 50 === 0 && cycleIndex > 0) return true;
     const block = Math.floor(cycleIndex / 10);
     // Simple hash to pick which cycle in the block rains
-    const rainSlot = ((block * 7 + 3) % 10);
-    return (cycleIndex % 10) === rainSlot;
+    const rainSlot = (block * 7 + 3) % 10;
+    return cycleIndex % 10 === rainSlot;
   }
 
   function spawnRain(frameScale) {
-    const count = Math.ceil((state.width / 300) * frameScale * state.rainIntensity);
+    const count = Math.ceil(
+      (state.width / RAIN_SPAWN_DENSITY_DIVISOR) * frameScale * state.rainIntensity,
+    );
     for (let i = 0; i < count; i++) {
       const layer = Math.random();
       let len, opacity, vy, vx, lw;
@@ -2758,7 +2965,11 @@
       state.rainParticles.push({
         x: Math.random() * (state.width + 100) - 50,
         y: -10 - Math.random() * 30,
-        vx, vy, len, opacity, lw,
+        vx,
+        vy,
+        len,
+        opacity,
+        lw,
       });
     }
   }
@@ -2769,7 +2980,10 @@
     for (const p of state.rainParticles) {
       p.x += p.vx * dtSec;
       p.y += p.vy * dtSec;
-      if (p.y > state.ground) { p.dead = true; expired++; }
+      if (p.y > state.ground) {
+        p.dead = true;
+        expired++;
+      }
     }
     if (expired > 0) {
       state.rainParticles = state.rainParticles.filter((p) => !p.dead);
@@ -2805,12 +3019,19 @@
 
   function updateLightning(frameScale, now) {
     if (state.lightning.alpha > 0) {
-      state.lightning.alpha = Math.max(0, state.lightning.alpha - 0.015 * frameScale);
+      state.lightning.alpha = Math.max(
+        0,
+        state.lightning.alpha - 0.015 * frameScale,
+      );
     }
     // Random chance for new flash — only at full intensity, not during transitions
-    if (state.rainIntensity > 0.8 && now > state.lightning.nextAt && Math.random() < 0.002 * frameScale) {
+    if (
+      state.rainIntensity > LIGHTNING_INTENSITY_THRESHOLD &&
+      now > state.lightning.nextAt &&
+      Math.random() < LIGHTNING_FLASH_PROBABILITY * frameScale
+    ) {
       state.lightning.alpha = 0.7 + Math.random() * 0.2;
-      state.lightning.nextAt = now + 5000 + Math.random() * 5000;
+      state.lightning.nextAt = now + LIGHTNING_MIN_COOLDOWN_MS + Math.random() * (LIGHTNING_MAX_COOLDOWN_MS - LIGHTNING_MIN_COOLDOWN_MS);
       // Generate a jagged bolt path — preferring cacti as targets
       const result = _generateBoltPath();
       state.lightning.bolt = result.path;
@@ -2823,7 +3044,7 @@
       }
       // Delay thunder after the flash — random 0.1–0.6s simulating
       // varying strike distances (~35–200m away).
-      const thunderDelay = 100 + Math.random() * 500;
+      const thunderDelay = THUNDER_DELAY_MIN_MS + Math.random() * (THUNDER_DELAY_MAX_MS - THUNDER_DELAY_MIN_MS);
       setTimeout(() => audio.playThunder(), thunderDelay);
       if (!audio.muted && navigator.vibrate) navigator.vibrate(30);
     }
@@ -2839,7 +3060,8 @@
       return sx > 20 && sx < state.width - 20 && !dc.struck;
     });
     if (visibleDuneCacti.length > 0) {
-      const dc = visibleDuneCacti[Math.floor(Math.random() * visibleDuneCacti.length)];
+      const dc =
+        visibleDuneCacti[Math.floor(Math.random() * visibleDuneCacti.length)];
       targetX = dc.wx - off;
       struckDuneCactus = dc;
     } else {
@@ -2847,17 +3069,21 @@
     }
     // If targeting a dune cactus, end at the cactus top; otherwise ground.
     const endY = struckDuneCactus
-      ? (state.ground - _duneHeight(targetX, state.duneOffset)) - struckDuneCactus.h * 0.85
+      ? state.ground -
+        _duneHeight(targetX, state.duneOffset) -
+        struckDuneCactus.h * 0.85
       : state.ground;
     const startX = targetX + (Math.random() - 0.5) * state.width * 0.15;
-    const segments = 8 + Math.floor(Math.random() * 6);
+    const segments = LIGHTNING_BOLT_MIN_SEGMENTS + Math.floor(Math.random() * (LIGHTNING_BOLT_MAX_SEGMENTS - LIGHTNING_BOLT_MIN_SEGMENTS + 1));
     const points = [{ x: startX, y: -10 }];
     for (let i = 1; i <= segments; i++) {
       const t = i / segments;
       const isLast = i === segments;
       // Converge toward targetX; final point lands exactly on target
       const baseX = startX + (targetX - startX) * t;
-      const jitter = isLast ? 0 : (Math.random() - 0.5) * state.width * 0.08 * (1 - t);
+      const jitter = isLast
+        ? 0
+        : (Math.random() - 0.5) * state.width * 0.08 * (1 - t);
       const x = baseX + jitter;
       const y = isLast ? endY : Math.min(t * endY, endY);
       points.push({ x, y });
@@ -2865,7 +3091,8 @@
       if (i > 2 && i < segments - 1 && Math.random() < 0.35) {
         const branchLen = 2 + Math.floor(Math.random() * 4);
         const branch = [];
-        let bx = x, by = y;
+        let bx = x,
+          by = y;
         const dir = Math.random() < 0.5 ? -1 : 1;
         for (let j = 0; j < branchLen; j++) {
           bx += dir * (15 + Math.random() * 30);
@@ -2918,7 +3145,12 @@
     if (state.lightning.bolt) {
       _drawBolt(ctx, state.lightning.bolt, 3, state.lightning.alpha);
       // Draw a second thinner bright core
-      _drawBolt(ctx, state.lightning.bolt, 1.2, Math.min(1, state.lightning.alpha * 1.5));
+      _drawBolt(
+        ctx,
+        state.lightning.bolt,
+        1.2,
+        Math.min(1, state.lightning.alpha * 1.5),
+      );
     }
   }
 
@@ -2942,7 +3174,7 @@
         -SHOOTING_STAR_TRAIL_LEN,
         -SHOOTING_STAR_TRAIL_H / 2,
         SHOOTING_STAR_TRAIL_LEN,
-        SHOOTING_STAR_TRAIL_H
+        SHOOTING_STAR_TRAIL_H,
       );
       ctx.restore();
     }
@@ -2965,7 +3197,7 @@
    */
   function celestialArc(phaseCenter, halfWidth) {
     // Wrap so that `rel` is in [-0.5, 0.5] around phaseCenter.
-    let rel = (state.smoothPhase % 1 + 1) % 1 - phaseCenter;
+    let rel = (((state.smoothPhase % 1) + 1) % 1) - phaseCenter;
     if (rel > 0.5) rel -= 1;
     if (rel < -0.5) rel += 1;
     // The "above-horizon" arc spans rel ∈ [-halfWidth, +halfWidth].
@@ -2975,7 +3207,7 @@
     // fading out — that's how a real sun sets. The ground bands
     // drawn over the top of the canvas naturally occlude the disc
     // once it dips below.
-    const extension = halfWidth * 0.18;
+    const extension = halfWidth * CELESTIAL_ARC_EXTENSION;
     if (rel < -halfWidth - extension || rel > halfWidth + extension) {
       return { visible: false, x: 0, y: 0, t: 0, alpha: 0 };
     }
@@ -2984,7 +3216,7 @@
     // the screen edge.
     const t = (rel + halfWidth) / (halfWidth * 2);
     const x = state.width * (1 - t);
-    const arcH = state.height * 0.7;
+    const arcH = state.height * CELESTIAL_ARC_HEIGHT_RATIO;
     const y = state.ground - 4 * arcH * t * (1 - t);
     return { visible: true, x, y, t, alpha: 1 };
   }
@@ -2993,9 +3225,9 @@
     // Sun is visible during the entire day half (solid blue + half
     // of each twilight transition). Its peak sits at the middle of
     // the solid-blue stretch.
-    const arc = celestialArc(0.167, 0.25);
+    const arc = celestialArc(SUN_PHASE_CENTER, CELESTIAL_ARC_HALF_WIDTH);
     if (!arc.visible) return;
-    const r = Math.max(21, state.width * 0.03);
+    const r = Math.max(SUN_MIN_RADIUS_PX, state.width * SUN_RADIUS_SCALE);
     // Elevation = 1 at the zenith, 0 at the horizon. We bend the
     // curve hard with a high exponent so the disc stays bright white
     // across almost the entire arc, only shifting to yellow in the
@@ -3028,7 +3260,14 @@
       // Overcast sun: diffuse halo glow, dim disc proportional to intensity
       const haloR = r * 3;
       const ha = 0.18 * ri;
-      const glow = ctx.createRadialGradient(arc.x, arc.y, r * 0.5, arc.x, arc.y, haloR);
+      const glow = ctx.createRadialGradient(
+        arc.x,
+        arc.y,
+        r * 0.5,
+        arc.x,
+        arc.y,
+        haloR,
+      );
       glow.addColorStop(0, `rgba(255, 240, 200, ${ha})`);
       glow.addColorStop(0.5, `rgba(255, 230, 180, ${ha * 0.45})`);
       glow.addColorStop(1, `rgba(255, 220, 160, 0)`);
@@ -3055,9 +3294,9 @@
     // Moon mirrors the sun: visible during the entire night half
     // (solid night + half of each twilight transition), with the
     // same arc width so it traces a matching gentle parabola.
-    const arc = celestialArc(0.667, 0.25);
+    const arc = celestialArc(MOON_PHASE_CENTER, CELESTIAL_ARC_HALF_WIDTH);
     if (!arc.visible) return;
-    const r = Math.max(13, state.width * 0.0192);
+    const r = Math.max(MOON_MIN_RADIUS_PX, state.width * MOON_RADIUS_SCALE);
     // Bright near-white moon. The shadow is the sky color so it
     // reads as the dark side of the disc.
     const core = [250, 250, 252];
@@ -3071,7 +3310,14 @@
     ctx.save();
     ctx.globalAlpha = arc.alpha * (0.2 + 0.8 * (1 - state.rainIntensity));
     // Halo.
-    const glow = ctx.createRadialGradient(arc.x, arc.y, r * 0.3, arc.x, arc.y, r * 2.6);
+    const glow = ctx.createRadialGradient(
+      arc.x,
+      arc.y,
+      r * 0.3,
+      arc.x,
+      arc.y,
+      r * 2.6,
+    );
     glow.addColorStop(0, rgba(halo, 0.45));
     glow.addColorStop(0.5, rgba(halo, 0.14));
     glow.addColorStop(1, rgba(halo, 0));
@@ -3131,10 +3377,16 @@
         ctx.arc(arc.x, arc.y, r, -Math.PI * 0.5, Math.PI * 0.5);
       }
       // Terminator edge: ellipse connecting top and bottom
-      ctx.ellipse(arc.x, arc.y, Math.abs(terminatorX), r, 0,
+      ctx.ellipse(
+        arc.x,
+        arc.y,
+        Math.abs(terminatorX),
+        r,
+        0,
         waxing ? -Math.PI * 0.5 : Math.PI * 0.5,
         waxing ? Math.PI * 0.5 : -Math.PI * 0.5,
-        waxing ? (terminatorX > 0) : (terminatorX < 0));
+        waxing ? terminatorX > 0 : terminatorX < 0,
+      );
       ctx.fill();
     }
     ctx.restore();
@@ -3192,7 +3444,7 @@
         0,
         Math.PI,
         0,
-        false
+        false,
       );
       ctx.fill();
     }
@@ -3220,10 +3472,10 @@
     ctx.fillRect(0, 0, w, coverH);
     // Thicker sub-bands for visible layering at the top
     const bands = [
-      { y: 0,             h: coverH * 0.15, alpha: 0.25 },
-      { y: coverH * 0.12, h: coverH * 0.2,  alpha: 0.18 },
+      { y: 0, h: coverH * 0.15, alpha: 0.25 },
+      { y: coverH * 0.12, h: coverH * 0.2, alpha: 0.18 },
       { y: coverH * 0.28, h: coverH * 0.25, alpha: 0.12 },
-      { y: coverH * 0.45, h: coverH * 0.2,  alpha: 0.08 },
+      { y: coverH * 0.45, h: coverH * 0.2, alpha: 0.08 },
     ];
     for (const b of bands) {
       const ba = b.alpha * a;
@@ -3248,8 +3500,16 @@
       // Pure puffy cloud — use CLOUD_BUMPS directly
       for (const bmp of CLOUD_BUMPS) {
         ctx.beginPath();
-        ctx.ellipse(x + bmp.dx * size, y, bmp.rx * size, bmp.ry * size,
-          0, Math.PI, 0, false);
+        ctx.ellipse(
+          x + bmp.dx * size,
+          y,
+          bmp.rx * size,
+          bmp.ry * size,
+          0,
+          Math.PI,
+          0,
+          false,
+        );
         ctx.fill();
       }
       return;
@@ -3258,7 +3518,7 @@
     // Morph: each bump stretches wider and flatter with intensity.
     // At ri=1, bumps merge into one wide flat band.
     for (const bmp of CLOUD_BUMPS) {
-      const rx = bmp.rx * (1 + ri * 7) * size;   // much wider
+      const rx = bmp.rx * (1 + ri * 7) * size; // much wider
       const ry = bmp.ry * (1 - ri * 0.7) * size; // much flatter
       // Shift bumps toward center x as they merge
       const dx = bmp.dx * (1 - ri * 0.6) * size;
@@ -3294,18 +3554,18 @@
    *  maintains this density by spawning a new cloud whenever one
    *  drifts off-screen, so the sky never clusters or empties. */
   function targetCloudCount() {
-    const base = Math.max(3, Math.round(state.width / 380));
+    const base = Math.max(CLOUD_MIN_COUNT, Math.round(state.width / CLOUD_DENSITY_DIVISOR));
     const density = state._cloudDensity || 1;
     // Smoothly interpolate cloud count with rain intensity
-    const rainMult = 1 + state.rainIntensity * 2; // 1× to 3×
+    const rainMult = 1 + state.rainIntensity * CLOUD_RAIN_MULTIPLIER_MAX; // 1× to 3×
     return Math.round(base * Math.max(density, rainMult));
   }
 
   /** Minimum horizontal distance between a newly-spawned cloud and the
    *  previous rightmost cloud, to avoid visual stacking. */
   function minCloudSpacing() {
-    const base = Math.max(220, state.width * 0.22);
-    return state.rainIntensity > 0.3 ? base * 0.3 : base;
+    const base = Math.max(CLOUD_MIN_SPACING_FLOOR_PX, state.width * CLOUD_MIN_SPACING_RATIO);
+    return state.rainIntensity > CLOUD_HEAVY_RAIN_SPACING ? base * CLOUD_HEAVY_RAIN_SPACING : base;
   }
 
   function makeCloudObject(xAbsolute) {
@@ -3313,7 +3573,7 @@
     // of the play area so some clouds hang low over the horizon.
     const yMin = 40;
     const yMax = Math.max(180, state.ground * 0.55);
-    const size = randRange(0.55, 1.2) * (state.width / 1000);
+    const size = randRange(0.55, 1.2) * (state.width / VELOCITY_SCALE_DIVISOR);
     const scale = 2;
     return {
       x: xAbsolute,
@@ -3370,21 +3630,25 @@
   function _duneHeight(screenX, offset) {
     const wx = screenX + offset;
     const h = state.height;
-    const f = Math.PI * 2 / (state.width * 2);
-    return h * 0.04  * Math.sin(wx * f * 3 + 1.2)
-         + h * 0.025 * Math.sin(wx * f * 5 + 0.7)
-         + h * 0.015 * Math.sin(wx * f * 8 + 2.1)
-         + h * 0.09;
+    const f = (Math.PI * 2) / (state.width * 2);
+    return (
+      h * 0.04 * Math.sin(wx * f * 3 + 1.2) +
+      h * 0.025 * Math.sin(wx * f * 5 + 0.7) +
+      h * 0.015 * Math.sin(wx * f * 8 + 2.1) +
+      h * DUNE_BASE_HEIGHT_RATIO
+    );
   }
 
   /** Spawn a dune cactus at the given world-space x. */
   function _spawnDuneCactus(worldX) {
-    const variant = CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
-    const ch = (18 + Math.random() * 20) * variant.heightScale;
+    const variant =
+      CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
+    const ch = (DUNE_CACTUS_MIN_HEIGHT_PX + Math.random() * DUNE_CACTUS_HEIGHT_RANGE_PX) * variant.heightScale;
     const cw = ch * (variant.w / variant.h);
     return {
       wx: worldX,
-      h: ch, w: cw,
+      h: ch,
+      w: cw,
       key: variant.key,
       struck: false,
       depth: Math.random() < 0.5 ? 1 : 3, // tumbleweed draws at depth 2
@@ -3398,7 +3662,7 @@
     let wx = -state.width * 0.5;
     while (wx < state.width * 2) {
       state.duneCacti.push(_spawnDuneCactus(wx));
-      wx += 80 + Math.random() * 200;
+      wx += DUNE_CACTUS_MIN_SPACING_PX + Math.random() * DUNE_CACTUS_SPACING_RANGE_PX;
     }
     state._nextDuneCactusX = wx;
   }
@@ -3475,7 +3739,8 @@
               worker.removeEventListener("message", onMessage);
               worker.removeEventListener("error", onError);
               if (e.data && e.data.blob) resolve(e.data.blob);
-              else reject(new Error(e.data && e.data.error || "worker failed"));
+              else
+                reject(new Error((e.data && e.data.error) || "worker failed"));
             };
             const onError = (ev) => {
               worker.removeEventListener("message", onMessage);
@@ -3491,7 +3756,7 @@
                 highScore: state.highScore,
                 newHighScore: state.newHighScore,
               },
-              [bitmap]
+              [bitmap],
             );
           });
           return blob;
@@ -3568,12 +3833,7 @@
 
     // Dark gradient strip at the bottom for the score block.
     const botShadeH = 260;
-    const botShade = cctx.createLinearGradient(
-      0,
-      H - botShadeH,
-      0,
-      H
-    );
+    const botShade = cctx.createLinearGradient(0, H - botShadeH, 0, H);
     botShade.addColorStop(0, "rgba(0, 0, 0, 0)");
     botShade.addColorStop(1, "rgba(0, 0, 0, 0.75)");
     cctx.fillStyle = botShade;
@@ -3586,8 +3846,7 @@
     cctx.fillStyle = "#ffffff";
     cctx.shadowColor = "rgba(0, 0, 0, 0.55)";
     cctx.shadowBlur = 14;
-    cctx.font =
-      'bold 72px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    cctx.font = 'bold 72px "Helvetica Neue", Helvetica, Arial, sans-serif';
     cctx.fillText("Raptor Runner", 60, 100);
     cctx.fillStyle = "rgba(255, 255, 255, 0.8)";
     cctx.font = '26px "Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -3602,18 +3861,11 @@
     cctx.shadowBlur = 16;
     // Uppercase label.
     cctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-    cctx.font =
-      '600 30px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    cctx.font = '600 30px "Helvetica Neue", Helvetica, Arial, sans-serif';
     cctx.fillText("FINAL SCORE", W - 60, H - 180);
     // Big gradient score.
-    cctx.font =
-      'bold 180px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    const scoreGrad = cctx.createLinearGradient(
-      0,
-      H - 170,
-      0,
-      H - 40
-    );
+    cctx.font = 'bold 180px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    const scoreGrad = cctx.createLinearGradient(0, H - 170, 0, H - 40);
     scoreGrad.addColorStop(0, "#ffee9a");
     scoreGrad.addColorStop(1, "#e89d33");
     cctx.fillStyle = scoreGrad;
@@ -3626,18 +3878,13 @@
     cctx.textBaseline = "alphabetic";
     cctx.shadowColor = "rgba(0, 0, 0, 0.6)";
     cctx.shadowBlur = 14;
-    cctx.font =
-      'italic 36px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    cctx.font = 'italic 36px "Helvetica Neue", Helvetica, Arial, sans-serif';
     if (state.newHighScore) {
       cctx.fillStyle = "#ffd84a";
       cctx.fillText("★ New personal best!", 60, H - 60);
     } else {
       cctx.fillStyle = "rgba(255, 255, 255, 0.82)";
-      cctx.fillText(
-        `Personal best: ${state.highScore}`,
-        60,
-        H - 60
-      );
+      cctx.fillText(`Personal best: ${state.highScore}`, 60, H - 60);
     }
     cctx.restore();
 
@@ -3668,7 +3915,7 @@
     const prevNow = state.lastNow || now;
     const rawDtSec = (now - prevNow) / 1000;
     state.lastNow = now;
-    const dtSec = Math.min(Math.max(rawDtSec, 0), 1 / 20);
+    const dtSec = Math.min(Math.max(rawDtSec, 0), DELTA_TIME_CLAMP);
     const frameScale = dtSec * 60; // 1.0 at 60fps, 0.5 at 120fps
 
     // Continuous, monotonic day-phase. Drives the sky color, the
@@ -3683,8 +3930,9 @@
       state.totalDayCycles += 1;
       saveTotalDayCycles(state.totalDayCycles);
       // Moon phase: realistic ~29.5 day synodic month
-      state.moonPhase = (state.totalDayCycles % 30) / 30;
-      if (Math.abs(state.moonPhase - 0.5) < 0.02) unlockAchievement("full-moon");
+      state.moonPhase = (state.totalDayCycles % MOON_SYNODIC_CYCLE) / MOON_SYNODIC_CYCLE;
+      if (Math.abs(state.moonPhase - 0.5) < 0.02)
+        unlockAchievement("full-moon");
       // Start rain at cycle boundaries; duration is 0.3–1.2 day cycles
       if (!state.isRaining && shouldRainForCycle(state.totalDayCycles)) {
         state.isRaining = true;
@@ -3703,8 +3951,9 @@
     const raining = state.isRaining;
     const targetIntensity = raining ? 1 : 0;
     // Fade in slower than fade out for natural feel
-    const fadeRate = raining ? 0.008 : 0.02;
-    state.rainIntensity += (targetIntensity - state.rainIntensity) * fadeRate * frameScale;
+    const fadeRate = raining ? RAIN_FADE_IN_RATE : RAIN_FADE_OUT_RATE;
+    state.rainIntensity +=
+      (targetIntensity - state.rainIntensity) * fadeRate * frameScale;
     if (state.rainIntensity < 0.005) state.rainIntensity = 0;
     if (state.rainIntensity > 0.995) state.rainIntensity = 1;
 
@@ -3715,13 +3964,19 @@
 
     // Rainbow: rare chance after rain fades out during daytime.
     // Never on the first storm, ~30% chance thereafter.
-    if (!state.gameOver && !raining && state.rainIntensity < 0.1 && state.rainIntensity > 0 && !state.rainbow) {
-      const phase = (state.smoothPhase % 1 + 1) % 1;
+    if (
+      !state.gameOver &&
+      !raining &&
+      state.rainIntensity < 0.1 &&
+      state.rainIntensity > 0 &&
+      !state.rainbow
+    ) {
+      const phase = ((state.smoothPhase % 1) + 1) % 1;
       const bi = Math.floor(phase * SKY_COLORS.length);
       if (!_isNightBand[bi] && !_isNightBand[(bi + 1) % SKY_COLORS.length]) {
         // Debug rain stop: always rainbow. Natural: 50% chance.
-        if (state._debugRainStop || Math.random() < 0.5) {
-          state.rainbow = { age: 0, life: 6 };
+        if (state._debugRainStop || Math.random() < RAINBOW_SPAWN_CHANCE) {
+          state.rainbow = { age: 0, life: RAINBOW_LIFETIME_SEC };
           unlockAchievement("rainbow");
         }
         state._debugRainStop = false;
@@ -3735,9 +3990,10 @@
 
     // Rain audio: fade volume with intensity
     if (state.rainIntensity > 0.01 && !audio._isRainPlaying) audio.startRain();
-    else if (state.rainIntensity < 0.01 && audio._isRainPlaying) audio.stopRain();
+    else if (state.rainIntensity < 0.01 && audio._isRainPlaying)
+      audio.stopRain();
     if (audio.rain && audio._isRainPlaying) {
-      audio.rain.volume = 0.2 * state.rainIntensity;
+      audio.rain.volume = RAIN_AUDIO_MAX_VOLUME * state.rainIntensity;
     }
 
     // Slow rotation of the night-sky dome, tied to the cycle phase
@@ -3753,12 +4009,12 @@
     // across a single night is ~7.5° — enough to see the sky move,
     // not enough to drift stars off before the night ends.
     const wrappedPhase = ((state.smoothPhase % 1) + 1) % 1;
-    state.starRotation = wrappedPhase * Math.PI * 0.1;
+    state.starRotation = wrappedPhase * STAR_ROTATION_PER_CYCLE;
 
     // Day/night cycle driven by smoothPhase (continuous), not score
     // (discrete) — so the sun/moon position never jumps when the
     // player passes a cactus.
-    const phase = (state.smoothPhase % 1 + 1) % 1;
+    const phase = ((state.smoothPhase % 1) + 1) % 1;
     const bandF = phase * SKY_COLORS.length;
     const bandIndex = Math.floor(bandF);
     const bandT = bandF - bandIndex;
@@ -3801,7 +4057,7 @@
       let target = lerpColor(
         SKY_COLORS[bandIndex],
         SKY_COLORS[nextBand],
-        bandT
+        bandT,
       );
       // Overcast sky during rain — lerp toward dark gray proportional to intensity.
       if (state.rainIntensity > 0) {
@@ -3833,57 +4089,63 @@
 
       // Collision: raptor concave polygon vs each cactus polygon.
       if (!state.noCollisions) {
-      const raptorPoly = raptor.collisionPolygon();
-      for (const c of cactuses.cacti) {
-        if (polygonsOverlap(raptorPoly, c.collisionPolygon())) {
-          state.gameOver = true;
-          state.gameOverFrame = state.frame;
-          if (!audio.muted && navigator.vibrate) navigator.vibrate([50, 30, 80]);
-          commitRunScore();
-          // Bump the career run counter and unlock the
-          // "first-run" / "century-runner" milestones.
-          state.careerRuns += 1;
-          saveCareerRuns(state.careerRuns);
-          if (state.careerRuns >= 1) unlockAchievement("first-run");
-          if (state.careerRuns >= 100) unlockAchievement("century-runner");
-          // Sound-of-silence is awarded for surviving a full
-          // run (any length) with audio muted the whole time.
-          // We ignore trivial zero-jump runs so the player
-          // can't game it by instantly dying.
-          if (state._runMutedThroughout && state.runJumps >= 5) {
-            unlockAchievement("sound-of-silence");
+        const raptorPoly = raptor.collisionPolygon();
+        for (const c of cactuses.cacti) {
+          if (polygonsOverlap(raptorPoly, c.collisionPolygon())) {
+            state.gameOver = true;
+            state.gameOverFrame = state.frame;
+            if (!audio.muted && navigator.vibrate)
+              navigator.vibrate([50, 30, 80]);
+            commitRunScore();
+            // Bump the career run counter and unlock the
+            // "first-run" / "century-runner" milestones.
+            state.careerRuns += 1;
+            saveCareerRuns(state.careerRuns);
+            if (state.careerRuns >= 1) unlockAchievement("first-run");
+            if (state.careerRuns >= 100) unlockAchievement("century-runner");
+            // Sound-of-silence is awarded for surviving a full
+            // run (any length) with audio muted the whole time.
+            // We ignore trivial zero-jump runs so the player
+            // can't game it by instantly dying.
+            if (state._runMutedThroughout && state.runJumps >= 5) {
+              unlockAchievement("sound-of-silence");
+            }
+            // Notify any listeners (e.g. the shell's share button)
+            // that a game-over just happened. Fired exactly once per
+            // run, directly from the transition instead of via a poll.
+            for (const cb of GameAPI._gameOverCbs) {
+              try {
+                cb();
+              } catch (e) {
+                /* ignore listener errors */
+              }
+            }
+            break;
           }
-          // Notify any listeners (e.g. the shell's share button)
-          // that a game-over just happened. Fired exactly once per
-          // run, directly from the transition instead of via a poll.
-          for (const cb of GameAPI._gameOverCbs) {
-            try { cb(); } catch (e) { /* ignore listener errors */ }
-          }
-          break;
         }
-      }
       } // end noCollisions guard
 
       // Clouds drift — slower than the ground but a bit faster than
       // the first-pass fix, so the parallax reads as "distant sky"
       // without feeling sluggish.
       for (const cloud of state.clouds) {
-        cloud.x -= state.bgVelocity * (state.width / 2000) * frameScale;
+        cloud.x -= state.bgVelocity * (state.width / CLOUD_PARALLAX_DIVISOR) * frameScale;
         cloud.y += randRange(-0.2, 0.2) * frameScale;
       }
       // Parallax layer offsets.
-      state.duneOffset += state.bgVelocity * 0.08 * frameScale;
+      state.duneOffset += state.bgVelocity * DUNE_SCROLL_SPEED * frameScale;
       // Age struck dune cacti; discard dead/offscreen; spawn new on right.
       if (state.duneCacti) {
         for (const dc of state.duneCacti) {
           if (dc.struck) dc.struckAge = (dc.struckAge || 0) + dtSec;
         }
         state.duneCacti = state.duneCacti.filter(
-          (dc) => !dc.dead && dc.wx - state.duneOffset > -dc.w * 3
+          (dc) => !dc.dead && dc.wx - state.duneOffset > -dc.w * 3,
         );
         const rightEdge = state.duneOffset + state.width + 100;
         if (!state._nextDuneCactusX || state._nextDuneCactusX < rightEdge) {
-          const wx = (state._nextDuneCactusX || rightEdge) + 80 + Math.random() * 200;
+          const wx =
+            (state._nextDuneCactusX || rightEdge) + DUNE_CACTUS_MIN_SPACING_PX + Math.random() * DUNE_CACTUS_SPACING_RANGE_PX;
           state.duneCacti.push(_spawnDuneCactus(wx));
           state._nextDuneCactusX = wx;
         }
@@ -3897,17 +4159,11 @@
       // count AND the rightmost cloud is far enough away to avoid
       // visual stacking, add a new cloud just past the right edge.
       // trySpawnCloud() enforces the min-spacing constraint itself.
-      if (
-        state.clouds.length < targetCloudCount() &&
-        state.frame % 8 === 0
-      ) {
+      if (state.clouds.length < targetCloudCount() && state.frame % CLOUD_SPAWN_INTERVAL === 0) {
         trySpawnCloud();
       }
     } else {
-      state.gameOverFade = Math.min(
-        state.gameOverFade + 0.01 * frameScale,
-        1
-      );
+      state.gameOverFade = Math.min(state.gameOverFade + GAME_OVER_FADE_RATE * frameScale, 1);
     }
   }
 
@@ -3950,7 +4206,7 @@
       if (rb.age < 1) alpha = rb.age;
       else if (rb.age < 3) alpha = 1;
       else alpha = 1 - (rb.age - 3) / 3;
-      alpha = Math.max(0, Math.min(1, alpha)) * 0.55;
+      alpha = Math.max(0, Math.min(1, alpha)) * RAINBOW_MAX_OPACITY;
       if (alpha > 0) {
         const cx = state.width * 0.7;
         const cy = state.ground + state.height * 0.15;
@@ -3959,13 +4215,13 @@
         const innerR = outerR - thickness;
         // Continuous radial gradient — colors blend smoothly
         const grad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
-        grad.addColorStop(0, `rgba(148, 0, 211, ${alpha})`);   // violet (inner)
-        grad.addColorStop(0.17, `rgba(75, 0, 200, ${alpha})`);  // indigo
+        grad.addColorStop(0, `rgba(148, 0, 211, ${alpha})`); // violet (inner)
+        grad.addColorStop(0.17, `rgba(75, 0, 200, ${alpha})`); // indigo
         grad.addColorStop(0.33, `rgba(30, 130, 255, ${alpha})`); // blue
-        grad.addColorStop(0.5, `rgba(30, 200, 30, ${alpha})`);  // green
+        grad.addColorStop(0.5, `rgba(30, 200, 30, ${alpha})`); // green
         grad.addColorStop(0.67, `rgba(255, 240, 30, ${alpha})`); // yellow
-        grad.addColorStop(0.83, `rgba(255, 140, 0, ${alpha})`);  // orange
-        grad.addColorStop(1, `rgba(255, 30, 30, ${alpha})`);    // red (outer)
+        grad.addColorStop(0.83, `rgba(255, 140, 0, ${alpha})`); // orange
+        grad.addColorStop(1, `rgba(255, 30, 30, ${alpha})`); // red (outer)
         ctx.save();
         ctx.fillStyle = grad;
         ctx.beginPath();
@@ -3981,11 +4237,16 @@
     // === uniformly sky-tinted, then composited onto the main pass) =
     fgCtx.clearRect(0, 0, state.width, state.height);
 
-
     // Clouds — drawn pure white here, the source-atop tint below
     // picks up the sky color and washes them toward it.
     for (const cloud of state.clouds) {
-      drawCloudMorphed(fgCtx, cloud.x, cloud.y, cloud.size * cloud.scale, state.rainIntensity);
+      drawCloudMorphed(
+        fgCtx,
+        cloud.x,
+        cloud.y,
+        cloud.size * cloud.scale,
+        state.rainIntensity,
+      );
     }
 
     // Parallax dunes — drawn procedurally from noise each frame.
@@ -4027,12 +4288,20 @@
               const fadeT = Math.min(1, (dc.struckAge - 0.8) / 0.6);
               fgCtx.globalAlpha = 1 - fadeT;
               if (Math.random() < 0.3) spawnAsh(sx, duneY, dc.w, dc.h);
-              if (fadeT >= 1) { dc.dead = true; fgCtx.restore(); continue; }
+              if (fadeT >= 1) {
+                dc.dead = true;
+                fgCtx.restore();
+                continue;
+              }
             }
           }
-          fgCtx.drawImage(img,
-            Math.round(sx - dc.w / 2), Math.round(duneY + dc.h * 0.15 - dc.h),
-            Math.round(dc.w), Math.round(dc.h));
+          fgCtx.drawImage(
+            img,
+            Math.round(sx - dc.w / 2),
+            Math.round(duneY + dc.h * 0.15 - dc.h),
+            Math.round(dc.w),
+            Math.round(dc.h),
+          );
           fgCtx.restore();
         }
       };
@@ -4065,15 +4334,12 @@
     }
 
     // Ground bands.
-    fgCtx.fillStyle = "#ebc334";
-    fgCtx.fillRect(0, state.ground, state.width, 5);
-    fgCtx.fillStyle = "#ebab21";
-    fgCtx.fillRect(0, state.ground + 5, state.width, 10);
-    fgCtx.fillStyle = "#ba8c27";
-    fgCtx.fillRect(0, state.ground + 15, state.width, 20);
-    fgCtx.fillStyle = "#EDC9AF";
-    fgCtx.fillRect(0, state.ground + 35, state.width, 200);
-
+    let bandY = 0;
+    for (let i = 0; i < GROUND_BAND_COLORS.length; i++) {
+      fgCtx.fillStyle = GROUND_BAND_COLORS[i];
+      fgCtx.fillRect(0, state.ground + bandY, state.width, GROUND_BAND_HEIGHTS_PX[i]);
+      bandY += GROUND_BAND_HEIGHTS_PX[i];
+    }
 
     // Cacti.
     cactuses.draw(fgCtx);
@@ -4109,7 +4375,7 @@
       0,
       0,
       state.width,
-      state.height
+      state.height,
     );
 
     // Confetti — drawn AFTER the tinted foreground so the
@@ -4128,7 +4394,6 @@
 
     drawRain(ctx);
     drawLightning(ctx);
-
 
     // Score text lives in the DOM now (see #score-display in
     // index.html), not on the canvas. That means it doesn't appear
@@ -4191,7 +4456,9 @@
     if (!perf.enabled || !ctx) return;
     if (++perf.frameCount % 30 === 0 && perf.samples.length > 0) {
       const n = perf.samples.length;
-      let sumU = 0, sumR = 0, sumT = 0;
+      let sumU = 0,
+        sumR = 0,
+        sumT = 0;
       for (const s of perf.samples) {
         sumU += s.update;
         sumR += s.render;
@@ -4215,7 +4482,8 @@
     ctx.save();
     ctx.font = "bold 11px monospace";
     ctx.textBaseline = "top";
-    const x = 10, y = state.height - 70;
+    const x = 10,
+      y = state.height - 70;
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.fillRect(x - 4, y - 4, 150, lines.length * 15 + 8);
     ctx.fillStyle = "#0f0";
@@ -4443,7 +4711,11 @@
     // Notify any listeners (e.g. the shell's share button) that
     // the game has transitioned back to a fresh state.
     for (const cb of GameAPI._gameResetCbs) {
-      try { cb(); } catch (e) { /* ignore listener errors */ }
+      try {
+        cb();
+      } catch (e) {
+        /* ignore listener errors */
+      }
     }
   }
 
@@ -4456,7 +4728,7 @@
   function onResize() {
     state.width = window.innerWidth;
     state.height = window.innerHeight + 1;
-    state.groundHeight = state.height / 10;
+    state.groundHeight = state.height * GROUND_HEIGHT_RATIO;
     state.ground = state.height - state.groundHeight;
 
     if (canvas && ctx) {
@@ -4621,7 +4893,7 @@
       if (state.started) return;
       state.started = true;
       state.paused = false;
-        const cdRoll = Math.random();
+      const cdRoll = Math.random();
       state._cloudDensity = cdRoll < 0.2 ? 0 : cdRoll < 0.7 ? 1 : 2;
       // Reset per-run state identically to resetGame() so the
       // very first run after page load starts clean.
@@ -4715,7 +4987,8 @@
       if (next >= 1) unlockAchievement("first-jump");
       if (next >= 25) unlockAchievement("score-25");
       if (next >= 100) unlockAchievement("party-time");
-      if (next >= BOW_TIE_SCORE_THRESHOLD) unlockAchievement("dinosaurs-forever");
+      if (next >= BOW_TIE_SCORE_THRESHOLD)
+        unlockAchievement("dinosaurs-forever");
       if (next >= THUG_GLASSES_SCORE_THRESHOLD) unlockAchievement("score-250");
       // Also trigger cosmetic unlocks if thresholds are met.
       if (!state.unlockedPartyHat && next >= PARTY_HAT_SCORE_THRESHOLD) {
@@ -4772,7 +5045,11 @@
       state.gameOverFrame = state.frame;
       commitRunScore();
       for (const cb of GameAPI._gameOverCbs) {
-        try { cb(); } catch (e) { /* ignore */ }
+        try {
+          cb();
+        } catch (e) {
+          /* ignore */
+        }
       }
     },
 
@@ -4873,11 +5150,12 @@
     advanceMoonPhase() {
       state.totalDayCycles += 1;
       saveTotalDayCycles(state.totalDayCycles);
-      state.moonPhase = (state.totalDayCycles % 30) / 30;
+      state.moonPhase = (state.totalDayCycles % MOON_SYNODIC_CYCLE) / MOON_SYNODIC_CYCLE;
       // Jump to the start of night (band 6 of 12 = phase 0.5)
       state.smoothPhase = Math.floor(state.smoothPhase) + 0.5;
       state.lastCycleIndex = Math.floor(state.smoothPhase);
-      if (Math.abs(state.moonPhase - 0.5) < 0.02) unlockAchievement("full-moon");
+      if (Math.abs(state.moonPhase - 0.5) < 0.02)
+        unlockAchievement("full-moon");
       return state.moonPhase;
     },
 
@@ -5014,8 +5292,8 @@
               resolve();
             };
             img.src = src;
-          })
-      )
+          }),
+      ),
     );
   }
 
@@ -5075,26 +5353,11 @@
     state.careerRuns = loadCareerRuns();
     state.unlockedAchievements = loadUnlockedAchievements();
     state.unlockedPartyHat = loadBoolFlag(UNLOCKED_PARTY_HAT_KEY, false);
-    state.unlockedThugGlasses = loadBoolFlag(
-      UNLOCKED_THUG_GLASSES_KEY,
-      false
-    );
+    state.unlockedThugGlasses = loadBoolFlag(UNLOCKED_THUG_GLASSES_KEY, false);
     state.wearPartyHat = loadBoolFlag(WEAR_PARTY_HAT_KEY, true);
     state.wearThugGlasses = loadBoolFlag(WEAR_THUG_GLASSES_KEY, true);
     state.unlockedBowTie = loadBoolFlag(UNLOCKED_BOW_TIE_KEY, false);
     state.wearBowTie = loadBoolFlag(WEAR_BOW_TIE_KEY, true);
-    // Backwards-compat: earlier versions gated cosmetic unlocks
-    // on cumulative jumps. If a returning player has already
-    // banked enough jumps from that era, respect the old reward
-    // rather than asking them to re-earn it under the new rules.
-    if (!state.unlockedPartyHat && state.totalJumps >= 100) {
-      state.unlockedPartyHat = true;
-      saveBoolFlag(UNLOCKED_PARTY_HAT_KEY, true);
-    }
-    if (!state.unlockedThugGlasses && state.totalJumps >= 200) {
-      state.unlockedThugGlasses = true;
-      saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, true);
-    }
 
     onResize();
     window.addEventListener("resize", onResize);
