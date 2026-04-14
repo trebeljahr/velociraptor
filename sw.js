@@ -19,7 +19,7 @@
  * Bump CACHE_NAME to invalidate all cached content on deploy.
  */
 
-const CACHE_NAME = "raptor-runner-v3";
+const CACHE_NAME = "raptor-runner-v4";
 
 const PRECACHE = [
   "./",
@@ -43,6 +43,13 @@ const PRECACHE = [
   "./assets/cactus7.png",
   "./assets/cactus8.png",
   "./assets/music2.mp3",
+  "./assets/bow-tie.png",
+  "./assets/ufo.png",
+  "./assets/santa-sleigh.png",
+  "./assets/reindeer.png",
+  "./assets/tumbleweed.png",
+  "./assets/rain.mp3",
+  "./assets/thunder.mp3",
   "./assets/jump.mp3",
   "./assets/favicon-16.png",
   "./assets/favicon-32.png",
