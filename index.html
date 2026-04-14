@@ -208,6 +208,20 @@
       .start-raptor-stage.has-glasses .start-raptor-glasses {
         display: block;
       }
+      .start-raptor-bowtie {
+        position: absolute;
+        display: none;
+        left: 84.5%;
+        top: 33%;
+        width: 6%;
+        aspect-ratio: 400 / 206;
+        transform: translate(-50%, -50%) rotate(-8deg);
+        transform-origin: 50% 50%;
+        pointer-events: none;
+      }
+      .start-raptor-stage.has-bowtie .start-raptor-bowtie {
+        display: block;
+      }
       .start-cactus {
         position: absolute;
         bottom: calc(22vh - 4px);
@@ -1694,10 +1708,11 @@
     <!-- Game canvas — sky, ground, clouds, cacti, raptor, score text,
          and the game-over overlay are all drawn here so layering works
          correctly (raptor hides under the game-over fade, etc.). -->
-    <canvas id="game-canvas"></canvas>
+    <canvas id="game-canvas" role="img" aria-label="Raptor Runner game — jump over cacti using Space, W, Up Arrow, or tap"></canvas>
 
     <!-- Native audio elements replace the p5.sound library entirely. -->
     <audio id="game-music" src="assets/music2.mp3" preload="auto" loop></audio>
+    <audio id="rain-audio" src="assets/rain.mp3" preload="auto" loop></audio>
     <!-- Jump SFX now uses the Web Audio API (decoded in game.js)
          so it can play simultaneously with the music <audio> on
          mobile browsers that only allow one HTMLAudioElement. -->
@@ -1793,6 +1808,12 @@
         <img
           class="start-raptor-hat"
           src="assets/party-hat.png"
+          alt=""
+          aria-hidden="true"
+        />
+        <img
+          class="start-raptor-bowtie"
+          src="assets/bow-tie.png"
           alt=""
           aria-hidden="true"
         />
@@ -1944,7 +1965,7 @@
       id="score-display"
       class="score-display"
       role="status"
-      aria-live="off"
+      aria-live="polite"
       aria-label="Score: 0"
       hidden
     >
@@ -1975,7 +1996,7 @@
       id="achievement-toasts"
       class="achievement-toasts"
       aria-live="polite"
-      aria-atomic="false"
+      aria-atomic="true"
     ></div>
 
     <!-- Top-right icon cluster: sound toggle + settings cog -->
@@ -2133,7 +2154,7 @@
           ×
         </button>
         <div class="achievements-scroll">
-          <h1 class="achievements-heading">Achievements</h1>
+          <h1 class="achievements-heading" tabindex="-1">Achievements</h1>
           <p id="achievements-progress" class="achievements-progress">
             0 / 0 unlocked
           </p>
@@ -2180,7 +2201,7 @@
       aria-labelledby="menu-title"
     >
       <div class="menu-panel">
-        <h2 id="menu-title">Menu</h2>
+        <h2 id="menu-title" tabindex="-1">Menu</h2>
         <p id="menu-highscore" class="menu-highscore" hidden>
           ★ Personal best: <span id="menu-highscore-value">0</span>
         </p>
@@ -2233,28 +2254,79 @@
           <li class="debug-only in-game-only">
             <button id="menu-hitboxes-toggle" class="menu-item" type="button">
               <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <rect
-                    x="3"
-                    y="3"
-                    width="18"
-                    height="18"
-                    rx="2"
-                    ry="2"
-                    stroke-dasharray="3 3"
-                  ></rect>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-dasharray="3 3"></rect>
                 </svg>
                 <span id="menu-hitboxes-label">Hitboxes: on</span>
               </span>
+            </button>
+          </li>
+          <li class="debug-only in-game-only">
+            <button id="menu-rain-toggle" class="menu-item" type="button">
+              <span class="inner">🌧️ <span id="menu-rain-label">Toggle Rain</span></span>
+            </button>
+          </li>
+          <li class="debug-only in-game-only">
+            <button id="menu-nocollisions-toggle" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                </svg>
+                <span id="menu-nocollisions-label">Collisions: on</span>
+              </span>
+            </button>
+          </li>
+          <li class="debug-only in-game-only">
+            <button id="menu-perf-toggle" class="menu-item" type="button">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                <span id="menu-perf-label">Perf overlay: on</span>
+              </span>
+            </button>
+          </li>
+          <li class="debug-only in-game-only menu-score-editor">
+            <label class="menu-item menu-score-editor-label" for="menu-score-input">
+              <span class="inner">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 20h9"></path>
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                </svg>
+                <span>Score</span>
+                <input id="menu-score-input" type="number" min="0" step="1" value="0" class="menu-score-input" />
+              </span>
+            </label>
+          </li>
+          <li class="debug-only in-game-only">
+            <button id="menu-event-ufo" class="menu-item" type="button">
+              <span class="inner">🛸 <span>Trigger UFO</span></span>
+            </button>
+          </li>
+          <li class="debug-only in-game-only">
+            <button id="menu-event-santa" class="menu-item" type="button">
+              <span class="inner">🎅 <span>Trigger Santa</span></span>
+            </button>
+          </li>
+          <li class="debug-only in-game-only">
+            <button id="menu-event-tumbleweed" class="menu-item" type="button">
+              <span class="inner">🌾 <span>Trigger Tumbleweed</span></span>
+            </button>
+          </li>
+          <li class="debug-only in-game-only">
+            <button id="menu-event-comet" class="menu-item" type="button">
+              <span class="inner">☄️ <span>Trigger Comet</span></span>
+            </button>
+          </li>
+          <li class="debug-only in-game-only">
+            <button id="menu-event-meteor" class="menu-item" type="button">
+              <span class="inner">💥 <span>Trigger Meteor</span></span>
+            </button>
+          </li>
+          <li class="debug-only in-game-only">
+            <button id="menu-advance-moon" class="menu-item" type="button">
+              <span class="inner">🌙 <span>Advance Moon Phase</span></span>
             </button>
           </li>
           <li id="menu-partyhat-li" hidden>
@@ -2298,38 +2370,17 @@
               </span>
             </button>
           </li>
-          <li class="debug-only in-game-only menu-score-editor">
-            <label
-              class="menu-item menu-score-editor-label"
-              for="menu-score-input"
-            >
+          <li id="menu-bowtie-li" hidden>
+            <button id="menu-bowtie-toggle" class="menu-item" type="button">
               <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M12 20h9"></path>
-                  <path
-                    d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"
-                  ></path>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 8l8 4-8 4V8z"></path>
+                  <path d="M20 8l-8 4 8 4V8z"></path>
+                  <rect x="10" y="10" width="4" height="4" rx="1" fill="currentColor"></rect>
                 </svg>
-                <span>Score</span>
-                <input
-                  id="menu-score-input"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value="0"
-                  class="menu-score-input"
-                />
+                <span id="menu-bowtie-label">Bow tie: off</span>
               </span>
-            </label>
+            </button>
           </li>
           <li class="in-game-only">
             <button id="menu-home" class="menu-item" type="button">
@@ -2578,6 +2629,22 @@
           // Initial sync of the start-screen raptor cosmetics with
           // whatever the player has unlocked + toggled on.
           refreshStartRaptorCosmetics();
+          // Sync the sound button with the actual mute state now
+          // that the Game API is fully loaded.
+          refreshSoundUI();
+
+          // If the user previously chose to have sound on, try to
+          // start music immediately. Browsers may block autoplay
+          // without a user gesture — that's fine, the first click
+          // anywhere will unlock it via the interaction handlers.
+          if (
+            window.Game.hasSavedMutePreference &&
+            window.Game.hasSavedMutePreference() &&
+            !window.Game.isMuted()
+          ) {
+            // Re-apply the unmuted state to trigger music.play()
+            window.Game.setMuted(false);
+          }
         }
         // The game.js module calls Game.onReady(cb) when assets are loaded.
         // Guard in case the game script hasn't parsed yet.
@@ -2641,10 +2708,12 @@
         function startGame() {
           if (!assetsReady || window.Game.isStarted()) return;
           // The click/keypress is a user gesture — unlock the Web Audio
-          // context so jump SFX works, but do NOT change the mute state.
-          // The user's preference (or the default "muted") is already
-          // applied from loadSavedMuted() at init time.
-          window.Game.unlockAudio();
+          // context and re-apply the mute state so music starts if
+          // the user previously chose to have sound on.
+          if (window.Game.unlockAudio) window.Game.unlockAudio();
+          if (window.Game.setMuted) {
+            window.Game.setMuted(window.Game.isMuted());
+          }
           refreshSoundUI();
           // Hide the start screen first, then tell the game to run.
           startScreen.classList.add("hidden");
@@ -2756,19 +2825,28 @@
             const li = document.createElement("li");
             li.className =
               "achievement-item " + (a.unlocked ? "unlocked" : "locked");
+            const isHidden = a.secret && !a.unlocked;
             const iconDiv = document.createElement("div");
             iconDiv.className = "icon";
-            iconDiv.appendChild(buildAchievementIconNode(a));
+            if (isHidden) {
+              // Show a "?" icon for undiscovered secrets
+              const qSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+              qSvg.setAttribute("viewBox", "0 0 24 24");
+              qSvg.innerHTML = '<text x="12" y="17" text-anchor="middle" font-size="16" fill="#aaa">?</text>';
+              iconDiv.appendChild(qSvg);
+            } else {
+              iconDiv.appendChild(buildAchievementIconNode(a));
+            }
             li.appendChild(iconDiv);
 
             const body = document.createElement("div");
             body.className = "body";
             const title = document.createElement("div");
             title.className = "title";
-            title.textContent = a.title;
+            title.textContent = isHidden ? "???" : a.title;
             const desc = document.createElement("div");
             desc.className = "desc";
-            desc.textContent = a.desc;
+            desc.textContent = isHidden ? "Keep playing to discover this secret..." : a.desc;
             body.appendChild(title);
             body.appendChild(desc);
             li.appendChild(body);
@@ -2782,14 +2860,23 @@
         }
 
         function openAchievements() {
+          _achievementsPriorFocus = document.activeElement;
           renderAchievementsList();
           if (achievementsOverlay) achievementsOverlay.classList.add("open");
+          // Move focus into the achievements panel.
+          const heading = achievementsOverlay &&
+            achievementsOverlay.querySelector(".achievements-heading");
+          if (heading) heading.focus();
           if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
             window.Game.pause();
           }
         }
         function closeAchievements() {
           if (achievementsOverlay) achievementsOverlay.classList.remove("open");
+          if (_achievementsPriorFocus && typeof _achievementsPriorFocus.focus === "function") {
+            _achievementsPriorFocus.focus();
+            _achievementsPriorFocus = null;
+          }
           if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
             window.Game.resume();
           }
@@ -2825,35 +2912,40 @@
           }
           // Per-channel labels in the menu
           if (menuMusicLabel) {
-            menuMusicLabel.textContent = "Music: " + (window.Game && window.Game.isMusicMuted() ? "off" : "on");
+            const musicOff = window.Game && window.Game.isMusicMuted && window.Game.isMusicMuted();
+            menuMusicLabel.textContent = "Music: " + (musicOff ? "off" : "on");
           }
           if (menuJumpLabel) {
-            menuJumpLabel.textContent = "Jump sound: " + (window.Game && window.Game.isJumpMuted() ? "off" : "on");
+            const jumpOff = window.Game && window.Game.isJumpMuted && window.Game.isJumpMuted();
+            menuJumpLabel.textContent = "Jump sound: " + (jumpOff ? "off" : "on");
           }
         }
 
         function toggleSound() {
+          if (!window.Game || !window.Game.setMuted) return;
+          // Ensure Web Audio context is unlocked on this user gesture
+          if (window.Game.unlockAudio) window.Game.unlockAudio();
           window.Game.setMuted(!window.Game.isMuted());
           refreshSoundUI();
         }
 
         if (menuSoundToggle) {
           menuSoundToggle.addEventListener("click", () => {
-            if (!window.Game) return;
+            if (!window.Game || !window.Game.setMuted) return;
             window.Game.setMuted(!window.Game.isMuted());
             refreshSoundUI();
           });
         }
         if (menuMusicToggle) {
           menuMusicToggle.addEventListener("click", () => {
-            if (!window.Game) return;
+            if (!window.Game || !window.Game.setMusicMuted) return;
             window.Game.setMusicMuted(!window.Game.isMusicMuted());
             refreshSoundUI();
           });
         }
         if (menuJumpToggle) {
           menuJumpToggle.addEventListener("click", () => {
-            if (!window.Game) return;
+            if (!window.Game || !window.Game.setJumpMuted) return;
             window.Game.setJumpMuted(!window.Game.isJumpMuted());
             refreshSoundUI();
           });
@@ -2933,11 +3025,20 @@
           }
         }
 
+        // Track the element that had focus before an overlay opened,
+        // so we can restore it when the overlay closes.
+        let _menuPriorFocus = null;
+        let _achievementsPriorFocus = null;
+
         function openMenu() {
+          _menuPriorFocus = document.activeElement;
           overlay.classList.add("open");
           cog.setAttribute("aria-expanded", "true");
           refreshSoundUI();
           refreshHitboxesUI();
+          refreshRainUI();
+          refreshNoCollisionsUI();
+          refreshPerfUI();
           refreshEasterEggUI();
           refreshScoreEditor();
           refreshMenuHighscore();
@@ -2956,6 +3057,9 @@
               panel.classList.add("pre-game");
             }
           }
+          // Move focus into the menu for keyboard/screen-reader users.
+          const menuTitle = document.getElementById("menu-title");
+          if (menuTitle) menuTitle.focus();
           // Only pause an already-running game. Before the player
           // has hit Start Game, there's nothing to pause.
           if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
@@ -2966,6 +3070,11 @@
         function closeMenu() {
           overlay.classList.remove("open");
           cog.setAttribute("aria-expanded", "false");
+          // Restore focus to the element that opened the menu.
+          if (_menuPriorFocus && typeof _menuPriorFocus.focus === "function") {
+            _menuPriorFocus.focus();
+            _menuPriorFocus = null;
+          }
           // Only resume if the player is actually in a started game.
           // Before Start Game, there's nothing to resume — the rAF
           // loop still renders the start screen behind the menu.
@@ -3093,6 +3202,96 @@
           });
         }
 
+        // ───────── Debug: rain toggle ─────────
+        const rainBtn = document.getElementById("menu-rain-toggle");
+        const rainLabel = document.getElementById("menu-rain-label");
+
+        function refreshRainUI() {
+          if (!rainLabel || !window.Game || !window.Game.isRaining) return;
+          rainLabel.textContent = window.Game.isRaining()
+            ? "Rain: on"
+            : "Rain: off";
+        }
+
+        if (rainBtn) {
+          rainBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (window.Game && window.Game.toggleRain) {
+              window.Game.toggleRain();
+              closeMenu();
+            }
+          });
+        }
+
+        // ───────── Debug: no-collisions toggle ─────────
+        const noCollBtn = document.getElementById("menu-nocollisions-toggle");
+        const noCollLabel = document.getElementById("menu-nocollisions-label");
+
+        function refreshNoCollisionsUI() {
+          if (!noCollLabel || !window.Game || !window.Game.isNoCollisions) return;
+          noCollLabel.textContent = window.Game.isNoCollisions()
+            ? "Collisions: off"
+            : "Collisions: on";
+        }
+
+        if (noCollBtn) {
+          noCollBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (window.Game && window.Game.toggleNoCollisions) {
+              window.Game.toggleNoCollisions();
+              refreshNoCollisionsUI();
+            }
+          });
+        }
+
+        // ───────── Debug: perf overlay toggle ─────────
+        const perfBtn = document.getElementById("menu-perf-toggle");
+        const perfLabel = document.getElementById("menu-perf-label");
+
+        function refreshPerfUI() {
+          if (!perfLabel || !window.Game || !window.Game.isPerfOverlay) return;
+          perfLabel.textContent = window.Game.isPerfOverlay()
+            ? "Perf overlay: on"
+            : "Perf overlay: off";
+        }
+
+        if (perfBtn) {
+          perfBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (window.Game && window.Game.togglePerfOverlay) {
+              window.Game.togglePerfOverlay();
+              refreshPerfUI();
+            }
+          });
+        }
+
+        // ───────── Debug: rare event triggers ─────────
+        const eventIds = ["ufo", "santa", "tumbleweed", "comet", "meteor"];
+        for (const eid of eventIds) {
+          const btn = document.getElementById("menu-event-" + eid);
+          if (btn) {
+            btn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              if (window.Game && window.Game.triggerEvent) {
+                window.Game.triggerEvent(eid);
+                closeMenu();
+              }
+            });
+          }
+        }
+
+        // Debug: advance moon phase
+        const moonBtn = document.getElementById("menu-advance-moon");
+        if (moonBtn) {
+          moonBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (window.Game && window.Game.advanceMoonPhase) {
+              window.Game.advanceMoonPhase();
+              closeMenu();
+            }
+          });
+        }
+
         // ───────── Accessory toggles (party hat / thug glasses) ─────────
         // Both entries are hidden in the markup by default and only
         // shown once the player actually unlocks them — or always in
@@ -3103,6 +3302,9 @@
         const thugLi = document.getElementById("menu-thug-li");
         const thugBtn = document.getElementById("menu-thug-toggle");
         const thugLabel = document.getElementById("menu-thug-label");
+        const bowTieLi = document.getElementById("menu-bowtie-li");
+        const bowTieBtn = document.getElementById("menu-bowtie-toggle");
+        const bowTieLabel = document.getElementById("menu-bowtie-label");
         const jumpsResetBtn = document.getElementById("menu-jumpsreset-toggle");
 
         // Start-screen raptor stage — we flip classes on it to
@@ -3115,8 +3317,11 @@
           const glasses =
             window.Game.isThugGlassesActive &&
             window.Game.isThugGlassesActive();
+          const bowtie =
+            window.Game.isBowTieActive && window.Game.isBowTieActive();
           startRaptorStage.classList.toggle("has-hat", !!hat);
           startRaptorStage.classList.toggle("has-glasses", !!glasses);
+          startRaptorStage.classList.toggle("has-bowtie", !!bowtie);
         }
 
         function refreshEasterEggUI() {
@@ -3138,6 +3343,15 @@
               ? "Thug glasses: on"
               : "Thug glasses: off";
           }
+          const bowTieUnlocked =
+            window.Game.isBowTieUnlocked && window.Game.isBowTieUnlocked();
+          if (bowTieLi) bowTieLi.hidden = !bowTieUnlocked;
+          if (bowTieLabel) {
+            bowTieLabel.textContent =
+              window.Game.isBowTieActive && window.Game.isBowTieActive()
+                ? "Bow tie: on"
+                : "Bow tie: off";
+          }
           // Keep the start-screen raptor in sync so toggles update
           // live even if the panel is under a transparent menu.
           refreshStartRaptorCosmetics();
@@ -3154,6 +3368,13 @@
           thugBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             window.Game.toggleThugGlasses();
+            refreshEasterEggUI();
+          });
+        }
+        if (bowTieBtn) {
+          bowTieBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (window.Game.toggleBowTie) window.Game.toggleBowTie();
             refreshEasterEggUI();
           });
         }
@@ -3360,7 +3581,10 @@
           body.className = "achievement-toast-body";
           const kicker = document.createElement("div");
           kicker.className = "achievement-toast-kicker";
-          kicker.textContent = "Achievement Unlocked";
+          // Show n/m counter
+          const allAch = window.Game.getAchievements ? window.Game.getAchievements() : [];
+          const unlocked = allAch.filter((a) => a.unlocked).length;
+          kicker.textContent = `Achievement Unlocked (${unlocked}/${allAch.length})`;
           const title = document.createElement("div");
           title.className = "achievement-toast-title";
           title.textContent = ach.title;
