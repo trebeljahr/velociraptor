@@ -33,7 +33,7 @@
 
   const INITIAL_BG_VELOCITY = 7;
   const GRAVITY = 0.1;
-  const JUMP_CLEARANCE_MULTIPLIER = 1.5;
+  const JUMP_CLEARANCE_MULTIPLIER = 1.65;
   const SKY_CYCLE_SCORE = 60;
   const SKY_UPDATE_INTERVAL_FRAMES = 10;
 
@@ -55,7 +55,8 @@
   // skill — a player can pad their jump count by tapping in place,
   // but they can't fake clearing actual obstacles.
   const PARTY_HAT_SCORE_THRESHOLD = 100;
-  const THUG_GLASSES_SCORE_THRESHOLD = 200;
+  const THUG_GLASSES_SCORE_THRESHOLD = 500;
+  const BOW_TIE_SCORE_THRESHOLD = 200;
   // Per-accessory unlock + wear flags in localStorage. "unlocked"
   // is a sticky bit set when the player first crosses the jump
   // threshold; "wear" is the player's current on/off cosmetic
@@ -65,11 +66,15 @@
   const UNLOCKED_THUG_GLASSES_KEY = "raptor-runner:unlocked:thugGlasses";
   const WEAR_PARTY_HAT_KEY = "raptor-runner:wear:partyHat";
   const WEAR_THUG_GLASSES_KEY = "raptor-runner:wear:thugGlasses";
+  const UNLOCKED_BOW_TIE_KEY = "raptor-runner:unlocked:bowTie";
+  const WEAR_BOW_TIE_KEY = "raptor-runner:wear:bowTie";
   // Career-wide run counter + unlocked achievement IDs live
   // under their own keys so storage is namespaced and easy to
   // wipe independently of the jump / mute preferences.
   const CAREER_RUNS_KEY = "raptor-runner:careerRuns";
   const ACHIEVEMENTS_KEY = "raptor-runner:achievements";
+  const TOTAL_DAY_CYCLES_KEY = "raptor-runner:totalDayCycles";
+  const RARE_EVENTS_SEEN_KEY = "raptor-runner:rareEventsSeen";
 
   // ── Achievement catalog ────────────────────────────────────
   // Each entry carries a stable `id` (used for storage), a
@@ -132,21 +137,13 @@
       id: "dinosaurs-forever",
       title: "Dinosaurs Forever",
       desc: "Score 200 points in a single run",
-      // The actual thug-glasses cosmetic sprite.
-      iconImage: "assets/thug-glasses.png",
+      iconImage: "assets/bow-tie.png",
     },
     {
       id: "score-250",
       title: "Raptor Legend",
       desc: "Score 500 points in a single run",
-      // Trophy with a star in the cup.
-      iconHTML:
-        '<path d="M9 20h6v1.5H9z" fill="#7a4a00"/>' +
-        '<path d="M10.5 17h3l.4 3h-3.8z" fill="#c78a12"/>' +
-        '<path d="M7 4h10v5a5 5 0 0 1-10 0V4z" fill="#f7d148" stroke="#c78a12" stroke-width="1"/>' +
-        '<path d="M7 5H5a1 1 0 0 0-1 1v1a3 3 0 0 0 3 3h.4" fill="none" stroke="#c78a12" stroke-width="1.2"/>' +
-        '<path d="M17 5h2a1 1 0 0 1 1 1v1a3 3 0 0 1-3 3h-.4" fill="none" stroke="#c78a12" stroke-width="1.2"/>' +
-        '<path d="M12 5.2l.9 1.9 2.1.3-1.5 1.5.3 2.1-1.8-1-1.8 1 .3-2.1L9 7.4l2.1-.3z" fill="#ffffff"/>',
+      iconImage: "assets/thug-glasses.png",
     },
     {
       id: "first-night",
@@ -229,6 +226,78 @@
         '<path d="M10 8L6 11H3v4h3l4 3V8z" fill="#6d7580" stroke="#333" stroke-width="0.8" stroke-linejoin="round"/>' +
         '<line x1="14" y1="9" x2="20" y2="17" stroke="#e53935" stroke-width="2.2" stroke-linecap="round"/>' +
         '<line x1="20" y1="9" x2="14" y2="17" stroke="#e53935" stroke-width="2.2" stroke-linecap="round"/>',
+    },
+    {
+      id: "rainy-day",
+      title: "Rainy Day",
+      desc: "Survive a rainstorm",
+      iconHTML:
+        '<path d="M6 10a4 4 0 0 1 7.9-.8A3.5 3.5 0 1 1 17.5 14H6a3 3 0 0 1 0-6z" fill="#90a4ae" stroke="#546e7a" stroke-width="0.8"/>' +
+        '<line x1="8" y1="17" x2="7" y2="21" stroke="#42a5f5" stroke-width="1.5" stroke-linecap="round"/>' +
+        '<line x1="12" y1="17" x2="11" y2="21" stroke="#42a5f5" stroke-width="1.5" stroke-linecap="round"/>' +
+        '<line x1="16" y1="17" x2="15" y2="21" stroke="#42a5f5" stroke-width="1.5" stroke-linecap="round"/>',
+    },
+    {
+      id: "rainbow",
+      title: "Over the Rainbow",
+      desc: "See a rainbow after a storm",
+      iconHTML:
+        '<path d="M4 18a8 8 0 0 1 16 0" fill="none" stroke="#e53935" stroke-width="1.2"/>' +
+        '<path d="M5 18a7 7 0 0 1 14 0" fill="none" stroke="#ff9800" stroke-width="1.2"/>' +
+        '<path d="M6 18a6 6 0 0 1 12 0" fill="none" stroke="#fdd835" stroke-width="1.2"/>' +
+        '<path d="M7 18a5 5 0 0 1 10 0" fill="none" stroke="#4caf50" stroke-width="1.2"/>' +
+        '<path d="M8 18a4 4 0 0 1 8 0" fill="none" stroke="#2196f3" stroke-width="1.2"/>' +
+        '<path d="M9 18a3 3 0 0 1 6 0" fill="none" stroke="#7b1fa2" stroke-width="1.2"/>',
+    },
+    // Secret achievements — rare background easter eggs
+    {
+      id: "full-moon",
+      title: "Lunar Glory",
+      desc: "Witness a full moon",
+      secret: true,
+      iconHTML:
+        '<circle cx="12" cy="12" r="8" fill="#f0e8c0" stroke="#c8b888" stroke-width="0.8"/>',
+    },
+    {
+      id: "ufo-sighting",
+      title: "We Are Not Alone",
+      desc: "Witness a UFO landing",
+      secret: true,
+      iconImage: "assets/ufo.png",
+    },
+    {
+      id: "santa-spotted",
+      title: "Jurassic Christmas",
+      desc: "Spot Santa crossing the night sky",
+      secret: true,
+      iconImage: "assets/santa-sleigh.png",
+    },
+    {
+      id: "tumbleweed",
+      title: "Desert Drifter",
+      desc: "See a tumbleweed roll by",
+      secret: true,
+      iconImage: "assets/tumbleweed.png",
+    },
+    {
+      id: "comet",
+      title: "Wish Upon a Comet",
+      desc: "See a comet cross the night sky",
+      secret: true,
+      iconHTML:
+        '<circle cx="8" cy="12" r="3" fill="#fffae0"/>' +
+        '<line x1="11" y1="11" x2="22" y2="8" stroke="#fffae0" stroke-width="1.5" stroke-linecap="round"/>' +
+        '<line x1="10" y1="13" x2="20" y2="12" stroke="rgba(255,250,200,0.4)" stroke-width="1"/>',
+    },
+    {
+      id: "meteor-impact",
+      title: "Extinction Event",
+      desc: "Witness a meteor impact",
+      secret: true,
+      iconHTML:
+        '<circle cx="12" cy="10" r="3" fill="#ffc864"/>' +
+        '<path d="M12 13L8 20h8z" fill="#ff8c00" opacity="0.6"/>' +
+        '<line x1="15" y1="8" x2="20" y2="4" stroke="#ffa040" stroke-width="1.5"/>',
     },
   ];
   const ACHIEVEMENTS_BY_ID = Object.create(null);
@@ -472,10 +541,43 @@
     [220, 90, 120],  // 11 magenta-pink (sunrise)
   ];
 
+  // Night detection derived from SKY_COLORS so it adapts
+  // automatically if bands are added, removed, or reordered.
+  const NIGHT_COLOR = [21, 34, 56];
+  const _isNightBand = SKY_COLORS.map(
+    (c) => c[0] === NIGHT_COLOR[0] && c[1] === NIGHT_COLOR[1] && c[2] === NIGHT_COLOR[2]
+  );
+  /** True when bandIndex (+ fractional bandT) is in the dark zone:
+   *  solid-night bands, plus the dark half of each adjacent twilight. */
+  function isNightPhase(bandIndex, bandT) {
+    if (_isNightBand[bandIndex]) return true;
+    // Transitioning INTO night (next band is night): dark half = bandT > 0.5
+    const next = (bandIndex + 1) % SKY_COLORS.length;
+    if (_isNightBand[next] && bandT > 0.5) return true;
+    // Transitioning OUT OF night (prev band is night): dark half = bandT < 0.5
+    const prev = (bandIndex - 1 + SKY_COLORS.length) % SKY_COLORS.length;
+    if (_isNightBand[prev] && bandT < 0.5) return true;
+    return false;
+  }
+  // Daytime band indices (for night-survival tracking: count the
+  // night as survived once the sky is solidly in a day band).
+  const _isDayBand = _isNightBand.map((night, i) => {
+    if (night) return false;
+    // Exclude twilight/transition bands (adjacent to a night band).
+    const prev = (i - 1 + SKY_COLORS.length) % SKY_COLORS.length;
+    const next = (i + 1) % SKY_COLORS.length;
+    return !_isNightBand[prev] && !_isNightBand[next];
+  });
+
   const IMAGE_SRCS = {
     raptorSheet: "assets/raptor-sheet.png",
     partyHat: "assets/party-hat.png",
     thugGlasses: "assets/thug-glasses.png",
+    bowTie: "assets/bow-tie.png",
+    ufo: "assets/ufo.png",
+    santaSleigh: "assets/santa-sleigh.png",
+    reindeer: "assets/reindeer.png",
+    tumbleweed: "assets/tumbleweed.png",
   };
   for (const v of CACTUS_VARIANTS) IMAGE_SRCS[v.key] = `assets/${v.key}.png`;
   const IMAGES = {};
@@ -659,6 +761,8 @@
       // (required by autoplay policy), but we fetch + decode the
       // file eagerly so the first jump has zero latency.
       this._preloadJumpBuffer();
+      this._preloadThunderBuffer();
+      this.initRain();
     },
 
     _loadChannelPrefs() {
@@ -725,6 +829,7 @@
       if (!this.music) return;
       if (this.muted || this.musicMuted) {
         this.music.pause();
+        if (this.rain && this._isRainPlaying) this.rain.pause();
       } else {
         // Resume the Web Audio context on the first unmute — mobile
         // browsers suspend it until a user gesture unblocks it.
@@ -737,6 +842,11 @@
         // user interaction will succeed.
         const p = this.music.play();
         if (p && typeof p.catch === "function") p.catch(() => {});
+        // Resume rain if it was playing
+        if (this.rain && this._isRainPlaying) {
+          const rp = this.rain.play();
+          if (rp && typeof rp.catch === "function") rp.catch(() => {});
+        }
       }
     },
 
@@ -800,9 +910,14 @@
       if (!this.music || this.muted) return;
       if (this.musicMuted) {
         this.music.pause();
+        if (this.rain && this._isRainPlaying) this.rain.pause();
       } else {
         const p = this.music.play();
         if (p && typeof p.catch === "function") p.catch(() => {});
+        if (this.rain && this._isRainPlaying) {
+          const rp = this.rain.play();
+          if (rp && typeof rp.catch === "function") rp.catch(() => {});
+        }
       }
     },
 
@@ -811,6 +926,68 @@
       try {
         window.localStorage.setItem(JUMP_MUTED_KEY, this.jumpMuted ? "1" : "0");
       } catch (e) { /* ignored */ }
+    },
+
+    // ── Rain ambience (file-based <audio> element) ──────────────
+    rain: null,
+    _isRainPlaying: false,
+
+    initRain() {
+      this.rain = document.getElementById("rain-audio");
+      if (this.rain) {
+        this.rain.volume = 0.2;
+        this.rain.loop = true;
+      }
+    },
+
+    startRain() {
+      if (this._isRainPlaying) return;
+      if (this.muted || this.musicMuted) return;
+      if (!this.rain) return;
+      const p = this.rain.play();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+      this._isRainPlaying = true;
+    },
+
+    stopRain() {
+      if (!this._isRainPlaying) return;
+      if (this.rain) this.rain.pause();
+      this._isRainPlaying = false;
+    },
+
+    _thunderBuffer: null,
+
+    _preloadThunderBuffer() {
+      if (typeof AudioContext === "undefined" &&
+          typeof webkitAudioContext === "undefined") return;
+      fetch("assets/thunder.mp3")
+        .then((r) => r.arrayBuffer())
+        .then((buf) => {
+          this._ensureAudioCtx();
+          if (!this._audioCtx) return;
+          return this._audioCtx.decodeAudioData(buf);
+        })
+        .then((decoded) => {
+          if (decoded) this._thunderBuffer = decoded;
+        })
+        .catch(() => { /* thunder SFX simply won't play */ });
+    },
+
+    playThunder() {
+      if (this.muted || this.musicMuted) return;
+      if (!this._audioCtx || !this._thunderBuffer) return;
+      if (this._audioCtx.state === "suspended") {
+        this._audioCtx.resume().catch(() => {});
+      }
+      try {
+        const src = this._audioCtx.createBufferSource();
+        src.buffer = this._thunderBuffer;
+        const gain = this._audioCtx.createGain();
+        gain.gain.value = 0.5;
+        src.connect(gain);
+        gain.connect(this._audioCtx.destination);
+        src.start(0);
+      } catch (e) { /* non-critical */ }
     },
   };
 
@@ -897,6 +1074,8 @@
     wearPartyHat: true,
     unlockedThugGlasses: false,
     wearThugGlasses: true,
+    unlockedBowTie: false,
+    wearBowTie: true,
     // Active shooting-star flashes. Each entry is {x, y, vx, vy,
     // age, life}. Populated only from the second night onward so
     // the first night feels clean and the easter egg reads as a
@@ -906,12 +1085,29 @@
     // unlocks so the moment reads as a celebration. Drawn over
     // the foreground tint so the colors pop at any time of day.
     confetti: [],
+    dust: [],
+    ash: [],
+    activeRareEvent: null,
+    _rareEventsSeen: {},
+    moonPhase: 0, // 0-1, advances each night cycle
     clouds: [],
+    duneOffset: 0,
+    // Rain weather
+    totalDayCycles: 0,
+    lastCycleIndex: -1,
+    isRaining: false,
+    rainIntensity: 0,
+    rainEndPhase: 0,
+    rainParticles: [],
+    lightning: { alpha: 0, nextAt: 0 },
+    rainbow: null,
+    _cloudDensity: 1,
     // Debug mode — toggled on by `?debug=true` query param. When on,
     // the menu grows a "Show hitboxes" toggle and the game draws the
     // raptor and cactus collision polygons on top of everything.
     debug: false,
     showHitboxes: false,
+    noCollisions: false,
   };
 
   let canvas, ctx;
@@ -928,6 +1124,7 @@
   // card literally shows the scene the player just died in.
   let deathCanvas, deathCtx;
   let deathSnapshotReady = false;
+  let _rafId = 0;
   let raptor, cactuses, stars;
 
   // ══════════════════════════════════════════════════════════════════
@@ -946,6 +1143,8 @@
       // rather than each time the collision code asks for it, and
       // reused across the two callsites (collision test + debug draw).
       this._polyCache = null;
+      this._jumpBufferedAt = 0;
+      this._wasAirborne = false;
       this.resize();
     }
 
@@ -968,26 +1167,20 @@
     }
 
     jump() {
-      if (this.y !== this.ground || state.gameOver) return;
+      if (this.y !== this.ground || state.gameOver) return false;
       const targetRise = this.h * JUMP_CLEARANCE_MULTIPLIER;
       const a = this.downwardAcceleration;
       const v = Math.sqrt(2 * a * targetRise);
       this.velocity = -v;
+      this._jumpBufferedAt = 0;
       audio.playJump();
+      if (!audio.muted && navigator.vibrate) navigator.vibrate(15);
       // Bump both the career-wide total and the per-run counter.
       state.totalJumps += 1;
       state.runJumps += 1;
       saveTotalJumps(state.totalJumps);
-      // Count a jump over a cactus as a "first jump" achievement
-      // — the player has clearly worked out the controls once
-      // they've pushed space even once.
-      // "Up And Over" used to fire here on the first jump press,
-      // but now fires from the score-++ branch when the first
-      // cactus is actually cleared — feels earned, not premature.
-      // Cosmetic unlocks no longer live here — they're triggered
-      // in the score-++ branch inside Cactuses.update(), so the
-      // player has to actually clear cacti rather than padding
-      // their jump count.
+      maybeSpawnRareEvent();
+      return true;
     }
 
     /**
@@ -1010,9 +1203,24 @@
       // jump velocity are already in "pixels per 60fps-frame" units.
       this.velocity += this.downwardAcceleration * frameScale;
       this.y += this.velocity * frameScale;
+      if (this.y < this.ground) {
+        this._wasAirborne = true;
+      }
       if (this.y > this.ground) {
         this.y = this.ground;
         this.velocity = 0;
+        if (this._wasAirborne) {
+          spawnDust(this.x + this.w * 0.51, state.ground);
+          spawnDust(this.x + this.w * 0.73, state.ground);
+          this._wasAirborne = false;
+        }
+        // Input buffer: if the player pressed jump while airborne
+        // (within 100ms), fire the jump now that we've landed.
+        if (this._jumpBufferedAt &&
+            now - this._jumpBufferedAt < 100) {
+          this.jump();
+        }
+        this._jumpBufferedAt = 0;
       }
 
       // Frame animation: running while on the ground, locked to the
@@ -1054,6 +1262,9 @@
       }
       if (state.unlockedPartyHat && state.wearPartyHat) {
         this.drawPartyHat(ctx);
+      }
+      if (state.unlockedBowTie && state.wearBowTie) {
+        this.drawBowTie(ctx);
       }
     }
 
@@ -1142,6 +1353,24 @@
       // Draw the sprite so its bottom-center is at the anchor: the
       // base of the hat sits on the crown and the tip extends up.
       ctx.drawImage(sprite, -hatW / 2, -hatH, hatW, hatH);
+      ctx.restore();
+    }
+
+    drawBowTie(ctx) {
+      const sprite = IMAGES.bowTie;
+      if (!sprite) return;
+      const crown = this.currentCrownPoint();
+      // The neck is below and behind the crown — offset downward
+      // and slightly toward the body center.
+      const neckX = crown.x - this.w * 0.02;
+      const neckY = crown.y + this.h * 0.20;
+      // Bow tie ~6% of raptor width, aspect ratio from source.
+      const btW = this.w * 0.06;
+      const btH = btW * (sprite.height / sprite.width);
+      ctx.save();
+      ctx.translate(neckX, neckY);
+      ctx.rotate(-0.15); // slight CCW tilt to match body angle
+      ctx.drawImage(sprite, -btW / 2, -btH / 2, btW, btH);
       ctx.restore();
     }
 
@@ -1242,10 +1471,8 @@
       if (this.img)
         ctx.drawImage(
           this.img,
-          Math.round(this.x),
-          Math.round(this.y),
-          Math.round(this.w),
-          Math.round(this.h)
+          Math.round(this.x), Math.round(this.y),
+          Math.round(this.w), Math.round(this.h)
         );
     }
   }
@@ -1256,7 +1483,11 @@
     }
 
     get minSpawnDistance() {
-      return raptor.w * 1.5 + Math.floor(Math.random() * raptor.w * 10);
+      // At higher speeds, increase the minimum gap so tight doubles
+      // don't appear — keeps the game humanly playable.
+      const speedFactor = Math.max(1, state.bgVelocity / INITIAL_BG_VELOCITY);
+      const minGap = raptor.w * (1.5 + speedFactor * 0.3);
+      return minGap + Math.floor(Math.random() * raptor.w * 10);
     }
 
     spawn() {
@@ -1271,7 +1502,7 @@
         this.spawn();
       } else if (state.width - last.x >= this.minSpawnDistance) {
         this.spawn();
-        state.bgVelocity += 0.1;
+        state.bgVelocity = Math.min(state.bgVelocity + 0.1, 17);
       }
 
       for (const c of this.cacti) c.update(frameScale);
@@ -1283,8 +1514,8 @@
           if (state.score === 1) unlockAchievement("first-jump");
           if (state.score === 25) unlockAchievement("score-25");
           if (state.score === 100) unlockAchievement("party-time");
-          if (state.score === 200) unlockAchievement("dinosaurs-forever");
-          if (state.score === 500) unlockAchievement("score-250");
+          if (state.score === BOW_TIE_SCORE_THRESHOLD) unlockAchievement("dinosaurs-forever");
+          if (state.score === THUG_GLASSES_SCORE_THRESHOLD) unlockAchievement("score-250");
           // Cosmetic unlocks — party hat at 100 points, thug
           // glasses at 200. Both fire at most once per save and
           // burst a little confetti off the raptor's head so the
@@ -1313,6 +1544,19 @@
             state.wearThugGlasses = true;
             saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, true);
             saveBoolFlag(WEAR_THUG_GLASSES_KEY, true);
+            if (raptor) {
+              const crown = raptor.currentCrownPoint();
+              spawnConfettiBurst(crown.x, crown.y);
+            }
+          }
+          if (
+            !state.unlockedBowTie &&
+            state.score >= BOW_TIE_SCORE_THRESHOLD
+          ) {
+            state.unlockedBowTie = true;
+            state.wearBowTie = true;
+            saveBoolFlag(UNLOCKED_BOW_TIE_KEY, true);
+            saveBoolFlag(WEAR_BOW_TIE_KEY, true);
             if (raptor) {
               const crown = raptor.currentCrownPoint();
               spawnConfettiBurst(crown.x, crown.y);
@@ -1376,6 +1620,15 @@
         // ~65% of stars twinkle. Dimmer ones twinkle more so the
         // pulsing reads against the dark sky.
         const twinkles = Math.random() < 0.65;
+        // Color variation: 85% white, 10% warm, 5% cool
+        const colorRoll = Math.random();
+        const color = colorRoll < 0.85
+          ? [255, 255, 255]
+          : colorRoll < 0.95
+            ? [255, 240, 220]
+            : [220, 230, 255];
+        // ~5% of twinkling stars get sharp "flash" spikes
+        const flash = twinkles && Math.random() < 0.05;
         this.field.push({
           x: -padX + Math.random() * fieldW,
           y: -padY + Math.random() * fieldH,
@@ -1384,6 +1637,8 @@
           twinklePhase: Math.random() * Math.PI * 2,
           twinkleRate: twinkles ? randRange(0.02, 0.06) : 0,
           twinkleDepth: twinkles ? randRange(0.3, 0.7) : 0,
+          color,
+          flash,
         });
       }
 
@@ -1498,19 +1753,21 @@
       }
 
       // Foreground star field. Stars with a non-zero twinkleDepth
-      // pulse softly via a sin wave; the rest hold steady.
+      // pulse softly via a sin wave; flash stars spike sharply.
       for (const s of this.field) {
         let twinkle = 1;
         if (s.twinkleDepth) {
-          twinkle =
-            1 -
-            s.twinkleDepth *
-              (0.5 + 0.5 * Math.sin(s.twinklePhase + state.frame * s.twinkleRate));
+          const raw = 0.5 + 0.5 * Math.sin(s.twinklePhase + state.frame * s.twinkleRate);
+          twinkle = s.flash
+            ? 0.4 + 1.1 * Math.pow(raw, 8) // sharp bright spikes
+            : 1 - s.twinkleDepth * raw;
         }
         const a = s.brightness * twinkle * this.opacity;
-        ctx.fillStyle = rgba(starWhite, a);
+        // Size pulsing: ±20% modulated by twinkle
+        const r = (s.size / 2) * (1 + 0.2 * (twinkle - 0.5));
+        ctx.fillStyle = rgba(s.color || starWhite, Math.min(a, 1));
         ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size / 2, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
         ctx.fill();
       }
 
@@ -1593,6 +1850,7 @@
   function maybeSpawnShootingStar(frameScale) {
     if (Math.floor(state.smoothPhase) < 1) return;
     if (!state.isNight) return;
+    if (state.rainIntensity > 0.1) return; // no shooting stars in overcast
     // Per-frame spawn chance — averaged roughly one new shooting
     // star per second of real-time night.
     const chance = 0.018 * frameScale;
@@ -1731,6 +1989,925 @@
     }
   }
 
+  // ── Dust particles (landing puff) ──────────────────────────────
+  function spawnDust(x, y) {
+    const count = 8 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < count; i++) {
+      const angle = Math.PI + Math.random() * Math.PI; // upper hemisphere fan
+      const speed = 30 + Math.random() * 70;
+      state.dust.push({
+        x: x + (Math.random() - 0.5) * 12,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: -Math.abs(Math.sin(angle)) * speed * 0.5,
+        size: 3 + Math.random() * 4,
+        age: 0,
+        life: 0.2 + Math.random() * 0.15,
+      });
+    }
+  }
+
+  function updateDust(dtSec) {
+    if (state.dust.length === 0) return;
+    let expired = 0;
+    for (const p of state.dust) {
+      p.vy += 200 * dtSec; // light gravity
+      p.vx *= 0.96;
+      p.vy *= 0.96;
+      p.x += p.vx * dtSec;
+      p.y += p.vy * dtSec;
+      p.age += dtSec;
+      if (p.age >= p.life) { p.dead = true; expired++; }
+    }
+    if (expired > 0) {
+      state.dust = state.dust.filter((p) => !p.dead);
+    }
+  }
+
+  function drawDust(ctx) {
+    if (state.dust.length === 0) return;
+    for (const p of state.dust) {
+      const t = p.age / p.life;
+      const a = 1 - t;
+      ctx.fillStyle = `rgba(220, 200, 160, ${a * 0.8})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (1 - t * 0.3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // ── Ash particles (lightning-struck dune cactus dissolution) ────
+  function spawnAsh(screenX, screenY, w, h) {
+    const count = 12 + Math.floor(Math.random() * 8);
+    for (let i = 0; i < count; i++) {
+      state.ash.push({
+        x: screenX + (Math.random() - 0.5) * w,
+        y: screenY - Math.random() * h,
+        vx: 2 + Math.random() * 5,
+        vy: -3 + Math.random() * 6,
+        size: 0.8 + Math.random() * 1.2,
+        rot: Math.random() * Math.PI * 2,
+        vrot: (Math.random() - 0.5) * 1,
+        age: 0,
+        life: 0.4 + Math.random() * 0.3,
+        ember: Math.random() < 0.25, // 25% glow as embers
+      });
+    }
+  }
+
+  function updateAsh(dtSec) {
+    if (state.ash.length === 0) return;
+    let expired = 0;
+    for (const p of state.ash) {
+      p.vx *= 0.99;
+      p.vy += 15 * dtSec; // light gravity
+      p.x += p.vx * dtSec;
+      p.y += p.vy * dtSec;
+      p.rot += p.vrot * dtSec;
+      p.age += dtSec;
+      if (p.age >= p.life) { p.dead = true; expired++; }
+    }
+    if (expired > 0) state.ash = state.ash.filter((p) => !p.dead);
+  }
+
+  function drawAsh(ctx) {
+    if (state.ash.length === 0) return;
+    for (const p of state.ash) {
+      const t = p.age / p.life;
+      const a = 1 - t;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      if (p.ember) {
+        const glow = t < 0.5 ? 1 : 1 - (t - 0.5) * 2; // bright then fade
+        ctx.fillStyle = `rgba(${200 + Math.round(55 * glow)}, ${100 + Math.round(80 * glow)}, 20, ${a * 0.9})`;
+      } else {
+        ctx.fillStyle = `rgba(25, 20, 15, ${a * 0.8})`;
+      }
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+      ctx.restore();
+    }
+  }
+
+  // ── Rare background events (easter eggs) ───────────────────────
+  // Each event has an average interval in career jumps, a condition
+  // function, and a spawn function. Events are checked once per jump
+  // against the career total. Each event type can only be active once.
+
+  const RARE_EVENTS = [
+    {
+      id: "ufo",
+      achievement: "ufo-sighting",
+      avgInterval: 400,
+      condition: () => !state.isRaining && state.rainIntensity < 0.1,
+      duration: 20,
+    },
+    {
+      id: "santa",
+      achievement: "santa-spotted",
+      avgInterval: 500,
+      condition: () => state.isNight && state.rainIntensity < 0.1,
+      duration: 6,
+    },
+    {
+      id: "tumbleweed",
+      achievement: "tumbleweed",
+      avgInterval: 300,
+      condition: () => !state.isNight && state.rainIntensity < 0.1,
+      duration: 25,
+    },
+    {
+      id: "comet",
+      achievement: "comet",
+      avgInterval: 600,
+      condition: () => state.isNight && state.rainIntensity < 0.1,
+      duration: 8,
+    },
+    {
+      id: "meteor",
+      achievement: "meteor-impact",
+      avgInterval: 500,
+      condition: () => state.isNight && state.rainIntensity < 0.1,
+      duration: 5,
+    },
+  ];
+
+  function loadRareEventsSeen() {
+    try {
+      const raw = window.localStorage.getItem(RARE_EVENTS_SEEN_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+  function saveRareEventsSeen(seen) {
+    try { window.localStorage.setItem(RARE_EVENTS_SEEN_KEY, JSON.stringify(seen)); }
+    catch (e) { /* ignored */ }
+  }
+
+  /** Check whether to trigger a rare event on this jump. Called from
+   *  the jump counter increment path. */
+  function maybeSpawnRareEvent() {
+    if (state.activeRareEvent) return; // one at a time
+    // Build candidate list: prefer unseen events, then allow repeats.
+    // On shooting star nights (phase >= 1, night), only comet/meteor allowed.
+    const shootingStarNight = state.isNight && Math.floor(state.smoothPhase) >= 1;
+    const eligible = RARE_EVENTS.filter(
+      (e) => e.avgInterval > 0 && e.condition() &&
+             (!shootingStarNight || e.id === "comet" || e.id === "meteor")
+    );
+    if (eligible.length === 0) return;
+    const unseen = eligible.filter((e) => !state._rareEventsSeen[e.id]);
+    const pool = unseen.length > 0 ? unseen : eligible;
+    // Single roll against the average interval of a random candidate
+    const evt = pool[Math.floor(Math.random() * pool.length)];
+    if (Math.random() >= 1 / evt.avgInterval) return;
+    state.activeRareEvent = {
+      id: evt.id,
+      age: 0,
+      life: evt.duration,
+      x: state.width + 50,
+      y: state.height * (0.1 + Math.random() * 0.3),
+    };
+    // Unlock achievement on first sighting
+    if (!state._rareEventsSeen[evt.id]) {
+      state._rareEventsSeen[evt.id] = true;
+      saveRareEventsSeen(state._rareEventsSeen);
+      unlockAchievement(evt.achievement);
+    }
+  }
+
+  function updateRareEvent(dtSec) {
+    if (!state.activeRareEvent) return;
+    const e = state.activeRareEvent;
+    e.age += dtSec;
+    // Move event across the screen (right to left for most)
+    const speed = state.width / e.life;
+    if (e.id === "tumbleweed") {
+      // Tumbleweed rolls left along the dune surface, bouncing above it
+      e.x -= state.width * 0.06 * dtSec; // gentle roll, crosses screen in ~18s
+      const duneY = state.ground - _duneHeight(e.x, state.duneOffset);
+      const bounce = Math.abs(Math.sin(e.age * 3.5)) * 12;
+      e.y = duneY - 10 - bounce;
+      // End when fully off-screen left
+      if (e.x < -30) e.age = e.life;
+      e.rot = (e.rot || 0) - dtSec * 4; // counter-clockwise (rolling left)
+    } else if (e.id === "ufo") {
+      const t = e.age / e.life;
+      const hoverX = state.width * 0.6;
+      const hoverY = state.height * 0.35;
+      if (t < 0.08) {
+        // Phase 1: Fast descent
+        e.x = hoverX;
+        e.y = -30 + (t / 0.08) * (hoverY + 30);
+        e.beam = false;
+        e.phase = "descend";
+      } else if (!e.targetCactus) {
+        // Phase 2: Hover + beam on — wait for a cactus to scroll into the beam
+        e.x = hoverX + Math.sin(e.age * 2) * 10;
+        e.y = hoverY + Math.sin(e.age * 3) * 5;
+        e.beam = true;
+        e.phase = "search";
+        // Check if any cactus is under the beam footprint (e.x ± 30)
+        if (state.duneCacti) {
+          const off = state.duneOffset;
+          for (const dc of state.duneCacti) {
+            if (dc.dead || dc.struck) continue;
+            const sx = dc.wx - off;
+            if (sx > e.x - 28 && sx < e.x + 28) {
+              e.targetCactus = dc;
+              e.abductStartAge = e.age;
+              // Store position and hide original immediately
+              e.abductSx = sx;
+              e.abductDuneY = state.ground - _duneHeight(sx, state.duneOffset);
+              dc.dead = true;
+              break;
+            }
+          }
+        }
+      } else if (e.cactusLift == null || e.cactusLift < 1) {
+        // Phase 3: Beam up the cactus
+        e.x = hoverX + Math.sin(e.age * 2) * 5;
+        e.y = hoverY + Math.sin(e.age * 3) * 3;
+        e.beam = true;
+        e.phase = "abduct";
+        const liftTime = 3; // seconds to beam up
+        const elapsed = e.age - (e.abductStartAge || e.age);
+        e.cactusLift = Math.min(1, elapsed / liftTime);
+      } else if (!e._absorbed) {
+        // Phase 4: Cactus absorbed, brief pause
+        e.beam = false;
+        e.phase = "absorbed";
+        e.x = hoverX;
+        e.y = hoverY;
+        // Cactus already marked dead when grabbed
+        e._absorbed = true;
+        e._absorbedAt = e.age;
+      } else {
+        // Phase 5: Fly away upward-right after a brief pause
+        const pauseTime = 0.5;
+        const flyElapsed = e.age - (e._absorbedAt || e.age) - pauseTime;
+        if (flyElapsed < 0) {
+          e.x = hoverX;
+          e.y = hoverY;
+        } else {
+          e.beam = false;
+          e.phase = "flyaway";
+          e.x = hoverX + flyElapsed * state.width * 0.15;
+          e.y = hoverY - flyElapsed * state.height * 0.15;
+          if (e.y < -60 || e.x > state.width + 60) e.age = e.life;
+        }
+      }
+    } else if (e.id === "santa") {
+      // Santa flies across the night sky left to right
+      e.x = -50 + (e.age / e.life) * (state.width + 100);
+      e.y = state.height * 0.12 + Math.sin(e.age * 1.5) * 8;
+    } else if (e.id === "comet") {
+      // Slow arc across night sky — enters right, exits left
+      const ct = e.age / e.life;
+      e.x = state.width * 1.3 - ct * state.width * 1.6;
+      e.y = state.height * 0.05 + ct * state.height * 0.25;
+    } else if (e.id === "meteor") {
+      // Streak from upper-right to a specific impact point on/behind dunes.
+      if (!e.startX) {
+        e.startX = state.width * (0.7 + Math.random() * 0.3);
+        e.startY = -10;
+        e.targetX = state.width * (0.3 + Math.random() * 0.4);
+        e.targetY = state.ground - _duneHeight(e.targetX, state.duneOffset) + 3;
+      }
+      const mt = e.age / e.life;
+      const flightT = 0.5; // first 50% is the streak, rest is impact
+      if (mt < flightT) {
+        const ft = mt / flightT;
+        e.x = e.startX + (e.targetX - e.startX) * ft;
+        e.y = e.startY + (e.targetY - e.startY) * ft;
+        e.vx = (e.targetX - e.startX) / (e.life * flightT);
+        e.vy = (e.targetY - e.startY) / (e.life * flightT);
+      } else {
+        e.impact = true;
+        e.impactX = e.impactX || e.targetX;
+        // Recalculate impact Y from current dune position (dunes scroll)
+        e.impactY = e.impactY || (state.ground - _duneHeight(e.impactX || e.targetX, state.duneOffset) + 3);
+      }
+    }
+    if (e.age >= e.life) state.activeRareEvent = null;
+  }
+
+  /** Draw sky-layer rare events (comet, meteor) — on main canvas, no tint. */
+  function drawRareEventSky(ctx) {
+    if (!state.activeRareEvent) return;
+    const e = state.activeRareEvent;
+    if (e.id !== "comet" && e.id !== "meteor") return;
+    drawRareEvent(ctx);
+  }
+
+  /** Draw foreground rare events (UFO, Santa, tumbleweed) — on fgCtx, gets tint. */
+  /** Draw the UFO beam on the background canvas so dunes paint over it. */
+  function drawUfoBeam(ctx) {
+    if (!state.activeRareEvent || state.activeRareEvent.id !== "ufo") return;
+    const e = state.activeRareEvent;
+    if (!e.beam) return;
+    const ufoH = IMAGES.ufo ? 60 * (IMAGES.ufo.height / IMAGES.ufo.width) : 35;
+    const scan = 0.4 + 0.2 * Math.sin(e.age * 4.5) + 0.1 * Math.sin(e.age * 7.3);
+    const beamBottomL = e.x - 30, beamBottomR = e.x + 30;
+    ctx.save();
+    ctx.fillStyle = `rgba(245, 250, 255, ${scan})`;
+    ctx.beginPath();
+    ctx.moveTo(e.x - 12, e.y + ufoH / 2);
+    ctx.lineTo(e.x + 12, e.y + ufoH / 2);
+    ctx.lineTo(beamBottomR, state.ground);
+    ctx.lineTo(beamBottomL, state.ground);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawRareEventFg(ctx) {
+    if (!state.activeRareEvent) return;
+    const e = state.activeRareEvent;
+    // Comet/meteor on sky canvas, tumbleweed in dune layer
+    if (e.id === "comet" || e.id === "meteor" || e.id === "tumbleweed") return;
+    drawRareEvent(ctx);
+  }
+
+  function drawRareEvent(ctx) {
+    if (!state.activeRareEvent) return;
+    const e = state.activeRareEvent;
+    const t = e.age / e.life;
+    let alpha = 1;
+    // These events enter/exit the screen naturally — no fade
+    if (e.id !== "comet" && e.id !== "meteor" && e.id !== "tumbleweed") {
+      if (t < 0.1) alpha = t / 0.1;
+      else if (t > 0.9) alpha = (1 - t) / 0.1;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    if (e.id === "ufo") {
+      const img = IMAGES.ufo;
+      const ufoW = 60, ufoH = img ? 60 * (img.height / img.width) : 35;
+      if (img) {
+        ctx.drawImage(img, e.x - ufoW / 2, e.y - ufoH / 2, ufoW, ufoH);
+      }
+      // Draw abducted cactus spiraling up in the beam
+      if (e.phase === "abduct" && e.targetCactus && e.cactusLift != null) {
+        const dc = e.targetCactus;
+        const cImg = IMAGES[dc.key];
+        if (cImg) {
+          // Use stored grab position (cactus is already dead/hidden)
+          const grabX = e.abductSx || e.x;
+          const grabY = e.abductDuneY || state.ground;
+          const liftT = e.cactusLift;
+          const cx = grabX + (e.x - grabX) * liftT + Math.sin(e.age * 6) * 8 * (1 - liftT);
+          const cy = grabY + (e.y + ufoH / 2 - grabY) * liftT;
+          const cScale = 1 - liftT * 0.5; // shrinks as it gets "further"
+          const cw = dc.w * cScale;
+          const ch = dc.h * cScale;
+          const rot = e.age * 3; // spinning
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(rot);
+          ctx.drawImage(cImg, -cw / 2, -ch, cw, ch);
+          ctx.restore();
+        }
+      }
+
+    } else if (e.id === "santa") {
+      const sleighImg = IMAGES.santaSleigh;
+      const deerImg = IMAGES.reindeer;
+      const sleighW = 55, sleighH = sleighImg ? 55 * (sleighImg.height / sleighImg.width) : 30;
+      const deerW = 22, deerH = deerImg ? 22 * (deerImg.height / deerImg.width) : 25;
+      // Sleigh harness attachment — measured from sprite (165/200, 55/128)
+      const harnessX = e.x + sleighW * 0.325;
+      const harnessY = e.y - sleighH * 0.07;
+      // Draw 2 reindeer in front, connected by curved harness lines
+      const deerPositions = [];
+      for (let i = 0; i < 2; i++) {
+        const dx = 40 + i * 30;
+        const bobY = Math.sin(e.age * 3 + i * 1.5) * 4;
+        const deerX = e.x + dx;
+        const deerY = e.y - 5 + bobY;
+        // Collar attachment — measured from sprite (185/200, 88/274)
+        const collarX = deerX + deerW * 0.425;
+        const collarY = deerY - deerH * 0.179;
+        deerPositions.push({ deerX, deerY, collarX, collarY, bobY });
+        // Curved harness line — droops slightly between sleigh and collar
+        ctx.strokeStyle = `rgba(90, 60, 35, ${0.6 * alpha})`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(harnessX, harnessY);
+        const midX = (harnessX + collarX) / 2;
+        const midY = Math.max(harnessY, collarY) + 6; // droop below both points
+        ctx.quadraticCurveTo(midX, midY, collarX, collarY);
+        ctx.stroke();
+        if (deerImg) {
+          ctx.drawImage(deerImg, deerX - deerW / 2, deerY - deerH / 2, deerW, deerH);
+        }
+      }
+      // Draw sleigh (on top of harness lines)
+      if (sleighImg) {
+        ctx.drawImage(sleighImg, e.x - sleighW / 2, e.y - sleighH / 2, sleighW, sleighH);
+      }
+      // Rudolph's red nose on the lead reindeer
+      if (Math.sin(e.age * 8) > 0 && deerPositions[1]) {
+        const lead = deerPositions[1];
+        const noseX = lead.deerX + deerW * 0.4;
+        const noseY = lead.deerY - deerH * 0.15;
+        ctx.fillStyle = `rgba(255, 40, 20, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(noseX, noseY, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+    } else if (e.id === "tumbleweed") {
+      const twImg = IMAGES.tumbleweed;
+      const twSize = 20;
+      ctx.save();
+      ctx.translate(e.x, e.y);
+      ctx.rotate(e.rot || 0);
+      if (twImg) {
+        ctx.drawImage(twImg, -twSize / 2, -twSize / 2, twSize, twSize);
+      }
+      ctx.restore();
+
+    } else if (e.id === "comet") {
+      // "Your Name" style comet — very bright, multi-tailed, sparkly.
+      const tailAngle = Math.atan2(state.height * 0.25, state.width * 1.6);
+      const tailLen = state.width * 0.3;
+      const headR = 10;
+      const a = alpha;
+
+      // Double-layered glow halo for extra brightness
+      const outerR = headR * 14;
+      const g1 = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, outerR);
+      g1.addColorStop(0, `rgba(240, 248, 255, ${0.7 * a})`);
+      g1.addColorStop(0.1, `rgba(200, 225, 255, ${0.35 * a})`);
+      g1.addColorStop(0.3, `rgba(130, 180, 250, ${0.12 * a})`);
+      g1.addColorStop(1, "rgba(60,100,200,0)");
+      ctx.fillStyle = g1;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, outerR, 0, Math.PI * 2);
+      ctx.fill();
+      // Inner glow — tighter, brighter
+      const g2 = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, headR * 4);
+      g2.addColorStop(0, `rgba(255, 255, 255, ${0.6 * a})`);
+      g2.addColorStop(0.4, `rgba(200, 230, 255, ${0.25 * a})`);
+      g2.addColorStop(1, "rgba(150,200,255,0)");
+      ctx.fillStyle = g2;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, headR * 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bright core
+      const core = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, headR);
+      core.addColorStop(0, `rgba(255,255,255,${a})`);
+      core.addColorStop(0.3, `rgba(230,245,255,${0.95 * a})`);
+      core.addColorStop(1, `rgba(160,210,255,${0.65 * a})`);
+      ctx.fillStyle = core;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, headR, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.translate(e.x, e.y);
+      ctx.rotate(tailAngle);
+
+      // Tail helper
+      const _ct = (c0, c1, c2, w, x1, y1, x2, y2, ex, ey) => {
+        const g = ctx.createLinearGradient(0, 0, ex, 0);
+        g.addColorStop(0, c0); g.addColorStop(0.35, c1); g.addColorStop(1, c2);
+        ctx.strokeStyle = g; ctx.lineWidth = w;
+        ctx.beginPath(); ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(x1, y1, x2, y2, ex, ey);
+        ctx.stroke();
+      };
+      const L = tailLen;
+      // Main blue-white dust tail
+      _ct(`rgba(200,225,255,${0.75*a})`,`rgba(130,180,250,${0.3*a})`,"rgba(70,120,210,0)",
+        9, L*0.3,-10, L*0.6,-18, L,-30);
+      // Cyan ion tail
+      _ct(`rgba(0,250,255,${0.6*a})`,`rgba(50,210,250,${0.25*a})`,"rgba(30,140,230,0)",
+        3, L*0.4,5, L*0.9,8, L*1.4,6);
+      // Bright crimson
+      _ct(`rgba(255,60,35,${0.5*a})`,`rgba(230,35,20,${0.18*a})`,"rgba(150,10,5,0)",
+        5, L*0.2,-20, L*0.55,-38, L*1.15,-55);
+      // Deep red
+      _ct(`rgba(190,25,12,${0.3*a})`,`rgba(140,12,8,${0.1*a})`,"rgba(80,5,5,0)",
+        3, L*0.15,-28, L*0.4,-50, L*0.85,-70);
+      // Warm orange wisp
+      _ct(`rgba(255,170,60,${0.3*a})`,`rgba(230,110,30,${0.1*a})`,"rgba(180,60,10,0)",
+        2.5, L*0.35,-6, L*0.65,-14, L,-22);
+
+      // Sparkles — cover the full x/y extent of all tails,
+      // similar blink frequency but very different phase offsets,
+      // some detaching and lingering in the sky.
+      for (let i = 0; i < 30; i++) {
+        const h1 = Math.sin(i * 73.1 + 3.7) * 0.5 + 0.5;
+        const h2 = Math.sin(i * 127.3 + 17.1) * 0.5 + 0.5;
+        const h3 = Math.sin(i * 31.7 + 91.3) * 0.5 + 0.5;
+        const h4 = Math.sin(i * 211.9 + 47.3) * 0.5 + 0.5;
+
+        // Position along the tail (0-1)
+        const along = h1 * 0.95 + 0.03;
+        const baseX = along * L;
+        // Y range covers the full tail fan: from +8 (ion tail)
+        // down to -70 (deep red tail), scattered by h2
+        const yTop = 8 * along;                    // ion tail top
+        const yBot = -15 * along - 55 * along * along; // deep red bottom
+        const sy0 = yTop + (yBot - yTop) * h2;     // spread across full fan
+        let sx = baseX + (h3 - 0.5) * 15;
+        let sy = sy0;
+
+        // 30% detach and drift away
+        const detaches = h3 > 0.7;
+        if (detaches) {
+          const driftAge = Math.max(0, e.age - h4 * e.life * 0.5);
+          sx += driftAge * 6 * (h2 - 0.4);
+          sy += driftAge * 4 * (h4 - 0.5);
+          const driftFade = Math.max(0, 1 - driftAge * 0.7);
+          if (driftFade < 0.05) continue;
+        }
+
+        // Similar blink speed (4.5-6 Hz) but wildly different offsets
+        const blinkSpeed = 4.5 + h4 * 1.5;
+        const blinkPhase = h1 * 17.3 + h2 * 11.7; // large spread
+        const blink = Math.pow(Math.max(0, Math.sin(e.age * blinkSpeed + blinkPhase)), 5);
+        const baseBright = detaches ? 0.6 : 1;
+        const sa = (1 - along * 0.5) * blink * a * baseBright;
+        if (sa < 0.05) continue;
+
+        const sr = 1.5 + (1 - along) * 2.5 + h4 * 1.5;
+        const ci = i % 5;
+        const sC = ["255,255,255","200,240,255","255,180,170","255,230,200","160,250,255"][ci];
+        ctx.strokeStyle = `rgba(${sC},${sa})`;
+        ctx.fillStyle = `rgba(${sC},${sa})`;
+        const shape = Math.floor(h4 * 3);
+        if (shape === 0) {
+          // 4-pointed cross
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy - sr * 1.3); ctx.lineTo(sx, sy + sr * 1.3);
+          ctx.moveTo(sx - sr * 1.3, sy); ctx.lineTo(sx + sr * 1.3, sy);
+          ctx.stroke();
+        } else if (shape === 1) {
+          // 6-pointed star
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy - sr); ctx.lineTo(sx, sy + sr);
+          ctx.moveTo(sx - sr * 0.87, sy - sr * 0.5); ctx.lineTo(sx + sr * 0.87, sy + sr * 0.5);
+          ctx.moveTo(sx - sr * 0.87, sy + sr * 0.5); ctx.lineTo(sx + sr * 0.87, sy - sr * 0.5);
+          ctx.stroke();
+        } else {
+          // Bright dot
+          ctx.beginPath();
+          ctx.arc(sx, sy, sr * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // Soft glow around each sparkle
+        ctx.fillStyle = `rgba(${sC},${sa * 0.25})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+    } else if (e.id === "meteor") {
+      if (!e.impact) {
+        const streakLen = 50;
+        const angle = Math.atan2(e.vy || 1, e.vx || -0.5);
+        // Head glow — bigger, brighter
+        const glow = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, 12);
+        glow.addColorStop(0, `rgba(255, 255, 220, ${alpha})`);
+        glow.addColorStop(0.4, `rgba(255, 180, 50, ${0.6 * alpha})`);
+        glow.addColorStop(1, `rgba(255, 80, 0, 0)`);
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, 12, 0, Math.PI * 2);
+        ctx.fill();
+        // Trail
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        ctx.rotate(angle + Math.PI);
+        const tg = ctx.createLinearGradient(0, 0, streakLen, 0);
+        tg.addColorStop(0, `rgba(255, 220, 80, ${0.8 * alpha})`);
+        tg.addColorStop(0.3, `rgba(255, 120, 20, ${0.4 * alpha})`);
+        tg.addColorStop(0.7, `rgba(220, 50, 0, ${0.15 * alpha})`);
+        tg.addColorStop(1, `rgba(150, 30, 0, 0)`);
+        ctx.strokeStyle = tg;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(streakLen, 0);
+        ctx.stroke();
+        // Sparks flying off
+        for (let i = 0; i < 6; i++) {
+          const sx = Math.random() * streakLen * 0.7;
+          const sy = (Math.random() - 0.5) * 10;
+          ctx.fillStyle = `rgba(255, ${120 + Math.random() * 135}, ${Math.random() * 40}, ${0.7 * alpha})`;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 0.8 + Math.random() * 1.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      } else {
+        // Impact — particle-based fireball + mushroom cloud
+        const it = (e.age / e.life - 0.5) / 0.5;
+        const ix = e.impactX, iy = e.impactY;
+        const S = 1.3; // scale factor
+
+        // Initial flash (first 15% of impact)
+        if (it < 0.2) {
+          const fa = (1 - it / 0.2) * alpha;
+          ctx.fillStyle = `rgba(255, 255, 200, ${fa * 0.4})`;
+          ctx.beginPath();
+          ctx.arc(ix, iy, (40 + it * 100) * S, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Fireball particles — many small circles rising and expanding
+        const particleCount = 20;
+        for (let i = 0; i < particleCount; i++) {
+          const pt = Math.min(1, it * 1.5 + i * 0.02);
+          if (pt < 0 || pt > 1) continue;
+          // Each particle rises and expands
+          const seed = Math.sin(i * 73.7 + 31.1) * 0.5 + 0.5;
+          const seed2 = Math.sin(i * 127.3 + 89.9) * 0.5 + 0.5;
+          const px = ix + (seed - 0.5) * 40 * S * pt;
+          const py = iy - pt * (30 + seed2 * 50) * S;
+          const pr = (3 + pt * (4 + seed * 6)) * S;
+          const pa = Math.max(0, 1 - pt * 1.2) * alpha;
+          if (pa < 0.02) continue;
+          // Color: white→yellow→orange→dark as particle ages
+          let r, g, b;
+          if (pt < 0.2) {
+            r = 255; g = 240; b = 200;
+          } else if (pt < 0.5) {
+            const k = (pt - 0.2) / 0.3;
+            r = 255; g = Math.round(240 - k * 120); b = Math.round(200 - k * 170);
+          } else {
+            const k = (pt - 0.5) / 0.5;
+            r = Math.round(255 - k * 155); g = Math.round(120 - k * 80); b = Math.round(30 - k * 20);
+          }
+          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${pa})`;
+          ctx.beginPath();
+          ctx.arc(px, py, pr, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Smoke column — darker particles rising higher, slower
+        const smokeCount = 12;
+        for (let i = 0; i < smokeCount; i++) {
+          const st = Math.min(1, it * 1.2 - 0.1 + i * 0.03);
+          if (st < 0 || st > 1) continue;
+          const seed = Math.sin(i * 47.3 + 17.7) * 0.5 + 0.5;
+          const spx = ix + (seed - 0.5) * 20 * S * st;
+          const spy = iy - st * (60 + seed * 40) * S;
+          const spr = (4 + st * 8) * S;
+          const spa = Math.max(0, 0.8 - st) * alpha * 0.35;
+          if (spa < 0.02) continue;
+          ctx.fillStyle = `rgba(60, 50, 40, ${spa})`;
+          ctx.beginPath();
+          ctx.arc(spx, spy, spr, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Mushroom cap — cluster of overlapping smoke puffs at the top
+        const capY = iy - (60 * Math.min(1, it * 1.3) + 30) * S;
+        const capA = Math.max(0, 1 - it * 1.8) * alpha * 0.3;
+        if (capA > 0.02) {
+          for (let i = 0; i < 7; i++) {
+            const seed = Math.sin(i * 31.7 + 5.3) * 0.5 + 0.5;
+            const cpx = ix + (seed - 0.5) * 40 * S;
+            const cpy = capY + (Math.sin(i * 2.1) * 6);
+            ctx.fillStyle = `rgba(70, 55, 40, ${capA})`;
+            ctx.beginPath();
+            ctx.arc(cpx, cpy, (10 + seed * 8) * S, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // ── Rain weather system ────────────────────────────────────────
+
+  function loadTotalDayCycles() {
+    try {
+      const raw = window.localStorage.getItem(TOTAL_DAY_CYCLES_KEY);
+      return raw != null ? parseInt(raw, 10) || 0 : 0;
+    } catch (e) { return 0; }
+  }
+
+  function saveTotalDayCycles(n) {
+    try { window.localStorage.setItem(TOTAL_DAY_CYCLES_KEY, String(n)); }
+    catch (e) { /* ignored */ }
+  }
+
+  /** Deterministic rain check: within each block of 10 cycles,
+   *  exactly 1 cycle is rainy. Every 50th is guaranteed rainy. */
+  function shouldRainForCycle(cycleIndex) {
+    if (cycleIndex % 50 === 0 && cycleIndex > 0) return true;
+    const block = Math.floor(cycleIndex / 10);
+    // Simple hash to pick which cycle in the block rains
+    const rainSlot = ((block * 7 + 3) % 10);
+    return (cycleIndex % 10) === rainSlot;
+  }
+
+  function spawnRain(frameScale) {
+    const count = Math.ceil((state.width / 300) * frameScale * state.rainIntensity);
+    for (let i = 0; i < count; i++) {
+      const layer = Math.random();
+      let len, opacity, vy, vx, lw;
+      if (layer < 0.3) {
+        // Far — small, faint, slow
+        len = 5 + Math.random() * 3;
+        opacity = 0.08 + Math.random() * 0.1;
+        vy = 400 + Math.random() * 100;
+        vx = -40 - Math.random() * 20;
+        lw = 0.6;
+      } else if (layer < 0.7) {
+        // Mid — medium
+        len = 10 + Math.random() * 5;
+        opacity = 0.18 + Math.random() * 0.12;
+        vy = 600 + Math.random() * 200;
+        vx = -60 - Math.random() * 30;
+        lw = 1.0;
+      } else {
+        // Near — large, bright, fast
+        len = 15 + Math.random() * 10;
+        opacity = 0.3 + Math.random() * 0.2;
+        vy = 800 + Math.random() * 300;
+        vx = -80 - Math.random() * 40;
+        lw = 1.8;
+      }
+      state.rainParticles.push({
+        x: Math.random() * (state.width + 100) - 50,
+        y: -10 - Math.random() * 30,
+        vx, vy, len, opacity, lw,
+      });
+    }
+  }
+
+  function updateRain(dtSec) {
+    if (state.rainParticles.length === 0) return;
+    let expired = 0;
+    for (const p of state.rainParticles) {
+      p.x += p.vx * dtSec;
+      p.y += p.vy * dtSec;
+      if (p.y > state.ground) { p.dead = true; expired++; }
+    }
+    if (expired > 0) {
+      state.rainParticles = state.rainParticles.filter((p) => !p.dead);
+    }
+  }
+
+  function drawRain(ctx) {
+    if (state.rainParticles.length === 0) return;
+    ctx.save();
+    ctx.lineCap = "round";
+    const gnd = state.ground;
+    for (const p of state.rainParticles) {
+      ctx.lineWidth = p.lw || 1;
+      ctx.strokeStyle = `rgba(180, 210, 240, ${p.opacity})`;
+      ctx.beginPath();
+      const angle = Math.atan2(p.vy, p.vx);
+      let endX = p.x + Math.cos(angle) * p.len;
+      let endY = p.y + Math.sin(angle) * p.len;
+      // Clip streak at ground level
+      if (endY > gnd) {
+        const t = (gnd - p.y) / (endY - p.y);
+        endX = p.x + (endX - p.x) * t;
+        endY = gnd;
+      }
+      if (p.y < gnd) {
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  function updateLightning(frameScale, now) {
+    if (state.lightning.alpha > 0) {
+      state.lightning.alpha = Math.max(0, state.lightning.alpha - 0.015 * frameScale);
+    }
+    // Random chance for new flash — only at full intensity, not during transitions
+    if (state.rainIntensity > 0.8 && now > state.lightning.nextAt && Math.random() < 0.002 * frameScale) {
+      state.lightning.alpha = 0.7 + Math.random() * 0.2;
+      state.lightning.nextAt = now + 5000 + Math.random() * 5000;
+      // Generate a jagged bolt path — preferring cacti as targets
+      const result = _generateBoltPath();
+      state.lightning.bolt = result.path;
+      // If the bolt struck a cactus, blacken it
+      // Blacken the struck dune cactus (they scroll slowly enough
+      // for the visual to read).
+      if (result.struckDuneCactus) {
+        result.struckDuneCactus.struck = true;
+        result.struckDuneCactus.struckAge = 0;
+      }
+      // Delay thunder after the flash — random 0.1–0.6s simulating
+      // varying strike distances (~35–200m away).
+      const thunderDelay = 100 + Math.random() * 500;
+      setTimeout(() => audio.playThunder(), thunderDelay);
+      if (!audio.muted && navigator.vibrate) navigator.vibrate(30);
+    }
+  }
+
+  function _generateBoltPath() {
+    // Always target a visible dune cactus if one exists.
+    let targetX;
+    let struckDuneCactus = null;
+    const off = state.duneOffset || 0;
+    const visibleDuneCacti = (state.duneCacti || []).filter((dc) => {
+      const sx = dc.wx - off;
+      return sx > 20 && sx < state.width - 20 && !dc.struck;
+    });
+    if (visibleDuneCacti.length > 0) {
+      const dc = visibleDuneCacti[Math.floor(Math.random() * visibleDuneCacti.length)];
+      targetX = dc.wx - off;
+      struckDuneCactus = dc;
+    } else {
+      targetX = state.width * (0.35 + Math.random() * 0.55);
+    }
+    // If targeting a dune cactus, end at the cactus top; otherwise ground.
+    const endY = struckDuneCactus
+      ? (state.ground - _duneHeight(targetX, state.duneOffset)) - struckDuneCactus.h * 0.85
+      : state.ground;
+    const startX = targetX + (Math.random() - 0.5) * state.width * 0.15;
+    const segments = 8 + Math.floor(Math.random() * 6);
+    const points = [{ x: startX, y: -10 }];
+    for (let i = 1; i <= segments; i++) {
+      const t = i / segments;
+      const isLast = i === segments;
+      // Converge toward targetX; final point lands exactly on target
+      const baseX = startX + (targetX - startX) * t;
+      const jitter = isLast ? 0 : (Math.random() - 0.5) * state.width * 0.08 * (1 - t);
+      const x = baseX + jitter;
+      const y = isLast ? endY : Math.min(t * endY, endY);
+      points.push({ x, y });
+      // 35% chance of a branch
+      if (i > 2 && i < segments - 1 && Math.random() < 0.35) {
+        const branchLen = 2 + Math.floor(Math.random() * 4);
+        const branch = [];
+        let bx = x, by = y;
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        for (let j = 0; j < branchLen; j++) {
+          bx += dir * (15 + Math.random() * 30);
+          by += 10 + Math.random() * 25;
+          if (by > endY) by = endY; // clamp to ground
+          branch.push({ x: bx, y: by });
+        }
+        points[points.length - 1].branch = branch;
+      }
+    }
+    return { path: points, struckDuneCactus };
+  }
+
+  function _drawBolt(ctx, points, lineWidth, alpha) {
+    ctx.save();
+    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.shadowColor = `rgba(180, 200, 255, ${alpha * 0.8})`;
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.stroke();
+    // Draw branches
+    for (const p of points) {
+      if (p.branch) {
+        ctx.beginPath();
+        ctx.lineWidth = lineWidth * 0.5;
+        ctx.moveTo(p.x, p.y);
+        for (const bp of p.branch) ctx.lineTo(bp.x, bp.y);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawLightning(ctx) {
+    if (state.lightning.alpha <= 0) return;
+    // White flash overlay (dims faster than bolt)
+    const flashAlpha = Math.max(0, state.lightning.alpha - 0.3) * 0.5;
+    if (flashAlpha > 0) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
+      ctx.fillRect(0, 0, state.width, state.height);
+    }
+    // Draw the bolt arc
+    if (state.lightning.bolt) {
+      _drawBolt(ctx, state.lightning.bolt, 3, state.lightning.alpha);
+      // Draw a second thinner bright core
+      _drawBolt(ctx, state.lightning.bolt, 1.2, Math.min(1, state.lightning.alpha * 1.5));
+    }
+  }
+
   function drawShootingStars(ctx) {
     if (state.shootingStars.length === 0) return;
     const sprite = shootingStarSprite;
@@ -1832,12 +3009,31 @@
     }
 
     ctx.save();
-    // Solid disc only — no halo glare. The sun reads as a clean
-    // bright circle against the sky, no soft bleeding glow.
-    ctx.fillStyle = rgb(core);
-    ctx.beginPath();
-    ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
-    ctx.fill();
+    const ri = state.rainIntensity;
+    if (ri > 0.05) {
+      // Overcast sun: diffuse halo glow, dim disc proportional to intensity
+      const haloR = r * 3;
+      const ha = 0.18 * ri;
+      const glow = ctx.createRadialGradient(arc.x, arc.y, r * 0.5, arc.x, arc.y, haloR);
+      glow.addColorStop(0, `rgba(255, 240, 200, ${ha})`);
+      glow.addColorStop(0.5, `rgba(255, 230, 180, ${ha * 0.45})`);
+      glow.addColorStop(1, `rgba(255, 220, 160, 0)`);
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(arc.x, arc.y, haloR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 0.2 + 0.8 * (1 - ri);
+      ctx.fillStyle = rgb(core);
+      ctx.beginPath();
+      ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Clear sky: solid disc, no halo
+      ctx.fillStyle = rgb(core);
+      ctx.beginPath();
+      ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -1859,7 +3055,7 @@
     ];
 
     ctx.save();
-    ctx.globalAlpha = arc.alpha;
+    ctx.globalAlpha = arc.alpha * (0.2 + 0.8 * (1 - state.rainIntensity));
     // Halo.
     const glow = ctx.createRadialGradient(arc.x, arc.y, r * 0.3, arc.x, arc.y, r * 2.6);
     glow.addColorStop(0, rgba(halo, 0.45));
@@ -1874,17 +3070,59 @@
     ctx.beginPath();
     ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
     ctx.fill();
-    // Subtle shadow on one side — gives a hint of phase without
-    // turning the whole disc dark. Clipped to the moon disc so the
-    // shadow doesn't bleed onto the surrounding halo.
+    // Subtle craters — clipped to the moon disc.
     ctx.save();
     ctx.beginPath();
     ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
     ctx.clip();
-    ctx.fillStyle = rgba(shadow, 0.35);
+    ctx.fillStyle = `rgba(200, 200, 210, 0.15)`;
+    const craters = [
+      { dx: -0.25, dy: -0.3, cr: 0.18 },
+      { dx: 0.3, dy: 0.15, cr: 0.22 },
+      { dx: -0.1, dy: 0.35, cr: 0.14 },
+      { dx: 0.15, dy: -0.2, cr: 0.1 },
+      { dx: -0.35, dy: 0.1, cr: 0.12 },
+      { dx: 0.05, dy: 0.05, cr: 0.08 },
+    ];
+    for (const c of craters) {
+      ctx.beginPath();
+      ctx.arc(arc.x + c.dx * r, arc.y + c.dy * r, c.cr * r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    // Realistic moon phase using terminator ellipse.
+    // Phase 0 = new moon (dark), 0.25 = first quarter,
+    // 0.5 = full moon (bright), 0.75 = last quarter.
+    ctx.save();
     ctx.beginPath();
-    ctx.arc(arc.x - r * 0.55, arc.y - r * 0.25, r * 0.95, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
+    ctx.clip();
+    const ph = state.moonPhase;
+    // Illumination fraction: 0 at new, 1 at full
+    const illum = (1 - Math.cos(ph * Math.PI * 2)) / 2;
+    if (illum < 0.98) {
+      // Terminator x-radius: how far the shadow ellipse extends.
+      // cos maps illumination to the terminator position on the disc.
+      const terminatorX = r * Math.cos(illum * Math.PI);
+      // Waxing (ph < 0.5): shadow on the left, light on right
+      // Waning (ph > 0.5): shadow on the right, light on left
+      const waxing = ph < 0.5;
+      // Draw shadow on the dark side
+      ctx.fillStyle = rgba(shadow, 0.8);
+      ctx.beginPath();
+      // Dark half: semicircle on shadow side
+      if (waxing) {
+        ctx.arc(arc.x, arc.y, r, Math.PI * 0.5, Math.PI * 1.5);
+      } else {
+        ctx.arc(arc.x, arc.y, r, -Math.PI * 0.5, Math.PI * 0.5);
+      }
+      // Terminator edge: ellipse connecting top and bottom
+      ctx.ellipse(arc.x, arc.y, Math.abs(terminatorX), r, 0,
+        waxing ? -Math.PI * 0.5 : Math.PI * 0.5,
+        waxing ? Math.PI * 0.5 : -Math.PI * 0.5,
+        waxing ? (terminatorX > 0) : (terminatorX < 0));
+      ctx.fill();
+    }
     ctx.restore();
     ctx.restore();
   }
@@ -1946,12 +3184,95 @@
     }
   }
 
+  /** Draw a rain cloud — long, flat, hazy streak instead of puffy bumps.
+   *  Multiple overlapping ellipses create a layered overcast look. */
+  /** Draw a persistent overcast layer across the entire sky.
+   *  Called once per frame (not per cloud) when rain intensity > 0.
+   *  Uses wide, flat, band-like rectangles at varying heights. */
+  function drawOvercastBands(ctx, intensity) {
+    if (intensity <= 0) return;
+    const w = state.width;
+    const coverH = state.height * 0.55;
+    // Thick impermeable cover at the top, gradually thinning downward.
+    const a = intensity;
+    const mainGrad = ctx.createLinearGradient(0, 0, 0, coverH);
+    mainGrad.addColorStop(0, `rgba(55, 60, 65, ${0.98 * a})`);
+    mainGrad.addColorStop(0.1, `rgba(60, 65, 70, ${0.95 * a})`);
+    mainGrad.addColorStop(0.25, `rgba(70, 75, 80, ${0.8 * a})`);
+    mainGrad.addColorStop(0.45, `rgba(85, 90, 95, ${0.5 * a})`);
+    mainGrad.addColorStop(0.7, `rgba(100, 105, 110, ${0.2 * a})`);
+    mainGrad.addColorStop(1, `rgba(115, 120, 125, 0)`);
+    ctx.fillStyle = mainGrad;
+    ctx.fillRect(0, 0, w, coverH);
+    // Thicker sub-bands for visible layering at the top
+    const bands = [
+      { y: 0,             h: coverH * 0.15, alpha: 0.25 },
+      { y: coverH * 0.12, h: coverH * 0.2,  alpha: 0.18 },
+      { y: coverH * 0.28, h: coverH * 0.25, alpha: 0.12 },
+      { y: coverH * 0.45, h: coverH * 0.2,  alpha: 0.08 },
+    ];
+    for (const b of bands) {
+      const ba = b.alpha * a;
+      const grad = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
+      grad.addColorStop(0, `rgba(80, 85, 90, ${ba})`);
+      grad.addColorStop(1, `rgba(100, 105, 110, 0)`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, b.y, w, b.h);
+    }
+  }
+
+  /** Draw a cloud that morphs from puffy (ri=0) to flat overcast band (ri=1).
+   *  Uses the same ellipse geometry but interpolates radii and color. */
+  function drawCloudMorphed(ctx, x, y, size, ri) {
+    // Interpolate between white puffy and gray flat
+    const r = Math.round(255 - ri * 135);
+    const g = Math.round(255 - ri * 130);
+    const b = Math.round(255 - ri * 125);
+    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+
+    if (ri < 0.01) {
+      // Pure puffy cloud — use CLOUD_BUMPS directly
+      for (const bmp of CLOUD_BUMPS) {
+        ctx.beginPath();
+        ctx.ellipse(x + bmp.dx * size, y, bmp.rx * size, bmp.ry * size,
+          0, Math.PI, 0, false);
+        ctx.fill();
+      }
+      return;
+    }
+
+    // Morph: each bump stretches wider and flatter with intensity.
+    // At ri=1, bumps merge into one wide flat band.
+    for (const bmp of CLOUD_BUMPS) {
+      const rx = bmp.rx * (1 + ri * 7) * size;   // much wider
+      const ry = bmp.ry * (1 - ri * 0.7) * size; // much flatter
+      // Shift bumps toward center x as they merge
+      const dx = bmp.dx * (1 - ri * 0.6) * size;
+      ctx.beginPath();
+      ctx.ellipse(x + dx, y, rx, Math.max(ry, 3 * size), 0, Math.PI, 0, false);
+      ctx.fill();
+    }
+
+    // At high intensity, add a wider semi-transparent band on top
+    if (ri > 0.3) {
+      const bandAlpha = (ri - 0.3) * 0.5;
+      ctx.fillStyle = `rgba(${r - 10}, ${g - 10}, ${b - 10}, ${bandAlpha})`;
+      const bandW = 100 * size * ri;
+      const bandH = 6 * size;
+      ctx.beginPath();
+      ctx.ellipse(x, y - bandH * 0.3, bandW, bandH, 0, Math.PI, 0, false);
+      ctx.fill();
+    }
+  }
+
   /** Approximate pixel width of a cloud at the given size+scale, used
    *  to spawn each cloud just past the right edge so it drifts into
    *  view smoothly instead of popping in. Based on the CLOUD_BUMPS
    *  footprint: leftmost bump at dx=-12.5 to rightmost at dx=55. */
   function cloudVisualWidth(size, scale) {
-    return 70 * size * scale;
+    // Rain clouds are wider streaks (~240px base vs 70px for puffy clouds)
+    const base = state.rainIntensity > 0.3 ? 240 : 70;
+    return base * size * scale;
   }
 
   /** Target cloud count for the current viewport — tuned so a typical
@@ -1959,13 +3280,18 @@
    *  maintains this density by spawning a new cloud whenever one
    *  drifts off-screen, so the sky never clusters or empties. */
   function targetCloudCount() {
-    return Math.max(3, Math.round(state.width / 380));
+    const base = Math.max(3, Math.round(state.width / 380));
+    const density = state._cloudDensity || 1;
+    // Smoothly interpolate cloud count with rain intensity
+    const rainMult = 1 + state.rainIntensity * 2; // 1× to 3×
+    return Math.round(base * Math.max(density, rainMult));
   }
 
   /** Minimum horizontal distance between a newly-spawned cloud and the
    *  previous rightmost cloud, to avoid visual stacking. */
   function minCloudSpacing() {
-    return Math.max(220, state.width * 0.22);
+    const base = Math.max(220, state.width * 0.22);
+    return state.rainIntensity > 0.3 ? base * 0.3 : base;
   }
 
   function makeCloudObject(xAbsolute) {
@@ -2019,6 +3345,48 @@
       const cloud = makeCloudObject(baseX + jitter);
       state.clouds.push(cloud);
     }
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // Parallax background layers (dunes, procedural)
+  // ══════════════════════════════════════════════════════════════════
+
+  /** Dune ridge height above ground — gentle rolling sin waves.
+   *  Frequencies are relative to viewport width for consistent look. */
+  function _duneHeight(screenX, offset) {
+    const wx = screenX + offset;
+    const h = state.height;
+    const f = Math.PI * 2 / (state.width * 2);
+    return h * 0.04  * Math.sin(wx * f * 3 + 1.2)
+         + h * 0.025 * Math.sin(wx * f * 5 + 0.7)
+         + h * 0.015 * Math.sin(wx * f * 8 + 2.1)
+         + h * 0.09;
+  }
+
+  /** Spawn a dune cactus at the given world-space x. */
+  function _spawnDuneCactus(worldX) {
+    const variant = CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
+    const ch = (18 + Math.random() * 20) * variant.heightScale;
+    const cw = ch * (variant.w / variant.h);
+    return {
+      wx: worldX,
+      h: ch, w: cw,
+      key: variant.key,
+      struck: false,
+      depth: Math.random() < 0.5 ? 1 : 3, // tumbleweed draws at depth 2
+    };
+  }
+
+  function initDunes() {
+    state.duneCacti = [];
+    state._nextDuneCactusX = 0;
+    // Pre-populate cacti across the initial visible area + buffer
+    let wx = -state.width * 0.5;
+    while (wx < state.width * 2) {
+      state.duneCacti.push(_spawnDuneCactus(wx));
+      wx += 80 + Math.random() * 200;
+    }
+    state._nextDuneCactusX = wx;
   }
 
   // ══════════════════════════════════════════════════════════════════
@@ -2295,6 +3663,69 @@
     const speedMult = state.bgVelocity / INITIAL_BG_VELOCITY;
     state.smoothPhase += (speedMult / (SKY_CYCLE_SCORE * 60)) * frameScale;
 
+    // Rain cycle tracking: detect when we enter a new day cycle.
+    const cycleIndex = Math.floor(state.smoothPhase);
+    if (cycleIndex > state.lastCycleIndex && state.lastCycleIndex >= 0) {
+      state.totalDayCycles += 1;
+      saveTotalDayCycles(state.totalDayCycles);
+      // Moon phase: realistic ~29.5 day synodic month
+      state.moonPhase = (state.totalDayCycles % 30) / 30;
+      if (Math.abs(state.moonPhase - 0.5) < 0.02) unlockAchievement("full-moon");
+      // Start rain at cycle boundaries; duration is 0.3–1.2 day cycles
+      if (!state.isRaining && shouldRainForCycle(state.totalDayCycles)) {
+        state.isRaining = true;
+        state.rainEndPhase = state.smoothPhase + 0.3 + Math.random() * 0.9;
+      }
+    }
+    state.lastCycleIndex = cycleIndex;
+
+    // End rain when duration expires
+    if (state.isRaining && state.smoothPhase >= state.rainEndPhase) {
+      state.isRaining = false;
+      if (!state.gameOver) unlockAchievement("rainy-day");
+    }
+
+    // Smooth rain intensity transition (0→1 fade in, 1→0 fade out)
+    const raining = state.isRaining;
+    const targetIntensity = raining ? 1 : 0;
+    // Fade in slower than fade out for natural feel
+    const fadeRate = raining ? 0.008 : 0.02;
+    state.rainIntensity += (targetIntensity - state.rainIntensity) * fadeRate * frameScale;
+    if (state.rainIntensity < 0.005) state.rainIntensity = 0;
+    if (state.rainIntensity > 0.995) state.rainIntensity = 1;
+
+    // Spawn rain proportional to intensity
+    if (state.rainIntensity > 0.01) spawnRain(frameScale);
+    updateRain(dtSec);
+    updateLightning(frameScale, now);
+
+    // Rainbow: rare chance after rain fades out during daytime.
+    // Never on the first storm, ~30% chance thereafter.
+    if (!raining && state.rainIntensity < 0.1 && state.rainIntensity > 0 && !state.rainbow) {
+      const phase = (state.smoothPhase % 1 + 1) % 1;
+      const bi = Math.floor(phase * SKY_COLORS.length);
+      if (!_isNightBand[bi] && !_isNightBand[(bi + 1) % SKY_COLORS.length]) {
+        // Debug rain stop: always rainbow. Natural: 50% chance.
+        if (state._debugRainStop || Math.random() < 0.5) {
+          state.rainbow = { age: 0, life: 6 };
+          unlockAchievement("rainbow");
+        }
+        state._debugRainStop = false;
+      }
+    }
+    // Update rainbow
+    if (state.rainbow) {
+      state.rainbow.age += dtSec;
+      if (state.rainbow.age >= state.rainbow.life) state.rainbow = null;
+    }
+
+    // Rain audio: fade volume with intensity
+    if (state.rainIntensity > 0.01 && !audio._isRainPlaying) audio.startRain();
+    else if (state.rainIntensity < 0.01 && audio._isRainPlaying) audio.stopRain();
+    if (audio.rain && audio._isRainPlaying) {
+      audio.rain.volume = 0.2 * state.rainIntensity;
+    }
+
     // Slow rotation of the night-sky dome, tied to the cycle phase
     // so every night repeats the same visible arc. The rotation wraps
     // from its max angle back to zero at phase 1 → 0, which happens
@@ -2320,11 +3751,8 @@
     const nextBand = (bandIndex + 1) % SKY_COLORS.length;
 
     // Stars fade in when the sky is genuinely dark — solid-night
-    // bands 6–9 plus the dark half of each twilight transition.
-    state.isNight =
-      (bandIndex >= 6 && bandIndex <= 9) ||
-      (bandIndex === 5 && bandT > 0.5) ||
-      (bandIndex === 10 && bandT < 0.5);
+    // bands plus the dark half of each twilight transition.
+    state.isNight = isNightPhase(bandIndex, bandT);
 
     // Night-survival tracking for the "survive N nights"
     // achievements. Two-phase detection:
@@ -2337,7 +3765,7 @@
     if (state._wasInNight && !state.isNight && !state.gameOver) {
       state._pendingNights = (state._pendingNights || 0) + 1;
     }
-    if (state._pendingNights > 0 && bandIndex <= 4 && !state.gameOver) {
+    if (state._pendingNights > 0 && _isDayBand[bandIndex] && !state.gameOver) {
       state.runNightsSurvived += state._pendingNights;
       state._pendingNights = 0;
       if (state.runNightsSurvived >= 1) {
@@ -2356,11 +3784,15 @@
       state.frame % SKY_UPDATE_INTERVAL_FRAMES === 0 ||
       state.score !== state.lastSkyScore
     ) {
-      const target = lerpColor(
+      let target = lerpColor(
         SKY_COLORS[bandIndex],
         SKY_COLORS[nextBand],
         bandT
       );
+      // Overcast sky during rain — lerp toward dark gray proportional to intensity.
+      if (state.rainIntensity > 0) {
+        target = lerpColor(target, [55, 60, 68], 0.7 * state.rainIntensity);
+      }
       // 0.2-per-60fps-frame lerp, scaled to the real frame delta
       // (multiplied by SKY_UPDATE_INTERVAL_FRAMES because we're in
       // the throttled branch that only runs every N frames).
@@ -2376,17 +3808,22 @@
     updateShootingStars(dtSec);
     // Confetti particles from cosmetic unlocks.
     updateConfetti(dtSec);
+    updateDust(dtSec);
+    updateAsh(dtSec);
+    updateRareEvent(dtSec);
 
     if (!state.gameOver) {
       raptor.update(now, frameScale);
       cactuses.update(frameScale);
 
       // Collision: raptor concave polygon vs each cactus polygon.
+      if (!state.noCollisions) {
       const raptorPoly = raptor.collisionPolygon();
       for (const c of cactuses.cacti) {
         if (polygonsOverlap(raptorPoly, c.collisionPolygon())) {
           state.gameOver = true;
           state.gameOverFrame = state.frame;
+          if (!audio.muted && navigator.vibrate) navigator.vibrate([50, 30, 80]);
           commitRunScore();
           // Bump the career run counter and unlock the
           // "first-run" / "century-runner" milestones.
@@ -2410,6 +3847,7 @@
           break;
         }
       }
+      } // end noCollisions guard
 
       // Clouds drift — slower than the ground but a bit faster than
       // the first-pass fix, so the parallax reads as "distant sky"
@@ -2417,6 +3855,23 @@
       for (const cloud of state.clouds) {
         cloud.x -= state.bgVelocity * (state.width / 2000) * frameScale;
         cloud.y += randRange(-0.2, 0.2) * frameScale;
+      }
+      // Parallax layer offsets.
+      state.duneOffset += state.bgVelocity * 0.08 * frameScale;
+      // Age struck dune cacti; discard dead/offscreen; spawn new on right.
+      if (state.duneCacti) {
+        for (const dc of state.duneCacti) {
+          if (dc.struck) dc.struckAge = (dc.struckAge || 0) + dtSec;
+        }
+        state.duneCacti = state.duneCacti.filter(
+          (dc) => !dc.dead && dc.wx - state.duneOffset > -dc.w * 3
+        );
+        const rightEdge = state.duneOffset + state.width + 100;
+        if (!state._nextDuneCactusX || state._nextDuneCactusX < rightEdge) {
+          const wx = (state._nextDuneCactusX || rightEdge) + 80 + Math.random() * 200;
+          state.duneCacti.push(_spawnDuneCactus(wx));
+          state._nextDuneCactusX = wx;
+        }
       }
       // Keep clouds until they've fully drifted past the left edge.
       state.clouds = state.clouds.filter((c) => {
@@ -2447,9 +3902,20 @@
     if (skyCanvas) ctx.drawImage(skyCanvas, 0, 0);
 
     // Stars + Milky Way (fade in only at night).
-    stars.draw(ctx);
+    // Stars fade out during rain — overcast sky blocks them.
+    if (state.rainIntensity < 1) {
+      if (state.rainIntensity > 0) {
+        ctx.save();
+        ctx.globalAlpha = 1 - state.rainIntensity;
+        stars.draw(ctx);
+        ctx.restore();
+      } else {
+        stars.draw(ctx);
+      }
+    }
     // Shooting stars (easter egg, second night onward).
     drawShootingStars(ctx);
+    drawUfoBeam(ctx);
 
     // Sun + moon ride parabolic arcs across the sky. Drawn at full
     // brightness — they're light sources, not lit objects, and they
@@ -2458,14 +3924,129 @@
     drawSun(ctx);
     drawMoon(ctx);
 
+    // Comet/meteor draw ON TOP of sun, moon, and stars.
+    drawRareEventSky(ctx);
+
+    // Rainbow — drawn in the background so foreground elements
+    // (ground, cacti, raptor, clouds, dunes) all render on top.
+    if (state.rainbow) {
+      const rb = state.rainbow;
+      let alpha;
+      if (rb.age < 1) alpha = rb.age;
+      else if (rb.age < 3) alpha = 1;
+      else alpha = 1 - (rb.age - 3) / 3;
+      alpha = Math.max(0, Math.min(1, alpha)) * 0.55;
+      if (alpha > 0) {
+        const cx = state.width * 0.7;
+        const cy = state.ground + state.height * 0.15;
+        const outerR = state.height * 0.55;
+        const thickness = Math.max(15, state.width * 0.025);
+        const innerR = outerR - thickness;
+        // Continuous radial gradient — colors blend smoothly
+        const grad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
+        grad.addColorStop(0, `rgba(148, 0, 211, ${alpha})`);   // violet (inner)
+        grad.addColorStop(0.17, `rgba(75, 0, 200, ${alpha})`);  // indigo
+        grad.addColorStop(0.33, `rgba(30, 130, 255, ${alpha})`); // blue
+        grad.addColorStop(0.5, `rgba(30, 200, 30, ${alpha})`);  // green
+        grad.addColorStop(0.67, `rgba(255, 240, 30, ${alpha})`); // yellow
+        grad.addColorStop(0.83, `rgba(255, 140, 0, ${alpha})`);  // orange
+        grad.addColorStop(1, `rgba(255, 30, 30, ${alpha})`);    // red (outer)
+        ctx.save();
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, outerR, Math.PI, 0);
+        ctx.arc(cx, cy, innerR, 0, Math.PI, true);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
     // === Foreground pass (rendered on offscreen canvas, then       =
     // === uniformly sky-tinted, then composited onto the main pass) =
     fgCtx.clearRect(0, 0, state.width, state.height);
 
+
     // Clouds — drawn pure white here, the source-atop tint below
     // picks up the sky color and washes them toward it.
     for (const cloud of state.clouds) {
-      drawCloud(fgCtx, cloud.x, cloud.y, cloud.size * cloud.scale);
+      drawCloudMorphed(fgCtx, cloud.x, cloud.y, cloud.size * cloud.scale, state.rainIntensity);
+    }
+
+    // Parallax dunes — drawn procedurally from noise each frame.
+    {
+      const off = state.duneOffset;
+      const groundY = state.ground;
+      const step = 4;
+      // Dune color blended with sky for atmospheric depth
+      const sky = state.currentSky;
+      const dr = Math.round(200 * 0.65 + sky[0] * 0.35);
+      const dg = Math.round(168 * 0.65 + sky[1] * 0.35);
+      const db = Math.round(120 * 0.65 + sky[2] * 0.35);
+      fgCtx.fillStyle = `rgb(${dr}, ${dg}, ${db})`;
+      fgCtx.beginPath();
+      fgCtx.moveTo(0, state.height);
+      for (let sx = 0; sx <= state.width; sx += step) {
+        const y = groundY - _duneHeight(sx, off);
+        fgCtx.lineTo(sx, y);
+      }
+      fgCtx.lineTo(state.width, state.height);
+      fgCtx.closePath();
+      fgCtx.fill();
+
+      // Dune cacti + tumbleweed in 3 depth layers:
+      // depth 1 cacti → tumbleweed (depth 2) → depth 3 cacti
+      const _drawDuneCacti = (targetDepth) => {
+        if (!state.duneCacti) return;
+        for (const dc of state.duneCacti) {
+          if (dc.dead || dc.depth !== targetDepth) continue;
+          const sx = dc.wx - off;
+          if (sx < -dc.w * 2 || sx > state.width + dc.w * 2) continue;
+          const duneY = groundY - _duneHeight(sx, off);
+          const img = IMAGES[dc.key];
+          if (!img) continue;
+          fgCtx.save();
+          if (dc.struck) {
+            fgCtx.filter = "brightness(0.1) saturate(0)";
+            if (dc.struckAge > 0.8) {
+              const fadeT = Math.min(1, (dc.struckAge - 0.8) / 0.6);
+              fgCtx.globalAlpha = 1 - fadeT;
+              if (Math.random() < 0.3) spawnAsh(sx, duneY, dc.w, dc.h);
+              if (fadeT >= 1) { dc.dead = true; fgCtx.restore(); continue; }
+            }
+          }
+          fgCtx.drawImage(img,
+            Math.round(sx - dc.w / 2), Math.round(duneY + dc.h * 0.15 - dc.h),
+            Math.round(dc.w), Math.round(dc.h));
+          fgCtx.restore();
+        }
+      };
+      _drawDuneCacti(1); // behind tumbleweed
+      // Tumbleweed at depth 2
+      const _re = state.activeRareEvent;
+      if (_re && _re.id === "tumbleweed") {
+        const twImg = IMAGES.tumbleweed;
+        if (twImg) {
+          fgCtx.save();
+          fgCtx.translate(_re.x, _re.y);
+          fgCtx.rotate(_re.rot || 0);
+          fgCtx.drawImage(twImg, -10, -10, 20, 20);
+          fgCtx.restore();
+        }
+      }
+      _drawDuneCacti(3); // in front of tumbleweed
+    }
+
+    // Extra sky tint on dunes + dune cacti — stronger than the
+    // foreground tint so they feel more distant.
+    {
+      const sky = state.currentSky;
+      const strength = Math.min(1, tintStrength() * 1.8);
+      fgCtx.save();
+      fgCtx.globalCompositeOperation = "source-atop";
+      fgCtx.fillStyle = `rgba(${sky[0]}, ${sky[1]}, ${sky[2]}, ${strength})`;
+      fgCtx.fillRect(0, 0, state.width, state.height);
+      fgCtx.restore();
     }
 
     // Ground bands.
@@ -2478,11 +4059,15 @@
     fgCtx.fillStyle = "#EDC9AF";
     fgCtx.fillRect(0, state.ground + 35, state.width, 200);
 
+
     // Cacti.
     cactuses.draw(fgCtx);
 
     // Raptor.
     raptor.draw(fgCtx);
+    drawDust(fgCtx);
+    drawRareEventFg(fgCtx);
+    drawAsh(fgCtx);
 
     // Sky-light tint applied ONLY where the foreground has drawn
     // pixels. `source-atop` performs alpha blending only over
@@ -2516,6 +4101,19 @@
     // colors pop at any time of day (no sky-tint washing them
     // out). Only alive when a cosmetic was just unlocked.
     drawConfetti(ctx);
+
+    // Overcast bands — persistent layered cloud cover during rain.
+    drawOvercastBands(ctx, state.rainIntensity);
+
+    // Grey wash-out overlay proportional to rain intensity.
+    if (state.rainIntensity > 0) {
+      ctx.fillStyle = `rgba(50, 55, 60, ${state.rainIntensity * 0.15})`;
+      ctx.fillRect(0, 0, state.width, state.height);
+    }
+
+    drawRain(ctx);
+    drawLightning(ctx);
+
 
     // Score text lives in the DOM now (see #score-display in
     // index.html), not on the canvas. That means it doesn't appear
@@ -2629,7 +4227,7 @@
       });
       drawPerfOverlay();
     }
-    requestAnimationFrame(loop);
+    _rafId = requestAnimationFrame(loop);
   }
 
   // ══════════════════════════════════════════════════════════════════
@@ -2798,7 +4396,23 @@
     state.lastNow = null;
     state.shootingStars = [];
     state.confetti = [];
+    state.dust = [];
+    state.ash = [];
+    state.activeRareEvent = null;
+    state.rainParticles = [];
+    state.lightning = { alpha: 0, nextAt: 0 };
+    state.isRaining = false;
+    state.rainIntensity = 0;
+    state.rainEndPhase = 0;
+    state.rainbow = null;
+    state.lastCycleIndex = -1;
+    audio.stopRain();
+    // Cloud density: 20% cloudless, 50% normal, 30% extra cloudy
+    const cdRoll = Math.random();
+    state._cloudDensity = cdRoll < 0.2 ? 0 : cdRoll < 0.7 ? 1 : 2;
     initRunState();
+    // Fresh dunes and cacti each run.
+    initDunes();
     // Next game-over will capture a fresh snapshot.
     deathSnapshotReady = false;
     seedClouds();
@@ -2870,6 +4484,7 @@
     }
     if (stars) stars = new Stars();
     state.clouds = [];
+    initDunes();
     computeSkyGradient();
   }
 
@@ -2889,7 +4504,7 @@
     if (state.gameOver) {
       maybeResetAfterGameOver();
     } else {
-      raptor.jump();
+      if (!raptor.jump()) raptor._jumpBufferedAt = performance.now();
     }
   }
 
@@ -2921,7 +4536,7 @@
       if (state.gameOver) {
         maybeResetAfterGameOver();
       } else {
-        raptor.jump();
+        if (!raptor.jump()) raptor._jumpBufferedAt = performance.now();
       }
       return;
     }
@@ -2983,6 +4598,7 @@
         iconHTML: a.iconHTML || null,
         iconImage: a.iconImage || null,
         unlocked: !!state.unlockedAchievements[a.id],
+        secret: !!a.secret,
       }));
     },
 
@@ -2990,6 +4606,8 @@
       if (state.started) return;
       state.started = true;
       state.paused = false;
+        const cdRoll = Math.random();
+      state._cloudDensity = cdRoll < 0.2 ? 0 : cdRoll < 0.7 ? 1 : 2;
       // Reset per-run state identically to resetGame() so the
       // very first run after page load starts clean.
       initRunState();
@@ -3074,8 +4692,8 @@
       if (next >= 1) unlockAchievement("first-jump");
       if (next >= 25) unlockAchievement("score-25");
       if (next >= 100) unlockAchievement("party-time");
-      if (next >= 200) unlockAchievement("dinosaurs-forever");
-      if (next >= 500) unlockAchievement("score-250");
+      if (next >= BOW_TIE_SCORE_THRESHOLD) unlockAchievement("dinosaurs-forever");
+      if (next >= THUG_GLASSES_SCORE_THRESHOLD) unlockAchievement("score-250");
       // Also trigger cosmetic unlocks if thresholds are met.
       if (!state.unlockedPartyHat && next >= PARTY_HAT_SCORE_THRESHOLD) {
         state.unlockedPartyHat = true;
@@ -3088,6 +4706,12 @@
         state.wearThugGlasses = true;
         saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, true);
         saveBoolFlag(WEAR_THUG_GLASSES_KEY, true);
+      }
+      if (!state.unlockedBowTie && next >= BOW_TIE_SCORE_THRESHOLD) {
+        state.unlockedBowTie = true;
+        state.wearBowTie = true;
+        saveBoolFlag(UNLOCKED_BOW_TIE_KEY, true);
+        saveBoolFlag(WEAR_BOW_TIE_KEY, true);
       }
     },
 
@@ -3161,6 +4785,79 @@
       return state.showHitboxes;
     },
 
+    isNoCollisions() {
+      return state.noCollisions;
+    },
+
+    toggleNoCollisions() {
+      state.noCollisions = !state.noCollisions;
+      return state.noCollisions;
+    },
+
+    isPerfOverlay() {
+      return perf.enabled;
+    },
+
+    togglePerfOverlay() {
+      perf.enabled = !perf.enabled;
+      return perf.enabled;
+    },
+
+    isRaining() {
+      return state.isRaining;
+    },
+
+    /** Debug: trigger or stop a rain cycle with natural duration. */
+    toggleRain() {
+      if (state.isRaining) {
+        // Stop current rain immediately — force rainbow
+        state.isRaining = false;
+        state.rainEndPhase = 0;
+        state._debugRainStop = true;
+      } else {
+        // Start a natural-length rain cycle
+        state.isRaining = true;
+        state.rainEndPhase = state.smoothPhase + 0.3 + Math.random() * 0.9;
+      }
+      return state.isRaining;
+    },
+
+    /** Debug: trigger a specific rare event by id. */
+    triggerEvent(id) {
+      const evt = RARE_EVENTS.find((e) => e.id === id);
+      if (!evt) return false;
+      state.activeRareEvent = {
+        id: evt.id,
+        age: 0,
+        life: evt.duration,
+        x: state.width + 50,
+        y: state.height * (0.1 + Math.random() * 0.3),
+      };
+      if (!state._rareEventsSeen[evt.id]) {
+        state._rareEventsSeen[evt.id] = true;
+        saveRareEventsSeen(state._rareEventsSeen);
+        unlockAchievement(evt.achievement);
+      }
+      return true;
+    },
+
+    /** List available rare event IDs for debug. */
+    getEventIds() {
+      return RARE_EVENTS.map((e) => e.id);
+    },
+
+    /** Debug: advance to next day cycle and update moon phase. */
+    advanceMoonPhase() {
+      state.totalDayCycles += 1;
+      saveTotalDayCycles(state.totalDayCycles);
+      state.moonPhase = (state.totalDayCycles % 30) / 30;
+      // Jump to the start of night (band 6 of 12 = phase 0.5)
+      state.smoothPhase = Math.floor(state.smoothPhase) + 0.5;
+      state.lastCycleIndex = Math.floor(state.smoothPhase);
+      if (Math.abs(state.moonPhase - 0.5) < 0.02) unlockAchievement("full-moon");
+      return state.moonPhase;
+    },
+
     // ── Accessory unlock state (persisted) ─────────────────────
 
     /** True once the player has cleared PARTY_HAT_SCORE_THRESHOLD
@@ -3180,6 +4877,13 @@
     },
     isThugGlassesActive() {
       return this.isThugGlassesUnlocked() && state.wearThugGlasses;
+    },
+
+    isBowTieUnlocked() {
+      return state.unlockedBowTie;
+    },
+    isBowTieActive() {
+      return this.isBowTieUnlocked() && state.wearBowTie;
     },
 
     /** Player preference setters. Silently no-op if the accessory
@@ -3204,6 +4908,16 @@
     },
     toggleThugGlasses() {
       return this.setWearThugGlasses(!state.wearThugGlasses);
+    },
+
+    setWearBowTie(on) {
+      if (!this.isBowTieUnlocked()) return false;
+      state.wearBowTie = !!on;
+      saveBoolFlag(WEAR_BOW_TIE_KEY, state.wearBowTie);
+      return state.wearBowTie;
+    },
+    toggleBowTie() {
+      return this.setWearBowTie(!state.wearBowTie);
     },
 
     getTotalJumps() {
@@ -3232,6 +4946,27 @@
       saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, false);
       saveBoolFlag(WEAR_PARTY_HAT_KEY, false);
       saveBoolFlag(WEAR_THUG_GLASSES_KEY, false);
+      state.unlockedBowTie = false;
+      state.wearBowTie = false;
+      saveBoolFlag(UNLOCKED_BOW_TIE_KEY, false);
+      saveBoolFlag(WEAR_BOW_TIE_KEY, false);
+      state.totalDayCycles = 0;
+      saveTotalDayCycles(0);
+      state._rareEventsSeen = {};
+      saveRareEventsSeen({});
+    },
+
+    /** Remove all event listeners and stop the game loop. Call
+     *  when the game is being torn down (e.g. page navigation). */
+    destroy() {
+      if (_rafId) {
+        cancelAnimationFrame(_rafId);
+        _rafId = 0;
+      }
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+      window.removeEventListener("keydown", onKeyDown);
+      if (canvas) canvas.removeEventListener("pointerdown", onPointerDown);
     },
   };
   window.Game = GameAPI;
@@ -3269,12 +5004,9 @@
       state.debug = params.get("debug") === "true";
       if (state.debug) {
         document.body.setAttribute("data-debug", "true");
-        // Hitboxes default to off even in debug mode — the toggle
-        // is in the menu if the tester wants to turn them on.
         state.showHitboxes = false;
-        // Enable the performance overlay so frame-time spikes
-        // are visible at a glance.
-        perf.enabled = true;
+        state.noCollisions = true;
+        perf.enabled = false;
       }
     } catch (e) {
       /* no-op */
@@ -3315,6 +5047,8 @@
     // shows up immediately; returning players get whatever they
     // last saved.
     state.totalJumps = loadTotalJumps();
+    state.totalDayCycles = loadTotalDayCycles();
+    state._rareEventsSeen = loadRareEventsSeen();
     state.careerRuns = loadCareerRuns();
     state.unlockedAchievements = loadUnlockedAchievements();
     state.unlockedPartyHat = loadBoolFlag(UNLOCKED_PARTY_HAT_KEY, false);
@@ -3324,6 +5058,8 @@
     );
     state.wearPartyHat = loadBoolFlag(WEAR_PARTY_HAT_KEY, true);
     state.wearThugGlasses = loadBoolFlag(WEAR_THUG_GLASSES_KEY, true);
+    state.unlockedBowTie = loadBoolFlag(UNLOCKED_BOW_TIE_KEY, false);
+    state.wearBowTie = loadBoolFlag(WEAR_BOW_TIE_KEY, true);
     // Backwards-compat: earlier versions gated cosmetic unlocks
     // on cumulative jumps. If a returning player has already
     // banked enough jumps from that era, respect the old reward
@@ -3368,7 +5104,7 @@
 
     // Start the rAF loop. The game stays paused (state.paused = true)
     // until Game.start() is called by the Start button click handler.
-    requestAnimationFrame(loop);
+    _rafId = requestAnimationFrame(loop);
 
     GameAPI._ready = true;
     if (GameAPI._readyCb) {
