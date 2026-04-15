@@ -187,6 +187,25 @@ import { contexts, initCanvas } from "./canvas";
 import { Stars } from "./entities/stars";
 import { Raptor } from "./entities/raptor";
 import { Cactus, Cactuses } from "./entities/cactus";
+import {
+  setParticlesAchievementHandler,
+  bakeShootingStarSprite,
+  maybeSpawnShootingStar,
+  updateShootingStars,
+  drawShootingStars,
+  spawnConfettiBurst,
+  updateConfetti,
+  drawConfetti,
+  spawnDust,
+  updateDust,
+  drawDust,
+  spawnAsh,
+  updateAsh,
+  drawAsh,
+  SHOOTING_STAR_TRAIL_LEN,
+  SHOOTING_STAR_TRAIL_H,
+  warmShootingStarSprite,
+} from "./effects/particles";
 
   // ══════════════════════════════════════════════════════════════════
   // Constants
@@ -357,296 +376,10 @@ import { Cactus, Cactuses } from "./entities/cactus";
   // the first shooting star doesn't stall the frame.
   // ════════════════════════════════════════════════════════════════
 
-  const SHOOTING_STAR_TRAIL_LEN = 140;
-  const SHOOTING_STAR_TRAIL_H = 8;
-  // Baked trail sprite. Populated ONCE at init time (see
-  // bakeShootingStarSprite below) so the first shooting star
-  // doesn't trigger any lazy canvas/context/gradient setup on
-  // the hot path. Prefer an ImageBitmap (GPU-backed, fast
-  // drawImage) when available, fall back to the canvas element.
-  let shootingStarSprite = null;
+  // Shooting star spawning/update/baking lives in src/effects/particles.ts.
 
-  function bakeShootingStarSprite() {
-    const c = document.createElement("canvas");
-    // Internal 2× resolution for crisp rendering at any scale.
-    const sc = 2;
-    c.width = SHOOTING_STAR_TRAIL_LEN * sc;
-    c.height = SHOOTING_STAR_TRAIL_H * sc;
-    const sctx = c.getContext("2d");
-    sctx.scale(sc, sc);
-    sctx.imageSmoothingEnabled = true;
-    // Trail: head at the RIGHT edge, fading toward the LEFT.
-    const grad = sctx.createLinearGradient(SHOOTING_STAR_TRAIL_LEN, 0, 0, 0);
-    grad.addColorStop(0, "rgba(255, 255, 255, 1)");
-    grad.addColorStop(0.25, "rgba(255, 255, 255, 0.75)");
-    grad.addColorStop(1, "rgba(255, 255, 255, 0)");
-    sctx.strokeStyle = grad;
-    sctx.lineCap = "round";
-    sctx.lineWidth = 3;
-    sctx.beginPath();
-    sctx.moveTo(SHOOTING_STAR_TRAIL_LEN - 2, SHOOTING_STAR_TRAIL_H / 2);
-    sctx.lineTo(4, SHOOTING_STAR_TRAIL_H / 2);
-    sctx.stroke();
-    // Bright head dot.
-    sctx.fillStyle = "#ffffff";
-    sctx.beginPath();
-    sctx.arc(
-      SHOOTING_STAR_TRAIL_LEN - 2,
-      SHOOTING_STAR_TRAIL_H / 2,
-      3,
-      0,
-      Math.PI * 2,
-    );
-    sctx.fill();
-    // Start with the canvas as the sprite so the game can draw
-    // immediately. Upgrade to an ImageBitmap (faster drawImage)
-    // as soon as createImageBitmap resolves.
-    shootingStarSprite = c;
-    if (typeof createImageBitmap === "function") {
-      createImageBitmap(c).then(
-        (bitmap) => {
-          shootingStarSprite = bitmap;
-        },
-        () => {
-          /* keep the canvas fallback */
-        },
-      );
-    }
-  }
-
-  function maybeSpawnShootingStar(frameScale) {
-    if (Math.floor(state.smoothPhase) < 1) return;
-    if (!state.isNight) return;
-    if (state.rainIntensity > SHOOTING_STAR_RAIN_THRESHOLD) return; // no shooting stars in overcast
-    // Per-frame spawn chance — averaged roughly one new shooting
-    // star per second of real-time night.
-    const chance = SHOOTING_STAR_SPAWN_RATE * frameScale;
-    if (Math.random() > chance) return;
-    const w = state.width;
-    const h = state.height;
-    // Spawn in the upper-right corner, flying diagonally toward
-    // the bottom-left. In canvas coords (y-down) that's angles
-    // between 3π/4 (straight down-left) and a bit shallower.
-    const startX = w * randRange(0.6, 1.08);
-    const startY = h * randRange(-0.05, 0.3);
-    const speed = Math.max(w, h) * SHOOTING_STAR_SPEED_SCALE;
-    const angle = randRange(Math.PI * 0.68, Math.PI * 0.82);
-    state.shootingStars.push({
-      x: startX,
-      y: startY,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      age: 0,
-      life: randRange(SHOOTING_STAR_LIFETIME_MIN_SEC, SHOOTING_STAR_LIFETIME_MAX_SEC),
-    });
-    state.runShootingStars += 1;
-    if (state.runShootingStars === 1) {
-      unlockAchievement("first-shooting-star");
-    }
-  }
-
-  function updateShootingStars(dtSec) {
-    if (state.shootingStars.length === 0) return;
-    // Walk once — update each star, rebuild the array only if
-    // something actually expires. Keeps the hot path GC-free in
-    // the common case.
-    let expired = 0;
-    for (const s of state.shootingStars) {
-      s.x += s.vx * dtSec;
-      s.y += s.vy * dtSec;
-      s.age += dtSec;
-      if (s.age >= s.life || s.x < -120 || s.y > state.height + 120) {
-        s.dead = true;
-        expired += 1;
-      }
-    }
-    if (expired > 0) {
-      state.shootingStars = state.shootingStars.filter((s) => !s.dead);
-    }
-  }
-
-  // ════════════════════════════════════════════════════════════════
-  // Confetti burst
-  //
-  // Fires when a cosmetic unlocks (party hat, thug glasses). Each
-  // burst spawns ~60 pieces at the raptor's head, each with a
-  // short random-direction velocity + gentle gravity and a
-  // tumbling rotation. Cheap per-piece: a single fillRect /
-  // ellipse per frame. Particles auto-expire after ~1.5s.
-  // ════════════════════════════════════════════════════════════════
-
-  const CONFETTI_COLORS = [
-    "#ff4d6d",
-    "#ffb703",
-    "#06d6a0",
-    "#118ab2",
-    "#8338ec",
-    "#ffd60a",
-    "#ff7b00",
-    "#ef476f",
-  ];
-
-  function spawnConfettiBurst(worldX, worldY) {
-    for (let i = 0; i < CONFETTI_BURST_COUNT; i++) {
-      const angle = randRange(-Math.PI, 0); // upward hemisphere
-      const speed = randRange(180, 520);
-      state.confetti.push({
-        x: worldX,
-        y: worldY,
-        vx: Math.cos(angle) * speed + randRange(-40, 40),
-        vy: Math.sin(angle) * speed,
-        rot: randRange(0, Math.PI * 2),
-        vrot: randRange(-8, 8),
-        size: randRange(6, 11),
-        color:
-          CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-        age: 0,
-        life: randRange(1.1, 1.9),
-      });
-    }
-  }
-
-  function updateConfetti(dtSec) {
-    if (state.confetti.length === 0) return;
-    let expired = 0;
-    for (const p of state.confetti) {
-      p.vx *= CONFETTI_DRAG;
-      p.vy += CONFETTI_GRAVITY_PX_S2 * dtSec;
-      p.x += p.vx * dtSec;
-      p.y += p.vy * dtSec;
-      p.rot += p.vrot * dtSec;
-      p.age += dtSec;
-      if (p.age >= p.life || p.y > state.height + 40) {
-        p.dead = true;
-        expired += 1;
-      }
-    }
-    if (expired > 0) {
-      state.confetti = state.confetti.filter((p) => !p.dead);
-    }
-  }
-
-  function drawConfetti(ctx) {
-    if (state.confetti.length === 0) return;
-    for (const p of state.confetti) {
-      const t = p.age / p.life;
-      const alpha = t < 0.85 ? 1 : Math.max(0, 1 - (t - 0.85) / 0.15);
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = p.color;
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot);
-      // Rectangular confetti piece, slightly taller than wide.
-      ctx.fillRect(-p.size / 2, -p.size / 3, p.size, (p.size * 2) / 3);
-      ctx.restore();
-    }
-  }
-
-  // ── Dust particles (landing puff) ──────────────────────────────
-  function spawnDust(x, y) {
-    const count = DUST_BURST_MIN + Math.floor(Math.random() * (DUST_BURST_MAX - DUST_BURST_MIN + 1));
-    for (let i = 0; i < count; i++) {
-      const angle = Math.PI + Math.random() * Math.PI; // upper hemisphere fan
-      const speed = 30 + Math.random() * 70;
-      state.dust.push({
-        x: x + (Math.random() - 0.5) * 12,
-        y,
-        vx: Math.cos(angle) * speed,
-        vy: -Math.abs(Math.sin(angle)) * speed * 0.5,
-        size: 3 + Math.random() * 4,
-        age: 0,
-        life: 0.2 + Math.random() * 0.15,
-      });
-    }
-  }
-
-  function updateDust(dtSec) {
-    if (state.dust.length === 0) return;
-    let expired = 0;
-    for (const p of state.dust) {
-      p.vy += DUST_GRAVITY_PX_S2 * dtSec; // light gravity
-      p.vx *= 0.96;
-      p.vy *= 0.96;
-      p.x += p.vx * dtSec;
-      p.y += p.vy * dtSec;
-      p.age += dtSec;
-      if (p.age >= p.life) {
-        p.dead = true;
-        expired++;
-      }
-    }
-    if (expired > 0) {
-      state.dust = state.dust.filter((p) => !p.dead);
-    }
-  }
-
-  function drawDust(ctx) {
-    if (state.dust.length === 0) return;
-    for (const p of state.dust) {
-      const t = p.age / p.life;
-      const a = 1 - t;
-      ctx.fillStyle = `rgba(220, 200, 160, ${a * 0.8})`;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * (1 - t * 0.3), 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  // ── Ash particles (lightning-struck dune cactus dissolution) ────
-  function spawnAsh(screenX, screenY, w, h) {
-    const count = 12 + Math.floor(Math.random() * 8);
-    for (let i = 0; i < count; i++) {
-      state.ash.push({
-        x: screenX + (Math.random() - 0.5) * w,
-        y: screenY - Math.random() * h,
-        vx: 2 + Math.random() * 5,
-        vy: -3 + Math.random() * 6,
-        size: 0.8 + Math.random() * 1.2,
-        rot: Math.random() * Math.PI * 2,
-        vrot: (Math.random() - 0.5) * 1,
-        age: 0,
-        life: 0.4 + Math.random() * 0.3,
-        ember: Math.random() < 0.25, // 25% glow as embers
-      });
-    }
-  }
-
-  function updateAsh(dtSec) {
-    if (state.ash.length === 0) return;
-    let expired = 0;
-    for (const p of state.ash) {
-      p.vx *= 0.99;
-      p.vy += 15 * dtSec; // light gravity
-      p.x += p.vx * dtSec;
-      p.y += p.vy * dtSec;
-      p.rot += p.vrot * dtSec;
-      p.age += dtSec;
-      if (p.age >= p.life) {
-        p.dead = true;
-        expired++;
-      }
-    }
-    if (expired > 0) state.ash = state.ash.filter((p) => !p.dead);
-  }
-
-  function drawAsh(ctx) {
-    if (state.ash.length === 0) return;
-    for (const p of state.ash) {
-      const t = p.age / p.life;
-      const a = 1 - t;
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot);
-      if (p.ember) {
-        const glow = t < 0.5 ? 1 : 1 - (t - 0.5) * 2; // bright then fade
-        ctx.fillStyle = `rgba(${200 + Math.round(55 * glow)}, ${100 + Math.round(80 * glow)}, 20, ${a * 0.9})`;
-      } else {
-        ctx.fillStyle = `rgba(25, 20, 15, ${a * 0.8})`;
-      }
-      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
-      ctx.restore();
-    }
-  }
+  // Confetti / dust / ash particle systems live in
+  // src/effects/particles.ts.
 
   // ── Rare background events (easter eggs) ───────────────────────
   // Each event has an average interval in career jumps, a condition
@@ -1573,31 +1306,7 @@ import { Cactus, Cactuses } from "./entities/cactus";
     }
   }
 
-  function drawShootingStars(ctx) {
-    if (state.shootingStars.length === 0) return;
-    const sprite = shootingStarSprite;
-    if (!sprite) return;
-    for (const s of state.shootingStars) {
-      const t = s.age / s.life;
-      const alpha = Math.sin(Math.PI * t);
-      if (alpha <= 0) continue;
-      const angle = Math.atan2(s.vy, s.vx);
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.translate(s.x, s.y);
-      ctx.rotate(angle);
-      // Sprite's RIGHT edge is the head — draw it so that edge
-      // lands at the translated origin (the star's world pos).
-      ctx.drawImage(
-        sprite,
-        -SHOOTING_STAR_TRAIL_LEN,
-        -SHOOTING_STAR_TRAIL_H / 2,
-        SHOOTING_STAR_TRAIL_LEN,
-        SHOOTING_STAR_TRAIL_H,
-      );
-      ctx.restore();
-    }
-  }
+  // drawShootingStars lives in src/effects/particles.ts.
 
   // ════════════════════════════════════════════════════════════════
   // Sun + Moon
@@ -3665,6 +3374,10 @@ import { Cactus, Cactuses } from "./entities/cactus";
         state._runMutedThroughout = false;
       }
     });
+    // Register the achievement hook for particles (used by
+    // maybeSpawnShootingStar to fire the `first-shooting-star`
+    // unlock). unlockAchievement itself still lives in this file.
+    setParticlesAchievementHandler((id) => unlockAchievement(id));
 
     // Load the player's saved mute preference into the audio object's
     // state, without triggering .play() yet (browser autoplay
@@ -3731,16 +3444,7 @@ import { Cactus, Cactuses } from "./entities/cactus";
     // first frame so the first star to spawn doesn't pay a
     // canvas / gradient compile cost on the hot path.
     bakeShootingStarSprite();
-    // Warm-up draw: invisible (globalAlpha=0) drawImage pass
-    // that primes any lazy GPU upload / texture bind path in
-    // the main canvas ctx. Without this, the first real draw
-    // on some browsers can still hitch a frame.
-    if (ctx && shootingStarSprite) {
-      ctx.save();
-      ctx.globalAlpha = 0;
-      ctx.drawImage(shootingStarSprite, 0, 0, 1, 1);
-      ctx.restore();
-    }
+    if (ctx) warmShootingStarSprite(ctx);
 
     canvas.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
