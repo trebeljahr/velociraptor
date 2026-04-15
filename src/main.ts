@@ -182,6 +182,11 @@ import { ACHIEVEMENTS, ACHIEVEMENTS_BY_ID } from "./achievements";
 import { CACTUS_VARIANTS } from "./cactusVariants";
 import { IMAGE_SRCS, IMAGES } from "./images";
 import { audio } from "./audio";
+import { state } from "./state";
+import { contexts, initCanvas } from "./canvas";
+import { Stars } from "./entities/stars";
+import { Raptor } from "./entities/raptor";
+import { Cactus, Cactuses } from "./entities/cactus";
 
   // ══════════════════════════════════════════════════════════════════
   // Constants
@@ -291,122 +296,11 @@ import { audio } from "./audio";
 
   // ══════════════════════════════════════════════════════════════════
   // Game state
+  //
+  // The `state` singleton lives in src/state.ts and is imported at
+  // the top of this file. It's a flat mutable object; every subsystem
+  // reads and writes the same reference.
   // ══════════════════════════════════════════════════════════════════
-
-  const state = {
-    width: 0,
-    height: 0,
-    groundHeight: 0,
-    ground: 0,
-    bgVelocity: INITIAL_BG_VELOCITY,
-    score: 0,
-    // Personal best, persisted to localStorage under HIGH_SCORE_KEY.
-    // Loaded once at init, updated on game-over if the current run
-    // beat it. `newHighScore` is set true for the run that just broke
-    // the previous record, so the game-over overlay can celebrate it.
-    highScore: 0,
-    newHighScore: false,
-    gameOver: false,
-    gameOverFade: 0,
-    gameOverFrame: 0,
-    started: false,
-    paused: true,
-    frame: 0,
-    currentSky: [...SKY_COLORS[0]],
-    lastSkyScore: -1,
-    isNight: false,
-    // Continuous version of (state.score / SKY_CYCLE_SCORE), smoothed
-    // every frame so the sun/moon arc and star rotation move smoothly
-    // even though score is integer-stepped.
-    smoothPhase: 0,
-    // Monotonic frame-based angle used to rotate the night-sky dome
-    // (stars + Milky Way) gently across the screen.
-    starRotation: 0,
-    // Timestamp of the previous update() call, used to derive the
-    // per-frame delta-time for frame-rate independence. Reset to
-    // null on pause/reset so the first post-resume frame doesn't
-    // see a huge stale delta.
-    lastNow: null,
-    // Total jumps the player has ever performed. Persists across
-    // sessions via localStorage (see TOTAL_JUMPS_KEY).
-    totalJumps: 0,
-    // Jumps performed within the current run only. Resets on
-    // every resetGame(). Drives the per-run cosmetic unlocks
-    // (party hat at 100, thug glasses at 200) so the player
-    // has to actually earn them in a single go.
-    runJumps: 0,
-    // Nights fully survived within the current run. Incremented
-    // when state.isNight goes from true → false (i.e. dawn
-    // arrives while the raptor is still alive). Used for the
-    // "survive N nights" achievements.
-    runNightsSurvived: 0,
-    // Was the raptor in the night portion of the cycle on the
-    // previous frame? Tracked so we can detect the night → day
-    // transition without double-counting.
-    _wasInNight: false,
-    // Shooting stars seen during the current run. Used for the
-    // "first shooting star" achievement.
-    runShootingStars: 0,
-    // Total career stats, persisted across sessions.
-    careerRuns: 0,
-    // Set of unlocked achievement IDs. Serialized as a JSON
-    // array in localStorage so the player keeps their trophies
-    // across visits.
-    unlockedAchievements: {},
-    // Was the player muted for the entire current run? Set to
-    // the audio mute state the moment the run actually starts,
-    // and flipped to false the instant the player touches the
-    // mute toggle mid-run (either direction — any audio change
-    // invalidates the "silent the whole way through" claim).
-    // Drives the "Sound of Silence" achievement.
-    _runMutedThroughout: false,
-    // Accessory unlocks. Each pair is:
-    //   unlockedX — sticky bit, true once the player has crossed
-    //               the jump threshold for this cosmetic. Never
-    //               flips back to false on its own; cleared only
-    //               by the debug "Reset Progress" button.
-    //   wearX     — player's on/off preference. Defaults to true
-    //               the instant the accessory unlocks, and is
-    //               freely togglable from the menu.
-    unlockedPartyHat: false,
-    wearPartyHat: true,
-    unlockedThugGlasses: false,
-    wearThugGlasses: true,
-    unlockedBowTie: false,
-    wearBowTie: true,
-    // Active shooting-star flashes. Each entry is {x, y, vx, vy,
-    // age, life}. Populated only from the second night onward so
-    // the first night feels clean and the easter egg reads as a
-    // reward for surviving longer.
-    shootingStars: [],
-    // Confetti particles, spawned in bursts when a cosmetic
-    // unlocks so the moment reads as a celebration. Drawn over
-    // the foreground tint so the colors pop at any time of day.
-    confetti: [],
-    dust: [],
-    ash: [],
-    activeRareEvent: null,
-    _rareEventsSeen: {},
-    moonPhase: 0, // 0-1, advances each night cycle
-    clouds: [],
-    duneOffset: 0,
-    // Rain weather
-    totalDayCycles: 0,
-    lastCycleIndex: -1,
-    isRaining: false,
-    rainIntensity: 0,
-    rainEndPhase: 0,
-    rainParticles: [],
-    lightning: { alpha: 0, nextAt: 0 },
-    rainbow: null,
-    _cloudDensity: 1,
-    // Debug mode — toggled on by `?debug=true` query param. When on,
-    // the menu grows a "Show hitboxes" toggle and the game draws the
-    // raptor and cactus collision polygons on top of everything.
-    debug: false,
-    showHitboxes: false,
-    noCollisions: false,
-  };
 
   let canvas, ctx;
   let skyCanvas, skyCtx;
@@ -429,447 +323,13 @@ import { audio } from "./audio";
   // Entities
   // ══════════════════════════════════════════════════════════════════
 
-  class Raptor {
-    constructor() {
-      this.x = 0;
-      this.velocity = 0;
-      this.gravity = GRAVITY;
-      this.sheet = IMAGES.raptorSheet;
-      this.frame = 0;
-      this.lastFrameAdvanceAt = 0;
-      // Cached collision polygon — rebuilt once per update() call
-      // rather than each time the collision code asks for it, and
-      // reused across the two callsites (collision test + debug draw).
-      this._polyCache = null;
-      this._jumpBufferedAt = 0;
-      this._wasAirborne = false;
-      this.resize();
-    }
+  // The Raptor class lives in src/entities/raptor.ts. Its two
+  // side-effect hooks (onLand for dust spawning, onJump for rare-event
+  // rolls) are passed at construction time in init() below.
 
-    resize() {
-      this.w = state.width * RAPTOR_WIDTH_RATIO;
-      this.h = this.w * RAPTOR_ASPECT;
-      this.x = 0;
-      this.ground = state.ground - this.h;
-      this.y = this.ground;
-    }
-
-    get downwardAcceleration() {
-      return (
-        (this.gravity *
-          state.bgVelocity *
-          state.bgVelocity *
-          (state.width / VELOCITY_SCALE_DIVISOR)) /
-        DOWNWARD_ACCEL_DIVISOR
-      );
-    }
-
-    jump() {
-      if (this.y !== this.ground || state.gameOver) return false;
-      const targetRise = this.h * JUMP_CLEARANCE_MULTIPLIER;
-      const a = this.downwardAcceleration;
-      const v = Math.sqrt(2 * a * targetRise);
-      this.velocity = -v;
-      this._jumpBufferedAt = 0;
-      audio.playJump();
-      if (!audio.muted && navigator.vibrate) navigator.vibrate(JUMP_VIBRATION_MS);
-      // Bump both the career-wide total and the per-run counter.
-      state.totalJumps += 1;
-      state.runJumps += 1;
-      saveTotalJumps(state.totalJumps);
-      maybeSpawnRareEvent();
-      return true;
-    }
-
-    /**
-     * Frame delay scales inversely with the background velocity, so the
-     * raptor visibly runs faster as the game speeds up. Mirrors the old
-     * `img.delay(...)` speed-ramp from the p5 version.
-     */
-    get frameDelay() {
-      const t = clamp((state.bgVelocity - INITIAL_BG_VELOCITY) / FRAME_DELAY_SPEED_RANGE, 0, 1);
-      return lerp(RAPTOR_FRAME_DELAY_MAX, RAPTOR_FRAME_DELAY_MIN, t);
-    }
-
-    update(now, frameScale = 1) {
-      // Semi-implicit Euler, scaled by frameScale so the trajectory
-      // stays the same at any frame rate. downwardAcceleration and
-      // jump velocity are already in "pixels per 60fps-frame" units.
-      this.velocity += this.downwardAcceleration * frameScale;
-      this.y += this.velocity * frameScale;
-      if (this.y < this.ground) {
-        this._wasAirborne = true;
-      }
-      if (this.y > this.ground) {
-        this.y = this.ground;
-        this.velocity = 0;
-        if (this._wasAirborne) {
-          spawnDust(this.x + this.w * 0.51, state.ground);
-          spawnDust(this.x + this.w * 0.73, state.ground);
-          this._wasAirborne = false;
-        }
-        // Input buffer: if the player pressed jump while airborne
-        // (within 100ms), fire the jump now that we've landed.
-        if (this._jumpBufferedAt && now - this._jumpBufferedAt < JUMP_BUFFER_MS) {
-          this.jump();
-        }
-        this._jumpBufferedAt = 0;
-      }
-
-      // Frame animation: running while on the ground, locked to the
-      // idle pose (frame 11) while airborne. Uses real wall-clock
-      // time (ms) already, so it's frame-rate independent for free.
-      if (this.y === this.ground) {
-        if (now - this.lastFrameAdvanceAt > this.frameDelay) {
-          this.frame = (this.frame + 1) % RAPTOR_FRAMES;
-          this.lastFrameAdvanceAt = now;
-        }
-      } else {
-        this.frame = RAPTOR_IDLE_FRAME;
-        this.lastFrameAdvanceAt = now;
-      }
-
-      // Invalidate the cached collision polygon — it'll be rebuilt on
-      // the next call to collisionPolygon() if anything needs it.
-      this._polyCache = null;
-    }
-
-    draw(ctx) {
-      if (!this.sheet) return;
-      const srcY = this.frame * RAPTOR_NATIVE_H;
-      ctx.drawImage(
-        this.sheet,
-        0,
-        srcY,
-        RAPTOR_NATIVE_W,
-        RAPTOR_NATIVE_H,
-        this.x,
-        this.y,
-        this.w,
-        this.h,
-      );
-      // Accessories are drawn when they're unlocked AND the player
-      // has the cosmetic toggled on.
-      if (state.unlockedThugGlasses && state.wearThugGlasses) {
-        this.drawThugGlasses(ctx);
-      }
-      if (state.unlockedPartyHat && state.wearPartyHat) {
-        this.drawPartyHat(ctx);
-      }
-      if (state.unlockedBowTie && state.wearBowTie) {
-        this.drawBowTie(ctx);
-      }
-    }
-
-    /**
-     * Crown and snout reference points for the current animation
-     * frame, converted to world coords. These come straight out of
-     * the per-frame scan of the sprite sheet (RAPTOR_CROWN /
-     * RAPTOR_SNOUT) so they track the run cycle exactly. While
-     * airborne we lock to the idle frame.
-     */
-    currentCrownPoint() {
-      const f = this.y === this.ground ? this.frame : RAPTOR_IDLE_FRAME;
-      const [nx, ny] = RAPTOR_CROWN[f];
-      return { x: this.x + nx * this.w, y: this.y + ny * this.h };
-    }
-    currentSnoutPoint() {
-      const f = this.y === this.ground ? this.frame : RAPTOR_IDLE_FRAME;
-      const [nx, ny] = RAPTOR_SNOUT[f];
-      return { x: this.x + nx * this.w, y: this.y + ny * this.h };
-    }
-
-    /**
-     * Thug-life glasses sprite (Wikimedia Commons, Aboulharakat —
-     * CC BY-SA 4.0; see imprint) composited across the raptor's
-     * nose. Anchor = interpolation between the crown and snout so
-     * the glasses sit flat across the top of the snout ridge, and
-     * the position follows the head's motion every frame.
-     */
-    drawThugGlasses(ctx) {
-      const sprite = IMAGES.thugGlasses;
-      if (!sprite) return;
-      const crown = this.currentCrownPoint();
-      const snout = this.currentSnoutPoint();
-      // 0.5 along from crown toward snout = back a bit from the
-      // snout tip, on the upper half of the nose ridge. Far enough
-      // from the tip to look like glasses, not a muzzle.
-      // Additional tiny offset — back by 5px-ish (scaled to raptor
-      // width) and down by 2px — so the lenses settle onto the
-      // ridge at the native viewport.
-      const t = 0.5;
-      const cx = crown.x + (snout.x - crown.x) * t - this.w * 0.012;
-      const cy = crown.y + (snout.y - crown.y) * t + this.h * 0.013;
-      // Small: 7% of raptor width.
-      const gW = this.w * 0.07;
-      const gH = gW * (sprite.height / sprite.width);
-      ctx.save();
-      ctx.translate(cx, cy);
-      // Base angle = direction of the nose ridge (crown → snout),
-      // minus a small CCW nudge so the glasses tilt back above the
-      // nose line rather than following it exactly.
-      const rideAngle = Math.atan2(snout.y - crown.y, snout.x - crown.x);
-      ctx.rotate(rideAngle - 0.25);
-      ctx.drawImage(sprite, -gW / 2, -gH / 2, gW, gH);
-      ctx.restore();
-    }
-
-    /**
-     * Party hat sprite (Freepik, see imprint) composited on top
-     * of the raptor's head. The sprite is drawn with its bottom
-     * center sitting on the crown of the head, then rotated
-     * slightly backwards and to the left for a casual "just put
-     * it on" tilt.
-     */
-    drawPartyHat(ctx) {
-      const sprite = IMAGES.partyHat;
-      if (!sprite) return;
-      const crown = this.currentCrownPoint();
-      // Anchor the hat's BASE a little below the exact crown so
-      // it sits snug on the head instead of teetering on the very
-      // top point. Still nudged slightly left (toward the tail) so
-      // it doesn't balance right on the tip.
-      const anchorX = crown.x - this.w * 0.01;
-      const anchorY = crown.y + this.h * 0.04;
-      // Hat ~25% of raptor height — small, sits as a hat on top
-      // without covering the head. Width follows the source aspect
-      // ratio so the pom-pom stays round.
-      const hatH = this.h * 0.25;
-      const hatW = hatH * (sprite.width / sprite.height);
-      // Tilt backwards and to the LEFT — i.e. rotate counter
-      // clockwise in canvas coords (negative angle), so the apex
-      // leans toward the raptor's tail.
-      const tiltRad = -0.35;
-      ctx.save();
-      ctx.translate(anchorX, anchorY);
-      ctx.rotate(tiltRad);
-      // Draw the sprite so its bottom-center is at the anchor: the
-      // base of the hat sits on the crown and the tip extends up.
-      ctx.drawImage(sprite, -hatW / 2, -hatH, hatW, hatH);
-      ctx.restore();
-    }
-
-    drawBowTie(ctx) {
-      const sprite = IMAGES.bowTie;
-      if (!sprite) return;
-      const crown = this.currentCrownPoint();
-      // The neck is below and behind the crown — offset downward
-      // and slightly toward the body center.
-      const neckX = crown.x - this.w * 0.02;
-      const neckY = crown.y + this.h * 0.2;
-      // Bow tie ~6% of raptor width, aspect ratio from source.
-      const btW = this.w * 0.06;
-      const btH = btW * (sprite.height / sprite.width);
-      ctx.save();
-      ctx.translate(neckX, neckY);
-      ctx.rotate(-0.15); // slight CCW tilt to match body angle
-      ctx.drawImage(sprite, -btW / 2, -btH / 2, btW, btH);
-      ctx.restore();
-    }
-
-    /**
-     * Concave silhouette following the running raptor's body outline,
-     * shrunk inward by RAPTOR_COLLISION_INSET pixels so the collision
-     * feels forgiving. Cached per update() call — see _polyCache above.
-     */
-    collisionPolygon() {
-      if (this._polyCache) return this._polyCache;
-      const x = this.x,
-        y = this.y,
-        w = this.w,
-        h = this.h;
-      const raw = [
-        { x: x + w * 0.5, y: y + h * 0.27 },
-        { x: x + w * 0.5, y: y + h * 0.4 },
-        { x: x + w * 0.6, y: y + h * 0.6 },
-        { x: x + w * 0.5, y: y + h * 0.82 },
-        { x: x + w * 0.48, y: y + h },
-        { x: x + w * 0.55, y: y + h },
-        { x: x + w * 0.51, y: y + h * 0.955 },
-        { x: x + w * 0.53, y: y + h * 0.9 },
-        { x: x + w * 0.55, y: y + h * 0.9 },
-        { x: x + w * 0.55, y: y + h * 0.86 },
-        { x: x + w * 0.51, y: y + h * 0.86 },
-        { x: x + w * 0.53, y: y + h * 0.8 },
-        { x: x + w * 0.62, y: y + h * 0.65 },
-        { x: x + w * 0.63, y: y + h * 0.6 },
-        { x: x + w * 0.67, y: y + h * 0.6 },
-        { x: x + w * 0.67, y: y + h * 0.85 },
-        { x: x + w * 0.72, y: y + h * 0.95 },
-        { x: x + w * 0.78, y: y + h * 0.95 },
-        { x: x + w * 0.7, y: y + h * 0.8 },
-        { x: x + w * 0.75, y: y + h * 0.8 },
-        { x: x + w * 0.8, y: y + h * 0.6 },
-        { x: x + w * 0.78, y: y + h * 0.55 },
-        { x: x + w * 0.9, y: y + h * 0.3 },
-        { x: x + w, y: y + h * 0.3 },
-        { x: x + w, y: y + h * 0.23 },
-        { x: x + w * 0.9, y: y + h * 0.15 },
-        { x: x + w * 0.85, y: y + h * 0.15 },
-        { x: x + w * 0.8, y: y + h * 0.35 },
-      ];
-      this._polyCache = shrinkPolygon(raw, RAPTOR_COLLISION_INSET);
-      return this._polyCache;
-    }
-  }
-
-  class Cactus {
-    constructor(variant) {
-      this.variant = variant;
-      this.img = IMAGES[variant.key];
-      this.aspectRatio = variant.w / variant.h;
-      this.h = raptor.h * variant.heightScale;
-      this.w = this.h * this.aspectRatio;
-      this.x = state.width;
-      this.y = state.ground - this.h;
-      this._polyCache = null;
-    }
-
-    /**
-     * Recompute this cactus's height / width / y-anchor after a
-     * viewport resize (e.g. entering or leaving fullscreen). The
-     * horizontal world position stays the same, but the bottom of
-     * the cactus has to re-bind to the NEW state.ground so it
-     * doesn't visibly jump when the viewport dimensions change.
-     */
-    resize() {
-      this.h = raptor.h * this.variant.heightScale;
-      this.w = this.h * this.aspectRatio;
-      this.y = state.ground - this.h;
-      this._polyCache = null;
-    }
-
-    update(frameScale = 1) {
-      this.x -= state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * frameScale;
-      // Position changed, invalidate cached polygon.
-      this._polyCache = null;
-    }
-
-    collisionPolygon() {
-      if (this._polyCache) return this._polyCache;
-      const norm = this.variant.collision;
-      const x = this.x,
-        y = this.y,
-        w = this.w,
-        h = this.h;
-      const poly = new Array(norm.length);
-      for (let i = 0; i < norm.length; i++) {
-        poly[i] = { x: x + norm[i][0] * w, y: y + norm[i][1] * h };
-      }
-      this._polyCache = poly;
-      return poly;
-    }
-
-    draw(ctx) {
-      if (this.img)
-        ctx.drawImage(
-          this.img,
-          Math.round(this.x),
-          Math.round(this.y),
-          Math.round(this.w),
-          Math.round(this.h),
-        );
-    }
-  }
-
-  class Cactuses {
-    constructor() {
-      this.cacti = [];
-    }
-
-    get minSpawnDistance() {
-      // At higher speeds, increase the minimum gap so tight doubles
-      // don't appear — keeps the game humanly playable.
-      const speedFactor = Math.max(1, state.bgVelocity / INITIAL_BG_VELOCITY);
-      const minGap = raptor.w * (CACTUS_SPAWN_GAP_BASE + speedFactor * CACTUS_SPAWN_GAP_SPEED_FACTOR);
-      return minGap + Math.floor(Math.random() * raptor.w * 10);
-    }
-
-    spawn() {
-      const variant =
-        CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
-      this.cacti.push(new Cactus(variant));
-    }
-
-    update(frameScale = 1) {
-      const last = this.cacti[this.cacti.length - 1];
-      if (!last) {
-        this.spawn();
-      } else if (state.width - last.x >= this.minSpawnDistance) {
-        this.spawn();
-        state.bgVelocity = Math.min(state.bgVelocity + SPEED_INCREMENT, MAX_BG_VELOCITY);
-      }
-
-      for (const c of this.cacti) c.update(frameScale);
-
-      this.cacti = this.cacti.filter((c) => {
-        if (c.x < -c.w) {
-          state.score++;
-          // Score-threshold achievements.
-          if (state.score === 1) unlockAchievement("first-jump");
-          if (state.score === 25) unlockAchievement("score-25");
-          if (state.score === 100) unlockAchievement("party-time");
-          if (state.score === BOW_TIE_SCORE_THRESHOLD)
-            unlockAchievement("dinosaurs-forever");
-          if (state.score === THUG_GLASSES_SCORE_THRESHOLD)
-            unlockAchievement("score-250");
-          // Cosmetic unlocks — party hat at 100 points, thug
-          // glasses at 200. Both fire at most once per save and
-          // burst a little confetti off the raptor's head so the
-          // player actually notices. The achievement toasts fire
-          // from the score-threshold block above (not here) so
-          // they trigger on every qualifying run, even if the
-          // cosmetic was already earned.
-          if (
-            !state.unlockedPartyHat &&
-            state.score >= PARTY_HAT_SCORE_THRESHOLD
-          ) {
-            state.unlockedPartyHat = true;
-            state.wearPartyHat = true;
-            saveBoolFlag(UNLOCKED_PARTY_HAT_KEY, true);
-            saveBoolFlag(WEAR_PARTY_HAT_KEY, true);
-            if (raptor) {
-              const crown = raptor.currentCrownPoint();
-              spawnConfettiBurst(crown.x, crown.y);
-            }
-          }
-          if (
-            !state.unlockedThugGlasses &&
-            state.score >= THUG_GLASSES_SCORE_THRESHOLD
-          ) {
-            state.unlockedThugGlasses = true;
-            state.wearThugGlasses = true;
-            saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, true);
-            saveBoolFlag(WEAR_THUG_GLASSES_KEY, true);
-            if (raptor) {
-              const crown = raptor.currentCrownPoint();
-              spawnConfettiBurst(crown.x, crown.y);
-            }
-          }
-          if (!state.unlockedBowTie && state.score >= BOW_TIE_SCORE_THRESHOLD) {
-            state.unlockedBowTie = true;
-            state.wearBowTie = true;
-            saveBoolFlag(UNLOCKED_BOW_TIE_KEY, true);
-            saveBoolFlag(WEAR_BOW_TIE_KEY, true);
-            if (raptor) {
-              const crown = raptor.currentCrownPoint();
-              spawnConfettiBurst(crown.x, crown.y);
-            }
-          }
-          return false;
-        }
-        return true;
-      });
-    }
-
-    draw(ctx) {
-      for (const c of this.cacti) c.draw(ctx);
-    }
-
-    clear() {
-      this.cacti = [];
-    }
-  }
+  // Cactus + Cactuses classes live in src/entities/cactus.ts.
+  // Cactuses takes a raptor instance + two callbacks (achievement
+  // unlock, cosmetic burst spawner) at construction time in init().
 
   // ════════════════════════════════════════════════════════════════
   // Stars + Milky Way
@@ -885,200 +345,7 @@ import { audio } from "./audio";
   // frame so it drifts in/out with the rest of the sky.
   // ════════════════════════════════════════════════════════════════
 
-  class Stars {
-    constructor() {
-      this.opacity = 0;
-      this.field = [];
-      this.milkyWay = [];
-
-      // Generate stars over an area much larger than the viewport so
-      // the rotation transform never sweeps the visible area empty.
-      // The rotation pivot sits 1.5 screen-heights above the viewport,
-      // so even small rotation angles move stars along long arcs —
-      // the field needs to extend far enough in every direction to
-      // cover where stars rotate in from.
-      const w = state.width;
-      const h = state.height;
-      const padX = w * 1.2;
-      const padY = h * 1.2;
-      const fieldW = w + padX * 2;
-      const fieldH = h * 0.8 + padY * 2;
-      // Density: roughly one star per 8000 px² of star-field area —
-      // lower density than before because the field is much larger
-      // and we don't want to overwhelm the sky with pinpricks.
-      const count = Math.max(STAR_MIN_COUNT, Math.floor((fieldW * fieldH) / STAR_AREA_PER_STAR_PX2));
-      for (let i = 0; i < count; i++) {
-        // ~15% of stars are "bright" — noticeably bigger and at full
-        // brightness. The rest are background dimmer pinpricks.
-        const bright = Math.random() < STAR_BRIGHT_PROBABILITY;
-        // ~65% of stars twinkle. Dimmer ones twinkle more so the
-        // pulsing reads against the dark sky.
-        const twinkles = Math.random() < STAR_TWINKLE_PROBABILITY;
-        // Color variation: 85% white, 10% warm, 5% cool
-        const colorRoll = Math.random();
-        const color =
-          colorRoll < 0.85
-            ? [255, 255, 255]
-            : colorRoll < 0.95
-              ? [255, 240, 220]
-              : [220, 230, 255];
-        // ~5% of twinkling stars get sharp "flash" spikes
-        const flash = twinkles && Math.random() < 0.05;
-        this.field.push({
-          x: -padX + Math.random() * fieldW,
-          y: -padY + Math.random() * fieldH,
-          size: bright ? randRange(4, 6.5) : randRange(1.6, 3.5),
-          brightness: bright ? randRange(0.92, 1.0) : randRange(0.45, 0.85),
-          twinklePhase: Math.random() * Math.PI * 2,
-          twinkleRate: twinkles ? randRange(0.02, 0.06) : 0,
-          twinkleDepth: twinkles ? randRange(0.3, 0.7) : 0,
-          color,
-          flash,
-        });
-      }
-
-      // Milky Way: a tilted band of small stars + a few soft "puffs"
-      // of haze along the band. Stars are distributed with a Gaussian
-      // density across the band so the edges fade naturally rather
-      // than ending in a hard rectangle.
-      this.mwTilt = MILKY_WAY_TILT;
-      this.mwCenterX = w * 0.55;
-      this.mwCenterY = h * 0.28;
-      this.mwLength = Math.max(w, h) * MILKY_WAY_LENGTH_SCALE;
-      this.mwThickness = h * MILKY_WAY_THICKNESS_RATIO;
-      const mwCos = Math.cos(this.mwTilt);
-      const mwSin = Math.sin(this.mwTilt);
-      const mwStarCount = MILKY_WAY_STAR_COUNT;
-      for (let i = 0; i < mwStarCount; i++) {
-        const along = (Math.random() - 0.5) * this.mwLength;
-        // Box-Muller-ish: average two uniforms for a roughly Gaussian
-        // distribution across the band's thickness, so star density
-        // peaks in the middle and tapers smoothly to nothing at the
-        // edges. Squared bias toward the center.
-        const u = (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
-        const across = u * (this.mwThickness * 0.5);
-        // Long-axis intensity also tapers off toward the band ends.
-        const endFade = 1 - Math.pow(Math.abs(along) / (this.mwLength / 2), 2);
-        if (endFade < 0.05) continue;
-        const x = this.mwCenterX + along * mwCos - across * mwSin;
-        const y = this.mwCenterY + along * mwSin + across * mwCos;
-        this.milkyWay.push({
-          x,
-          y,
-          size: randRange(0.5, 1.6),
-          brightness: randRange(0.35, 0.8) * endFade,
-        });
-      }
-
-      // A few soft haze "puffs" placed along the band — drawn as
-      // radial gradients in draw(). Position them at evenly spaced
-      // points along the centerline with small random jitter so the
-      // glow looks irregular instead of beaded.
-      this.mwHazePuffs = [];
-      const puffCount = 7;
-      for (let i = 0; i < puffCount; i++) {
-        const t = (i + 0.5) / puffCount - 0.5;
-        const along =
-          t * this.mwLength * 0.95 +
-          (Math.random() - 0.5) * this.mwLength * 0.05;
-        const across = (Math.random() - 0.5) * this.mwThickness * 0.15;
-        const x = this.mwCenterX + along * mwCos - across * mwSin;
-        const y = this.mwCenterY + along * mwSin + across * mwCos;
-        const endFade = 1 - Math.pow(Math.abs(along) / (this.mwLength / 2), 2);
-        this.mwHazePuffs.push({
-          x,
-          y,
-          radius: this.mwThickness * randRange(0.55, 0.9),
-          brightness: 0.1 * endFade,
-        });
-      }
-    }
-
-    update(isNight, frameScale = 1) {
-      if (isNight)
-        this.opacity = Math.min(1, this.opacity + 0.005 * frameScale);
-      else this.opacity = Math.max(0, this.opacity - 0.005 * frameScale);
-    }
-
-    /**
-     * Apply the rotation transform around the celestial pivot. The
-     * pivot sits well above the visible viewport so that on-screen
-     * stars all trace gentle, near-parallel arcs (rather than
-     * spinning around a visible center point).
-     */
-    _applyRotation(ctx) {
-      const px = state.width * 0.5;
-      const py = state.height * STAR_PIVOT_HEIGHT_RATIO;
-      ctx.translate(px, py);
-      ctx.rotate(state.starRotation);
-      ctx.translate(-px, -py);
-    }
-
-    draw(ctx) {
-      if (this.opacity <= 0) return;
-      const starWhite = [255, 255, 255];
-      const mwStar = [235, 235, 255];
-      const mwHaze1 = [220, 225, 255];
-      const mwHaze2 = [200, 210, 245];
-      const mwHazeOuter = [180, 190, 230];
-
-      ctx.save();
-      this._applyRotation(ctx);
-
-      // Soft Milky Way haze: a few overlapping radial-gradient puffs
-      // along the band. Radial gradients fade smoothly to transparent
-      // at their edge so the band feels diffuse rather than rectangular.
-      for (const puff of this.mwHazePuffs) {
-        const a = puff.brightness * this.opacity;
-        if (a <= 0.001) continue;
-        const grad = ctx.createRadialGradient(
-          puff.x,
-          puff.y,
-          0,
-          puff.x,
-          puff.y,
-          puff.radius,
-        );
-        grad.addColorStop(0, rgba(mwHaze1, a));
-        grad.addColorStop(0.6, rgba(mwHaze2, a * 0.4));
-        grad.addColorStop(1, rgba(mwHazeOuter, 0));
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(puff.x, puff.y, puff.radius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Milky Way star points.
-      for (const s of this.milkyWay) {
-        ctx.fillStyle = rgba(mwStar, s.brightness * this.opacity);
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Foreground star field. Stars with a non-zero twinkleDepth
-      // pulse softly via a sin wave; flash stars spike sharply.
-      for (const s of this.field) {
-        let twinkle = 1;
-        if (s.twinkleDepth) {
-          const raw =
-            0.5 + 0.5 * Math.sin(s.twinklePhase + state.frame * s.twinkleRate);
-          twinkle = s.flash
-            ? 0.4 + 1.1 * Math.pow(raw, 8) // sharp bright spikes
-            : 1 - s.twinkleDepth * raw;
-        }
-        const a = s.brightness * twinkle * this.opacity;
-        // Size pulsing: ±20% modulated by twinkle
-        const r = (s.size / 2) * (1 + 0.2 * (twinkle - 0.5));
-        ctx.fillStyle = rgba(s.color || starWhite, Math.min(a, 1));
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      ctx.restore();
-    }
-  }
+  // The Stars class lives in src/entities/stars.ts.
 
   // ════════════════════════════════════════════════════════════════
   // Shooting stars (easter egg)
@@ -3853,7 +3120,7 @@ import { audio } from "./audio";
     if (state.gameOver) {
       maybeResetAfterGameOver();
     } else {
-      if (!raptor.jump()) raptor._jumpBufferedAt = performance.now();
+      if (!raptor.jump()) raptor.bufferJump(performance.now());
     }
   }
 
@@ -3885,7 +3152,7 @@ import { audio } from "./audio";
       if (state.gameOver) {
         maybeResetAfterGameOver();
       } else {
-        if (!raptor.jump()) raptor._jumpBufferedAt = performance.now();
+        if (!raptor.jump()) raptor.bufferJump(performance.now());
       }
       return;
     }
@@ -4375,19 +3642,20 @@ import { audio } from "./audio";
       /* no-op */
     }
 
-    canvas = document.getElementById("game-canvas");
-    if (!canvas) {
-      console.error("game-canvas element not found");
-      return;
-    }
-    ctx = canvas.getContext("2d");
-
-    skyCanvas = document.createElement("canvas");
-    skyCtx = skyCanvas.getContext("2d");
-    fgCanvas = document.createElement("canvas");
-    fgCtx = fgCanvas.getContext("2d");
-    deathCanvas = document.createElement("canvas");
-    deathCtx = deathCanvas.getContext("2d");
+    // Populate the shared contexts bag from src/canvas.ts, then alias
+    // the local let-variables so the existing render code (which
+    // still references bare `ctx`, `skyCtx`, etc.) keeps working.
+    // Once the render code moves into its own modules, these aliases
+    // and the outer `let` declarations will be deleted.
+    if (!initCanvas("game-canvas")) return;
+    canvas = contexts.mainCanvas;
+    ctx = contexts.main;
+    skyCanvas = contexts.skyCanvas;
+    skyCtx = contexts.sky;
+    fgCanvas = contexts.fgCanvas;
+    fgCtx = contexts.fg;
+    deathCanvas = contexts.deathCanvas;
+    deathCtx = contexts.death;
 
     audio.init();
     // Break the audio → state hard dependency: invalidate the
@@ -4439,8 +3707,23 @@ import { audio } from "./audio";
     // initDunes, but IMAGES were still empty at that point).
     initDunes();
 
-    raptor = new Raptor();
-    cactuses = new Cactuses();
+    // Pass the landing-dust and rare-event-roll hooks into the raptor
+    // so src/entities/raptor.ts has no dependency on module-local
+    // helpers. Both are defined later in this file.
+    raptor = new Raptor(
+      () => {
+        spawnDust(raptor.x + raptor.w * 0.51, state.ground);
+        spawnDust(raptor.x + raptor.w * 0.73, state.ground);
+      },
+      () => {
+        maybeSpawnRareEvent();
+      },
+    );
+    cactuses = new Cactuses(
+      raptor,
+      (id) => unlockAchievement(id),
+      (x, y) => spawnConfettiBurst(x, y),
+    );
     stars = new Stars();
     computeSkyGradient();
 
