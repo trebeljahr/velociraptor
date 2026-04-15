@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+/*
+ * Base stylesheet for Raptor Runner.
+ *
+ * Phase 1 status: Tailwind is installed and available. The existing
+ * ~1,600 lines of inlined CSS still live in index.html's <style> block
+ * to avoid destabilizing the game while the infrastructure migration
+ * lands. Incremental Tailwind migration of the start-screen, HUD, and
+ * game-over overlay happens in a follow-up pass.
+ */

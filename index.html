@@ -7,7 +7,6 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <title>Raptor Runner</title>
-    <link rel="manifest" href="manifest.webmanifest" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
@@ -1693,24 +1692,7 @@
       }
     </style>
 
-    <script src="game.js" defer></script>
-    <script>
-      // Register the service worker so the game installs as a
-      // real PWA and works offline after the first load. Runs
-      // on window load so it doesn't fight for bandwidth with
-      // the initial asset preloads. Silently no-ops on browsers
-      // or protocols that don't support service workers
-      // (file:// dev, older browsers).
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", function () {
-          navigator.serviceWorker.register("sw.js").catch(function (e) {
-            // Intentionally quiet — a failed registration
-            // shouldn't break the game for anyone.
-            console.warn("sw register failed", e);
-          });
-        });
-      }
-    </script>
+    <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
     <!-- Game canvas — sky, ground, clouds, cacti, raptor, score text,

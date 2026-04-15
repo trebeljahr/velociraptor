@@ -1,3 +1,4 @@
+// @ts-nocheck
 /*
  * Raptor Runner — vanilla canvas + requestAnimationFrame rewrite.
  *
@@ -23,623 +24,190 @@
  *   Game.isStarted()         – true after Game.start() has been called
  *   Game.setMuted(muted)     – controls both music and jump SFX
  *   Game.isMuted()
+ *
+ * TypeScript port notes:
+ *   • This is the pragmatic first pass: the 5,400-line game.js was
+ *     copied here verbatim so the game runs under Vite + TS. `@ts-nocheck`
+ *     is in place while the module split (into src/constants.ts,
+ *     src/state.ts, src/audio.ts, src/entities/, src/effects/, etc.) is
+ *     done incrementally in follow-up work. Once a file is fully typed,
+ *     its code moves out of here and `@ts-nocheck` can eventually be
+ *     removed.
  */
-(function () {
-  "use strict";
+import "./styles/base.css";
+import ScoreCardWorker from "./workers/scoreCard.worker.ts?worker";
+import {
+  INITIAL_BG_VELOCITY,
+  GRAVITY,
+  JUMP_CLEARANCE_MULTIPLIER,
+  SKY_CYCLE_SCORE,
+  SKY_UPDATE_INTERVAL_FRAMES,
+  RAPTOR_WIDTH_RATIO,
+  VELOCITY_SCALE_DIVISOR,
+  DOWNWARD_ACCEL_DIVISOR,
+  SPEED_INCREMENT,
+  MAX_BG_VELOCITY,
+  CACTUS_SPAWN_GAP_BASE,
+  CACTUS_SPAWN_GAP_SPEED_FACTOR,
+  JUMP_BUFFER_MS,
+  JUMP_VIBRATION_MS,
+  FRAME_DELAY_SPEED_RANGE,
+  GROUND_HEIGHT_RATIO,
+  GROUND_BAND_HEIGHTS_PX,
+  GROUND_BAND_COLORS,
+  SUN_PHASE_CENTER,
+  MOON_PHASE_CENTER,
+  CELESTIAL_ARC_HALF_WIDTH,
+  CELESTIAL_ARC_EXTENSION,
+  CELESTIAL_ARC_HEIGHT_RATIO,
+  SUN_MIN_RADIUS_PX,
+  SUN_RADIUS_SCALE,
+  MOON_MIN_RADIUS_PX,
+  MOON_RADIUS_SCALE,
+  MOON_SYNODIC_CYCLE,
+  DUNE_SCROLL_SPEED,
+  DUNE_BASE_HEIGHT_RATIO,
+  DUNE_CACTUS_MIN_HEIGHT_PX,
+  DUNE_CACTUS_HEIGHT_RANGE_PX,
+  DUNE_CACTUS_MIN_SPACING_PX,
+  DUNE_CACTUS_SPACING_RANGE_PX,
+  CLOUD_PARALLAX_DIVISOR,
+  CLOUD_DENSITY_DIVISOR,
+  CLOUD_MIN_COUNT,
+  CLOUD_RAIN_MULTIPLIER_MAX,
+  CLOUD_MIN_SPACING_RATIO,
+  CLOUD_MIN_SPACING_FLOOR_PX,
+  CLOUD_HEAVY_RAIN_SPACING,
+  CLOUD_SPAWN_INTERVAL,
+  STAR_AREA_PER_STAR_PX2,
+  STAR_MIN_COUNT,
+  STAR_BRIGHT_PROBABILITY,
+  STAR_TWINKLE_PROBABILITY,
+  MILKY_WAY_STAR_COUNT,
+  MILKY_WAY_TILT,
+  MILKY_WAY_LENGTH_SCALE,
+  MILKY_WAY_THICKNESS_RATIO,
+  STAR_ROTATION_PER_CYCLE,
+  STAR_PIVOT_HEIGHT_RATIO,
+  RAIN_SPAWN_DENSITY_DIVISOR,
+  RAIN_FADE_IN_RATE,
+  RAIN_FADE_OUT_RATE,
+  RAIN_AUDIO_MAX_VOLUME,
+  LIGHTNING_INTENSITY_THRESHOLD,
+  LIGHTNING_FLASH_PROBABILITY,
+  LIGHTNING_MIN_COOLDOWN_MS,
+  LIGHTNING_MAX_COOLDOWN_MS,
+  THUNDER_DELAY_MIN_MS,
+  THUNDER_DELAY_MAX_MS,
+  LIGHTNING_BOLT_MIN_SEGMENTS,
+  LIGHTNING_BOLT_MAX_SEGMENTS,
+  SHOOTING_STAR_SPAWN_RATE,
+  SHOOTING_STAR_SPEED_SCALE,
+  SHOOTING_STAR_LIFETIME_MIN_SEC,
+  SHOOTING_STAR_LIFETIME_MAX_SEC,
+  SHOOTING_STAR_RAIN_THRESHOLD,
+  CONFETTI_BURST_COUNT,
+  CONFETTI_GRAVITY_PX_S2,
+  CONFETTI_DRAG,
+  DUST_BURST_MIN,
+  DUST_BURST_MAX,
+  DUST_GRAVITY_PX_S2,
+  RAINBOW_LIFETIME_SEC,
+  RAINBOW_MAX_OPACITY,
+  RAINBOW_SPAWN_CHANCE,
+  GAME_OVER_FADE_RATE,
+  DELTA_TIME_CLAMP,
+  HIGH_SCORE_KEY,
+  MUTED_KEY,
+  MUSIC_MUTED_KEY,
+  JUMP_MUTED_KEY,
+  RAIN_MUTED_KEY,
+  TOTAL_JUMPS_KEY,
+  UNLOCKED_PARTY_HAT_KEY,
+  UNLOCKED_THUG_GLASSES_KEY,
+  WEAR_PARTY_HAT_KEY,
+  WEAR_THUG_GLASSES_KEY,
+  UNLOCKED_BOW_TIE_KEY,
+  WEAR_BOW_TIE_KEY,
+  CAREER_RUNS_KEY,
+  ACHIEVEMENTS_KEY,
+  TOTAL_DAY_CYCLES_KEY,
+  RARE_EVENTS_SEEN_KEY,
+  PARTY_HAT_SCORE_THRESHOLD,
+  THUG_GLASSES_SCORE_THRESHOLD,
+  BOW_TIE_SCORE_THRESHOLD,
+  RAPTOR_NATIVE_W,
+  RAPTOR_NATIVE_H,
+  RAPTOR_ASPECT,
+  RAPTOR_FRAMES,
+  RAPTOR_IDLE_FRAME,
+  RAPTOR_FRAME_DELAY_MIN,
+  RAPTOR_FRAME_DELAY_MAX,
+  RAPTOR_COLLISION_INSET,
+  RAPTOR_CROWN,
+  RAPTOR_SNOUT,
+  SKY_COLORS,
+  NIGHT_COLOR,
+} from "./constants";
+import {
+  loadHighScore,
+  saveHighScore,
+  loadCareerRuns,
+  saveCareerRuns,
+  loadUnlockedAchievements,
+  saveUnlockedAchievements,
+  loadTotalJumps,
+  saveTotalJumps,
+  loadTotalDayCycles,
+  saveTotalDayCycles,
+  loadRareEventsSeen,
+  saveRareEventsSeen,
+  loadBoolFlag,
+  saveBoolFlag,
+} from "./persistence";
+import {
+  lerp,
+  lerpColor,
+  rgb,
+  rgba,
+  randRange,
+  clamp,
+  polygonsOverlap,
+  pointInPolygon,
+  segmentsIntersect,
+  cross,
+  shrinkPolygon,
+} from "./helpers";
+import { ACHIEVEMENTS, ACHIEVEMENTS_BY_ID } from "./achievements";
+import { CACTUS_VARIANTS } from "./cactusVariants";
+import { IMAGE_SRCS, IMAGES } from "./images";
+import { audio } from "./audio";
 
   // ══════════════════════════════════════════════════════════════════
   // Constants
+  //
+  // Pure numeric/string/key constants live in src/constants.ts and are
+  // imported at the top of this file. The catalog-shaped constants
+  // (ACHIEVEMENTS, CACTUS_VARIANTS, IMAGE_SRCS) still live here until
+  // they move into their own dedicated modules.
   // ══════════════════════════════════════════════════════════════════
 
-  const INITIAL_BG_VELOCITY = 7;
-  const GRAVITY = 0.1;
-  const JUMP_CLEARANCE_MULTIPLIER = 1.65;
-  const SKY_CYCLE_SCORE = 60;
-  const SKY_UPDATE_INTERVAL_FRAMES = 10;
+  // The ACHIEVEMENTS catalog and ACHIEVEMENTS_BY_ID lookup live in
+  // src/achievements.ts. The unlockAchievement() function below still
+  // lives here until state and GameAPI are split out.
 
-  // ── Gameplay & Physics ──────────────────────────────────────
-  const RAPTOR_WIDTH_RATIO = 1 / 3;
-  const VELOCITY_SCALE_DIVISOR = 1000;
-  const DOWNWARD_ACCEL_DIVISOR = 10;
-  const SPEED_INCREMENT = 0.1;
-  const MAX_BG_VELOCITY = 17;
-  const CACTUS_SPAWN_GAP_BASE = 1.5;
-  const CACTUS_SPAWN_GAP_SPEED_FACTOR = 0.3;
-  const JUMP_BUFFER_MS = 100;
-  const JUMP_VIBRATION_MS = 15;
-  const FRAME_DELAY_SPEED_RANGE = 15;
+  // Raptor sprite constants (RAPTOR_NATIVE_W/H, RAPTOR_FRAMES,
+  // RAPTOR_IDLE_FRAME, RAPTOR_CROWN, RAPTOR_SNOUT, RAPTOR_FRAME_DELAY_*,
+  // RAPTOR_COLLISION_INSET) live in src/constants.ts and are imported
+  // at the top of this file.
 
-  // ── Ground Rendering ───────────────────────────────────────
-  const GROUND_HEIGHT_RATIO = 1 / 10;
-  const GROUND_BAND_HEIGHTS_PX = [5, 10, 20, 200];
-  const GROUND_BAND_COLORS = ["#ebc334", "#ebab21", "#ba8c27", "#EDC9AF"];
+  // CACTUS_VARIANTS (sprite + collision catalog) lives in
+  // src/cactusVariants.ts.
 
-  // ── Celestial Bodies (Sun & Moon) ──────────────────────────
-  const SUN_PHASE_CENTER = 1 / 6;
-  const MOON_PHASE_CENTER = 2 / 3;
-  const CELESTIAL_ARC_HALF_WIDTH = 0.25;
-  const CELESTIAL_ARC_EXTENSION = 0.18;
-  const CELESTIAL_ARC_HEIGHT_RATIO = 0.7;
-  const SUN_MIN_RADIUS_PX = 21;
-  const SUN_RADIUS_SCALE = 0.03;
-  const MOON_MIN_RADIUS_PX = 13;
-  const MOON_RADIUS_SCALE = 0.0192;
-  const MOON_SYNODIC_CYCLE = 30;
-
-  // ── Dunes & Parallax ──────────────────────────────────────
-  const DUNE_SCROLL_SPEED = 0.08;
-  const DUNE_BASE_HEIGHT_RATIO = 0.09;
-  const DUNE_CACTUS_MIN_HEIGHT_PX = 18;
-  const DUNE_CACTUS_HEIGHT_RANGE_PX = 20;
-  const DUNE_CACTUS_MIN_SPACING_PX = 80;
-  const DUNE_CACTUS_SPACING_RANGE_PX = 200;
-  const CLOUD_PARALLAX_DIVISOR = 2000;
-
-  // ── Cloud Spawning ─────────────────────────────────────────
-  const CLOUD_DENSITY_DIVISOR = 380;
-  const CLOUD_MIN_COUNT = 3;
-  const CLOUD_RAIN_MULTIPLIER_MAX = 2;
-  const CLOUD_MIN_SPACING_RATIO = 0.22;
-  const CLOUD_MIN_SPACING_FLOOR_PX = 220;
-  const CLOUD_HEAVY_RAIN_SPACING = 0.3;
-  const CLOUD_SPAWN_INTERVAL = 8;
-
-  // ── Stars & Night Sky ──────────────────────────────────────
-  const STAR_AREA_PER_STAR_PX2 = 8000;
-  const STAR_MIN_COUNT = 80;
-  const STAR_BRIGHT_PROBABILITY = 0.15;
-  const STAR_TWINKLE_PROBABILITY = 0.65;
-  const MILKY_WAY_STAR_COUNT = 220;
-  const MILKY_WAY_TILT = -Math.PI / 7;
-  const MILKY_WAY_LENGTH_SCALE = 1.6;
-  const MILKY_WAY_THICKNESS_RATIO = 0.22;
-  const STAR_ROTATION_PER_CYCLE = Math.PI * 0.1;
-  const STAR_PIVOT_HEIGHT_RATIO = -1.5;
-
-  // ── Weather (Rain & Lightning) ─────────────────────────────
-  const RAIN_SPAWN_DENSITY_DIVISOR = 300;
-  const RAIN_FADE_IN_RATE = 0.008;
-  const RAIN_FADE_OUT_RATE = 0.02;
-  const RAIN_AUDIO_MAX_VOLUME = 0.2;
-  const LIGHTNING_INTENSITY_THRESHOLD = 0.8;
-  const LIGHTNING_FLASH_PROBABILITY = 0.002;
-  const LIGHTNING_MIN_COOLDOWN_MS = 5000;
-  const LIGHTNING_MAX_COOLDOWN_MS = 10000;
-  const THUNDER_DELAY_MIN_MS = 100;
-  const THUNDER_DELAY_MAX_MS = 600;
-  const LIGHTNING_BOLT_MIN_SEGMENTS = 8;
-  const LIGHTNING_BOLT_MAX_SEGMENTS = 13;
-
-  // ── Shooting Stars ─────────────────────────────────────────
-  const SHOOTING_STAR_SPAWN_RATE = 0.018;
-  const SHOOTING_STAR_SPEED_SCALE = 0.9;
-  const SHOOTING_STAR_LIFETIME_MIN_SEC = 0.9;
-  const SHOOTING_STAR_LIFETIME_MAX_SEC = 1.5;
-  const SHOOTING_STAR_RAIN_THRESHOLD = 0.1;
-
-  // ── Particle Effects ───────────────────────────────────────
-  const CONFETTI_BURST_COUNT = 70;
-  const CONFETTI_GRAVITY_PX_S2 = 900;
-  const CONFETTI_DRAG = 0.985;
-  const DUST_BURST_MIN = 8;
-  const DUST_BURST_MAX = 12;
-  const DUST_GRAVITY_PX_S2 = 200;
-  const RAINBOW_LIFETIME_SEC = 6;
-  const RAINBOW_MAX_OPACITY = 0.55;
-  const RAINBOW_SPAWN_CHANCE = 0.5;
-
-  // ── Game Over & Timing ─────────────────────────────────────
-  const GAME_OVER_FADE_RATE = 0.01;
-  const DELTA_TIME_CLAMP = 1 / 20;
-
-  // localStorage key for the player's personal best. Namespaced so it
-  // doesn't collide with anything else on the same origin.
-  const HIGH_SCORE_KEY = "raptor-runner:highScore";
-  // localStorage key for the mute preference. Persisted across
-  // sessions so players who mute the music don't get blasted every
-  // time they reopen the tab.
-  const MUTED_KEY = "raptor-runner:muted";
-  const MUSIC_MUTED_KEY = "raptor-runner:musicMuted";
-  const JUMP_MUTED_KEY = "raptor-runner:jumpMuted";
-  const RAIN_MUTED_KEY = "raptor-runner:rainMuted";
-  // localStorage key for the cumulative jump count. Kept for
-  // backwards-compatibility with earlier versions that gated the
-  // cosmetic unlocks on total jumps.
-  const TOTAL_JUMPS_KEY = "raptor-runner:totalJumps";
-  // Cosmetic unlocks are earned by scoring this many points (i.e.
-  // cleared cacti) in a SINGLE run. Score is the honest measure of
-  // skill — a player can pad their jump count by tapping in place,
-  // but they can't fake clearing actual obstacles.
-  const PARTY_HAT_SCORE_THRESHOLD = 100;
-  const THUG_GLASSES_SCORE_THRESHOLD = 500;
-  const BOW_TIE_SCORE_THRESHOLD = 200;
-  // Per-accessory unlock + wear flags in localStorage. "unlocked"
-  // is a sticky bit set when the player first crosses the jump
-  // threshold; "wear" is the player's current on/off cosmetic
-  // preference, defaults to true the moment the accessory is
-  // earned. Both persist across sessions.
-  const UNLOCKED_PARTY_HAT_KEY = "raptor-runner:unlocked:partyHat";
-  const UNLOCKED_THUG_GLASSES_KEY = "raptor-runner:unlocked:thugGlasses";
-  const WEAR_PARTY_HAT_KEY = "raptor-runner:wear:partyHat";
-  const WEAR_THUG_GLASSES_KEY = "raptor-runner:wear:thugGlasses";
-  const UNLOCKED_BOW_TIE_KEY = "raptor-runner:unlocked:bowTie";
-  const WEAR_BOW_TIE_KEY = "raptor-runner:wear:bowTie";
-  // Career-wide run counter + unlocked achievement IDs live
-  // under their own keys so storage is namespaced and easy to
-  // wipe independently of the jump / mute preferences.
-  const CAREER_RUNS_KEY = "raptor-runner:careerRuns";
-  const ACHIEVEMENTS_KEY = "raptor-runner:achievements";
-  const TOTAL_DAY_CYCLES_KEY = "raptor-runner:totalDayCycles";
-  const RARE_EVENTS_SEEN_KEY = "raptor-runner:rareEventsSeen";
-
-  // ── Achievement catalog ────────────────────────────────────
-  // Each entry carries a stable `id` (used for storage), a
-  // short display title, and a one-line description of how to
-  // earn it.
-  //
-  // Icons are inline SVG fragments, drawn at 24×24 inside a
-  // shared viewBox. Unlike Lucide-style monochrome line icons,
-  // these are multi-colour vector illustrations coloured from
-  // the game's own palette — cactus greens, sky blues, sunset
-  // golds, moon creams — so the shell can render them directly
-  // without a CSS `currentColor` pass.
-  //
-  // A few entries use `iconImage` to pull an actual sprite from
-  // /assets (the party hat and thug glasses cosmetics) so the
-  // reward preview is pixel-accurate to the thing you unlock.
-  const ACHIEVEMENTS = [
-    {
-      id: "first-run",
-      title: "First Steps",
-      desc: "Complete your first run",
-      // Classic 3-toed dinosaur footprint — wide splaying toes
-      // with pointed claw tips from a teardrop heel. Matches the
-      // top-left silhouette from the reference image.
-      iconHTML:
-        '<path d="M12 22 C9.5 22 8.5 20.5 9 18.5 L10.5 14 C9 13.5 6.5 12 5.5 9 C4.8 6.8 6 5.5 7.5 6.2 C8.8 6.8 9.5 9 10.5 12 L11.5 14.5 L11.5 9.5 C11 7 11.2 3.5 12 2 C12.8 3.5 13 7 12.5 9.5 L12.5 14.5 L13.5 12 C14.5 9 15.2 6.8 16.5 6.2 C18 5.5 19.2 6.8 18.5 9 C17.5 12 15 13.5 13.5 14 L15 18.5 C15.5 20.5 14.5 22 12 22Z" fill="#6d7580"/>',
-    },
-    {
-      id: "first-jump",
-      title: "Up And Over",
-      desc: "Clear your first cactus",
-      // The small flowering cactus sprite with a solid curved
-      // arrow arcing high above it, ending in an arrowhead on the
-      // right — reads as "jumped clean over the obstacle".
-      iconHTML:
-        '<image href="assets/cactus2.png" x="5" y="10" width="14" height="14" preserveAspectRatio="xMidYMax meet"/>' +
-        '<path d="M3 10 A12 12 0 0 1 21 10" fill="none" stroke="#3498db" stroke-width="1.5" stroke-linecap="round"/>' +
-        '<polygon points="22,7 22,13 18,10" fill="#3498db"/>',
-    },
-    {
-      id: "score-25",
-      title: "Getting The Hang Of It",
-      desc: "Score 25 points in a single run",
-      // The tall saguaro cactus sprite with a green check badge
-      // — same design language as the first-jump icon but with a
-      // "you've got this" confirmation overlay.
-      iconHTML:
-        '<image href="assets/cactus7.png" x="3" y="2" width="13" height="22" preserveAspectRatio="xMidYMax meet"/>' +
-        '<circle cx="18" cy="7" r="5" fill="#ffffff" stroke="#3498db" stroke-width="1.2"/>' +
-        '<path d="M15.5 7l2 2 3.2-3.4" fill="none" stroke="#2d9d55" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
-    },
-    {
-      id: "party-time",
-      title: "Party Time",
-      desc: "Score 100 points in a single run",
-      // The actual party hat cosmetic sprite.
-      iconImage: "assets/party-hat.png",
-    },
-    {
-      id: "dinosaurs-forever",
-      title: "Dinosaurs Forever",
-      desc: "Score 200 points in a single run",
-      iconImage: "assets/bow-tie.png",
-    },
-    {
-      id: "score-250",
-      title: "Raptor Legend",
-      desc: "Score 500 points in a single run",
-      iconImage: "assets/thug-glasses.png",
-    },
-    {
-      id: "first-night",
-      title: "Night Owl",
-      desc: "Survive your first full night",
-      // Full night-sky circle with a crescent moon — no loose
-      // stars, just a clean moon on the dark field.
-      iconHTML:
-        '<circle cx="12" cy="12" r="12" fill="#1e2a44"/>' +
-        '<path d="M16 7a6 6 0 1 0 1 9 5 5 0 0 1-1-9z" fill="#f4f0d6"/>',
-    },
-    {
-      id: "ten-nights",
-      title: "Insomniac",
-      desc: "Survive 10 nights in a single run",
-      // Full night-sky circle with a smaller crescent moon and
-      // ten stars equally spaced in a ring around the centre.
-      // r=10, centre 12,12, angle = i*36° starting at 0°.
-      iconHTML:
-        '<circle cx="12" cy="12" r="12" fill="#1e2a44"/>' +
-        '<path d="M14 8a4 4 0 1 0 .8 6.5 3.2 3.2 0 0 1-.8-6.5z" fill="#f4f0d6"/>' +
-        '<circle cx="22" cy="12" r="0.7" fill="#fff"/>' + // 0°
-        '<circle cx="20.1" cy="5.9" r="0.7" fill="#fff"/>' + // 36°
-        '<circle cx="15.1" cy="2.2" r="0.7" fill="#fff"/>' + // 72°
-        '<circle cx="8.9" cy="2.2" r="0.7" fill="#fff"/>' + // 108°
-        '<circle cx="3.9" cy="5.9" r="0.7" fill="#fff"/>' + // 144°
-        '<circle cx="2" cy="12" r="0.7" fill="#fff"/>' + // 180°
-        '<circle cx="3.9" cy="18.1" r="0.7" fill="#fff"/>' + // 216°
-        '<circle cx="8.9" cy="21.8" r="0.7" fill="#fff"/>' + // 252°
-        '<circle cx="15.1" cy="21.8" r="0.7" fill="#fff"/>' + // 288°
-        '<circle cx="20.1" cy="18.1" r="0.7" fill="#fff"/>', // 324°
-    },
-    {
-      id: "twenty-nights",
-      title: "Marathon Sleeper",
-      desc: "Survive 20 nights in a single run",
-      // Sun + moon pair — you've lived through the full cycle a
-      // lot of times.
-      iconHTML:
-        '<circle cx="8" cy="12" r="4" fill="#ffd455" stroke="#c78a12" stroke-width="0.8"/>' +
-        '<g stroke="#ffd455" stroke-width="1.2" stroke-linecap="round">' +
-        '<line x1="8" y1="4" x2="8" y2="6"/>' +
-        '<line x1="8" y1="18" x2="8" y2="20"/>' +
-        '<line x1="1.5" y1="12" x2="3.5" y2="12"/>' +
-        '<line x1="3.5" y1="7.5" x2="4.9" y2="8.9"/>' +
-        '<line x1="3.5" y1="16.5" x2="4.9" y2="15.1"/>' +
-        "</g>" +
-        '<circle cx="17" cy="12" r="4.5" fill="#1e2a44"/>' +
-        '<path d="M18.5 9a3.5 3.5 0 1 0 0 6 3 3 0 0 1 0-6z" fill="#f4f0d6"/>',
-    },
-    {
-      id: "first-shooting-star",
-      title: "Make A Wish",
-      desc: "See your first shooting star",
-      // Gold star with a trailing streak fading into sky blue.
-      iconHTML:
-        '<path d="M3 20l9-9" stroke="#8fd1ff" stroke-width="2.4" stroke-linecap="round"/>' +
-        '<path d="M5 18l5-5" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>' +
-        '<path d="M16 3l1.6 3.4 3.7.5-2.7 2.6.7 3.7-3.3-1.8-3.3 1.8.7-3.7L9.7 6.9l3.7-.5z" fill="#f7d148" stroke="#c78a12" stroke-width="0.8" stroke-linejoin="round"/>',
-    },
-    {
-      id: "century-runner",
-      title: "Century Runner",
-      desc: "Complete 100 runs",
-      // Ribbon medal: gold disc + two ribbon tails. Larger disc
-      // with compact text so "100" has room to breathe.
-      iconHTML:
-        '<path d="M8 13l-3 9 4-2 4 2-3-9z" fill="#3498db" stroke="#1e6aa8" stroke-width="0.8" stroke-linejoin="round"/>' +
-        '<path d="M16 13l3 9-4-2-4 2 3-9z" fill="#50b4cd" stroke="#1e6aa8" stroke-width="0.8" stroke-linejoin="round"/>' +
-        '<circle cx="12" cy="10" r="9" fill="#f7d148" stroke="#c78a12" stroke-width="1"/>' +
-        '<text x="12" y="12.8" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="5.5" font-weight="900" fill="#7a4a00">100</text>',
-    },
-    {
-      id: "sound-of-silence",
-      title: "The Sound Of Silence",
-      desc: "Play muted through an entire run",
-      // Speaker with a diagonal slash — same visual language as
-      // the game's own mute button up in the top-right cluster.
-      iconHTML:
-        '<path d="M10 8L6 11H3v4h3l4 3V8z" fill="#6d7580" stroke="#333" stroke-width="0.8" stroke-linejoin="round"/>' +
-        '<line x1="14" y1="9" x2="20" y2="17" stroke="#e53935" stroke-width="2.2" stroke-linecap="round"/>' +
-        '<line x1="20" y1="9" x2="14" y2="17" stroke="#e53935" stroke-width="2.2" stroke-linecap="round"/>',
-    },
-    {
-      id: "rainy-day",
-      title: "Rainy Day",
-      desc: "Survive a rainstorm",
-      iconHTML:
-        '<path d="M6 10a4 4 0 0 1 7.9-.8A3.5 3.5 0 1 1 17.5 14H6a3 3 0 0 1 0-6z" fill="#90a4ae" stroke="#546e7a" stroke-width="0.8"/>' +
-        '<line x1="8" y1="17" x2="7" y2="21" stroke="#42a5f5" stroke-width="1.5" stroke-linecap="round"/>' +
-        '<line x1="12" y1="17" x2="11" y2="21" stroke="#42a5f5" stroke-width="1.5" stroke-linecap="round"/>' +
-        '<line x1="16" y1="17" x2="15" y2="21" stroke="#42a5f5" stroke-width="1.5" stroke-linecap="round"/>',
-    },
-    {
-      id: "rainbow",
-      title: "Over the Rainbow",
-      desc: "See a rainbow after a storm",
-      iconHTML:
-        '<path d="M4 18a8 8 0 0 1 16 0" fill="none" stroke="#e53935" stroke-width="1.2"/>' +
-        '<path d="M5 18a7 7 0 0 1 14 0" fill="none" stroke="#ff9800" stroke-width="1.2"/>' +
-        '<path d="M6 18a6 6 0 0 1 12 0" fill="none" stroke="#fdd835" stroke-width="1.2"/>' +
-        '<path d="M7 18a5 5 0 0 1 10 0" fill="none" stroke="#4caf50" stroke-width="1.2"/>' +
-        '<path d="M8 18a4 4 0 0 1 8 0" fill="none" stroke="#2196f3" stroke-width="1.2"/>' +
-        '<path d="M9 18a3 3 0 0 1 6 0" fill="none" stroke="#7b1fa2" stroke-width="1.2"/>',
-    },
-    // Secret achievements — rare background easter eggs
-    {
-      id: "full-moon",
-      title: "Lunar Glory",
-      desc: "Witness a full moon",
-      secret: true,
-      iconHTML:
-        '<circle cx="12" cy="12" r="8" fill="#f0e8c0" stroke="#c8b888" stroke-width="0.8"/>',
-    },
-    {
-      id: "ufo-sighting",
-      title: "We Are Not Alone",
-      desc: "Witness a UFO landing",
-      secret: true,
-      iconImage: "assets/ufo.png",
-    },
-    {
-      id: "santa-spotted",
-      title: "Jurassic Christmas",
-      desc: "Spot Santa crossing the night sky",
-      secret: true,
-      iconImage: "assets/santa-sleigh.png",
-    },
-    {
-      id: "tumbleweed",
-      title: "Desert Drifter",
-      desc: "See a tumbleweed roll by",
-      secret: true,
-      iconImage: "assets/tumbleweed.png",
-    },
-    {
-      id: "comet",
-      title: "Wish Upon a Comet",
-      desc: "See a comet cross the night sky",
-      secret: true,
-      iconHTML:
-        '<circle cx="8" cy="12" r="3" fill="#fffae0"/>' +
-        '<line x1="11" y1="11" x2="22" y2="8" stroke="#fffae0" stroke-width="1.5" stroke-linecap="round"/>' +
-        '<line x1="10" y1="13" x2="20" y2="12" stroke="rgba(255,250,200,0.4)" stroke-width="1"/>',
-    },
-    {
-      id: "meteor-impact",
-      title: "Extinction Event",
-      desc: "Witness a meteor impact",
-      secret: true,
-      iconHTML:
-        '<circle cx="12" cy="10" r="3" fill="#ffc864"/>' +
-        '<path d="M12 13L8 20h8z" fill="#ff8c00" opacity="0.6"/>' +
-        '<line x1="15" y1="8" x2="20" y2="4" stroke="#ffa040" stroke-width="1.5"/>',
-    },
-  ];
-  const ACHIEVEMENTS_BY_ID = Object.create(null);
-  for (const a of ACHIEVEMENTS) ACHIEVEMENTS_BY_ID[a.id] = a;
-
-  const RAPTOR_NATIVE_W = 578;
-  const RAPTOR_NATIVE_H = 212;
-  const RAPTOR_ASPECT = RAPTOR_NATIVE_H / RAPTOR_NATIVE_W;
-  // Sprite sheet is the 12 GIF frames stacked vertically (578 × 2544).
-  const RAPTOR_FRAMES = 12;
-  const RAPTOR_IDLE_FRAME = 11; // pose used when airborne (legs tucked)
-
-  // Per-frame head reference points, extracted by scanning each
-  // frame of assets/raptor-sheet.png for the topmost opaque pixel
-  // (the "crown") and the rightmost opaque pixel in the upper head
-  // band (the "snout tip"). Values are normalized to the native
-  // 578×212 frame dimensions so the game can multiply them by the
-  // current raptor w/h to get exact anchor positions. Used to bob
-  // head-mounted accessories (party hat, thug glasses) so they
-  // track the run cycle animation instead of floating.
-  const RAPTOR_CROWN = [
-    [0.86332, 0.16038], // frame 0
-    [0.86678, 0.16509], // frame 1
-    [0.88062, 0.17925], // frame 2
-    [0.8737, 0.17453], // frame 3
-    [0.86851, 0.16038], // frame 4
-    [0.86851, 0.15566], // frame 5
-    [0.86505, 0.16509], // frame 6
-    [0.86851, 0.16981], // frame 7
-    [0.87024, 0.17925], // frame 8
-    [0.87543, 0.16981], // frame 9
-    [0.87197, 0.16509], // frame 10
-    [0.86851, 0.15566], // frame 11
-  ];
-  const RAPTOR_SNOUT = [
-    [0.98097, 0.25943], // frame 0
-    [0.98616, 0.26415], // frame 1
-    [0.99135, 0.27358], // frame 2
-    [0.99827, 0.26415], // frame 3
-    [0.99135, 0.25943], // frame 4
-    [0.98789, 0.25472], // frame 5
-    [0.98097, 0.25943], // frame 6
-    [0.98616, 0.26887], // frame 7
-    [0.99135, 0.27358], // frame 8
-    [0.99827, 0.26415], // frame 9
-    [0.99135, 0.25943], // frame 10
-    [0.98616, 0.25472], // frame 11
-  ];
-  // Frame delay in milliseconds at the initial background velocity.
-  // Decreases as the game speeds up, mirroring the old p5 `img.delay(...)`
-  // speed-ramp from 70 ms down to 40 ms.
-  const RAPTOR_FRAME_DELAY_MIN = 40;
-  const RAPTOR_FRAME_DELAY_MAX = 70;
-  // Pixels to shrink the raptor's collision polygon inward, so the
-  // hitbox is slightly smaller than the visible silhouette. Makes
-  // collisions feel fair rather than punishing near-misses.
-  const RAPTOR_COLLISION_INSET = 4;
-
-  // Each variant has a `collision` polygon expressed in normalized
-  // (0..1) coordinates relative to the cactus bounding box. Polygons
-  // roughly trace the opaque silhouette of the main body and exclude
-  // thin spikes, small pad arms and pink blooms — shapes that would
-  // visually look like "near misses" for the player and shouldn't
-  // trigger game-over. Points go clockwise.
-  const CACTUS_VARIANTS = [
-    {
-      key: "cactus1",
-      w: 371,
-      h: 497,
-      heightScale: 0.55,
-      // Squat barrel with a crown. Side branches excluded.
-      collision: [
-        [0.38, 0.05],
-        [0.58, 0.05],
-        [0.68, 0.22],
-        [0.82, 0.48],
-        [0.82, 0.88],
-        [0.62, 1.0],
-        [0.38, 1.0],
-        [0.18, 0.88],
-        [0.2, 0.52],
-        [0.32, 0.22],
-      ],
-    },
-    {
-      key: "cactus2",
-      w: 311,
-      h: 463,
-      heightScale: 0.5,
-      // Rounded rectangle barrel, flower bloom on top excluded.
-      collision: [
-        [0.25, 0.15],
-        [0.75, 0.15],
-        [0.92, 0.35],
-        [0.92, 0.85],
-        [0.78, 1.0],
-        [0.22, 1.0],
-        [0.08, 0.85],
-        [0.08, 0.35],
-      ],
-    },
-    {
-      key: "cactus3",
-      w: 379,
-      h: 521,
-      heightScale: 0.55,
-      // Three columns that merge at the base. Traces the outer silhouette
-      // of the trio, skipping the blooms.
-      collision: [
-        [0.2, 0.3],
-        [0.35, 0.22],
-        [0.5, 0.3],
-        [0.65, 0.2],
-        [0.8, 0.32],
-        [0.92, 0.65],
-        [0.85, 0.98],
-        [0.15, 0.98],
-        [0.08, 0.65],
-      ],
-    },
-    {
-      key: "cactus4",
-      w: 403,
-      h: 416,
-      heightScale: 0.5,
-      // Almost spherical body with pink top and side nub. Bloom excluded.
-      collision: [
-        [0.3, 0.22],
-        [0.7, 0.22],
-        [0.92, 0.42],
-        [0.92, 0.8],
-        [0.78, 0.98],
-        [0.22, 0.98],
-        [0.08, 0.8],
-        [0.08, 0.42],
-      ],
-    },
-    {
-      key: "cactus5",
-      w: 434,
-      h: 937,
-      heightScale: 0.95,
-      // Classic saguaro with two short arms at about y=0.35.
-      collision: [
-        [0.38, 0.03],
-        [0.6, 0.03],
-        [0.66, 0.3],
-        [0.85, 0.34],
-        [0.86, 0.52],
-        [0.66, 0.54],
-        [0.66, 0.96],
-        [0.34, 0.96],
-        [0.34, 0.54],
-        [0.14, 0.52],
-        [0.15, 0.34],
-        [0.34, 0.3],
-      ],
-    },
-    {
-      key: "cactus6",
-      w: 201,
-      h: 899,
-      heightScale: 0.9,
-      // Tall narrow column with a red flower top. Main column only.
-      collision: [
-        [0.22, 0.06],
-        [0.78, 0.06],
-        [0.88, 0.14],
-        [0.88, 0.94],
-        [0.72, 1.0],
-        [0.28, 1.0],
-        [0.12, 0.94],
-        [0.12, 0.14],
-      ],
-    },
-    {
-      key: "cactus7",
-      w: 348,
-      h: 943,
-      heightScale: 0.95,
-      // Very thin tall column with small side nubs. Trace only the trunk.
-      collision: [
-        [0.38, 0.02],
-        [0.62, 0.02],
-        [0.72, 0.1],
-        [0.72, 0.95],
-        [0.58, 1.0],
-        [0.42, 1.0],
-        [0.28, 0.95],
-        [0.28, 0.1],
-      ],
-    },
-    {
-      key: "cactus8",
-      w: 422,
-      h: 973,
-      heightScale: 1.0,
-      // Prickly pear with stacked oval pads. Outer silhouette.
-      collision: [
-        [0.35, 0.05],
-        [0.65, 0.05],
-        [0.85, 0.22],
-        [0.9, 0.5],
-        [0.82, 0.78],
-        [0.68, 0.96],
-        [0.32, 0.96],
-        [0.18, 0.78],
-        [0.1, 0.5],
-        [0.15, 0.22],
-      ],
-    },
-  ];
-
-  // 12-band day/night cycle. Day and night are roughly equal, with
-  // shorter sunset/sunrise transitions in between.
-  //   bands 0–1 → solid blue (early day, wraps from end of cycle)
-  //   band 2   → blue → magenta-pink (sunset color shift)
-  //   band 3   → magenta-pink → night (twilight darkening)
-  //   bands 4–6 → solid night (when stars and moon are out)
-  //   band 7   → night → magenta-pink (pre-dawn glow)
-  //   band 8   → magenta-pink → blue (sunrise color shift)
-  //   bands 9–11 → solid blue (long sunny day)
-  //
-  // The transition color is magenta-pink rather than orange because
-  // a linear RGB lerp from blue→orange passes through an ugly
-  // desaturated grey-green midpoint. Blue→magenta passes through
-  // light purple, and magenta→night through deep twilight purple —
-  // both pleasant intermediate colors.
-  const SKY_COLORS = [
-    [80, 180, 205], // 0  blue
-    [80, 180, 205], // 1  blue
-    [80, 180, 205], // 2  blue
-    [80, 180, 205], // 3  blue
-    [80, 180, 205], // 4  blue
-    [220, 90, 120], // 5  magenta-pink (sunset)
-    [21, 34, 56], // 6  night
-    [21, 34, 56], // 7  night
-    [21, 34, 56], // 8  night
-    [21, 34, 56], // 9  night
-    [21, 34, 56], // 10 night
-    [220, 90, 120], // 11 magenta-pink (sunrise)
-  ];
-
-  // Night detection derived from SKY_COLORS so it adapts
-  // automatically if bands are added, removed, or reordered.
-  const NIGHT_COLOR = [21, 34, 56];
+  // The 12-band day/night palette (SKY_COLORS) and NIGHT_COLOR live in
+  // src/constants.ts. The _isNightBand / _isDayBand derivation and
+  // isNightPhase() helper remain here for now — they'll move into a
+  // dedicated sky module later.
   const _isNightBand = SKY_COLORS.map(
     (c) =>
       c[0] === NIGHT_COLOR[0] &&
@@ -668,31 +236,18 @@
     return !_isNightBand[prev] && !_isNightBand[next];
   });
 
-  const IMAGE_SRCS = {
-    raptorSheet: "assets/raptor-sheet.png",
-    partyHat: "assets/party-hat.png",
-    thugGlasses: "assets/thug-glasses.png",
-    bowTie: "assets/bow-tie.png",
-    ufo: "assets/ufo.png",
-    santaSleigh: "assets/santa-sleigh.png",
-    reindeer: "assets/reindeer.png",
-    tumbleweed: "assets/tumbleweed.png",
-  };
-  for (const v of CACTUS_VARIANTS) IMAGE_SRCS[v.key] = `assets/${v.key}.png`;
-  const IMAGES = {};
+  // IMAGE_SRCS (key → path) and IMAGES (runtime dictionary) live in
+  // src/images.ts. The preloader later in this file populates IMAGES.
 
   // ══════════════════════════════════════════════════════════════════
   // Math + collision helpers
+  //
+  // Pure helpers (lerp, lerpColor, rgb, rgba, randRange, clamp,
+  // polygonsOverlap, pointInPolygon, segmentsIntersect, cross,
+  // shrinkPolygon) live in src/helpers.ts and are imported at the top
+  // of this file. tintStrength / tintFactor stay here because they
+  // read state.currentSky.
   // ══════════════════════════════════════════════════════════════════
-
-  const lerp = (a, b, t) => a + (b - a) * t;
-  const lerpColor = (a, b, t) => [
-    Math.round(lerp(a[0], b[0], t)),
-    Math.round(lerp(a[1], b[1], t)),
-    Math.round(lerp(a[2], b[2], t)),
-  ];
-  const rgb = (c) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
-  const rgba = (c, a) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
 
   /** Strength of the foreground sky-light tint applied in render().
    *  Continuous: 0.05 at midday under a clean blue sky (so the
@@ -722,391 +277,17 @@
       255 + (sky[2] - 255) * s,
     ];
   }
-  const randRange = (min, max) => min + Math.random() * (max - min);
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-
-  /**
-   * Polygon-vs-polygon overlap test. Handles *concave* polygons on
-   * both sides without decomposition. Three checks:
-   *   1. Any vertex of A inside B? (fast path for contained shapes)
-   *   2. Any vertex of B inside A? (other containment direction)
-   *   3. Any edge of A crossing any edge of B? (partial overlap)
-   */
-  function polygonsOverlap(polyA, polyB) {
-    // 1. Any vertex of A inside B?
-    for (const p of polyA) if (pointInPolygon(p, polyB)) return true;
-    // 2. Any vertex of B inside A?
-    for (const p of polyB) if (pointInPolygon(p, polyA)) return true;
-    // 3. Any edge of A crosses any edge of B?
-    const lenA = polyA.length;
-    const lenB = polyB.length;
-    for (let i = 0; i < lenA; i++) {
-      const a = polyA[i];
-      const b = polyA[(i + 1) % lenA];
-      for (let j = 0; j < lenB; j++) {
-        const c = polyB[j];
-        const d = polyB[(j + 1) % lenB];
-        if (segmentsIntersect(a, b, c, d)) return true;
-      }
-    }
-    return false;
-  }
-
-  /** Ray-casting point-in-polygon test, handles concave polygons. */
-  function pointInPolygon(p, poly) {
-    let inside = false;
-    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-      const xi = poly[i].x,
-        yi = poly[i].y;
-      const xj = poly[j].x,
-        yj = poly[j].y;
-      const intersect =
-        yi > p.y !== yj > p.y &&
-        p.x < ((xj - xi) * (p.y - yi)) / (yj - yi + 1e-12) + xi;
-      if (intersect) inside = !inside;
-    }
-    return inside;
-  }
-
-  /** Do segments (a,b) and (c,d) strictly intersect? */
-  function segmentsIntersect(a, b, c, d) {
-    const d1 = cross(c, d, a);
-    const d2 = cross(c, d, b);
-    const d3 = cross(a, b, c);
-    const d4 = cross(a, b, d);
-    return (
-      ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
-      ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
-    );
-  }
-
-  const cross = (a, b, c) =>
-    (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-
-  /**
-   * Shrink a polygon inward by `inset` pixels, by pulling each vertex
-   * toward the polygon's centroid along the line joining them. Not a
-   * geometrically perfect polygon offset, but close enough for a small
-   * forgiving collision buffer on an ~28-vertex silhouette.
-   */
-  function shrinkPolygon(poly, inset) {
-    if (inset <= 0 || poly.length === 0) return poly;
-    let cx = 0,
-      cy = 0;
-    for (const p of poly) {
-      cx += p.x;
-      cy += p.y;
-    }
-    cx /= poly.length;
-    cy /= poly.length;
-    return poly.map((p) => {
-      const dx = cx - p.x;
-      const dy = cy - p.y;
-      const len = Math.hypot(dx, dy);
-      if (len < 1e-6) return { x: p.x, y: p.y };
-      const t = Math.min(1, inset / len);
-      return { x: p.x + dx * t, y: p.y + dy * t };
-    });
-  }
+  // randRange / clamp / polygonsOverlap / pointInPolygon /
+  // segmentsIntersect / cross / shrinkPolygon all live in src/helpers.ts.
 
   // ══════════════════════════════════════════════════════════════════
   // Audio (native HTMLAudioElement — no p5.sound)
+  //
+  // The audio singleton lives in src/audio.ts and is imported at the
+  // top of this file. The Sound-of-Silence achievement invalidation
+  // (previously inline in audio.setMuted) is now wired as a callback
+  // during init() below.
   // ══════════════════════════════════════════════════════════════════
-
-  const audio = {
-    // Default to muted so autoplay policies don't complain; the
-    // saved preference (if any) is applied later in init() once the
-    // music element is in the DOM.
-    muted: true,
-    // True once the player has explicitly saved a mute/unmute
-    // preference (either by clicking the sound toggle, or by having
-    // done so in a previous session). Used to decide whether the
-    // Start Game button should auto-unmute (never touched before) or
-    // honour the saved value (returning visitor).
-    hasSavedPreference: false,
-    music: null,
-    // Jump SFX uses the Web Audio API instead of a second <audio>
-    // element. Mobile browsers (Chrome Android in particular) only
-    // allow one HTMLAudioElement to play at a time — calling
-    // jump.play() would pause the music. Web Audio runs through a
-    // separate pipeline and can layer any number of sounds on top
-    // of the <audio> music without interference.
-    musicMuted: false,
-    jumpMuted: false,
-    rainMuted: false,
-    _audioCtx: null,
-    _jumpBuffer: null,
-    _jumpVolume: 0.67,
-
-    init() {
-      this.music = document.getElementById("game-music");
-      if (this.music) this.music.volume = 0.5;
-      // Load per-channel mute preferences from localStorage.
-      this._loadChannelPrefs();
-      // Pre-decode the jump SFX into a Web Audio buffer. The
-      // AudioContext is created lazily on the first user gesture
-      // (required by autoplay policy), but we fetch + decode the
-      // file eagerly so the first jump has zero latency.
-      this._preloadJumpBuffer();
-      this._preloadThunderBuffer();
-      this.initRain();
-    },
-
-    _loadChannelPrefs() {
-      try {
-        const m = window.localStorage.getItem(MUSIC_MUTED_KEY);
-        if (m != null) this.musicMuted = m === "1";
-        const j = window.localStorage.getItem(JUMP_MUTED_KEY);
-        if (j != null) this.jumpMuted = j === "1";
-        const r = window.localStorage.getItem(RAIN_MUTED_KEY);
-        if (r != null) this.rainMuted = r === "1";
-      } catch (e) {
-        /* ignored */
-      }
-    },
-
-    /** Fetch jump.mp3, decode it into an AudioBuffer, and stash it
-     *  for instant playback via Web Audio. Falls back gracefully if
-     *  Web Audio isn't available (old browsers). */
-    _preloadJumpBuffer() {
-      if (
-        typeof AudioContext === "undefined" &&
-        typeof webkitAudioContext === "undefined"
-      )
-        return;
-      fetch("assets/jump.mp3")
-        .then((r) => r.arrayBuffer())
-        .then((buf) => {
-          // AudioContext may not exist yet (needs user gesture on
-          // some browsers). Create it now — decodeAudioData doesn't
-          // require a running context, just an instance.
-          this._ensureAudioCtx();
-          if (!this._audioCtx) return;
-          return this._audioCtx.decodeAudioData(buf);
-        })
-        .then((decoded) => {
-          if (decoded) this._jumpBuffer = decoded;
-        })
-        .catch(() => {
-          /* no-op — jump SFX simply won't play */
-        });
-    },
-
-    _ensureAudioCtx() {
-      if (this._audioCtx) return;
-      try {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        if (Ctx) this._audioCtx = new Ctx();
-      } catch (e) {
-        /* Web Audio not available */
-      }
-    },
-
-    setMuted(muted, persist = true) {
-      this.muted = !!muted;
-      // If the player unmutes during a live run, they broke the
-      // "muted the whole way through" streak for Sound of Silence.
-      if (!this.muted && state && state.started && !state.gameOver) {
-        state._runMutedThroughout = false;
-      }
-      if (persist) {
-        try {
-          window.localStorage.setItem(MUTED_KEY, this.muted ? "1" : "0");
-          this.hasSavedPreference = true;
-        } catch (e) {
-          /* ignored — storage may be unavailable */
-        }
-      }
-      if (!this.music) return;
-      if (this.muted || this.musicMuted) {
-        this.music.pause();
-        if (this.rain && this._isRainPlaying) this.rain.pause();
-      } else {
-        // Resume the Web Audio context on the first unmute — mobile
-        // browsers suspend it until a user gesture unblocks it.
-        this._ensureAudioCtx();
-        if (this._audioCtx && this._audioCtx.state === "suspended") {
-          this._audioCtx.resume().catch(() => {});
-        }
-        // .play() returns a Promise that can reject (autoplay policy,
-        // user-gesture required). Swallow the rejection — the next
-        // user interaction will succeed.
-        const p = this.music.play();
-        if (p && typeof p.catch === "function") p.catch(() => {});
-        // Resume rain if it was playing
-        if (this.rain && this._isRainPlaying) {
-          const rp = this.rain.play();
-          if (rp && typeof rp.catch === "function") rp.catch(() => {});
-        }
-      }
-    },
-
-    /** Read the saved mute preference (true/false) from localStorage.
-     *  Returns `null` if no preference has ever been saved, so callers
-     *  can distinguish "never set" (stay muted for autoplay) from an
-     *  explicit previous "unmute" choice (which we honour). */
-    loadSavedMuted() {
-      try {
-        const raw = window.localStorage.getItem(MUTED_KEY);
-        if (raw == null) return null;
-        return raw === "1";
-      } catch (e) {
-        return null;
-      }
-    },
-
-    toggleMuted() {
-      this.setMuted(!this.muted);
-      return this.muted;
-    },
-
-    playJump() {
-      if (this.muted || this.jumpMuted) return;
-      if (!this._audioCtx || !this._jumpBuffer) return;
-      // Resume context if it was suspended (e.g. after a tab switch).
-      if (this._audioCtx.state === "suspended") {
-        this._audioCtx.resume().catch(() => {});
-      }
-      try {
-        // Each play creates a fresh source node — they're cheap,
-        // single-use objects designed for this pattern. A gain node
-        // controls volume without touching the global output.
-        const src = this._audioCtx.createBufferSource();
-        src.buffer = this._jumpBuffer;
-        const gain = this._audioCtx.createGain();
-        gain.gain.value = this._jumpVolume;
-        src.connect(gain);
-        gain.connect(this._audioCtx.destination);
-        src.start(0);
-      } catch (e) {
-        /* swallow — SFX is non-critical */
-      }
-    },
-
-    /** Unlock the Web Audio context (requires a user gesture). Called
-     *  from the Start Game handler so the first jump SFX plays
-     *  without delay, regardless of mute state. */
-    unlockAudio() {
-      this._ensureAudioCtx();
-      if (this._audioCtx && this._audioCtx.state === "suspended") {
-        this._audioCtx.resume().catch(() => {});
-      }
-    },
-
-    setMusicMuted(muted) {
-      this.musicMuted = !!muted;
-      try {
-        window.localStorage.setItem(
-          MUSIC_MUTED_KEY,
-          this.musicMuted ? "1" : "0",
-        );
-      } catch (e) {
-        /* ignored */
-      }
-      if (!this.music || this.muted) return;
-      if (this.musicMuted) {
-        this.music.pause();
-        if (this.rain && this._isRainPlaying) this.rain.pause();
-      } else {
-        const p = this.music.play();
-        if (p && typeof p.catch === "function") p.catch(() => {});
-        if (this.rain && this._isRainPlaying) {
-          const rp = this.rain.play();
-          if (rp && typeof rp.catch === "function") rp.catch(() => {});
-        }
-      }
-    },
-
-    setJumpMuted(muted) {
-      this.jumpMuted = !!muted;
-      try {
-        window.localStorage.setItem(JUMP_MUTED_KEY, this.jumpMuted ? "1" : "0");
-      } catch (e) {
-        /* ignored */
-      }
-    },
-
-    setRainMuted(muted) {
-      this.rainMuted = !!muted;
-      try {
-        window.localStorage.setItem(RAIN_MUTED_KEY, this.rainMuted ? "1" : "0");
-      } catch (e) {
-        /* ignored */
-      }
-      if (this.rainMuted && this._isRainPlaying) {
-        this.stopRain();
-      }
-    },
-
-    // ── Rain ambience (file-based <audio> element) ──────────────
-    rain: null,
-    _isRainPlaying: false,
-
-    initRain() {
-      this.rain = document.getElementById("rain-audio");
-      if (this.rain) {
-        this.rain.volume = RAIN_AUDIO_MAX_VOLUME;
-        this.rain.loop = true;
-      }
-    },
-
-    startRain() {
-      if (this._isRainPlaying) return;
-      if (this.muted || this.musicMuted || this.rainMuted) return;
-      if (!this.rain) return;
-      const p = this.rain.play();
-      if (p && typeof p.catch === "function") p.catch(() => {});
-      this._isRainPlaying = true;
-    },
-
-    stopRain() {
-      if (!this._isRainPlaying) return;
-      if (this.rain) this.rain.pause();
-      this._isRainPlaying = false;
-    },
-
-    _thunderBuffer: null,
-
-    _preloadThunderBuffer() {
-      if (
-        typeof AudioContext === "undefined" &&
-        typeof webkitAudioContext === "undefined"
-      )
-        return;
-      fetch("assets/thunder.mp3")
-        .then((r) => r.arrayBuffer())
-        .then((buf) => {
-          this._ensureAudioCtx();
-          if (!this._audioCtx) return;
-          return this._audioCtx.decodeAudioData(buf);
-        })
-        .then((decoded) => {
-          if (decoded) this._thunderBuffer = decoded;
-        })
-        .catch(() => {
-          /* thunder SFX simply won't play */
-        });
-    },
-
-    playThunder() {
-      if (this.muted || this.musicMuted) return;
-      if (!this._audioCtx || !this._thunderBuffer) return;
-      if (this._audioCtx.state === "suspended") {
-        this._audioCtx.resume().catch(() => {});
-      }
-      try {
-        const src = this._audioCtx.createBufferSource();
-        src.buffer = this._thunderBuffer;
-        const gain = this._audioCtx.createGain();
-        gain.gain.value = 0.5;
-        src.connect(gain);
-        gain.connect(this._audioCtx.destination);
-        src.start(0);
-      } catch (e) {
-        /* non-critical */
-      }
-    },
-  };
 
   // ══════════════════════════════════════════════════════════════════
   // Game state
@@ -2243,21 +1424,7 @@
     },
   ];
 
-  function loadRareEventsSeen() {
-    try {
-      const raw = window.localStorage.getItem(RARE_EVENTS_SEEN_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch (e) {
-      return {};
-    }
-  }
-  function saveRareEventsSeen(seen) {
-    try {
-      window.localStorage.setItem(RARE_EVENTS_SEEN_KEY, JSON.stringify(seen));
-    } catch (e) {
-      /* ignored */
-    }
-  }
+  // loadRareEventsSeen / saveRareEventsSeen live in src/persistence.ts.
 
   /** Check whether to trigger a rare event on this jump. Called from
    *  the jump counter increment path. */
@@ -2906,22 +2073,7 @@
 
   // ── Rain weather system ────────────────────────────────────────
 
-  function loadTotalDayCycles() {
-    try {
-      const raw = window.localStorage.getItem(TOTAL_DAY_CYCLES_KEY);
-      return raw != null ? parseInt(raw, 10) || 0 : 0;
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  function saveTotalDayCycles(n) {
-    try {
-      window.localStorage.setItem(TOTAL_DAY_CYCLES_KEY, String(n));
-    } catch (e) {
-      /* ignored */
-    }
-  }
+  // loadTotalDayCycles / saveTotalDayCycles live in src/persistence.ts.
 
   /** Deterministic rain check: within each block of 10 cycles,
    *  exactly 1 cycle is rainy. Every 50th is guaranteed rainy. */
@@ -3714,7 +2866,9 @@
   function getScoreCardWorker() {
     if (scoreCardWorker) return scoreCardWorker;
     try {
-      scoreCardWorker = new Worker("score-card-worker.js");
+      // Vite bundles the worker via the ?worker query import at the
+      // top of this file and returns a constructor class.
+      scoreCardWorker = new ScoreCardWorker();
     } catch (e) {
       scoreCardWorker = null;
     }
@@ -4521,66 +3675,9 @@
 
   /** Read the saved personal best. Returns 0 if storage is
    *  unavailable (private mode, denied permission) or unparseable. */
-  function loadHighScore() {
-    try {
-      const raw = window.localStorage.getItem(HIGH_SCORE_KEY);
-      if (raw == null) return 0;
-      const n = parseInt(raw, 10);
-      return Number.isFinite(n) && n >= 0 ? n : 0;
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  /** Persist the high score. Silently no-ops if storage is unavailable. */
-  function saveHighScore(value) {
-    try {
-      window.localStorage.setItem(HIGH_SCORE_KEY, String(value));
-    } catch (e) {
-      /* ignore — no-op in environments without localStorage */
-    }
-  }
-
-  function loadCareerRuns() {
-    try {
-      const raw = window.localStorage.getItem(CAREER_RUNS_KEY);
-      if (raw == null) return 0;
-      const n = parseInt(raw, 10);
-      return Number.isFinite(n) && n >= 0 ? n : 0;
-    } catch (e) {
-      return 0;
-    }
-  }
-  function saveCareerRuns(value) {
-    try {
-      window.localStorage.setItem(CAREER_RUNS_KEY, String(value));
-    } catch (e) {
-      /* ignore */
-    }
-  }
-
-  function loadUnlockedAchievements() {
-    const set = Object.create(null);
-    try {
-      const raw = window.localStorage.getItem(ACHIEVEMENTS_KEY);
-      if (!raw) return set;
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) {
-        for (const id of arr) if (typeof id === "string") set[id] = true;
-      }
-    } catch (e) {
-      /* ignore corrupt values */
-    }
-    return set;
-  }
-  function saveUnlockedAchievements(set) {
-    try {
-      const arr = Object.keys(set);
-      window.localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(arr));
-    } catch (e) {
-      /* ignore */
-    }
-  }
+  // loadHighScore / saveHighScore / loadCareerRuns / saveCareerRuns /
+  // loadUnlockedAchievements / saveUnlockedAchievements all live in
+  // src/persistence.ts.
 
   /** Unlock an achievement by id. Silently no-ops if the id is
    *  unknown or already unlocked. Fires the onAchievementUnlock
@@ -4600,43 +3697,8 @@
     }
   }
 
-  function loadTotalJumps() {
-    try {
-      const raw = window.localStorage.getItem(TOTAL_JUMPS_KEY);
-      if (raw == null) return 0;
-      const n = parseInt(raw, 10);
-      return Number.isFinite(n) && n >= 0 ? n : 0;
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  function saveTotalJumps(value) {
-    try {
-      window.localStorage.setItem(TOTAL_JUMPS_KEY, String(value));
-    } catch (e) {
-      /* ignore */
-    }
-  }
-
-  /** Boolean localStorage helper. Returns `fallback` if the key is
-   *  missing or unparseable (e.g. private mode, denied storage). */
-  function loadBoolFlag(key, fallback) {
-    try {
-      const raw = window.localStorage.getItem(key);
-      if (raw == null) return fallback;
-      return raw === "1";
-    } catch (e) {
-      return fallback;
-    }
-  }
-  function saveBoolFlag(key, value) {
-    try {
-      window.localStorage.setItem(key, value ? "1" : "0");
-    } catch (e) {
-      /* ignore */
-    }
-  }
+  // loadTotalJumps / saveTotalJumps / loadBoolFlag / saveBoolFlag all
+  // live in src/persistence.ts.
 
   /** Called once the player dies. Checks if this run's score beat
    *  the stored personal best and, if so, saves it and flags the
@@ -5328,6 +4390,13 @@
     deathCtx = deathCanvas.getContext("2d");
 
     audio.init();
+    // Break the audio → state hard dependency: invalidate the
+    // Sound-of-Silence streak when the player un-mutes mid-run.
+    audio.setUnmuteDuringRunHandler(() => {
+      if (state && state.started && !state.gameOver) {
+        state._runMutedThroughout = false;
+      }
+    });
 
     // Load the player's saved mute preference into the audio object's
     // state, without triggering .play() yet (browser autoplay
@@ -5410,4 +4479,3 @@
   } else {
     init();
   }
-})();

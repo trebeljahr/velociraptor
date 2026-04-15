@@ -1,3 +1,5 @@
+/// <reference lib="webworker" />
+// @ts-nocheck
 /*
  * Score-card renderer running in a Web Worker, so the main
  * thread (and the game's rAF loop) aren't blocked while we
