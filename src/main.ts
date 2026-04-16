@@ -148,6 +148,9 @@ import {
   RAPTOR_SNOUT,
   SKY_COLORS,
   NIGHT_COLOR,
+  GAMEPAD_JUMP_BUTTONS,
+  GAMEPAD_MENU_BUTTON,
+  CINEMATIC_PHASES,
 } from "./constants";
 import {
   loadHighScore,
@@ -213,6 +216,7 @@ import {
   drawRain,
   updateLightning,
   drawLightning,
+  _generateBoltPath,
 } from "./effects/weather";
 import {
   RARE_EVENTS,
@@ -430,6 +434,13 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     const speedMult = state.bgVelocity / INITIAL_BG_VELOCITY;
     state.smoothPhase += (speedMult / (SKY_CYCLE_SCORE * 60)) * frameScale;
 
+    // Cinematic phase lock — freeze the day/night cycle at a
+    // specific point so a shot can be recomposed without the
+    // sky drifting between takes.
+    if (state.cinematicPhaseLock !== null) {
+      state.smoothPhase = state.cinematicPhaseLock;
+    }
+
     // Rain cycle tracking: detect when we enter a new day cycle.
     const cycleIndex = Math.floor(state.smoothPhase);
     if (cycleIndex > state.lastCycleIndex && state.lastCycleIndex >= 0) {
@@ -602,6 +613,17 @@ import { generateScoreCardBlob } from "./render/scoreCard";
             state.gameOverFrame = state.frame;
             if (!audio.muted && navigator.vibrate)
               navigator.vibrate([50, 30, 80]);
+            // Gamepad rumble — heavy jolt on death.
+            try {
+              const gp = navigator.getGamepads?.()[0];
+              if (gp?.vibrationActuator) {
+                gp.vibrationActuator.playEffect("dual-rumble", {
+                  duration: 150,
+                  weakMagnitude: 0.8,
+                  strongMagnitude: 1.0,
+                });
+              }
+            } catch (_) {}
             commitRunScore();
             // Bump the career run counter and unlock the
             // "first-run" / "century-runner" milestones.
@@ -1000,6 +1022,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   }
 
   function loop(now) {
+    pollGamepad();
     const t0 = performance.now();
     let tUpdate = t0;
     if (!state.paused) {
@@ -1212,6 +1235,20 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   function onKeyDown(e) {
     // ESC is reserved for the menu overlay — let it through.
     if (e.key === "Escape") return;
+
+    // F9 toggles cinematic / filming mode.
+    if (e.code === "F9") {
+      e.preventDefault();
+      toggleCinematicMode();
+      return;
+    }
+
+    // While cinematic mode is active, intercept extra keys for
+    // phase / weather / cosmetic control.
+    if (state.cinematicMode && handleCinematicKey(e)) {
+      e.preventDefault();
+      return;
+    }
 
     // Before the game has started, Space/Enter acts as "Start Game".
     if (!state.started) {
@@ -1448,6 +1485,34 @@ import { generateScoreCardBlob } from "./render/scoreCard";
      *  cooldown is still applied inside maybeResetAfterGameOver. */
     restartFromGameOver() {
       maybeResetAfterGameOver();
+    },
+
+    /** Manually drive one update+render tick. Used by cinematic mode
+     *  when rAF is throttled (hidden tabs). */
+    _tick() {
+      loop(performance.now());
+    },
+
+    /** Cinematic helper: snap rain state instantly. */
+    _forceRain(on: boolean) {
+      state.isRaining = !!on;
+      state.rainIntensity = on ? 1 : 0;
+      if (on) {
+        state.rainEndPhase = state.smoothPhase + 100;
+      } else {
+        state.rainParticles = [];
+        state.lightning = { alpha: 0, nextAt: 0 };
+      }
+    },
+
+    /** Cinematic helper: force all cosmetics at once. */
+    _forceCosmetics(hat: boolean, glasses: boolean, bow: boolean) {
+      state.unlockedPartyHat = !!hat;
+      state.wearPartyHat = !!hat;
+      state.unlockedThugGlasses = !!glasses;
+      state.wearThugGlasses = !!glasses;
+      state.unlockedBowTie = !!bow;
+      state.wearBowTie = !!bow;
     },
 
     /** Debug helper: force a game-over immediately without needing
@@ -1711,6 +1776,223 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     );
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  // Cinematic / filming mode (F9)
+  // ══════════════════════════════════════════════════════════════════
+
+  const CINEMATIC_HUD_ID = "cinematic-hud";
+
+  function toggleCinematicMode() {
+    state.cinematicMode = !state.cinematicMode;
+    if (state.cinematicMode) {
+      state._preCinematicNoCollisions = state.noCollisions;
+      state.noCollisions = true;
+      document.body.classList.add("cinematic-mode");
+      if (!state.started) {
+        GameAPI.start();
+      } else if (state.paused) {
+        GameAPI.resume();
+      }
+      ensureCinematicHUD();
+      updateCinematicHUD();
+    } else {
+      state.cinematicPhaseLock = null;
+      state.noCollisions = state._preCinematicNoCollisions;
+      document.body.classList.remove("cinematic-mode");
+      const hud = document.getElementById(CINEMATIC_HUD_ID);
+      if (hud) hud.remove();
+    }
+  }
+
+  function handleCinematicKey(e: KeyboardEvent): boolean {
+    if (e.code === "Digit0" || e.key === "0") {
+      state.cinematicPhaseLock = null;
+      updateCinematicHUD();
+      return true;
+    }
+    for (const p of CINEMATIC_PHASES) {
+      if (e.key === p.key) {
+        const baseCycle = Math.floor(state.smoothPhase);
+        state.cinematicPhaseLock = baseCycle + p.phase;
+        state.smoothPhase = state.cinematicPhaseLock;
+        state.lastCycleIndex = baseCycle;
+        // Snap sky color instantly (bypass the gradual lerp).
+        const frac = state.smoothPhase % 1;
+        const bandIndex = Math.floor(frac * SKY_COLORS.length);
+        const bandT = frac * SKY_COLORS.length - bandIndex;
+        const nextBand = (bandIndex + 1) % SKY_COLORS.length;
+        state.currentSky = lerpColor(
+          SKY_COLORS[bandIndex],
+          SKY_COLORS[nextBand],
+          bandT,
+        );
+        computeSkyGradient();
+        updateCinematicHUD();
+        return true;
+      }
+    }
+    switch (e.code) {
+      case "KeyR":
+        GameAPI.toggleRain();
+        updateCinematicHUD();
+        return true;
+      case "KeyL":
+        forceCinematicLightning();
+        updateCinematicHUD();
+        return true;
+      case "KeyH":
+        state.unlockedPartyHat = true;
+        state.wearPartyHat = !state.wearPartyHat;
+        updateCinematicHUD();
+        return true;
+      case "KeyG":
+        state.unlockedThugGlasses = true;
+        state.wearThugGlasses = !state.wearThugGlasses;
+        updateCinematicHUD();
+        return true;
+      case "KeyB":
+        state.unlockedBowTie = true;
+        state.wearBowTie = !state.wearBowTie;
+        updateCinematicHUD();
+        return true;
+      case "KeyM":
+        state.cinematicShowHUD = !state.cinematicShowHUD;
+        updateCinematicHUD();
+        return true;
+    }
+    return false;
+  }
+
+  function forceCinematicLightning() {
+    state.lightning.alpha = 0.85;
+    state.lightning.nextAt =
+      performance.now() + LIGHTNING_MIN_COOLDOWN_MS;
+    const result = _generateBoltPath();
+    if (result?.path) (state.lightning as any).bolt = result.path;
+  }
+
+  function ensureCinematicHUD() {
+    if (document.getElementById(CINEMATIC_HUD_ID)) return;
+    const hud = document.createElement("div");
+    hud.id = CINEMATIC_HUD_ID;
+    hud.setAttribute("aria-hidden", "true");
+    document.body.appendChild(hud);
+  }
+
+  function updateCinematicHUD() {
+    const hud = document.getElementById(CINEMATIC_HUD_ID);
+    if (!hud) return;
+    hud.style.display = state.cinematicShowHUD ? "block" : "none";
+    if (!state.cinematicShowHUD) return;
+    let phaseLabel = "natural";
+    if (state.cinematicPhaseLock !== null) {
+      const frac = state.cinematicPhaseLock % 1;
+      const nearest = CINEMATIC_PHASES.find(
+        (p) => Math.abs(frac - p.phase) < 0.005,
+      );
+      phaseLabel = nearest ? nearest.label : frac.toFixed(2);
+    }
+    const cosmetics = [
+      state.unlockedPartyHat && state.wearPartyHat ? "hat" : null,
+      state.unlockedThugGlasses && state.wearThugGlasses ? "glasses" : null,
+      state.unlockedBowTie && state.wearBowTie ? "bow" : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || "none";
+    hud.innerHTML =
+      '<div class="cinematic-hud-title">● CINEMATIC MODE</div>' +
+      '<div class="cinematic-hud-row">Time: <b>' + phaseLabel + "</b></div>" +
+      '<div class="cinematic-hud-row">Rain: <b>' + (state.isRaining ? "on" : "off") + "</b></div>" +
+      '<div class="cinematic-hud-row">Cosmetics: <b>' + cosmetics + "</b></div>" +
+      '<div class="cinematic-hud-keys">' +
+      "<div><kbd>1-9</kbd> time &nbsp; <kbd>0</kbd> natural</div>" +
+      "<div><kbd>R</kbd> rain &nbsp; <kbd>L</kbd> lightning</div>" +
+      "<div><kbd>H</kbd> hat &nbsp; <kbd>G</kbd> glasses &nbsp; <kbd>B</kbd> bow</div>" +
+      "<div><kbd>M</kbd> hide hud &nbsp; <kbd>F9</kbd> exit</div>" +
+      "</div>";
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // Gamepad / controller support
+  // ══════════════════════════════════════════════════════════════════
+
+  const _gamepad = {
+    connected: false,
+    prevButtons: new Array(17).fill(false) as boolean[],
+  };
+
+  function pollGamepad() {
+    let gp: Gamepad | undefined;
+    try {
+      const pads = navigator.getGamepads();
+      for (let i = 0; i < pads.length; i++) {
+        if (pads[i]) {
+          gp = pads[i]!;
+          break;
+        }
+      }
+    } catch (_) {
+      return;
+    }
+    if (!gp) return;
+
+    const prev = _gamepad.prevButtons;
+    const btns = gp.buttons;
+
+    // ── Jump / start / restart (A, B, D-pad Up) ──────────────
+    for (const idx of GAMEPAD_JUMP_BUTTONS) {
+      if (idx >= btns.length) continue;
+      const pressed = btns[idx].value > 0.5 || btns[idx].pressed;
+      if (pressed && !prev[idx]) {
+        if (!state.started) {
+          if (typeof window.__onStartKey === "function") {
+            window.__onStartKey();
+          }
+        } else if (state.paused) {
+          window.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: "Escape",
+              code: "Escape",
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+        } else if (state.gameOver) {
+          maybeResetAfterGameOver();
+        } else {
+          if (!raptor.jump()) raptor.bufferJump(performance.now());
+        }
+      }
+    }
+
+    // ── Start / Options button → toggle menu ─────────────────
+    if (GAMEPAD_MENU_BUTTON < btns.length) {
+      const pressed =
+        btns[GAMEPAD_MENU_BUTTON].value > 0.5 ||
+        btns[GAMEPAD_MENU_BUTTON].pressed;
+      if (pressed && !prev[GAMEPAD_MENU_BUTTON]) {
+        if (!state.started) {
+          if (typeof window.__onStartKey === "function") {
+            window.__onStartKey();
+          }
+        } else {
+          window.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: "Escape",
+              code: "Escape",
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+        }
+      }
+    }
+
+    for (let i = 0; i < btns.length && i < prev.length; i++) {
+      prev[i] = btns[i].value > 0.5 || btns[i].pressed;
+    }
+  }
+
   async function init() {
     // Parse `?debug=true` — turns on debug mode which makes the
     // "Show hitboxes" toggle visible in the menu.
@@ -1830,6 +2112,17 @@ import { generateScoreCardBlob } from "./render/scoreCard";
 
     canvas.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
+
+    // Gamepad connection tracking.
+    window.addEventListener("gamepadconnected", (e: GamepadEvent) => {
+      _gamepad.connected = true;
+      console.log("Gamepad connected:", e.gamepad.id);
+    });
+    window.addEventListener("gamepaddisconnected", () => {
+      _gamepad.connected = false;
+      _gamepad.prevButtons.fill(false);
+      console.log("Gamepad disconnected");
+    });
 
     // Start the rAF loop. The game stays paused (state.paused = true)
     // until Game.start() is called by the Start button click handler.

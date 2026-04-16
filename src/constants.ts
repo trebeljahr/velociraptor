@@ -46,6 +46,25 @@ export const MOON_MIN_RADIUS_PX = 13;
 export const MOON_RADIUS_SCALE = 0.0192;
 export const MOON_SYNODIC_CYCLE = 30;
 
+// ── Gamepad / controller ─────────────────────────────────
+// Standard Gamepad layout button indices.
+export const GAMEPAD_JUMP_BUTTONS = [0, 1, 12]; // A, B, D-pad Up
+export const GAMEPAD_MENU_BUTTON = 9; // Start / Options
+
+// ── Cinematic / filming mode (F9) ────────────────────────
+// Phase values derived from SKY_COLORS band order + sun/moon arcs.
+export const CINEMATIC_PHASES = [
+  { key: "1", phase: 0.02, label: "Early morning" },
+  { key: "2", phase: 0.167, label: "Midday (sun zenith)" },
+  { key: "3", phase: 0.3, label: "Afternoon" },
+  { key: "4", phase: 0.44, label: "Sunset" },
+  { key: "5", phase: 0.55, label: "Early night" },
+  { key: "6", phase: 0.667, label: "Midnight (moon zenith)" },
+  { key: "7", phase: 0.8, label: "Late night" },
+  { key: "8", phase: 0.9, label: "Pre-dawn" },
+  { key: "9", phase: 0.96, label: "Sunrise" },
+] as const;
+
 // ── Dunes & Parallax ──────────────────────────────────────
 export const DUNE_SCROLL_SPEED = 0.08;
 export const DUNE_BASE_HEIGHT_RATIO = 0.09;

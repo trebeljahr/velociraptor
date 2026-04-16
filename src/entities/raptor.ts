@@ -104,6 +104,17 @@ export class Raptor {
     this._jumpBufferedAt = 0;
     audio.playJump();
     if (!audio.muted && navigator.vibrate) navigator.vibrate(JUMP_VIBRATION_MS);
+    // Gamepad rumble — light tap on jump.
+    try {
+      const gp = navigator.getGamepads?.()[0];
+      if (gp?.vibrationActuator) {
+        gp.vibrationActuator.playEffect("dual-rumble", {
+          duration: 40,
+          weakMagnitude: 0.3,
+          strongMagnitude: 0.1,
+        });
+      }
+    } catch (_) {}
     // Bump both the career-wide total and the per-run counter.
     state.totalJumps += 1;
     state.runJumps += 1;

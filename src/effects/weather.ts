@@ -180,6 +180,17 @@ export function updateLightning(frameScale, now) {
     const thunderDelay = THUNDER_DELAY_MIN_MS + Math.random() * (THUNDER_DELAY_MAX_MS - THUNDER_DELAY_MIN_MS);
     setTimeout(() => audio.playThunder(), thunderDelay);
     if (!audio.muted && navigator.vibrate) navigator.vibrate(30);
+    // Gamepad rumble — medium rumble for thunder.
+    try {
+      const gp = navigator.getGamepads?.()[0];
+      if (gp?.vibrationActuator) {
+        gp.vibrationActuator.playEffect("dual-rumble", {
+          duration: 80,
+          weakMagnitude: 0.5,
+          strongMagnitude: 0.3,
+        });
+      }
+    } catch (_) {}
   }
 }
 

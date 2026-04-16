@@ -128,6 +128,12 @@ export interface GameState {
   debug: boolean;
   showHitboxes: boolean;
   noCollisions: boolean;
+
+  // ── Cinematic / filming mode (F9) ─────────────────────
+  cinematicMode: boolean;
+  cinematicPhaseLock: number | null;
+  cinematicShowHUD: boolean;
+  _preCinematicNoCollisions: boolean;
 }
 
 export const state: GameState = {
@@ -186,4 +192,8 @@ export const state: GameState = {
   debug: false,
   showHitboxes: false,
   noCollisions: false,
+  cinematicMode: false,
+  cinematicPhaseLock: null,
+  cinematicShowHUD: true,
+  _preCinematicNoCollisions: false,
 };

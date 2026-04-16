@@ -1690,6 +1690,61 @@
         z-index: 0;
         background: #000;
       }
+
+      /* Cinematic / filming mode (F9) */
+      body.cinematic-mode #score-display,
+      body.cinematic-mode #sound-toggle,
+      body.cinematic-mode #fullscreen-toggle,
+      body.cinematic-mode #settings-cog,
+      body.cinematic-mode #achievement-toasts,
+      body.cinematic-mode #start-screen,
+      body.cinematic-mode #score-card-overlay,
+      body.cinematic-mode #menu-overlay {
+        display: none !important;
+      }
+      #cinematic-hud {
+        position: fixed;
+        bottom: 16px;
+        left: 16px;
+        z-index: 9999;
+        padding: 12px 14px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.55;
+        color: #f5f5f5;
+        background: rgba(10, 12, 18, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        user-select: none;
+        max-width: 260px;
+      }
+      #cinematic-hud .cinematic-hud-title {
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: #ff5b6e;
+        margin-bottom: 6px;
+      }
+      #cinematic-hud .cinematic-hud-row { opacity: 0.88; }
+      #cinematic-hud .cinematic-hud-row b { color: #ffd479; font-weight: 600; }
+      #cinematic-hud .cinematic-hud-keys {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        opacity: 0.75;
+        font-size: 11px;
+      }
+      #cinematic-hud kbd {
+        display: inline-block;
+        padding: 1px 5px;
+        font-family: inherit;
+        font-size: 10px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+        color: #fff;
+      }
     </style>
 
     <script type="module" src="/src/main.ts"></script>
