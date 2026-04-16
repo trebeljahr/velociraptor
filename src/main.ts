@@ -212,6 +212,13 @@ import {
   updateRain,
   drawRain,
 } from "./effects/weather";
+import {
+  RARE_EVENTS,
+  maybeSpawnRareEvent,
+  updateRareEvent,
+  setRareEventsAchievementHandler,
+  setDuneHeightProvider,
+} from "./effects/rareEvents";
 
   // ══════════════════════════════════════════════════════════════════
   // Constants
@@ -387,205 +394,13 @@ import {
   // Confetti / dust / ash particle systems live in
   // src/effects/particles.ts.
 
-  // ── Rare background events (easter eggs) ───────────────────────
-  // Each event has an average interval in career jumps, a condition
-  // function, and a spawn function. Events are checked once per jump
-  // against the career total. Each event type can only be active once.
-
-  const RARE_EVENTS = [
-    {
-      id: "ufo",
-      achievement: "ufo-sighting",
-      avgInterval: 400,
-      condition: () => !state.isRaining && state.rainIntensity < 0.1,
-      duration: 20,
-    },
-    {
-      id: "santa",
-      achievement: "santa-spotted",
-      avgInterval: 500,
-      condition: () => state.isNight && state.rainIntensity < 0.1,
-      duration: 6,
-    },
-    {
-      id: "tumbleweed",
-      achievement: "tumbleweed",
-      avgInterval: 300,
-      condition: () => !state.isNight && state.rainIntensity < 0.1,
-      duration: 25,
-    },
-    {
-      id: "comet",
-      achievement: "comet",
-      avgInterval: 600,
-      condition: () => state.isNight && state.rainIntensity < 0.1,
-      duration: 8,
-    },
-    {
-      id: "meteor",
-      achievement: "meteor-impact",
-      avgInterval: 500,
-      condition: () => state.isNight && state.rainIntensity < 0.1,
-      duration: 5,
-    },
-  ];
-
-  // loadRareEventsSeen / saveRareEventsSeen live in src/persistence.ts.
-
-  /** Check whether to trigger a rare event on this jump. Called from
-   *  the jump counter increment path. */
-  function maybeSpawnRareEvent() {
-    if (state.activeRareEvent) return; // one at a time
-    // Build candidate list: prefer unseen events, then allow repeats.
-    // On shooting star nights (phase >= 1, night), only comet/meteor allowed.
-    const shootingStarNight =
-      state.isNight && Math.floor(state.smoothPhase) >= 1;
-    const eligible = RARE_EVENTS.filter(
-      (e) =>
-        e.avgInterval > 0 &&
-        e.condition() &&
-        (!shootingStarNight || e.id === "comet" || e.id === "meteor"),
-    );
-    if (eligible.length === 0) return;
-    const unseen = eligible.filter((e) => !state._rareEventsSeen[e.id]);
-    const pool = unseen.length > 0 ? unseen : eligible;
-    // Single roll against the average interval of a random candidate
-    const evt = pool[Math.floor(Math.random() * pool.length)];
-    if (Math.random() >= 1 / evt.avgInterval) return;
-    state.activeRareEvent = {
-      id: evt.id,
-      age: 0,
-      life: evt.duration,
-      x: state.width + 50,
-      y: state.height * (0.1 + Math.random() * 0.3),
-    };
-    // Unlock achievement on first sighting
-    if (!state._rareEventsSeen[evt.id]) {
-      state._rareEventsSeen[evt.id] = true;
-      saveRareEventsSeen(state._rareEventsSeen);
-      unlockAchievement(evt.achievement);
-    }
-  }
-
-  function updateRareEvent(dtSec) {
-    if (!state.activeRareEvent) return;
-    const e = state.activeRareEvent;
-    e.age += dtSec;
-    // Move event across the screen (right to left for most)
-    const speed = state.width / e.life;
-    if (e.id === "tumbleweed") {
-      // Tumbleweed rolls left along the dune surface, bouncing above it
-      e.x -= state.width * 0.06 * dtSec; // gentle roll, crosses screen in ~18s
-      const duneY = state.ground - _duneHeight(e.x, state.duneOffset);
-      const bounce = Math.abs(Math.sin(e.age * 3.5)) * 12;
-      e.y = duneY - 10 - bounce;
-      // End when fully off-screen left
-      if (e.x < -30) e.age = e.life;
-      e.rot = (e.rot || 0) - dtSec * 4; // counter-clockwise (rolling left)
-    } else if (e.id === "ufo") {
-      const t = e.age / e.life;
-      const hoverX = state.width * 0.6;
-      const hoverY = state.height * 0.35;
-      if (t < 0.08) {
-        // Phase 1: Fast descent
-        e.x = hoverX;
-        e.y = -30 + (t / 0.08) * (hoverY + 30);
-        e.beam = false;
-        e.phase = "descend";
-      } else if (!e.targetCactus) {
-        // Phase 2: Hover + beam on — wait for a cactus to scroll into the beam
-        e.x = hoverX + Math.sin(e.age * 2) * 10;
-        e.y = hoverY + Math.sin(e.age * 3) * 5;
-        e.beam = true;
-        e.phase = "search";
-        // Check if any cactus is under the beam footprint (e.x ± 30)
-        if (state.duneCacti) {
-          const off = state.duneOffset;
-          for (const dc of state.duneCacti) {
-            if (dc.dead || dc.struck) continue;
-            const sx = dc.wx - off;
-            if (sx > e.x - 28 && sx < e.x + 28) {
-              e.targetCactus = dc;
-              e.abductStartAge = e.age;
-              // Store position and hide original immediately
-              e.abductSx = sx;
-              e.abductDuneY = state.ground - _duneHeight(sx, state.duneOffset);
-              dc.dead = true;
-              break;
-            }
-          }
-        }
-      } else if (e.cactusLift == null || e.cactusLift < 1) {
-        // Phase 3: Beam up the cactus
-        e.x = hoverX + Math.sin(e.age * 2) * 5;
-        e.y = hoverY + Math.sin(e.age * 3) * 3;
-        e.beam = true;
-        e.phase = "abduct";
-        const liftTime = 3; // seconds to beam up
-        const elapsed = e.age - (e.abductStartAge || e.age);
-        e.cactusLift = Math.min(1, elapsed / liftTime);
-      } else if (!e._absorbed) {
-        // Phase 4: Cactus absorbed, brief pause
-        e.beam = false;
-        e.phase = "absorbed";
-        e.x = hoverX;
-        e.y = hoverY;
-        // Cactus already marked dead when grabbed
-        e._absorbed = true;
-        e._absorbedAt = e.age;
-      } else {
-        // Phase 5: Fly away upward-right after a brief pause
-        const pauseTime = 0.5;
-        const flyElapsed = e.age - (e._absorbedAt || e.age) - pauseTime;
-        if (flyElapsed < 0) {
-          e.x = hoverX;
-          e.y = hoverY;
-        } else {
-          e.beam = false;
-          e.phase = "flyaway";
-          e.x = hoverX + flyElapsed * state.width * 0.15;
-          e.y = hoverY - flyElapsed * state.height * 0.15;
-          if (e.y < -60 || e.x > state.width + 60) e.age = e.life;
-        }
-      }
-    } else if (e.id === "santa") {
-      // Santa flies across the night sky left to right
-      e.x = -50 + (e.age / e.life) * (state.width + 100);
-      e.y = state.height * 0.12 + Math.sin(e.age * 1.5) * 8;
-    } else if (e.id === "comet") {
-      // Slow arc across night sky — enters right, exits left
-      const ct = e.age / e.life;
-      e.x = state.width * 1.3 - ct * state.width * 1.6;
-      e.y = state.height * 0.05 + ct * state.height * 0.25;
-    } else if (e.id === "meteor") {
-      // Streak from upper-right to a specific impact point on/behind dunes.
-      if (!e.startX) {
-        e.startX = state.width * (0.7 + Math.random() * 0.3);
-        e.startY = -10;
-        e.targetX = state.width * (0.3 + Math.random() * 0.4);
-        e.targetY = state.ground - _duneHeight(e.targetX, state.duneOffset) + 3;
-      }
-      const mt = e.age / e.life;
-      const flightT = 0.5; // first 50% is the streak, rest is impact
-      if (mt < flightT) {
-        const ft = mt / flightT;
-        e.x = e.startX + (e.targetX - e.startX) * ft;
-        e.y = e.startY + (e.targetY - e.startY) * ft;
-        e.vx = (e.targetX - e.startX) / (e.life * flightT);
-        e.vy = (e.targetY - e.startY) / (e.life * flightT);
-      } else {
-        e.impact = true;
-        e.impactX = e.impactX || e.targetX;
-        // Recalculate impact Y from current dune position (dunes scroll)
-        e.impactY =
-          e.impactY ||
-          state.ground -
-            _duneHeight(e.impactX || e.targetX, state.duneOffset) +
-            3;
-      }
-    }
-    if (e.age >= e.life) state.activeRareEvent = null;
-  }
+  // RARE_EVENTS catalog, maybeSpawnRareEvent, and updateRareEvent
+  // live in src/effects/rareEvents.ts. The achievement unlock hook
+  // and the dune-height provider are registered during init() above.
+  // drawRareEvent + drawRareEventSky + drawRareEventFg + drawUfoBeam
+  // still live in this file because they're ~450 lines of canvas
+  // drawing entangled with sky/world rendering — they'll migrate
+  // when the render modules split out.
 
   /** Draw sky-layer rare events (comet, meteor) — on main canvas, no tint. */
   function drawRareEventSky(ctx) {
@@ -3296,6 +3111,12 @@ import {
     // maybeSpawnShootingStar to fire the `first-shooting-star`
     // unlock). unlockAchievement itself still lives in this file.
     setParticlesAchievementHandler((id) => unlockAchievement(id));
+    // Wire the rare-events module: achievement callback for
+    // "ufo-sighting"/"santa-spotted"/etc, plus the dune-height
+    // provider for tumbleweed / UFO abduction / meteor impact
+    // positioning. _duneHeight still lives in this file.
+    setRareEventsAchievementHandler((id) => unlockAchievement(id));
+    setDuneHeightProvider((x, off) => _duneHeight(x, off));
 
     // Load the player's saved mute preference into the audio object's
     // state, without triggering .play() yet (browser autoplay
