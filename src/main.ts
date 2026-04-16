@@ -35,7 +35,7 @@
  *     removed.
  */
 import "./styles/base.css";
-import ScoreCardWorker from "./workers/scoreCard.worker.ts?worker";
+// ScoreCardWorker import moved into src/render/scoreCard.ts.
 import {
   INITIAL_BG_VELOCITY,
   GRAVITY,
@@ -219,6 +219,31 @@ import {
   setRareEventsAchievementHandler,
   setDuneHeightProvider,
 } from "./effects/rareEvents";
+import {
+  _isNightBand,
+  _isDayBand,
+  isNightPhase,
+  tintStrength,
+  tintFactor,
+  celestialArc,
+  drawSun,
+  drawMoon,
+  computeSkyGradient,
+} from "./render/sky";
+import {
+  drawPolygon,
+  drawCloud,
+  drawOvercastBands,
+  drawCloudMorphed,
+  cloudVisualWidth,
+  targetCloudCount,
+  minCloudSpacing,
+  makeCloudObject,
+  trySpawnCloud,
+  seedClouds,
+} from "./render/clouds";
+import { duneHeight, spawnDuneCactus, initDunes } from "./render/world";
+import { generateScoreCardBlob } from "./render/scoreCard";
 
   // ══════════════════════════════════════════════════════════════════
   // Constants
@@ -242,36 +267,9 @@ import {
   // src/cactusVariants.ts.
 
   // The 12-band day/night palette (SKY_COLORS) and NIGHT_COLOR live in
-  // src/constants.ts. The _isNightBand / _isDayBand derivation and
-  // isNightPhase() helper remain here for now — they'll move into a
-  // dedicated sky module later.
-  const _isNightBand = SKY_COLORS.map(
-    (c) =>
-      c[0] === NIGHT_COLOR[0] &&
-      c[1] === NIGHT_COLOR[1] &&
-      c[2] === NIGHT_COLOR[2],
-  );
-  /** True when bandIndex (+ fractional bandT) is in the dark zone:
-   *  solid-night bands, plus the dark half of each adjacent twilight. */
-  function isNightPhase(bandIndex, bandT) {
-    if (_isNightBand[bandIndex]) return true;
-    // Transitioning INTO night (next band is night): dark half = bandT > 0.5
-    const next = (bandIndex + 1) % SKY_COLORS.length;
-    if (_isNightBand[next] && bandT > 0.5) return true;
-    // Transitioning OUT OF night (prev band is night): dark half = bandT < 0.5
-    const prev = (bandIndex - 1 + SKY_COLORS.length) % SKY_COLORS.length;
-    if (_isNightBand[prev] && bandT < 0.5) return true;
-    return false;
-  }
-  // Daytime band indices (for night-survival tracking: count the
-  // night as survived once the sky is solidly in a day band).
-  const _isDayBand = _isNightBand.map((night, i) => {
-    if (night) return false;
-    // Exclude twilight/transition bands (adjacent to a night band).
-    const prev = (i - 1 + SKY_COLORS.length) % SKY_COLORS.length;
-    const next = (i + 1) % SKY_COLORS.length;
-    return !_isNightBand[prev] && !_isNightBand[next];
-  });
+  // _isNightBand / _isDayBand / isNightPhase / tintStrength /
+  // tintFactor / celestialArc / drawSun / drawMoon /
+  // computeSkyGradient all live in src/render/sky.ts.
 
   // IMAGE_SRCS (key → path) and IMAGES (runtime dictionary) live in
   // src/images.ts. The preloader later in this file populates IMAGES.
@@ -286,36 +284,7 @@ import {
   // read state.currentSky.
   // ══════════════════════════════════════════════════════════════════
 
-  /** Strength of the foreground sky-light tint applied in render().
-   *  Continuous: 0.05 at midday under a clean blue sky (so the
-   *  foreground reads as neutral, not blue-cast), rising through
-   *  ~0.21 at the peak of a magenta-pink twilight, and up to ~0.37
-   *  at full night. The ramp is quadratic in `t` so twilight stays
-   *  subtle — roughly half of what a linear ramp would give — while
-   *  night still lands at ~2/3 of the "full strength" tint. */
-  function tintStrength() {
-    const sky = state.currentSky;
-    const dayBlue = SKY_COLORS[0];
-    const dx = sky[0] - dayBlue[0];
-    const dy = sky[1] - dayBlue[1];
-    const dz = sky[2] - dayBlue[2];
-    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    // Maximum sensible distance is from blue to night (~258).
-    const t = Math.min(1, distance / 250);
-    return 0.05 + t * t * 0.32;
-  }
-  /** Per-channel multiply factor that the global tint applies. */
-  function tintFactor() {
-    const sky = state.currentSky;
-    const s = tintStrength();
-    return [
-      255 + (sky[0] - 255) * s,
-      255 + (sky[1] - 255) * s,
-      255 + (sky[2] - 255) * s,
-    ];
-  }
-  // randRange / clamp / polygonsOverlap / pointInPolygon /
-  // segmentsIntersect / cross / shrinkPolygon all live in src/helpers.ts.
+  // tintStrength / tintFactor / helpers all imported at the top.
 
   // ══════════════════════════════════════════════════════════════════
   // Audio (native HTMLAudioElement — no p5.sound)
@@ -955,7 +924,7 @@ import {
     // If targeting a dune cactus, end at the cactus top; otherwise ground.
     const endY = struckDuneCactus
       ? state.ground -
-        _duneHeight(targetX, state.duneOffset) -
+        duneHeight(targetX, state.duneOffset) -
         struckDuneCactus.h * 0.85
       : state.ground;
     const startX = targetX + (Math.random() - 0.5) * state.width * 0.15;
@@ -1041,720 +1010,15 @@ import {
 
   // drawShootingStars lives in src/effects/particles.ts.
 
-  // ════════════════════════════════════════════════════════════════
-  // Sun + Moon
-  //
-  // Both bodies travel along a parabolic arc across the visible sky
-  // tied to `state.smoothPhase`. The sun is visible during the day
-  // half of the cycle (centered on phase 0 = blue daytime), the moon
-  // during the night half (centered on phase 0.5 = night).
-  // ════════════════════════════════════════════════════════════════
+  // Sun + Moon rendering lives in src/render/sky.ts.
 
-  /**
-   * Returns {visible, x, y, t} for a celestial body whose visible arc
-   * is centered on cycle `phaseCenter` and lasts half a cycle. `t` is
-   * 0 at rise (right edge) and 1 at set (left edge), or null if not
-   * visible.
-   */
-  function celestialArc(phaseCenter, halfWidth) {
-    // Wrap so that `rel` is in [-0.5, 0.5] around phaseCenter.
-    let rel = (((state.smoothPhase % 1) + 1) % 1) - phaseCenter;
-    if (rel > 0.5) rel -= 1;
-    if (rel < -0.5) rel += 1;
-    // The "above-horizon" arc spans rel ∈ [-halfWidth, +halfWidth].
-    // We extend the computed range a bit past those bounds so the
-    // body actually travels below the horizon (and off-screen at the
-    // left/right edge) rather than stopping at the horizon and
-    // fading out — that's how a real sun sets. The ground bands
-    // drawn over the top of the canvas naturally occlude the disc
-    // once it dips below.
-    const extension = halfWidth * CELESTIAL_ARC_EXTENSION;
-    if (rel < -halfWidth - extension || rel > halfWidth + extension) {
-      return { visible: false, x: 0, y: 0, t: 0, alpha: 0 };
-    }
-    // No clamp on t — beyond [0, 1] the parabola pushes y below the
-    // ground (sun has already dipped below the horizon) and x off
-    // the screen edge.
-    const t = (rel + halfWidth) / (halfWidth * 2);
-    const x = state.width * (1 - t);
-    const arcH = state.height * CELESTIAL_ARC_HEIGHT_RATIO;
-    const y = state.ground - 4 * arcH * t * (1 - t);
-    return { visible: true, x, y, t, alpha: 1 };
-  }
+  // Cloud system lives in src/render/clouds.ts.
+  // Dunes (duneHeight, spawnDuneCactus, initDunes) live in
+  // src/render/world.ts.
 
-  function drawSun(ctx) {
-    // Sun is visible during the entire day half (solid blue + half
-    // of each twilight transition). Its peak sits at the middle of
-    // the solid-blue stretch.
-    const arc = celestialArc(SUN_PHASE_CENTER, CELESTIAL_ARC_HALF_WIDTH);
-    if (!arc.visible) return;
-    const r = Math.max(SUN_MIN_RADIUS_PX, state.width * SUN_RADIUS_SCALE);
-    // Elevation = 1 at the zenith, 0 at the horizon. We bend the
-    // curve hard with a high exponent so the disc stays bright white
-    // across almost the entire arc, only shifting to yellow in the
-    // final stretch and to red right at the horizon. The lerp logic
-    // below splits the elevation range into "white half" (near
-    // zenith) and "warm half" (near horizon) — with this curve, the
-    // warm half only kicks in for the last ~10% of the arc on each
-    // side, so red is a brief sunset/sunrise moment, not the norm.
-    // Clamp to [0, 1] — t can extend slightly below 0 / above 1
-    // when the sun is dipping below the horizon, which would
-    // otherwise produce a negative elevation.
-    const elevation = Math.max(0, 1 - Math.pow(Math.abs(arc.t - 0.5) * 2, 4));
-    const cZenith = [255, 250, 235];
-    const cMid = [255, 200, 110];
-    const cHorizon = [220, 60, 25];
-    let core, halo;
-    if (elevation > 0.5) {
-      const k = (elevation - 0.5) * 2; // 0..1 across upper half
-      core = lerpColor(cMid, cZenith, k);
-      halo = lerpColor([255, 180, 100], [255, 230, 170], k);
-    } else {
-      const k = elevation * 2; // 0..1 across lower half
-      core = lerpColor(cHorizon, cMid, k);
-      halo = lerpColor([225, 70, 30], [255, 180, 100], k);
-    }
+  // computeSkyGradient lives in src/render/sky.ts.
 
-    ctx.save();
-    const ri = state.rainIntensity;
-    if (ri > 0.05) {
-      // Overcast sun: diffuse halo glow, dim disc proportional to intensity
-      const haloR = r * 3;
-      const ha = 0.18 * ri;
-      const glow = ctx.createRadialGradient(
-        arc.x,
-        arc.y,
-        r * 0.5,
-        arc.x,
-        arc.y,
-        haloR,
-      );
-      glow.addColorStop(0, `rgba(255, 240, 200, ${ha})`);
-      glow.addColorStop(0.5, `rgba(255, 230, 180, ${ha * 0.45})`);
-      glow.addColorStop(1, `rgba(255, 220, 160, 0)`);
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(arc.x, arc.y, haloR, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 0.2 + 0.8 * (1 - ri);
-      ctx.fillStyle = rgb(core);
-      ctx.beginPath();
-      ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      // Clear sky: solid disc, no halo
-      ctx.fillStyle = rgb(core);
-      ctx.beginPath();
-      ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  function drawMoon(ctx) {
-    // Moon mirrors the sun: visible during the entire night half
-    // (solid night + half of each twilight transition), with the
-    // same arc width so it traces a matching gentle parabola.
-    const arc = celestialArc(MOON_PHASE_CENTER, CELESTIAL_ARC_HALF_WIDTH);
-    if (!arc.visible) return;
-    const r = Math.max(MOON_MIN_RADIUS_PX, state.width * MOON_RADIUS_SCALE);
-    // Bright near-white moon. The shadow is the sky color so it
-    // reads as the dark side of the disc.
-    const core = [250, 250, 252];
-    const halo = [220, 230, 250];
-    const shadow = [
-      Math.round(state.currentSky[0] * 0.5),
-      Math.round(state.currentSky[1] * 0.5),
-      Math.round(state.currentSky[2] * 0.5),
-    ];
-
-    ctx.save();
-    ctx.globalAlpha = arc.alpha * (0.2 + 0.8 * (1 - state.rainIntensity));
-    // Halo.
-    const glow = ctx.createRadialGradient(
-      arc.x,
-      arc.y,
-      r * 0.3,
-      arc.x,
-      arc.y,
-      r * 2.6,
-    );
-    glow.addColorStop(0, rgba(halo, 0.45));
-    glow.addColorStop(0.5, rgba(halo, 0.14));
-    glow.addColorStop(1, rgba(halo, 0));
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(arc.x, arc.y, r * 2.6, 0, Math.PI * 2);
-    ctx.fill();
-    // Disc.
-    ctx.fillStyle = rgb(core);
-    ctx.beginPath();
-    ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
-    ctx.fill();
-    // Subtle craters — clipped to the moon disc.
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.fillStyle = `rgba(200, 200, 210, 0.15)`;
-    const craters = [
-      { dx: -0.25, dy: -0.3, cr: 0.18 },
-      { dx: 0.3, dy: 0.15, cr: 0.22 },
-      { dx: -0.1, dy: 0.35, cr: 0.14 },
-      { dx: 0.15, dy: -0.2, cr: 0.1 },
-      { dx: -0.35, dy: 0.1, cr: 0.12 },
-      { dx: 0.05, dy: 0.05, cr: 0.08 },
-    ];
-    for (const c of craters) {
-      ctx.beginPath();
-      ctx.arc(arc.x + c.dx * r, arc.y + c.dy * r, c.cr * r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-    // Realistic moon phase using terminator ellipse.
-    // Phase 0 = new moon (dark), 0.25 = first quarter,
-    // 0.5 = full moon (bright), 0.75 = last quarter.
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
-    ctx.clip();
-    const ph = state.moonPhase;
-    // Illumination fraction: 0 at new, 1 at full
-    const illum = (1 - Math.cos(ph * Math.PI * 2)) / 2;
-    if (illum < 0.98) {
-      // Terminator x-radius: how far the shadow ellipse extends.
-      // cos maps illumination to the terminator position on the disc.
-      const terminatorX = r * Math.cos(illum * Math.PI);
-      // Waxing (ph < 0.5): shadow on the left, light on right
-      // Waning (ph > 0.5): shadow on the right, light on left
-      const waxing = ph < 0.5;
-      // Draw shadow on the dark side
-      ctx.fillStyle = rgba(shadow, 0.8);
-      ctx.beginPath();
-      // Dark half: semicircle on shadow side
-      if (waxing) {
-        ctx.arc(arc.x, arc.y, r, Math.PI * 0.5, Math.PI * 1.5);
-      } else {
-        ctx.arc(arc.x, arc.y, r, -Math.PI * 0.5, Math.PI * 0.5);
-      }
-      // Terminator edge: ellipse connecting top and bottom
-      ctx.ellipse(
-        arc.x,
-        arc.y,
-        Math.abs(terminatorX),
-        r,
-        0,
-        waxing ? -Math.PI * 0.5 : Math.PI * 0.5,
-        waxing ? Math.PI * 0.5 : -Math.PI * 0.5,
-        waxing ? terminatorX > 0 : terminatorX < 0,
-      );
-      ctx.fill();
-    }
-    ctx.restore();
-    ctx.restore();
-  }
-
-  // ══════════════════════════════════════════════════════════════════
-  // Clouds — drawn with four overlapping top-half ellipses to match
-  // the original game's four-arc cloud shape.
-  // ══════════════════════════════════════════════════════════════════
-
-  const CLOUD_BUMPS = [
-    { dx: 0, rx: 12.5, ry: 10 },
-    { dx: 10, rx: 12.5, ry: 22.5 },
-    { dx: 25, rx: 12.5, ry: 17.5 },
-    { dx: 40, rx: 15, ry: 10 },
-  ];
-
-  function drawPolygon(ctx, poly, opts) {
-    if (!poly || poly.length === 0) return;
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(poly[0].x, poly[0].y);
-    for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
-    ctx.closePath();
-    if (opts.fill) {
-      ctx.fillStyle = opts.fill;
-      ctx.fill();
-    }
-    if (opts.stroke) {
-      ctx.strokeStyle = opts.stroke;
-      ctx.lineWidth = opts.lineWidth || 2;
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  function drawCloud(ctx, x, y, size) {
-    // Canvas angle convention (y-down): 0 = right, PI/2 = down,
-    // PI = left, 3*PI/2 = up. Going CW (counterclockwise=false) from
-    // PI to 0 traces: left → up → right, giving the TOP half of the
-    // ellipse — a dome pointing upward, matching the original p5 shape.
-    //
-    // Drawn pure white — the global multiply tint applied at the end
-    // of render() picks up the sky color and tints clouds to match
-    // (peachy at sunset, blue-grey at night, white at midday).
-    ctx.fillStyle = "#ffffff";
-    for (const b of CLOUD_BUMPS) {
-      ctx.beginPath();
-      ctx.ellipse(
-        x + b.dx * size,
-        y,
-        b.rx * size,
-        b.ry * size,
-        0,
-        Math.PI,
-        0,
-        false,
-      );
-      ctx.fill();
-    }
-  }
-
-  /** Draw a rain cloud — long, flat, hazy streak instead of puffy bumps.
-   *  Multiple overlapping ellipses create a layered overcast look. */
-  /** Draw a persistent overcast layer across the entire sky.
-   *  Called once per frame (not per cloud) when rain intensity > 0.
-   *  Uses wide, flat, band-like rectangles at varying heights. */
-  function drawOvercastBands(ctx, intensity) {
-    if (intensity <= 0) return;
-    const w = state.width;
-    const coverH = state.height * 0.55;
-    // Thick impermeable cover at the top, gradually thinning downward.
-    const a = intensity;
-    const mainGrad = ctx.createLinearGradient(0, 0, 0, coverH);
-    mainGrad.addColorStop(0, `rgba(55, 60, 65, ${0.98 * a})`);
-    mainGrad.addColorStop(0.1, `rgba(60, 65, 70, ${0.95 * a})`);
-    mainGrad.addColorStop(0.25, `rgba(70, 75, 80, ${0.8 * a})`);
-    mainGrad.addColorStop(0.45, `rgba(85, 90, 95, ${0.5 * a})`);
-    mainGrad.addColorStop(0.7, `rgba(100, 105, 110, ${0.2 * a})`);
-    mainGrad.addColorStop(1, `rgba(115, 120, 125, 0)`);
-    ctx.fillStyle = mainGrad;
-    ctx.fillRect(0, 0, w, coverH);
-    // Thicker sub-bands for visible layering at the top
-    const bands = [
-      { y: 0, h: coverH * 0.15, alpha: 0.25 },
-      { y: coverH * 0.12, h: coverH * 0.2, alpha: 0.18 },
-      { y: coverH * 0.28, h: coverH * 0.25, alpha: 0.12 },
-      { y: coverH * 0.45, h: coverH * 0.2, alpha: 0.08 },
-    ];
-    for (const b of bands) {
-      const ba = b.alpha * a;
-      const grad = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
-      grad.addColorStop(0, `rgba(80, 85, 90, ${ba})`);
-      grad.addColorStop(1, `rgba(100, 105, 110, 0)`);
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, b.y, w, b.h);
-    }
-  }
-
-  /** Draw a cloud that morphs from puffy (ri=0) to flat overcast band (ri=1).
-   *  Uses the same ellipse geometry but interpolates radii and color. */
-  function drawCloudMorphed(ctx, x, y, size, ri) {
-    // Interpolate between white puffy and gray flat
-    const r = Math.round(255 - ri * 135);
-    const g = Math.round(255 - ri * 130);
-    const b = Math.round(255 - ri * 125);
-    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-
-    if (ri < 0.01) {
-      // Pure puffy cloud — use CLOUD_BUMPS directly
-      for (const bmp of CLOUD_BUMPS) {
-        ctx.beginPath();
-        ctx.ellipse(
-          x + bmp.dx * size,
-          y,
-          bmp.rx * size,
-          bmp.ry * size,
-          0,
-          Math.PI,
-          0,
-          false,
-        );
-        ctx.fill();
-      }
-      return;
-    }
-
-    // Morph: each bump stretches wider and flatter with intensity.
-    // At ri=1, bumps merge into one wide flat band.
-    for (const bmp of CLOUD_BUMPS) {
-      const rx = bmp.rx * (1 + ri * 7) * size; // much wider
-      const ry = bmp.ry * (1 - ri * 0.7) * size; // much flatter
-      // Shift bumps toward center x as they merge
-      const dx = bmp.dx * (1 - ri * 0.6) * size;
-      ctx.beginPath();
-      ctx.ellipse(x + dx, y, rx, Math.max(ry, 3 * size), 0, Math.PI, 0, false);
-      ctx.fill();
-    }
-
-    // At high intensity, add a wider semi-transparent band on top
-    if (ri > 0.3) {
-      const bandAlpha = (ri - 0.3) * 0.5;
-      ctx.fillStyle = `rgba(${r - 10}, ${g - 10}, ${b - 10}, ${bandAlpha})`;
-      const bandW = 100 * size * ri;
-      const bandH = 6 * size;
-      ctx.beginPath();
-      ctx.ellipse(x, y - bandH * 0.3, bandW, bandH, 0, Math.PI, 0, false);
-      ctx.fill();
-    }
-  }
-
-  /** Approximate pixel width of a cloud at the given size+scale, used
-   *  to spawn each cloud just past the right edge so it drifts into
-   *  view smoothly instead of popping in. Based on the CLOUD_BUMPS
-   *  footprint: leftmost bump at dx=-12.5 to rightmost at dx=55. */
-  function cloudVisualWidth(size, scale) {
-    // Rain clouds are wider streaks (~240px base vs 70px for puffy clouds)
-    const base = state.rainIntensity > 0.3 ? 240 : 70;
-    return base * size * scale;
-  }
-
-  /** Target cloud count for the current viewport — tuned so a typical
-   *  desktop gets ~5-7 clouds and mobile gets ~3-4. The update loop
-   *  maintains this density by spawning a new cloud whenever one
-   *  drifts off-screen, so the sky never clusters or empties. */
-  function targetCloudCount() {
-    const base = Math.max(CLOUD_MIN_COUNT, Math.round(state.width / CLOUD_DENSITY_DIVISOR));
-    const density = state._cloudDensity || 1;
-    // Smoothly interpolate cloud count with rain intensity
-    const rainMult = 1 + state.rainIntensity * CLOUD_RAIN_MULTIPLIER_MAX; // 1× to 3×
-    return Math.round(base * Math.max(density, rainMult));
-  }
-
-  /** Minimum horizontal distance between a newly-spawned cloud and the
-   *  previous rightmost cloud, to avoid visual stacking. */
-  function minCloudSpacing() {
-    const base = Math.max(CLOUD_MIN_SPACING_FLOOR_PX, state.width * CLOUD_MIN_SPACING_RATIO);
-    return state.rainIntensity > CLOUD_HEAVY_RAIN_SPACING ? base * CLOUD_HEAVY_RAIN_SPACING : base;
-  }
-
-  function makeCloudObject(xAbsolute) {
-    // Y range spans from the top of the screen down to roughly half
-    // of the play area so some clouds hang low over the horizon.
-    const yMin = 40;
-    const yMax = Math.max(180, state.ground * 0.55);
-    const size = randRange(0.55, 1.2) * (state.width / VELOCITY_SCALE_DIVISOR);
-    const scale = 2;
-    return {
-      x: xAbsolute,
-      y: yMin + Math.random() * (yMax - yMin),
-      size,
-      scale,
-    };
-  }
-
-  /** Spawn a single new cloud just past the right edge, but only if
-   *  it won't sit on top of the rightmost existing cloud. Returns
-   *  true if the cloud was added. */
-  function trySpawnCloud() {
-    const candidate = makeCloudObject(0);
-    const visualWidth = cloudVisualWidth(candidate.size, candidate.scale);
-    // Find the rightmost existing cloud.
-    let rightmost = -Infinity;
-    for (const c of state.clouds) {
-      if (c.x > rightmost) rightmost = c.x;
-    }
-    const spawnX = state.width + visualWidth * 0.5;
-    if (rightmost > -Infinity && spawnX - rightmost < minCloudSpacing()) {
-      return false;
-    }
-    candidate.x = spawnX;
-    state.clouds.push(candidate);
-    return true;
-  }
-
-  /** Pre-populate the sky with a balanced handful of clouds so the
-   *  game doesn't start with an empty background. Positions are
-   *  deterministically spaced across the full width so no two seed
-   *  clouds collide. */
-  function seedClouds() {
-    state.clouds = [];
-    const count = targetCloudCount();
-    const gap = state.width / count;
-    for (let i = 0; i < count; i++) {
-      // Base position evenly spaced, plus a small random jitter so
-      // it doesn't look mechanical.
-      const baseX = gap * (i + 0.5);
-      const jitter = (Math.random() - 0.5) * gap * 0.4;
-      const cloud = makeCloudObject(baseX + jitter);
-      state.clouds.push(cloud);
-    }
-  }
-
-  // ══════════════════════════════════════════════════════════════════
-  // Parallax background layers (dunes, procedural)
-  // ══════════════════════════════════════════════════════════════════
-
-  /** Dune ridge height above ground — gentle rolling sin waves.
-   *  Frequencies are relative to viewport width for consistent look. */
-  function _duneHeight(screenX, offset) {
-    const wx = screenX + offset;
-    const h = state.height;
-    const f = (Math.PI * 2) / (state.width * 2);
-    return (
-      h * 0.04 * Math.sin(wx * f * 3 + 1.2) +
-      h * 0.025 * Math.sin(wx * f * 5 + 0.7) +
-      h * 0.015 * Math.sin(wx * f * 8 + 2.1) +
-      h * DUNE_BASE_HEIGHT_RATIO
-    );
-  }
-
-  /** Spawn a dune cactus at the given world-space x. */
-  function _spawnDuneCactus(worldX) {
-    const variant =
-      CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
-    const ch = (DUNE_CACTUS_MIN_HEIGHT_PX + Math.random() * DUNE_CACTUS_HEIGHT_RANGE_PX) * variant.heightScale;
-    const cw = ch * (variant.w / variant.h);
-    return {
-      wx: worldX,
-      h: ch,
-      w: cw,
-      key: variant.key,
-      struck: false,
-      depth: Math.random() < 0.5 ? 1 : 3, // tumbleweed draws at depth 2
-    };
-  }
-
-  function initDunes() {
-    state.duneCacti = [];
-    state._nextDuneCactusX = 0;
-    // Pre-populate cacti across the initial visible area + buffer
-    let wx = -state.width * 0.5;
-    while (wx < state.width * 2) {
-      state.duneCacti.push(_spawnDuneCactus(wx));
-      wx += DUNE_CACTUS_MIN_SPACING_PX + Math.random() * DUNE_CACTUS_SPACING_RANGE_PX;
-    }
-    state._nextDuneCactusX = wx;
-  }
-
-  // ══════════════════════════════════════════════════════════════════
-  // Sky gradient (cached in an off-screen canvas, repainted only when
-  // the current sky color changes)
-  // ══════════════════════════════════════════════════════════════════
-
-  function computeSkyGradient() {
-    if (!skyCanvas || !skyCtx) return;
-    const w = state.width;
-    const h = state.height;
-    if (skyCanvas.width !== w) skyCanvas.width = w;
-    if (skyCanvas.height !== h) skyCanvas.height = h;
-    // Fade from the current sky color at the top to a slightly
-    // brighter, desaturated version at the horizon for atmospheric
-    // depth. Both stops are pre-divided by the foreground multiply
-    // tint that gets applied over the whole canvas in render(), so
-    // that AFTER the multiply, the visible sky still looks like
-    // `currentSky` rather than darkened. Without this compensation
-    // the sky reads too dark, especially at night where the multiply
-    // factor is highest.
-    const sky = state.currentSky;
-    const horizonR = Math.round(sky[0] + (255 - sky[0]) * 0.45);
-    const horizonG = Math.round(sky[1] + (255 - sky[1]) * 0.45);
-    const horizonB = Math.round(sky[2] + (255 - sky[2]) * 0.45);
-    const grad = skyCtx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, rgb(sky));
-    grad.addColorStop(1, `rgb(${horizonR}, ${horizonG}, ${horizonB})`);
-    skyCtx.fillStyle = grad;
-    skyCtx.fillRect(0, 0, w, h);
-  }
-
-  // ══════════════════════════════════════════════════════════════════
-  // Shareable score card
-  //
-  // Composes a 1200×630 PNG with the current sky color, a fresh
-  // raptor (carrying whatever cosmetics the player has unlocked
-  // AND toggled on), the final score, and the personal best. The
-  // shell exposes this through Game.generateScoreCard() and hands
-  // the resulting Blob to either navigator.share (mobile) or a
-  // download link (desktop). Returns a Promise<Blob>.
-  // ══════════════════════════════════════════════════════════════════
-
-  // Persistent worker reused across calls so we don't pay startup
-  // cost every game-over.
-  let scoreCardWorker = null;
-  function getScoreCardWorker() {
-    if (scoreCardWorker) return scoreCardWorker;
-    try {
-      // Vite bundles the worker via the ?worker query import at the
-      // top of this file and returns a constructor class.
-      scoreCardWorker = new ScoreCardWorker();
-    } catch (e) {
-      scoreCardWorker = null;
-    }
-    return scoreCardWorker;
-  }
-
-  async function generateScoreCardBlob() {
-    // Try the web-worker path first — keeps the main thread
-    // free so the raptor keeps animating smoothly under the
-    // game-over scrim.
-    try {
-      if (
-        deathSnapshotReady &&
-        typeof createImageBitmap === "function" &&
-        typeof OffscreenCanvas !== "undefined"
-      ) {
-        const worker = getScoreCardWorker();
-        if (worker) {
-          const bitmap = await createImageBitmap(deathCanvas);
-          const blob = await new Promise((resolve, reject) => {
-            const onMessage = (e) => {
-              worker.removeEventListener("message", onMessage);
-              worker.removeEventListener("error", onError);
-              if (e.data && e.data.blob) resolve(e.data.blob);
-              else
-                reject(new Error((e.data && e.data.error) || "worker failed"));
-            };
-            const onError = (ev) => {
-              worker.removeEventListener("message", onMessage);
-              worker.removeEventListener("error", onError);
-              reject(new Error("worker error: " + ev.message));
-            };
-            worker.addEventListener("message", onMessage);
-            worker.addEventListener("error", onError);
-            worker.postMessage(
-              {
-                bitmap,
-                score: state.score,
-                highScore: state.highScore,
-                newHighScore: state.newHighScore,
-              },
-              [bitmap],
-            );
-          });
-          return blob;
-        }
-      }
-    } catch (e) {
-      // Fall through to main-thread path.
-    }
-    return generateScoreCardBlobMainThread();
-  }
-
-  // Main-thread fallback for browsers without OffscreenCanvas /
-  // Web Worker support, or when the worker errors out.
-  function generateScoreCardBlobMainThread() {
-    const W = 1200;
-    const H = 630;
-    // Render at 2× logical resolution so text and sprites stay
-    // crisp on retina-class devices. All drawing below uses
-    // logical W/H coordinates.
-    const scale = 2;
-    const card = document.createElement("canvas");
-    card.width = W * scale;
-    card.height = H * scale;
-    const cctx = card.getContext("2d");
-    cctx.scale(scale, scale);
-    cctx.imageSmoothingEnabled = true;
-    cctx.imageSmoothingQuality = "high";
-
-    // ── Background: the actual game screenshot from death ─────
-    // If we have a death snapshot, draw it as "object-fit: cover"
-    // on the card. Otherwise fall back to a plain dark backdrop.
-    if (
-      deathSnapshotReady &&
-      deathCanvas &&
-      deathCanvas.width > 0 &&
-      deathCanvas.height > 0
-    ) {
-      const srcW = deathCanvas.width;
-      const srcH = deathCanvas.height;
-      const srcAspect = srcW / srcH;
-      const dstAspect = W / H;
-      let sx;
-      let sy;
-      let sw;
-      let sh;
-      if (srcAspect > dstAspect) {
-        // Source is wider than card — crop left/right.
-        sh = srcH;
-        sw = sh * dstAspect;
-        sy = 0;
-        sx = (srcW - sw) / 2;
-      } else {
-        // Source is taller than card — crop top/bottom, biased
-        // toward the upper portion so the raptor + ground stay
-        // in frame.
-        sw = srcW;
-        sh = sw / dstAspect;
-        sx = 0;
-        sy = Math.max(0, (srcH - sh) * 0.75);
-      }
-      cctx.drawImage(deathCanvas, sx, sy, sw, sh, 0, 0, W, H);
-    } else {
-      cctx.fillStyle = "#0c0e15";
-      cctx.fillRect(0, 0, W, H);
-    }
-
-    // ── Dark gradient strip at the top for title legibility ──
-    const topShadeH = 220;
-    const topShade = cctx.createLinearGradient(0, 0, 0, topShadeH);
-    topShade.addColorStop(0, "rgba(0, 0, 0, 0.7)");
-    topShade.addColorStop(1, "rgba(0, 0, 0, 0)");
-    cctx.fillStyle = topShade;
-    cctx.fillRect(0, 0, W, topShadeH);
-
-    // Dark gradient strip at the bottom for the score block.
-    const botShadeH = 260;
-    const botShade = cctx.createLinearGradient(0, H - botShadeH, 0, H);
-    botShade.addColorStop(0, "rgba(0, 0, 0, 0)");
-    botShade.addColorStop(1, "rgba(0, 0, 0, 0.75)");
-    cctx.fillStyle = botShade;
-    cctx.fillRect(0, H - botShadeH, W, botShadeH);
-
-    // ── Title + URL (top left) ────────────────────────────────
-    cctx.save();
-    cctx.textAlign = "left";
-    cctx.textBaseline = "alphabetic";
-    cctx.fillStyle = "#ffffff";
-    cctx.shadowColor = "rgba(0, 0, 0, 0.55)";
-    cctx.shadowBlur = 14;
-    cctx.font = 'bold 72px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    cctx.fillText("Raptor Runner", 60, 100);
-    cctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-    cctx.font = '26px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    cctx.fillText("raptor.trebeljahr.com", 62, 142);
-    cctx.restore();
-
-    // ── Score block (bottom right) ────────────────────────────
-    cctx.save();
-    cctx.textAlign = "right";
-    cctx.textBaseline = "alphabetic";
-    cctx.shadowColor = "rgba(0, 0, 0, 0.6)";
-    cctx.shadowBlur = 16;
-    // Uppercase label.
-    cctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-    cctx.font = '600 30px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    cctx.fillText("FINAL SCORE", W - 60, H - 180);
-    // Big gradient score.
-    cctx.font = 'bold 180px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    const scoreGrad = cctx.createLinearGradient(0, H - 170, 0, H - 40);
-    scoreGrad.addColorStop(0, "#ffee9a");
-    scoreGrad.addColorStop(1, "#e89d33");
-    cctx.fillStyle = scoreGrad;
-    cctx.fillText(`${state.score}`, W - 60, H - 50);
-    cctx.restore();
-
-    // Personal best / new record line (left side, bottom).
-    cctx.save();
-    cctx.textAlign = "left";
-    cctx.textBaseline = "alphabetic";
-    cctx.shadowColor = "rgba(0, 0, 0, 0.6)";
-    cctx.shadowBlur = 14;
-    cctx.font = 'italic 36px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    if (state.newHighScore) {
-      cctx.fillStyle = "#ffd84a";
-      cctx.fillText("★ New personal best!", 60, H - 60);
-    } else {
-      cctx.fillStyle = "rgba(255, 255, 255, 0.82)";
-      cctx.fillText(`Personal best: ${state.highScore}`, 60, H - 60);
-    }
-    cctx.restore();
-
-    return new Promise((resolve) => {
-      card.toBlob((blob) => resolve(blob), "image/png");
-    });
-  }
+  // Score card rendering lives in src/render/scoreCard.ts.
 
   // ══════════════════════════════════════════════════════════════════
   // Update + render
@@ -2009,7 +1273,7 @@ import {
         if (!state._nextDuneCactusX || state._nextDuneCactusX < rightEdge) {
           const wx =
             (state._nextDuneCactusX || rightEdge) + DUNE_CACTUS_MIN_SPACING_PX + Math.random() * DUNE_CACTUS_SPACING_RANGE_PX;
-          state.duneCacti.push(_spawnDuneCactus(wx));
+          state.duneCacti.push(spawnDuneCactus(wx));
           state._nextDuneCactusX = wx;
         }
       }
@@ -2126,7 +1390,7 @@ import {
       fgCtx.beginPath();
       fgCtx.moveTo(0, state.height);
       for (let sx = 0; sx <= state.width; sx += step) {
-        const y = groundY - _duneHeight(sx, off);
+        const y = groundY - duneHeight(sx, off);
         fgCtx.lineTo(sx, y);
       }
       fgCtx.lineTo(state.width, state.height);
@@ -2141,7 +1405,7 @@ import {
           if (dc.dead || dc.depth !== targetDepth) continue;
           const sx = dc.wx - off;
           if (sx < -dc.w * 2 || sx > state.width + dc.w * 2) continue;
-          const duneY = groundY - _duneHeight(sx, off);
+          const duneY = groundY - duneHeight(sx, off);
           const img = IMAGES[dc.key];
           if (!img) continue;
           fgCtx.save();
@@ -2840,7 +2104,7 @@ import {
      *  to a Blob the shell can hand to navigator.share or a
      *  download link. */
     generateScoreCard() {
-      return generateScoreCardBlob();
+      return generateScoreCardBlob(deathSnapshotReady);
     },
 
     isShowingHitboxes() {
@@ -3116,7 +2380,7 @@ import {
     // provider for tumbleweed / UFO abduction / meteor impact
     // positioning. _duneHeight still lives in this file.
     setRareEventsAchievementHandler((id) => unlockAchievement(id));
-    setDuneHeightProvider((x, off) => _duneHeight(x, off));
+    setDuneHeightProvider((x, off) => duneHeight(x, off));
 
     // Load the player's saved mute preference into the audio object's
     // state, without triggering .play() yet (browser autoplay
