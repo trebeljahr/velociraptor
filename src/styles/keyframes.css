@@ -1,0 +1,27 @@
+/* Raptor Runner — keyframe animations.
+ * Extracted from index.html <style> block.
+ * These stay as plain CSS; Tailwind handles them via @theme if needed.
+ */
+
+@keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+
+@keyframes rotateHint {
+        0%,
+        70%,
+        100% {
+          transform: rotate(0deg);
+        }
+
+@keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+
+@keyframes heartbeat {
+        0%,
+        100% {
+          transform: scale(1);
+        }
