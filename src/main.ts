@@ -1943,8 +1943,8 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       const pressed = btns[idx].value > 0.5 || btns[idx].pressed;
       if (pressed && !prev[idx]) {
         if (!state.started) {
-          if (typeof window.__onStartKey === "function") {
-            window.__onStartKey();
+          if (typeof (window as any).__onStartKey === "function") {
+            (window as any).__onStartKey();
           }
         } else if (state.paused) {
           window.dispatchEvent(
@@ -1970,8 +1970,8 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         btns[GAMEPAD_MENU_BUTTON].pressed;
       if (pressed && !prev[GAMEPAD_MENU_BUTTON]) {
         if (!state.started) {
-          if (typeof window.__onStartKey === "function") {
-            window.__onStartKey();
+          if (typeof (window as any).__onStartKey === "function") {
+            (window as any).__onStartKey();
           }
         } else {
           window.dispatchEvent(

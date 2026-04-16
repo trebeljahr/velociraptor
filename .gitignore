@@ -1,6 +1,9 @@
 node_modules/
 dist/
 dev-dist/
+release/
 *.log
 .DS_Store
 .vite/
+electron/main.js
+electron/preload.js
