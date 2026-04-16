@@ -1,4 +1,3 @@
-// @ts-nocheck
 /*
  * Raptor Runner — dune parallax and procedural background cacti.
  *
@@ -18,7 +17,7 @@ import { CACTUS_VARIANTS } from "../cactusVariants";
 
 /** Dune ridge height above ground — gentle rolling sin waves.
  *  Frequencies are relative to viewport width for consistent look. */
-export function duneHeight(screenX, offset) {
+export function duneHeight(screenX: number, offset: number) {
   const wx = screenX + offset;
   const h = state.height;
   const f = (Math.PI * 2) / (state.width * 2);
@@ -31,7 +30,7 @@ export function duneHeight(screenX, offset) {
 }
 
 /** Spawn a dune cactus at the given world-space x. */
-export function spawnDuneCactus(worldX) {
+export function spawnDuneCactus(worldX: number) {
   const variant =
     CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
   const ch = (DUNE_CACTUS_MIN_HEIGHT_PX + Math.random() * DUNE_CACTUS_HEIGHT_RANGE_PX) * variant.heightScale;

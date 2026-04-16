@@ -1,4 +1,3 @@
-// @ts-nocheck
 /*
  * Raptor Runner — shareable score card.
  *
@@ -13,7 +12,7 @@ import { contexts } from "../canvas";
 
 // Persistent worker reused across calls so we don't pay startup
 // cost every game-over.
-let scoreCardWorker = null;
+let scoreCardWorker: Worker | null = null;
 function getScoreCardWorker() {
   if (scoreCardWorker) return scoreCardWorker;
   try {
@@ -24,8 +23,8 @@ function getScoreCardWorker() {
   return scoreCardWorker;
 }
 
-export async function generateScoreCardBlob(deathSnapshotReady) {
-  const deathCanvas = contexts.deathCanvas;
+export async function generateScoreCardBlob(deathSnapshotReady: boolean) {
+  const deathCanvas = contexts.deathCanvas!;
   // Try the web-worker path first — keeps the main thread free so
   // the raptor keeps animating smoothly under the game-over scrim.
   try {
@@ -38,14 +37,14 @@ export async function generateScoreCardBlob(deathSnapshotReady) {
       if (worker) {
         const bitmap = await createImageBitmap(deathCanvas);
         const blob = await new Promise((resolve, reject) => {
-          const onMessage = (e) => {
+          const onMessage = (e: MessageEvent) => {
             worker.removeEventListener("message", onMessage);
             worker.removeEventListener("error", onError);
             if (e.data && e.data.blob) resolve(e.data.blob);
             else
               reject(new Error((e.data && e.data.error) || "worker failed"));
           };
-          const onError = (ev) => {
+          const onError = (ev: ErrorEvent) => {
             worker.removeEventListener("message", onMessage);
             worker.removeEventListener("error", onError);
             reject(new Error("worker error: " + ev.message));
@@ -73,15 +72,15 @@ export async function generateScoreCardBlob(deathSnapshotReady) {
 
 // Main-thread fallback for browsers without OffscreenCanvas / Web
 // Worker support, or when the worker errors out.
-function generateScoreCardBlobMainThread(deathSnapshotReady) {
-  const deathCanvas = contexts.deathCanvas;
+function generateScoreCardBlobMainThread(deathSnapshotReady: boolean) {
+  const deathCanvas = contexts.deathCanvas!;
   const W = 1200;
   const H = 630;
   const scale = 2;
   const card = document.createElement("canvas");
   card.width = W * scale;
   card.height = H * scale;
-  const cctx = card.getContext("2d");
+  const cctx = card.getContext("2d")!;
   cctx.scale(scale, scale);
   cctx.imageSmoothingEnabled = true;
   cctx.imageSmoothingQuality = "high";

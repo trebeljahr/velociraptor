@@ -1,4 +1,3 @@
-// @ts-nocheck
 /*
  * Raptor Runner — vanilla canvas + requestAnimationFrame rewrite.
  *
@@ -22,7 +21,7 @@
  *                              clicks the Start Game button)
  *   Game.pause() / resume()  – called when menus open/close
  *   Game.isStarted()         – true after Game.start() has been called
- *   Game.setMuted(muted)     – controls both music and jump SFX
+ *   Game.setMuted(muted: boolean)     – controls both music and jump SFX
  *   Game.isMuted()
  *
  * TypeScript port notes:
@@ -313,22 +312,23 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   // reads and writes the same reference.
   // ══════════════════════════════════════════════════════════════════
 
-  let canvas, ctx;
-  let skyCanvas, skyCtx;
-  // Offscreen canvas for the foreground layer (clouds, ground,
-  // cacti, raptor). We tint just this canvas with the sky color and
-  // then composite it over the main canvas — that way the sky and
-  // light sources (stars, sun, moon) keep their full brightness
-  // while the foreground gets a uniform sky-light wash.
-  let fgCanvas, fgCtx;
-  // Offscreen canvas that captures the main game canvas at the
-  // exact moment of death (before the game-over overlay is drawn).
-  // Used as the background for the shareable score card so the
-  // card literally shows the scene the player just died in.
-  let deathCanvas, deathCtx;
+  // These are populated in init() which runs before any game code
+  // reads them. The `null as unknown as T` cast avoids hundreds of
+  // null-checks in the game loop while keeping the declared type
+  // correct for consumer code.
+  let canvas = null as unknown as HTMLCanvasElement;
+  let ctx = null as unknown as CanvasRenderingContext2D;
+  let skyCanvas = null as unknown as HTMLCanvasElement;
+  let skyCtx = null as unknown as CanvasRenderingContext2D;
+  let fgCanvas = null as unknown as HTMLCanvasElement;
+  let fgCtx = null as unknown as CanvasRenderingContext2D;
+  let deathCanvas = null as unknown as HTMLCanvasElement;
+  let deathCtx = null as unknown as CanvasRenderingContext2D;
   let deathSnapshotReady = false;
   let _rafId = 0;
-  let raptor, cactuses, stars;
+  let raptor = null as unknown as Raptor;
+  let cactuses = null as unknown as Cactuses;
+  let stars = null as unknown as Stars;
 
   // ══════════════════════════════════════════════════════════════════
   // Entities
@@ -407,7 +407,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   // Update + render
   // ══════════════════════════════════════════════════════════════════
 
-  function update(now) {
+  function update(now: number) {
     state.frame++;
 
     // ── Delta-time / frame-rate independence ────────────────────
@@ -552,8 +552,8 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     if (state._wasInNight && !state.isNight && !state.gameOver) {
       state._pendingNights = (state._pendingNights || 0) + 1;
     }
-    if (state._pendingNights > 0 && _isDayBand[bandIndex] && !state.gameOver) {
-      state.runNightsSurvived += state._pendingNights;
+    if ((state._pendingNights ?? 0) > 0 && _isDayBand[bandIndex] && !state.gameOver) {
+      state.runNightsSurvived += state._pendingNights!;
       state._pendingNights = 0;
       if (state.runNightsSurvived >= 1) {
         unlockAchievement("first-night");
@@ -584,7 +584,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // (multiplied by SKY_UPDATE_INTERVAL_FRAMES because we're in
       // the throttled branch that only runs every N frames).
       const lerpT = Math.min(1, 0.2 * frameScale);
-      state.currentSky = lerpColor(state.currentSky, target, lerpT);
+      state.currentSky = lerpColor(state.currentSky as [number,number,number], target as [number,number,number], lerpT);
       computeSkyGradient();
       state.lastSkyScore = state.score;
     }
@@ -800,7 +800,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
 
       // Dune cacti + tumbleweed in 3 depth layers:
       // depth 1 cacti → tumbleweed (depth 2) → depth 3 cacti
-      const _drawDuneCacti = (targetDepth) => {
+      const _drawDuneCacti = (targetDepth: number) => {
         if (!state.duneCacti) return;
         for (const dc of state.duneCacti) {
           if (dc.dead || dc.depth !== targetDepth) continue;
@@ -972,7 +972,13 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   // When ?debug=true, tracks per-frame timings and draws an
   // overlay with FPS + frame budget breakdown. Updated every 30
   // frames to avoid the readout itself costing performance.
-  const perf = {
+  const perf: {
+    enabled: boolean;
+    samples: Array<{update: number; render: number; total: number}>;
+    maxSamples: number;
+    lastDisplay: {fps: number; update: number | string; render: number | string; total: number | string};
+    frameCount: number;
+  } = {
     enabled: false,
     samples: [],
     maxSamples: 60,
@@ -1021,7 +1027,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     ctx.restore();
   }
 
-  function loop(now) {
+  function loop(now: number) {
     pollGamepad();
     const t0 = performance.now();
     let tUpdate = t0;
@@ -1057,7 +1063,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   /** Unlock an achievement by id. Silently no-ops if the id is
    *  unknown or already unlocked. Fires the onAchievementUnlock
    *  callbacks so the shell can show a toast. */
-  function unlockAchievement(id) {
+  function unlockAchievement(id: string) {
     const def = ACHIEVEMENTS_BY_ID[id];
     if (!def) return;
     if (state.unlockedAchievements[id]) return;
@@ -1216,7 +1222,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   // Input
   // ══════════════════════════════════════════════════════════════════
 
-  function onPointerDown(e) {
+  function onPointerDown(e: PointerEvent) {
     if (!state.started || state.paused) return;
     // If the touch started on an overlay control (cog, sound, menu),
     // let the browser handle it — those elements live above the canvas
@@ -1232,7 +1238,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     }
   }
 
-  function onKeyDown(e) {
+  function onKeyDown(e: KeyboardEvent) {
     // ESC is reserved for the menu overlay — let it through.
     if (e.key === "Escape") return;
 
@@ -1258,8 +1264,8 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         e.code === "NumpadEnter"
       ) {
         e.preventDefault();
-        if (typeof window.__onStartKey === "function") {
-          window.__onStartKey();
+        if (typeof (window as any).__onStartKey === "function") {
+          (window as any).__onStartKey();
         }
       }
       return;
@@ -1289,37 +1295,29 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   // Public API
   // ══════════════════════════════════════════════════════════════════
 
-  const GameAPI = {
-    _ready: false,
-    _readyCb: null,
-    // Game-over / reset listener arrays. Fired synchronously from
-    // the game loop on the exact transition so the shell can
-    // show/hide its share button without polling.
-    _gameOverCbs: [],
-    _gameResetCbs: [],
-    _achievementCbs: [],
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  type GameCallback = (...args: any[]) => void;
 
-    onReady(cb) {
+  const GameAPI = {
+    _ready: false as boolean,
+    _readyCb: null as GameCallback | null,
+    _gameOverCbs: [] as GameCallback[],
+    _gameResetCbs: [] as GameCallback[],
+    _achievementCbs: [] as GameCallback[],
+
+    onReady(cb: GameCallback) {
       if (this._ready) cb();
       else this._readyCb = cb;
     },
 
-    /** Register a callback to run the moment the player dies.
-     *  Fired once per run, synchronously from the game loop. */
-    onGameOver(cb) {
+    onGameOver(cb: GameCallback) {
       if (typeof cb === "function") this._gameOverCbs.push(cb);
     },
-    /** Register a callback to run every time the game resets
-     *  (after an auto-restart, or a manual Back-to-home). */
-    onGameReset(cb) {
+    onGameReset(cb: GameCallback) {
       if (typeof cb === "function") this._gameResetCbs.push(cb);
     },
 
-    /** Register a callback fired whenever a new achievement is
-     *  unlocked. Receives the achievement definition
-     *  ({id, title, desc, iconPath, iconStroke}) so the shell
-     *  can render a toast. */
-    onAchievementUnlock(cb) {
+    onAchievementUnlock(cb: GameCallback) {
       if (typeof cb === "function" && !this._achievementCbs.includes(cb)) {
         this._achievementCbs.push(cb);
       }
@@ -1372,7 +1370,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       return state.paused;
     },
 
-    setMuted(muted) {
+    setMuted(muted: boolean) {
       audio.setMuted(muted);
     },
 
@@ -1392,7 +1390,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       audio.unlockAudio();
     },
 
-    setMusicMuted(muted) {
+    setMusicMuted(muted: boolean) {
       audio.setMusicMuted(muted);
     },
 
@@ -1400,7 +1398,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       return audio.musicMuted;
     },
 
-    setJumpMuted(muted) {
+    setJumpMuted(muted: boolean) {
       audio.setJumpMuted(muted);
     },
 
@@ -1408,7 +1406,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       return audio.jumpMuted;
     },
 
-    setRainMuted(muted) {
+    setRainMuted(muted: boolean) {
       audio.setRainMuted(muted);
     },
 
@@ -1429,7 +1427,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
      *  the debug menu's score editor so testers can verify unlock
      *  / personal-best / share-card behavior without waiting for
      *  natural cactus passes. */
-    setScore(n) {
+    setScore(n: number) {
       const next = Math.max(0, Math.floor(Number(n) || 0));
       state.score = next;
       // Fire any score-threshold achievements the player just
@@ -1555,7 +1553,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       return state.showHitboxes;
     },
 
-    setShowHitboxes(on) {
+    setShowHitboxes(on: boolean) {
       state.showHitboxes = !!on;
     },
 
@@ -1602,7 +1600,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     },
 
     /** Debug: trigger a specific rare event by id. */
-    triggerEvent(id) {
+    triggerEvent(id: string) {
       const evt = RARE_EVENTS.find((e) => e.id === id);
       if (!evt) return false;
       state.activeRareEvent = {
@@ -1613,7 +1611,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         y: state.height * (0.1 + Math.random() * 0.3),
       };
       if (!state._rareEventsSeen[evt.id]) {
-        state._rareEventsSeen[evt.id] = true;
+        state._rareEventsSeen[evt.id] = 1;
         saveRareEventsSeen(state._rareEventsSeen);
         unlockAchievement(evt.achievement);
       }
@@ -1670,13 +1668,13 @@ import { generateScoreCardBlob } from "./render/scoreCard";
      *  isn't unlocked yet, so you can't turn something on you
      *  don't own. Debug mode unlocks everything, so testers can
      *  still use these. */
-    setWearPartyHat(on) {
+    setWearPartyHat(on: boolean) {
       if (!this.isPartyHatUnlocked()) return false;
       state.wearPartyHat = !!on;
       saveBoolFlag(WEAR_PARTY_HAT_KEY, state.wearPartyHat);
       return state.wearPartyHat;
     },
-    setWearThugGlasses(on) {
+    setWearThugGlasses(on: boolean) {
       if (!this.isThugGlassesUnlocked()) return false;
       state.wearThugGlasses = !!on;
       saveBoolFlag(WEAR_THUG_GLASSES_KEY, state.wearThugGlasses);
@@ -1690,7 +1688,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       return this.setWearThugGlasses(!state.wearThugGlasses);
     },
 
-    setWearBowTie(on) {
+    setWearBowTie(on: boolean) {
       if (!this.isBowTieUnlocked()) return false;
       state.wearBowTie = !!on;
       saveBoolFlag(WEAR_BOW_TIE_KEY, state.wearBowTie);
@@ -1749,7 +1747,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       if (canvas) canvas.removeEventListener("pointerdown", onPointerDown);
     },
   };
-  window.Game = GameAPI;
+  (window as any).Game = GameAPI;
 
   // ══════════════════════════════════════════════════════════════════
   // Init
@@ -1759,7 +1757,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     return Promise.all(
       Object.entries(IMAGE_SRCS).map(
         ([key, src]) =>
-          new Promise((resolve) => {
+          new Promise<void>((resolve) => {
             const img = new Image();
             img.onload = () => {
               IMAGES[key] = img;
@@ -1767,7 +1765,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
             };
             img.onerror = () => {
               console.warn(`Failed to load ${src}`);
-              IMAGES[key] = null;
+              IMAGES[key] = undefined;
               resolve();
             };
             img.src = src;
@@ -2015,14 +2013,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // Once the render code moves into its own modules, these aliases
     // and the outer `let` declarations will be deleted.
     if (!initCanvas("game-canvas")) return;
-    canvas = contexts.mainCanvas;
-    ctx = contexts.main;
-    skyCanvas = contexts.skyCanvas;
-    skyCtx = contexts.sky;
-    fgCanvas = contexts.fgCanvas;
-    fgCtx = contexts.fg;
-    deathCanvas = contexts.deathCanvas;
-    deathCtx = contexts.death;
+    canvas = contexts.mainCanvas!;
+    ctx = contexts.main!;
+    skyCanvas = contexts.skyCanvas!;
+    skyCtx = contexts.sky!;
+    fgCanvas = contexts.fgCanvas!;
+    fgCtx = contexts.fg!;
+    deathCanvas = contexts.deathCanvas!;
+    deathCtx = contexts.death!;
 
     audio.init();
     // Break the audio → state hard dependency: invalidate the

@@ -1,5 +1,4 @@
 /// <reference lib="webworker" />
-// @ts-nocheck
 /*
  * Score-card renderer running in a Web Worker, so the main
  * thread (and the game's rAF loop) aren't blocked while we
@@ -20,7 +19,7 @@
  *   { blob }         // PNG Blob, or { error } on failure
  */
 
-self.onmessage = async function (e) {
+self.onmessage = async function (e: MessageEvent) {
   try {
     const {
       bitmap,
@@ -39,7 +38,7 @@ self.onmessage = async function (e) {
     }
 
     const canvas = new OffscreenCanvas(W * scale, H * scale);
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d")!;
     ctx.scale(scale, scale);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
@@ -147,7 +146,8 @@ self.onmessage = async function (e) {
 
     const blob = await canvas.convertToBlob({ type: "image/png" });
     self.postMessage({ blob });
-  } catch (err) {
-    self.postMessage({ error: String(err && err.message ? err.message : err) });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    self.postMessage({ error: msg });
   }
 };

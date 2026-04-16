@@ -1,4 +1,3 @@
-// @ts-nocheck
 /*
  * Raptor Runner — cloud system.
  *
@@ -25,7 +24,7 @@ export const CLOUD_BUMPS = [
   { dx: 40, rx: 15, ry: 10 },
 ];
 
-export function drawPolygon(ctx, poly, opts) {
+export function drawPolygon(ctx: CanvasRenderingContext2D, poly: any[], opts: any) {
   if (!poly || poly.length === 0) return;
   ctx.save();
   ctx.beginPath();
@@ -37,7 +36,7 @@ export function drawPolygon(ctx, poly, opts) {
   ctx.restore();
 }
 
-export function drawCloud(ctx, x, y, size) {
+export function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
   ctx.fillStyle = "#ffffff";
   for (const b of CLOUD_BUMPS) {
     ctx.beginPath();
@@ -46,7 +45,7 @@ export function drawCloud(ctx, x, y, size) {
   }
 }
 
-export function drawOvercastBands(ctx, intensity) {
+export function drawOvercastBands(ctx: CanvasRenderingContext2D, intensity: number) {
   if (intensity <= 0) return;
   const w = state.width;
   const coverH = state.height * 0.55;
@@ -76,7 +75,7 @@ export function drawOvercastBands(ctx, intensity) {
   }
 }
 
-export function drawCloudMorphed(ctx, x, y, size, ri) {
+export function drawCloudMorphed(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, ri: number) {
   const r = Math.round(255 - ri * 135);
   const g = Math.round(255 - ri * 130);
   const b = Math.round(255 - ri * 125);
@@ -108,7 +107,7 @@ export function drawCloudMorphed(ctx, x, y, size, ri) {
   }
 }
 
-export function cloudVisualWidth(size, scale) {
+export function cloudVisualWidth(size: number, scale: number) {
   const base = state.rainIntensity > 0.3 ? 240 : 70;
   return base * size * scale;
 }
@@ -125,7 +124,7 @@ export function minCloudSpacing() {
   return state.rainIntensity > CLOUD_HEAVY_RAIN_SPACING ? base * CLOUD_HEAVY_RAIN_SPACING : base;
 }
 
-export function makeCloudObject(xAbsolute) {
+export function makeCloudObject(xAbsolute: number) {
   const yMin = 40;
   const yMax = Math.max(180, state.ground * 0.55);
   const size = randRange(0.55, 1.2) * (state.width / VELOCITY_SCALE_DIVISOR);

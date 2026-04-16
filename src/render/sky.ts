@@ -1,4 +1,3 @@
-// @ts-nocheck
 /*
  * Raptor Runner — sky rendering.
  *
@@ -35,7 +34,7 @@ export const _isNightBand = SKY_COLORS.map(
 
 /** True when bandIndex (+ fractional bandT) is in the dark zone:
  *  solid-night bands, plus the dark half of each adjacent twilight. */
-export function isNightPhase(bandIndex, bandT) {
+export function isNightPhase(bandIndex: number, bandT: number) {
   if (_isNightBand[bandIndex]) return true;
   const next = (bandIndex + 1) % SKY_COLORS.length;
   if (_isNightBand[next] && bandT > 0.5) return true;
@@ -84,7 +83,7 @@ export function tintFactor() {
  * Returns {visible, x, y, t} for a celestial body whose visible arc
  * is centered on cycle `phaseCenter` and lasts half a cycle.
  */
-export function celestialArc(phaseCenter, halfWidth) {
+export function celestialArc(phaseCenter: number, halfWidth: number) {
   let rel = (((state.smoothPhase % 1) + 1) % 1) - phaseCenter;
   if (rel > 0.5) rel -= 1;
   if (rel < -0.5) rel += 1;
@@ -101,23 +100,23 @@ export function celestialArc(phaseCenter, halfWidth) {
 
 // ── Draw sun ────────────────────────────────────────────────
 
-export function drawSun(ctx) {
+export function drawSun(ctx: CanvasRenderingContext2D) {
   const arc = celestialArc(SUN_PHASE_CENTER, CELESTIAL_ARC_HALF_WIDTH);
   if (!arc.visible) return;
   const r = Math.max(SUN_MIN_RADIUS_PX, state.width * SUN_RADIUS_SCALE);
   const elevation = Math.max(0, 1 - Math.pow(Math.abs(arc.t - 0.5) * 2, 4));
-  const cZenith = [255, 250, 235];
-  const cMid = [255, 200, 110];
-  const cHorizon = [220, 60, 25];
-  let core, halo;
+  const cZenith: [number,number,number] = [255, 250, 235];
+  const cMid: [number,number,number] = [255, 200, 110];
+  const cHorizon: [number,number,number] = [220, 60, 25];
+  let core: [number,number,number], halo: [number,number,number];
   if (elevation > 0.5) {
     const k = (elevation - 0.5) * 2;
-    core = lerpColor(cMid, cZenith, k);
-    halo = lerpColor([255, 180, 100], [255, 230, 170], k);
+    core = lerpColor(cMid, cZenith, k) as [number,number,number];
+    halo = lerpColor([255, 180, 100] as [number,number,number], [255, 230, 170] as [number,number,number], k) as [number,number,number];
   } else {
     const k = elevation * 2;
-    core = lerpColor(cHorizon, cMid, k);
-    halo = lerpColor([225, 70, 30], [255, 180, 100], k);
+    core = lerpColor(cHorizon, cMid, k) as [number,number,number];
+    halo = lerpColor([225, 70, 30] as [number,number,number], [255, 180, 100] as [number,number,number], k) as [number,number,number];
   }
 
   ctx.save();
@@ -149,12 +148,12 @@ export function drawSun(ctx) {
 
 // ── Draw moon ───────────────────────────────────────────────
 
-export function drawMoon(ctx) {
+export function drawMoon(ctx: CanvasRenderingContext2D) {
   const arc = celestialArc(MOON_PHASE_CENTER, CELESTIAL_ARC_HALF_WIDTH);
   if (!arc.visible) return;
   const r = Math.max(MOON_MIN_RADIUS_PX, state.width * MOON_RADIUS_SCALE);
-  const core = [250, 250, 252];
-  const halo = [220, 230, 250];
+  const core: [number,number,number] = [250, 250, 252];
+  const halo: [number,number,number] = [220, 230, 250];
   const shadow = [
     Math.round(state.currentSky[0] * 0.5),
     Math.round(state.currentSky[1] * 0.5),
@@ -207,7 +206,7 @@ export function drawMoon(ctx) {
   if (illum < 0.98) {
     const terminatorX = r * Math.cos(illum * Math.PI);
     const waxing = ph < 0.5;
-    ctx.fillStyle = rgba(shadow, 0.8);
+    ctx.fillStyle = rgba(shadow as [number,number,number], 0.8);
     ctx.beginPath();
     if (waxing) {
       ctx.arc(arc.x, arc.y, r, Math.PI * 0.5, Math.PI * 1.5);
@@ -242,7 +241,7 @@ export function computeSkyGradient() {
   const horizonG = Math.round(sky[1] + (255 - sky[1]) * 0.45);
   const horizonB = Math.round(sky[2] + (255 - sky[2]) * 0.45);
   const grad = skyCtx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, rgb(sky));
+  grad.addColorStop(0, rgb(sky as [number,number,number]));
   grad.addColorStop(1, `rgb(${horizonR}, ${horizonG}, ${horizonB})`);
   skyCtx.fillStyle = grad;
   skyCtx.fillRect(0, 0, w, h);

@@ -14,7 +14,7 @@
  * this module has no bare references:
  *   • onAchievementUnlock(id) — fires the per-event achievement on
  *                               first sighting
- *   • duneHeightAt(x, off)    — pure function that returns the dune
+ *   • duneHeightAt(x: number, off)    — pure function that returns the dune
  *                               height at a given screen x and offset.
  *                               Currently owned by render/world code.
  */
@@ -279,7 +279,7 @@ export function updateRareEvent(dtSec: number): void {
 // ══════════════════════════════════════════════════════════════════
 
 /** Draw sky-layer rare events (comet, meteor) — on main canvas, no tint. */
-export function drawRareEventSky(ctx) {
+export function drawRareEventSky(ctx: CanvasRenderingContext2D) {
   if (!state.activeRareEvent) return;
   const e = state.activeRareEvent;
   if (e.id !== "comet" && e.id !== "meteor") return;
@@ -288,7 +288,7 @@ export function drawRareEventSky(ctx) {
 
 /** Draw foreground rare events (UFO, Santa, tumbleweed) — on fgCtx, gets tint. */
 /** Draw the UFO beam on the background canvas so dunes paint over it. */
-export function drawUfoBeam(ctx) {
+export function drawUfoBeam(ctx: CanvasRenderingContext2D) {
   if (!state.activeRareEvent || state.activeRareEvent.id !== "ufo") return;
   const e = state.activeRareEvent;
   if (!e.beam) return;
@@ -309,7 +309,7 @@ export function drawUfoBeam(ctx) {
   ctx.restore();
 }
 
-export function drawRareEventFg(ctx) {
+export function drawRareEventFg(ctx: CanvasRenderingContext2D) {
   if (!state.activeRareEvent) return;
   const e = state.activeRareEvent;
   // Comet/meteor on sky canvas, tumbleweed in dune layer
@@ -317,7 +317,7 @@ export function drawRareEventFg(ctx) {
   drawRareEvent(ctx);
 }
 
-export function drawRareEvent(ctx) {
+export function drawRareEvent(ctx: CanvasRenderingContext2D) {
   if (!state.activeRareEvent) return;
   const e = state.activeRareEvent;
   const t = e.age / e.life;
@@ -476,7 +476,7 @@ export function drawRareEvent(ctx) {
     ctx.rotate(tailAngle);
 
     // Tail helper
-    const _ct = (c0, c1, c2, w, x1, y1, x2, y2, ex, ey) => {
+    const _ct = (c0: string, c1: string, c2: string, w: number, x1: number, y1: number, x2: number, y2: number, ex: number, ey: number) => {
       const g = ctx.createLinearGradient(0, 0, ex, 0);
       g.addColorStop(0, c0);
       g.addColorStop(0.35, c1);

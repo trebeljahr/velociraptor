@@ -1,4 +1,3 @@
-// @ts-nocheck
 /*
  * Raptor Runner — weather particle system.
  *
@@ -150,7 +149,7 @@ export function drawRain(ctx: CanvasRenderingContext2D): void {
 // Lightning
 // ══════════════════════════════════════════════════════════════════
 
-export function updateLightning(frameScale, now) {
+export function updateLightning(frameScale: number, now: number) {
   if (state.lightning.alpha > 0) {
     state.lightning.alpha = Math.max(
       0,
@@ -219,7 +218,7 @@ export function _generateBoltPath() {
     : state.ground;
   const startX = targetX + (Math.random() - 0.5) * state.width * 0.15;
   const segments = LIGHTNING_BOLT_MIN_SEGMENTS + Math.floor(Math.random() * (LIGHTNING_BOLT_MAX_SEGMENTS - LIGHTNING_BOLT_MIN_SEGMENTS + 1));
-  const points = [{ x: startX, y: -10 }];
+  const points: {x: number; y: number; branch?: {x:number;y:number}[]}[] = [{ x: startX, y: -10 }];
   for (let i = 1; i <= segments; i++) {
     const t = i / segments;
     const isLast = i === segments;
@@ -250,7 +249,7 @@ export function _generateBoltPath() {
   return { path: points, struckDuneCactus };
 }
 
-export function _drawBolt(ctx, points, lineWidth, alpha) {
+export function _drawBolt(ctx: CanvasRenderingContext2D, points: any[], lineWidth: number, alpha: number) {
   ctx.save();
   ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
   ctx.lineWidth = lineWidth;
@@ -277,7 +276,7 @@ export function _drawBolt(ctx, points, lineWidth, alpha) {
   ctx.restore();
 }
 
-export function drawLightning(ctx) {
+export function drawLightning(ctx: CanvasRenderingContext2D) {
   if (state.lightning.alpha <= 0) return;
   // White flash overlay (dims faster than bolt)
   const flashAlpha = Math.max(0, state.lightning.alpha - 0.3) * 0.5;

@@ -103,6 +103,7 @@ export interface GameState {
   wearBowTie: boolean;
 
   // ── Particle / effect arrays ───────────────────────
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   shootingStars: any[];
   confetti: any[];
   dust: any[];
@@ -113,6 +114,10 @@ export interface GameState {
   clouds: any[];
   duneOffset: number;
 
+  // ── Dune parallax (populated by initDunes) ─────────
+  duneCacti: any[];
+  _nextDuneCactusX: number;
+
   // ── Rain weather ───────────────────────────────────
   totalDayCycles: number;
   lastCycleIndex: number;
@@ -120,20 +125,23 @@ export interface GameState {
   rainIntensity: number;
   rainEndPhase: number;
   rainParticles: any[];
-  lightning: { alpha: number; nextAt: number };
-  rainbow: any | null;
+  lightning: { alpha: number; nextAt: number; bolt?: any };
+  rainbow: { age: number; life: number } | null;
   _cloudDensity: number;
 
-  // ── Debug mode (toggled on via ?debug=true query param) ─
+  // ── Debug helpers (toggled via ?debug=true or menu) ─
   debug: boolean;
   showHitboxes: boolean;
   noCollisions: boolean;
+  _debugRainStop?: boolean;
+  _pendingNights?: number;
 
   // ── Cinematic / filming mode (F9) ─────────────────────
   cinematicMode: boolean;
   cinematicPhaseLock: number | null;
   cinematicShowHUD: boolean;
   _preCinematicNoCollisions: boolean;
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 }
 
 export const state: GameState = {
@@ -180,6 +188,8 @@ export const state: GameState = {
   moonPhase: 0,
   clouds: [],
   duneOffset: 0,
+  duneCacti: [],
+  _nextDuneCactusX: 0,
   totalDayCycles: 0,
   lastCycleIndex: -1,
   isRaining: false,

@@ -256,7 +256,7 @@ export class Stars {
       // Size pulsing: ±20% modulated by twinkle
       const r = (s.size / 2) * (1 + 0.2 * (twinkle - 0.5));
       ctx.fillStyle = rgba(
-        (s.color || starWhite) as RgbTuple,
+        ((s.color || starWhite) as unknown as RgbTuple),
         Math.min(a, 1),
       );
       ctx.beginPath();
