@@ -62,42 +62,46 @@ export function spawnRain(frameScale: number): void {
       state.rainIntensity,
   );
   for (let i = 0; i < count; i++) {
-    const layer = Math.random();
+    const r = Math.random();
     let len: number;
-    let opacity: number;
     let vy: number;
     let vx: number;
-    let lw: number;
-    if (layer < 0.3) {
+    let layer: 0 | 1 | 2;
+    if (r < 0.3) {
       // Far — small, faint, slow
       len = 5 + Math.random() * 3;
-      opacity = 0.08 + Math.random() * 0.1;
       vy = 400 + Math.random() * 100;
       vx = -40 - Math.random() * 20;
-      lw = 0.6;
-    } else if (layer < 0.7) {
+      layer = 0;
+    } else if (r < 0.7) {
       // Mid — medium
       len = 10 + Math.random() * 5;
-      opacity = 0.18 + Math.random() * 0.12;
       vy = 600 + Math.random() * 200;
       vx = -60 - Math.random() * 30;
-      lw = 1.0;
+      layer = 1;
     } else {
       // Near — large, bright, fast
       len = 15 + Math.random() * 10;
-      opacity = 0.3 + Math.random() * 0.2;
       vy = 800 + Math.random() * 300;
       vx = -80 - Math.random() * 40;
-      lw = 1.8;
+      layer = 2;
     }
+    // Precompute the streak delta. Velocity is constant for the
+    // particle's lifetime so there's no reason to run atan2/cos/sin
+    // per frame inside drawRain — this kills ~3 transcendental calls
+    // per drop per frame at peak density.
+    const vmag = Math.sqrt(vx * vx + vy * vy);
+    const dx = (vx / vmag) * len;
+    const dy = (vy / vmag) * len;
     state.rainParticles.push({
       x: Math.random() * (state.width + 100) - 50,
       y: -10 - Math.random() * 30,
       vx,
       vy,
       len,
-      opacity,
-      lw,
+      dx,
+      dy,
+      layer,
     });
   }
 }
@@ -118,29 +122,44 @@ export function updateRain(dtSec: number): void {
   }
 }
 
+// One strokeStyle + one lineWidth per depth layer. Variation within a
+// layer (random opacity jitter per drop) was only ±~10% and cost a
+// string rebuild + sync point per particle — swapping it for fixed
+// per-layer colors is effectively invisible at 200+ drops but turns
+// the draw into 3 strokes instead of N.
+const RAIN_LAYER_STYLES = [
+  { lw: 0.6, stroke: "rgba(180, 210, 240, 0.13)" }, // far
+  { lw: 1.0, stroke: "rgba(180, 210, 240, 0.24)" }, // mid
+  { lw: 1.8, stroke: "rgba(180, 210, 240, 0.40)" }, // near
+];
+
 export function drawRain(ctx: CanvasRenderingContext2D): void {
   if (state.rainParticles.length === 0) return;
   ctx.save();
   ctx.lineCap = "round";
   const gnd = state.ground;
-  for (const p of state.rainParticles) {
-    ctx.lineWidth = p.lw || 1;
-    ctx.strokeStyle = `rgba(180, 210, 240, ${p.opacity})`;
+  // Build one path per layer, stroke each once — moves the per-
+  // particle stroke() out of the hot loop.
+  for (let li = 0; li < 3; li++) {
+    let hasAny = false;
+    ctx.lineWidth = RAIN_LAYER_STYLES[li].lw;
+    ctx.strokeStyle = RAIN_LAYER_STYLES[li].stroke;
     ctx.beginPath();
-    const angle = Math.atan2(p.vy, p.vx);
-    let endX = p.x + Math.cos(angle) * p.len;
-    let endY = p.y + Math.sin(angle) * p.len;
-    // Clip streak at ground level
-    if (endY > gnd) {
-      const t = (gnd - p.y) / (endY - p.y);
-      endX = p.x + (endX - p.x) * t;
-      endY = gnd;
-    }
-    if (p.y < gnd) {
+    for (const p of state.rainParticles) {
+      if ((p as any).layer !== li) continue;
+      if (p.y >= gnd) continue;
+      let endX = p.x + (p as any).dx;
+      let endY = p.y + (p as any).dy;
+      if (endY > gnd) {
+        const t = (gnd - p.y) / (endY - p.y);
+        endX = p.x + (endX - p.x) * t;
+        endY = gnd;
+      }
       ctx.moveTo(p.x, p.y);
       ctx.lineTo(endX, endY);
-      ctx.stroke();
+      hasAny = true;
     }
+    if (hasAny) ctx.stroke();
   }
   ctx.restore();
 }
