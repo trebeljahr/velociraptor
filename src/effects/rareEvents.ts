@@ -319,6 +319,63 @@ function getMeteorHeadSprite(): HTMLCanvasElement {
 export function warmMeteorSprites(): void {
   getMeteorHeadSprite();
   getMeteorTrailSprite();
+  getCometHeadSprite();
+}
+
+/*
+ * Comet head sprite. Bakes three concentric radial gradients
+ * (outer halo, inner glow, bright core) into one RGBA sprite so the
+ * per-frame draw is a single drawImage with alpha modulation, instead
+ * of three createRadialGradient + arc + fill cycles. Gradients are
+ * baked at alpha=1; caller scales via globalAlpha.
+ */
+const COMET_HEAD_R = 10;
+const COMET_OUTER_R = COMET_HEAD_R * 14; // 140 — matches the renderer
+let _cometHeadSprite: HTMLCanvasElement | null = null;
+
+function getCometHeadSprite(): HTMLCanvasElement {
+  if (_cometHeadSprite) return _cometHeadSprite;
+  const size = COMET_OUTER_R * 2;
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const cx = c.getContext("2d");
+  if (!cx) return c;
+  const mid = size / 2;
+
+  // 1. Outer halo — largest radial gradient
+  const g1 = cx.createRadialGradient(mid, mid, 0, mid, mid, COMET_OUTER_R);
+  g1.addColorStop(0, "rgba(240, 248, 255, 0.7)");
+  g1.addColorStop(0.1, "rgba(200, 225, 255, 0.35)");
+  g1.addColorStop(0.3, "rgba(130, 180, 250, 0.12)");
+  g1.addColorStop(1, "rgba(60, 100, 200, 0)");
+  cx.fillStyle = g1;
+  cx.beginPath();
+  cx.arc(mid, mid, COMET_OUTER_R, 0, Math.PI * 2);
+  cx.fill();
+
+  // 2. Inner glow — tighter, brighter
+  const g2 = cx.createRadialGradient(mid, mid, 0, mid, mid, COMET_HEAD_R * 4);
+  g2.addColorStop(0, "rgba(255, 255, 255, 0.6)");
+  g2.addColorStop(0.4, "rgba(200, 230, 255, 0.25)");
+  g2.addColorStop(1, "rgba(150, 200, 255, 0)");
+  cx.fillStyle = g2;
+  cx.beginPath();
+  cx.arc(mid, mid, COMET_HEAD_R * 4, 0, Math.PI * 2);
+  cx.fill();
+
+  // 3. Bright core
+  const gc = cx.createRadialGradient(mid, mid, 0, mid, mid, COMET_HEAD_R);
+  gc.addColorStop(0, "rgba(255, 255, 255, 1)");
+  gc.addColorStop(0.3, "rgba(230, 245, 255, 0.95)");
+  gc.addColorStop(1, "rgba(160, 210, 255, 0.65)");
+  cx.fillStyle = gc;
+  cx.beginPath();
+  cx.arc(mid, mid, COMET_HEAD_R, 0, Math.PI * 2);
+  cx.fill();
+
+  _cometHeadSprite = c;
+  return c;
 }
 
 function getMeteorTrailSprite(): HTMLCanvasElement {
@@ -508,39 +565,23 @@ export function drawRareEvent(ctx: CanvasRenderingContext2D) {
     // "Your Name" style comet — very bright, multi-tailed, sparkly.
     const tailAngle = Math.atan2(state.height * 0.25, state.width * 1.6);
     const tailLen = state.width * 0.3;
-    const headR = 10;
+    const headR = COMET_HEAD_R;
     const a = alpha;
 
-    // Double-layered glow halo for extra brightness
-    const outerR = headR * 14;
-    const g1 = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, outerR);
-    g1.addColorStop(0, `rgba(240, 248, 255, ${0.7 * a})`);
-    g1.addColorStop(0.1, `rgba(200, 225, 255, ${0.35 * a})`);
-    g1.addColorStop(0.3, `rgba(130, 180, 250, ${0.12 * a})`);
-    g1.addColorStop(1, "rgba(60,100,200,0)");
-    ctx.fillStyle = g1;
-    ctx.beginPath();
-    ctx.arc(e.x, e.y, outerR, 0, Math.PI * 2);
-    ctx.fill();
-    // Inner glow — tighter, brighter
-    const g2 = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, headR * 4);
-    g2.addColorStop(0, `rgba(255, 255, 255, ${0.6 * a})`);
-    g2.addColorStop(0.4, `rgba(200, 230, 255, ${0.25 * a})`);
-    g2.addColorStop(1, "rgba(150,200,255,0)");
-    ctx.fillStyle = g2;
-    ctx.beginPath();
-    ctx.arc(e.x, e.y, headR * 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Bright core
-    const core = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, headR);
-    core.addColorStop(0, `rgba(255,255,255,${a})`);
-    core.addColorStop(0.3, `rgba(230,245,255,${0.95 * a})`);
-    core.addColorStop(1, `rgba(160,210,255,${0.65 * a})`);
-    ctx.fillStyle = core;
-    ctx.beginPath();
-    ctx.arc(e.x, e.y, headR, 0, Math.PI * 2);
-    ctx.fill();
+    // Head — single drawImage of the pre-baked triple-gradient sprite
+    // (outer halo + inner glow + bright core baked on top of each other).
+    // Replaces 3 createRadialGradient calls per frame.
+    const headSprite = getCometHeadSprite();
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.drawImage(
+      headSprite,
+      e.x - COMET_OUTER_R,
+      e.y - COMET_OUTER_R,
+      COMET_OUTER_R * 2,
+      COMET_OUTER_R * 2,
+    );
+    ctx.restore();
 
     ctx.save();
     ctx.translate(e.x, e.y);

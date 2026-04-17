@@ -96,6 +96,12 @@ export function spawnRain(frameScale: number): void {
       vx = -80 - Math.random() * 40;
       lw = 1.8;
     }
+    // Precompute the streak end-offsets once. vx/vy don't change for a
+    // rain particle after spawn, so the atan2/cos/sin work that drawRain
+    // previously did every frame can be hoisted here: streakDx/Dy store
+    // cos(angle)*len / sin(angle)*len, which is just the velocity vector
+    // normalized to length `len`. Saves ~300 trig calls/frame at peak rain.
+    const invSpeed = 1 / Math.hypot(vx, vy);
     state.rainParticles.push({
       x: Math.random() * (state.width + 100) - 50,
       y: -10 - Math.random() * 30,
@@ -104,6 +110,8 @@ export function spawnRain(frameScale: number): void {
       len,
       opacity,
       lw,
+      streakDx: vx * invSpeed * len,
+      streakDy: vy * invSpeed * len,
     });
   }
 }
@@ -133,9 +141,9 @@ export function drawRain(ctx: CanvasRenderingContext2D): void {
     ctx.lineWidth = p.lw || 1;
     ctx.strokeStyle = `rgba(180, 210, 240, ${p.opacity})`;
     ctx.beginPath();
-    const angle = Math.atan2(p.vy, p.vx);
-    let endX = p.x + Math.cos(angle) * p.len;
-    let endY = p.y + Math.sin(angle) * p.len;
+    // streakDx / streakDy cached at spawn — see spawnRain. No trig here.
+    let endX = p.x + p.streakDx;
+    let endY = p.y + p.streakDy;
     // Clip streak at ground level
     if (endY > gnd) {
       const t = (gnd - p.y) / (endY - p.y);
