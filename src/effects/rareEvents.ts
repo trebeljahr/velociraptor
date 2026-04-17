@@ -24,6 +24,7 @@
 import { state } from "../state";
 import { saveRareEventsSeen } from "../persistence";
 import { IMAGES } from "../images";
+import { audio } from "../audio";
 
 // ══════════════════════════════════════════════════════════════════
 // Couplings (wired from main.ts's init)
@@ -137,6 +138,10 @@ export function maybeSpawnRareEvent(): void {
     x: state.width + 50,
     y: state.height * (0.1 + Math.random() * 0.3),
   };
+  // Fire the per-event SFX. The audio module respects the SFX mute
+  // channel, so this is a no-op when the user has SFX off.
+  if (evt.id === "ufo") audio.playUfo();
+  else if (evt.id === "santa") audio.playSanta();
   // Unlock achievement on first sighting
   if (!state._rareEventsSeen[evt.id]) {
     state._rareEventsSeen[evt.id] = 1;
@@ -270,7 +275,13 @@ export function updateRareEvent(dtSec: number): void {
           3;
     }
   }
-  if (e.age >= e.life) state.activeRareEvent = null;
+  if (e.age >= e.life) {
+    // Cut the UFO hover sample if it's still playing. Sample length
+    // (~12s) is shorter than the event lifetime (~20s), so this is
+    // mostly a safety net for early-terminated events.
+    if (e.id === "ufo") audio.stopUfo();
+    state.activeRareEvent = null;
+  }
 }
 
 

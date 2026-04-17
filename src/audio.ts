@@ -176,6 +176,9 @@ export const audio = {
     // file eagerly so the first jump has zero latency.
     this._preloadJumpBuffer();
     this._preloadThunderBuffer();
+    this._preloadHitBuffer();
+    this._preloadUfoBuffer();
+    this._preloadSantaBuffer();
     this.initRain();
   },
 
@@ -639,56 +642,175 @@ export const audio = {
     }
   },
 
-  /** Cactus impact: sharp highpass-noise crunch stacked on a
-   *  square-wave thud that pitches down — reads as "hit something
-   *  spiky and hard". Routed through jumpMuted so the SFX channel
-   *  toggle covers it too. */
+  // ── Cactus-collision SFX (Universfield marimba lose) ───────
+  _hitBuffer: null as AudioBuffer | null,
+
+  _preloadHitBuffer() {
+    if (
+      typeof AudioContext === "undefined" &&
+      typeof window.webkitAudioContext === "undefined"
+    )
+      return;
+    fetch("assets/hit.mp3")
+      .then((r) => r.arrayBuffer())
+      .then((buf) => {
+        this._ensureAudioCtx();
+        if (!this._audioCtx) return;
+        return this._audioCtx.decodeAudioData(buf);
+      })
+      .then((decoded) => {
+        if (decoded) this._hitBuffer = decoded;
+      })
+      .catch(() => {
+        /* hit SFX simply won't play */
+      });
+  },
+
+  /** Cactus impact: plays the licensed marimba "lose" sample.
+   *  Routed through jumpMuted so the SFX channel toggle covers it. */
   playHit() {
     if (this.muted || this.jumpMuted) return;
-    if (!this._audioCtx || this._audioCtx.state !== "running") return;
+    if (!this._audioCtx || !this._hitBuffer) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
     try {
-      const ctx = this._audioCtx;
-      const t0 = ctx.currentTime;
-
-      // Body-weight thud, pitched down further/faster than a step.
-      const thud = ctx.createOscillator();
-      thud.type = "square";
-      thud.frequency.setValueAtTime(170, t0);
-      thud.frequency.exponentialRampToValueAtTime(42, t0 + 0.22);
-      const thudGain = ctx.createGain();
-      thudGain.gain.setValueAtTime(0, t0);
-      thudGain.gain.linearRampToValueAtTime(0.22, t0 + 0.005);
-      thudGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.25);
-      thud.connect(thudGain);
-      thudGain.connect(ctx.destination);
-      thud.onended = () => {
-        try { thud.disconnect(); thudGain.disconnect(); } catch {}
+      const src = this._audioCtx.createBufferSource();
+      src.buffer = this._hitBuffer;
+      const gain = this._audioCtx.createGain();
+      gain.gain.value = 0.6;
+      src.connect(gain);
+      gain.connect(this._audioCtx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
       };
-      thud.start(t0);
-      thud.stop(t0 + 0.28);
+      src.start(0);
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
 
-      // Spiky crunch — highpassed noise gives the "scrape against
-      // something sharp" character.
-      const noiseBuf = this._getNoiseBuffer();
-      if (noiseBuf) {
-        const noise = ctx.createBufferSource();
-        noise.buffer = noiseBuf;
-        const hp = ctx.createBiquadFilter();
-        hp.type = "highpass";
-        hp.frequency.value = 900;
-        const nGain = ctx.createGain();
-        nGain.gain.setValueAtTime(0, t0);
-        nGain.gain.linearRampToValueAtTime(0.2, t0 + 0.002);
-        nGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.18);
-        noise.connect(hp);
-        hp.connect(nGain);
-        nGain.connect(ctx.destination);
-        noise.onended = () => {
-          try { noise.disconnect(); hp.disconnect(); nGain.disconnect(); } catch {}
-        };
-        noise.start(t0);
-        noise.stop(t0 + 0.2);
-      }
+  // ── UFO rare-event SFX (SoundReality ufo) ──────────────────
+  _ufoBuffer: null as AudioBuffer | null,
+  _ufoSource: null as AudioBufferSourceNode | null,
+  _ufoGain: null as GainNode | null,
+
+  _preloadUfoBuffer() {
+    if (
+      typeof AudioContext === "undefined" &&
+      typeof window.webkitAudioContext === "undefined"
+    )
+      return;
+    fetch("assets/ufo.mp3")
+      .then((r) => r.arrayBuffer())
+      .then((buf) => {
+        this._ensureAudioCtx();
+        if (!this._audioCtx) return;
+        return this._audioCtx.decodeAudioData(buf);
+      })
+      .then((decoded) => {
+        if (decoded) this._ufoBuffer = decoded;
+      })
+      .catch(() => {
+        /* UFO SFX simply won't play */
+      });
+  },
+
+  /** Start the UFO hover/beam sample. Stored as a handle so stopUfo
+   *  can cut it short when the event ends (or the player dies). */
+  playUfo() {
+    if (this.muted || this.jumpMuted) return;
+    if (!this._audioCtx || !this._ufoBuffer) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    // Already playing? Let the existing source run.
+    if (this._ufoSource) return;
+    try {
+      const src = this._audioCtx.createBufferSource();
+      src.buffer = this._ufoBuffer;
+      const gain = this._audioCtx.createGain();
+      gain.gain.value = 0.45;
+      src.connect(gain);
+      gain.connect(this._audioCtx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
+        if (this._ufoSource === src) {
+          this._ufoSource = null;
+          this._ufoGain = null;
+        }
+      };
+      this._ufoSource = src;
+      this._ufoGain = gain;
+      src.start(0);
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
+
+  /** Fade out and stop the UFO sample. Called when the UFO event
+   *  ends or the player dies mid-abduction. */
+  stopUfo() {
+    if (!this._audioCtx || !this._ufoSource || !this._ufoGain) return;
+    const ctx = this._audioCtx;
+    const src = this._ufoSource;
+    const gain = this._ufoGain;
+    const t = ctx.currentTime;
+    try {
+      // Brief ramp to zero, then stop — avoids a click on abrupt cut.
+      gain.gain.cancelScheduledValues(t);
+      gain.gain.setValueAtTime(gain.gain.value, t);
+      gain.gain.linearRampToValueAtTime(0, t + 0.08);
+      src.stop(t + 0.09);
+    } catch {
+      try { src.stop(0); } catch {}
+    }
+    this._ufoSource = null;
+    this._ufoGain = null;
+  },
+
+  // ── Santa rare-event SFX (DRAGON-STUDIO jingle bells) ─────
+  _santaBuffer: null as AudioBuffer | null,
+
+  _preloadSantaBuffer() {
+    if (
+      typeof AudioContext === "undefined" &&
+      typeof window.webkitAudioContext === "undefined"
+    )
+      return;
+    fetch("assets/santa.mp3")
+      .then((r) => r.arrayBuffer())
+      .then((buf) => {
+        this._ensureAudioCtx();
+        if (!this._audioCtx) return;
+        return this._audioCtx.decodeAudioData(buf);
+      })
+      .then((decoded) => {
+        if (decoded) this._santaBuffer = decoded;
+      })
+      .catch(() => {
+        /* santa SFX simply won't play */
+      });
+  },
+
+  /** Play the sleigh-bell sample once for a Santa event spawn. */
+  playSanta() {
+    if (this.muted || this.jumpMuted) return;
+    if (!this._audioCtx || !this._santaBuffer) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    try {
+      const src = this._audioCtx.createBufferSource();
+      src.buffer = this._santaBuffer;
+      const gain = this._audioCtx.createGain();
+      gain.gain.value = 0.5;
+      src.connect(gain);
+      gain.connect(this._audioCtx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
+      };
+      src.start(0);
     } catch {
       /* SFX is non-critical */
     }
