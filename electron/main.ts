@@ -290,10 +290,69 @@ function createWindow(): void {
   });
 
   if (isDev) {
-    // Dev: connect to the Vite dev server for HMR
-    win.loadURL("http://localhost:5173");
+    // Dev: connect to the Vite dev server for HMR.
+    const DEV_URL = "http://localhost:5173";
+    win.loadURL(DEV_URL);
     // Open DevTools in dev mode (detached so it doesn't resize the game)
     win.webContents.openDevTools({ mode: "detach" });
+
+    // Recover from transient dev-server outages. When Vite decides to
+    // restart its own server (e.g. because a file reachable from
+    // vite.config.ts's dep graph changed), there's a ~200–500ms
+    // window where the port is closed. If the Electron window tries
+    // to reload during that window, Chromium drops the page onto the
+    // ERR_CONNECTION_RESET / ERR_CONNECTION_REFUSED error screen and
+    // never retries on its own — the window is stuck on the sad-face
+    // page until you kill Electron and rerun `npm run dev:desktop`.
+    //
+    // Fix: listen for did-fail-load, and if the failure is (a) on
+    // the main frame, (b) against the Vite dev URL, and (c) a
+    // recoverable network error code, schedule a retry loop. Each
+    // retry is a fresh loadURL; once the server is back up the page
+    // loads and HMR is live again.
+    //
+    // Chromium network error codes:
+    //   -3   ABORTED            (we started a new nav; ignore)
+    //   -7   TIMED_OUT
+    //  -21   NETWORK_CHANGED
+    // -101   CONNECTION_RESET   ← the one we see
+    // -102   CONNECTION_REFUSED ← common when Vite is still spinning up
+    // -104   CONNECTION_FAILED
+    // -105   NAME_NOT_RESOLVED
+    // -106   INTERNET_DISCONNECTED
+    const RECOVERABLE_ERRORS = new Set([-7, -21, -101, -102, -104, -105, -106]);
+    let retrying = false;
+    win.webContents.on(
+      "did-fail-load",
+      (_evt, errorCode, errorDescription, validatedURL, isMainFrame) => {
+        if (!isMainFrame) return;
+        if (!validatedURL.startsWith(DEV_URL)) return;
+        if (!RECOVERABLE_ERRORS.has(errorCode)) return;
+        if (retrying) return;
+        retrying = true;
+        console.log(
+          `[dev-reload] ${errorDescription} (${errorCode}); retrying`,
+        );
+        const tryReload = () => {
+          if (win.isDestroyed()) {
+            retrying = false;
+            return;
+          }
+          win.loadURL(DEV_URL).catch(() => {
+            // still failing — keep polling until the server is back.
+            // 500 ms is small enough that the blue screen is barely
+            // visible, big enough that we're not hammering the port.
+            setTimeout(tryReload, 500);
+          });
+        };
+        // Small initial delay so Vite has a moment to rebind.
+        setTimeout(tryReload, 300);
+      },
+    );
+    // Once a reload succeeds we can accept another recovery attempt.
+    win.webContents.on("did-finish-load", () => {
+      retrying = false;
+    });
   } else {
     // Production: load the built dist/index.html
     win.loadFile(path.join(__dirname, "../dist/index.html"));
