@@ -279,6 +279,77 @@ export function updateRareEvent(dtSec: number): void {
 // ══════════════════════════════════════════════════════════════════
 
 /** Draw sky-layer rare events (comet, meteor) — on main canvas, no tint. */
+/*
+ * Meteor streak sprites. Both the head-glow radial gradient and the
+ * trail linear gradient have fixed geometry — radius 12 for the glow,
+ * length 50 for the trail. Baking them to offscreen canvases once at
+ * module load (called lazily on first meteor) eliminates two
+ * createRadialGradient / createLinearGradient calls per frame during
+ * the streak phase. Per-frame alpha modulation happens via
+ * globalAlpha at drawImage time.
+ */
+const METEOR_HEAD_R = 12;
+const METEOR_TRAIL_LEN = 50;
+let _meteorHeadSprite: HTMLCanvasElement | null = null;
+let _meteorTrailSprite: HTMLCanvasElement | null = null;
+
+function getMeteorHeadSprite(): HTMLCanvasElement {
+  if (_meteorHeadSprite) return _meteorHeadSprite;
+  const size = METEOR_HEAD_R * 2;
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const cx = c.getContext("2d");
+  if (!cx) return c;
+  const mid = size / 2;
+  const g = cx.createRadialGradient(mid, mid, 0, mid, mid, METEOR_HEAD_R);
+  g.addColorStop(0, "rgba(255, 255, 220, 1)");
+  g.addColorStop(0.4, "rgba(255, 180, 50, 0.6)");
+  g.addColorStop(1, "rgba(255, 80, 0, 0)");
+  cx.fillStyle = g;
+  cx.beginPath();
+  cx.arc(mid, mid, METEOR_HEAD_R, 0, Math.PI * 2);
+  cx.fill();
+  _meteorHeadSprite = c;
+  return c;
+}
+
+/** Force-bake both meteor sprites. Called from init() so the first
+ *  meteor event doesn't pay a sprite-bake cost during gameplay. */
+export function warmMeteorSprites(): void {
+  getMeteorHeadSprite();
+  getMeteorTrailSprite();
+}
+
+function getMeteorTrailSprite(): HTMLCanvasElement {
+  if (_meteorTrailSprite) return _meteorTrailSprite;
+  // Trail is a 4px-thick horizontal line with a linear gradient along
+  // its length. Bake to a thin strip; rotate + drawImage at use time.
+  const lineW = 4;
+  const padding = 2;
+  const w = METEOR_TRAIL_LEN;
+  const h = lineW + padding * 2;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const cx = c.getContext("2d");
+  if (!cx) return c;
+  const g = cx.createLinearGradient(0, 0, w, 0);
+  g.addColorStop(0, "rgba(255, 220, 80, 0.8)");
+  g.addColorStop(0.3, "rgba(255, 120, 20, 0.4)");
+  g.addColorStop(0.7, "rgba(220, 50, 0, 0.15)");
+  g.addColorStop(1, "rgba(150, 30, 0, 0)");
+  cx.strokeStyle = g;
+  cx.lineWidth = lineW;
+  cx.lineCap = "round";
+  cx.beginPath();
+  cx.moveTo(0, h / 2);
+  cx.lineTo(w, h / 2);
+  cx.stroke();
+  _meteorTrailSprite = c;
+  return c;
+}
+
 export function drawRareEventSky(ctx: CanvasRenderingContext2D) {
   if (!state.activeRareEvent) return;
   const e = state.activeRareEvent;
@@ -643,32 +714,37 @@ export function drawRareEvent(ctx: CanvasRenderingContext2D) {
     ctx.restore();
   } else if (e.id === "meteor") {
     if (!e.impact) {
-      const streakLen = 50;
+      const streakLen = METEOR_TRAIL_LEN;
       const angle = Math.atan2(e.vy || 1, e.vx || -0.5);
-      // Head glow — bigger, brighter
-      const glow = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, 12);
-      glow.addColorStop(0, `rgba(255, 255, 220, ${alpha})`);
-      glow.addColorStop(0.4, `rgba(255, 180, 50, ${0.6 * alpha})`);
-      glow.addColorStop(1, `rgba(255, 80, 0, 0)`);
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(e.x, e.y, 12, 0, Math.PI * 2);
-      ctx.fill();
-      // Trail
+      // Head glow — baked sprite, drawn with globalAlpha for per-frame
+      // alpha modulation (same trick as the moon halo).
+      const headSprite = getMeteorHeadSprite();
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(
+        headSprite,
+        e.x - METEOR_HEAD_R,
+        e.y - METEOR_HEAD_R,
+        METEOR_HEAD_R * 2,
+        METEOR_HEAD_R * 2,
+      );
+      ctx.restore();
+      // Trail — baked sprite, rotated into place.
       ctx.save();
       ctx.translate(e.x, e.y);
       ctx.rotate(angle + Math.PI);
-      const tg = ctx.createLinearGradient(0, 0, streakLen, 0);
-      tg.addColorStop(0, `rgba(255, 220, 80, ${0.8 * alpha})`);
-      tg.addColorStop(0.3, `rgba(255, 120, 20, ${0.4 * alpha})`);
-      tg.addColorStop(0.7, `rgba(220, 50, 0, ${0.15 * alpha})`);
-      tg.addColorStop(1, `rgba(150, 30, 0, 0)`);
-      ctx.strokeStyle = tg;
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(streakLen, 0);
-      ctx.stroke();
+      const trailSprite = getMeteorTrailSprite();
+      ctx.globalAlpha = alpha;
+      // trailSprite is (streakLen × 8) with the line centered vertically;
+      // we want the stroke centered on y=0, so draw at y=-h/2.
+      ctx.drawImage(
+        trailSprite,
+        0,
+        -trailSprite.height / 2,
+        streakLen,
+        trailSprite.height,
+      );
+      ctx.globalAlpha = 1;
       // Sparks flying off
       for (let i = 0; i < 6; i++) {
         const sx = Math.random() * streakLen * 0.7;

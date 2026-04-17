@@ -120,7 +120,9 @@ export function saveTotalJumps(value: number): void {
 export function loadTotalDayCycles(): number {
   try {
     const raw = window.localStorage.getItem(TOTAL_DAY_CYCLES_KEY);
-    return raw != null ? parseInt(raw, 10) || 0 : 0;
+    if (raw == null) return 0;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
   } catch (e) {
     return 0;
   }

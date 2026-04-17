@@ -45,11 +45,33 @@ export function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, s
   }
 }
 
-export function drawOvercastBands(ctx: CanvasRenderingContext2D, intensity: number) {
-  if (intensity <= 0) return;
-  const w = state.width;
-  const coverH = state.height * 0.55;
-  const a = intensity;
+/*
+ * Overcast gradients are keyed by (coverH, intensityBucket). Intensity
+ * is quantized to buckets of 0.05 so slight frame-to-frame ripples in
+ * the smoothed `rainIntensity` don't invalidate the cache every frame.
+ * Resize invalidates on the `coverH` change. Five linear gradients used
+ * to be recreated every frame during rain — now they're reused.
+ */
+type OvercastCache = {
+  coverH: number;
+  bucket: number;
+  mainGrad: CanvasGradient;
+  bandGrads: CanvasGradient[];
+};
+let _overcastCache: OvercastCache | null = null;
+
+const BAND_LAYOUT = [
+  { y: 0, h: 0.15, alpha: 0.25 },
+  { y: 0.12, h: 0.2, alpha: 0.18 },
+  { y: 0.28, h: 0.25, alpha: 0.12 },
+  { y: 0.45, h: 0.2, alpha: 0.08 },
+];
+
+function buildOvercastGradients(
+  ctx: CanvasRenderingContext2D,
+  coverH: number,
+  a: number,
+): OvercastCache {
   const mainGrad = ctx.createLinearGradient(0, 0, 0, coverH);
   mainGrad.addColorStop(0, `rgba(55, 60, 65, ${0.98 * a})`);
   mainGrad.addColorStop(0.1, `rgba(60, 65, 70, ${0.95 * a})`);
@@ -57,22 +79,60 @@ export function drawOvercastBands(ctx: CanvasRenderingContext2D, intensity: numb
   mainGrad.addColorStop(0.45, `rgba(85, 90, 95, ${0.5 * a})`);
   mainGrad.addColorStop(0.7, `rgba(100, 105, 110, ${0.2 * a})`);
   mainGrad.addColorStop(1, `rgba(115, 120, 125, 0)`);
-  ctx.fillStyle = mainGrad;
-  ctx.fillRect(0, 0, w, coverH);
-  const bands = [
-    { y: 0, h: coverH * 0.15, alpha: 0.25 },
-    { y: coverH * 0.12, h: coverH * 0.2, alpha: 0.18 },
-    { y: coverH * 0.28, h: coverH * 0.25, alpha: 0.12 },
-    { y: coverH * 0.45, h: coverH * 0.2, alpha: 0.08 },
-  ];
-  for (const b of bands) {
+
+  const bandGrads = BAND_LAYOUT.map((b) => {
+    const y = b.y * coverH;
+    const h = b.h * coverH;
     const ba = b.alpha * a;
-    const grad = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
+    const grad = ctx.createLinearGradient(0, y, 0, y + h);
     grad.addColorStop(0, `rgba(80, 85, 90, ${ba})`);
     grad.addColorStop(1, `rgba(100, 105, 110, 0)`);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, b.y, w, b.h);
+    return grad;
+  });
+
+  return {
+    coverH,
+    bucket: Math.round(a * 20),
+    mainGrad,
+    bandGrads,
+  };
+}
+
+export function drawOvercastBands(
+  ctx: CanvasRenderingContext2D,
+  intensity: number,
+) {
+  if (intensity <= 0) return;
+  const w = state.width;
+  const coverH = state.height * 0.55;
+  const a = intensity;
+  const bucket = Math.round(a * 20); // 0..20, ~0.05 granularity
+
+  if (
+    !_overcastCache ||
+    _overcastCache.coverH !== coverH ||
+    _overcastCache.bucket !== bucket
+  ) {
+    _overcastCache = buildOvercastGradients(ctx, coverH, bucket / 20);
   }
+
+  ctx.fillStyle = _overcastCache.mainGrad;
+  ctx.fillRect(0, 0, w, coverH);
+  for (let i = 0; i < BAND_LAYOUT.length; i++) {
+    const b = BAND_LAYOUT[i]!;
+    const y = b.y * coverH;
+    const h = b.h * coverH;
+    ctx.fillStyle = _overcastCache.bandGrads[i]!;
+    ctx.fillRect(0, y, w, h);
+  }
+}
+
+/**
+ * Invalidate the overcast gradient cache. Called on window resize so
+ * the next frame rebuilds with the new height.
+ */
+export function invalidateCloudsCache(): void {
+  _overcastCache = null;
 }
 
 export function drawCloudMorphed(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, ri: number) {
