@@ -79,6 +79,20 @@ export async function initMobile(handlers: MobileHandlers): Promise<void> {
   document.body.classList.add("cap");
   document.body.setAttribute("data-platform", Capacitor.getPlatform());
 
+  // Register the Capacitor game-services adapter (Game Center on iOS,
+  // Play Games Services on Android). Stub until a plugin is wired up
+  // in src/mobile/gameServices.ts — see docs/GAME_SERVICES.md.
+  // Gameplay code's submitScore / unlockAchievement calls become
+  // no-ops until the adapter's init() returns true.
+  import("./gameServices").then(({ capacitorGameServicesAdapter }) => {
+    import("../services/gameServices").then(
+      ({ registerGameServices, initGameServices }) => {
+        registerGameServices(capacitorGameServicesAdapter);
+        initGameServices();
+      },
+    );
+  });
+
   // Lock to landscape. The PWA manifest's `orientation: "landscape"`
   // is a hint that iOS ignores; this plugin call is the real lock.
   try {
