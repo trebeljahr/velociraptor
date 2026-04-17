@@ -650,50 +650,6 @@ export const audio = {
     }
   },
 
-  /** Landing thud: two grass-step samples played with a ~35ms
-   *  delay, both pitched ~15% lower than a running step, the
-   *  second slightly lower still. Reads as a heavier two-foot
-   *  impact instead of a single running stride. Built from the
-   *  same source material as playStep so the texture matches. */
-  playLanding() {
-    if (this.muted || this.jumpMuted) return;
-    if (!this._audioCtx || this._audioCtx.state !== "running") return;
-    const loaded = this._stepBuffers.filter((b) => b);
-    if (loaded.length === 0) return;
-    try {
-      const ctx = this._audioCtx;
-      const now = ctx.currentTime;
-      const play = (buf: AudioBuffer, delay: number, rate: number) => {
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        src.playbackRate.value = rate;
-        const gain = ctx.createGain();
-        gain.gain.value = 1.1;
-        src.connect(gain);
-        gain.connect(ctx.destination);
-        this._activeStepGains.add(gain);
-        src.onended = () => {
-          this._activeStepGains.delete(gain);
-          try { src.disconnect(); gain.disconnect(); } catch {}
-        };
-        src.start(now + delay);
-      };
-      // Two different buffers if possible, else reuse the one we
-      // have. Second foot lands a touch deeper than the first.
-      const a = loaded[Math.floor(Math.random() * loaded.length)];
-      const b =
-        loaded.length > 1
-          ? loaded.filter((x) => x !== a)[
-              Math.floor(Math.random() * (loaded.length - 1))
-            ]
-          : a;
-      play(a, 0, 0.85);
-      play(b, 0.035, 0.78);
-    } catch {
-      /* SFX is non-critical */
-    }
-  },
-
   /** Quickly fade out every in-flight step source. Called from
    *  playJump so the jump cue isn't sharing the mix with a
    *  leftover running-grass sample. */
@@ -1009,28 +965,82 @@ export const audio = {
       });
   },
 
-  /** Sparkly glitter cue for a comet flyby. Sample has ~540ms of
-   *  leading silence, offset past it so the shimmer lands with
-   *  the comet entering frame. */
+  // Comet uses the same looping + fade pattern as santa/ufo, but
+  // with an ~800 ms delay between spawn and audible onset so the
+  // shimmer picks up after the comet has actually entered the
+  // visible area instead of while it's still offscreen right.
+  _cometSource: null as AudioBufferSourceNode | null,
+  _cometGain: null as GainNode | null,
+  _cometStartTimer: null as number | null,
+  _cometTargetGain: 0.4,
+
+  /** Schedule a delayed, fading-in looped glitter cue for a comet.
+   *  Cancellable by stopComet whether or not the delayed start
+   *  has fired yet. */
   playComet() {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || !this._cometBuffer) return;
     if (this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
     }
-    try {
-      const src = this._audioCtx.createBufferSource();
-      src.buffer = this._cometBuffer;
-      const gain = this._audioCtx.createGain();
-      gain.gain.value = 0.4;
-      src.connect(gain);
-      gain.connect(this._audioCtx.destination);
-      src.onended = () => {
-        try { src.disconnect(); gain.disconnect(); } catch {}
-      };
-      src.start(0, 0.54);
-    } catch {
-      /* SFX is non-critical */
+    if (this._cometSource || this._cometStartTimer !== null) return;
+    const START_DELAY_MS = 800;
+    this._cometStartTimer = window.setTimeout(() => {
+      this._cometStartTimer = null;
+      if (!this._audioCtx || !this._cometBuffer) return;
+      try {
+        const ctx = this._audioCtx;
+        const src = ctx.createBufferSource();
+        src.buffer = this._cometBuffer;
+        // Loop only over the audible region — the sample has ~540ms
+        // of silence at the head and ~2.2s of quiet tail.
+        src.loop = true;
+        src.loopStart = 0.54;
+        src.loopEnd = 3.95;
+        const gain = ctx.createGain();
+        const t0 = ctx.currentTime;
+        gain.gain.setValueAtTime(0, t0);
+        gain.gain.linearRampToValueAtTime(this._cometTargetGain, t0 + 0.4);
+        src.connect(gain);
+        gain.connect(ctx.destination);
+        src.onended = () => {
+          try { src.disconnect(); gain.disconnect(); } catch {}
+          if (this._cometSource === src) {
+            this._cometSource = null;
+            this._cometGain = null;
+          }
+        };
+        this._cometSource = src;
+        this._cometGain = gain;
+        src.start(0, 0.54);
+      } catch {
+        /* SFX is non-critical */
+      }
+    }, START_DELAY_MS);
+  },
+
+  /** Fade out the comet loop and stop it. Also cancels a pending
+   *  delayed start if the event ends before the sound began. */
+  stopComet() {
+    if (this._cometStartTimer !== null) {
+      window.clearTimeout(this._cometStartTimer);
+      this._cometStartTimer = null;
+      return;
     }
+    if (!this._audioCtx || !this._cometSource || !this._cometGain) return;
+    const ctx = this._audioCtx;
+    const src = this._cometSource;
+    const gain = this._cometGain;
+    const t = ctx.currentTime;
+    try {
+      gain.gain.cancelScheduledValues(t);
+      gain.gain.setValueAtTime(gain.gain.value, t);
+      gain.gain.linearRampToValueAtTime(0, t + 0.45);
+      src.stop(t + 0.46);
+    } catch {
+      try { src.stop(0); } catch {}
+    }
+    this._cometSource = null;
+    this._cometGain = null;
   },
 };

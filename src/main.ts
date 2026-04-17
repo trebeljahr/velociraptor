@@ -2205,7 +2205,6 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       () => {
         spawnDust(raptor.x + raptor.w * 0.51, state.ground);
         spawnDust(raptor.x + raptor.w * 0.73, state.ground);
-        audio.playLanding();
       },
       () => {
         maybeSpawnRareEvent();

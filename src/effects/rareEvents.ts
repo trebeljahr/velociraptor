@@ -282,10 +282,11 @@ export function updateRareEvent(dtSec: number): void {
   if (e.age >= e.life) {
     // Fade out any rare-event audio that plays for the whole event
     // window. UFO's ~12s sample is shorter than the ~20s event so
-    // this is just a safety net there; santa's loop needs the
-    // explicit stop + fade-out as it approaches the far edge.
+    // this is just a safety net there; santa + comet both loop and
+    // need the explicit fade-out as they leave the frame.
     if (e.id === "ufo") audio.stopUfo();
     else if (e.id === "santa") audio.stopSanta();
+    else if (e.id === "comet") audio.stopComet();
     state.activeRareEvent = null;
   }
 }
