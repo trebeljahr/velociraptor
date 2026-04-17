@@ -166,6 +166,7 @@ import {
   saveRareEventsSeen,
   loadBoolFlag,
   saveBoolFlag,
+  hydratePersistence,
 } from "./persistence";
 import {
   lerp,
@@ -2079,6 +2080,12 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // policies require a user gesture). The saved value will be
     // applied for real on the first Start Game click, which IS a
     // user gesture.
+    // On Capacitor, copy any key that was evicted from localStorage
+    // but still lives in @capacitor/preferences back into localStorage
+    // before the sync load block below reads it. No-op on web (resolves
+    // immediately). See src/mobile/durable.ts for why this exists.
+    await hydratePersistence();
+
     const savedMuted = audio.loadSavedMuted();
     if (savedMuted != null) {
       audio.muted = savedMuted;
