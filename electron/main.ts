@@ -40,6 +40,12 @@ try {
 // IPC: renderer asks whether Steam is usable this session.
 ipcMain.handle("steam:isAvailable", () => steamClient !== null);
 
+// IPC: quit the app. Called from the desktop-only Quit button in
+// the settings menu.
+ipcMain.handle("app:quit", () => {
+  app.quit();
+});
+
 // IPC: activate a Steam achievement by its API Name. Idempotent on
 // Steam's side — re-activating an already-unlocked achievement is a
 // no-op, so we don't need to gate on isActivated first. Returns true
@@ -74,52 +80,7 @@ ipcMain.handle(
   },
 );
 
-/**
- * A lightweight frameless window shown from app launch until the main
- * renderer finishes its first paint. This covers the otherwise-blank
- * sky-blue gap (in dev: while waiting for Vite and the bundle; in
- * prod: while Electron parses the bundle) and hides the macOS window
- * icon flash that appears during that gap.
- *
- * Loads electron/splash.html with a raptor-image path injected via
- * query string so the same splash works in dev (public/assets) and
- * in the packaged app (dist/).
- */
-function createSplash(): BrowserWindow {
-  // Vite copies public/* to dist/* preserving structure, so the
-  // packaged asset lives at dist/assets/raptor-idle.png.
-  const raptorPath = isDev
-    ? path.join(__dirname, "..", "public", "assets", "raptor-idle.png")
-    : path.join(__dirname, "..", "dist", "assets", "raptor-idle.png");
-
-  const splash = new BrowserWindow({
-    width: 480,
-    height: 320,
-    frame: false,
-    resizable: false,
-    movable: true,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    transparent: false,
-    backgroundColor: "#50b4cd",
-    show: false,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-
-  splash.once("ready-to-show", () => splash.show());
-  splash.loadFile(path.join(__dirname, "splash.html"), {
-    query: { raptor: `file://${raptorPath}` },
-  });
-
-  return splash;
-}
-
 function createWindow(): void {
-  const splash = createSplash();
-
   const isMac = process.platform === "darwin";
 
   const win = new BrowserWindow({
@@ -134,39 +95,25 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    // IMPORTANT: don't set `fullscreen: true` in the constructor. On
-    // macOS that triggers the windowed→fullscreen transition
-    // animation which bypasses `show: false` and briefly renders the
-    // empty window behind the splash (showing the unstyled FOUC of
-    // oversized SVG icons from index.html). We go fullscreen AFTER
-    // did-finish-load, using simpleFullScreen on macOS (no animation)
-    // so the first pixel the player sees is the fully-rendered game.
+    // Fullscreen in constructor. On macOS simpleFullScreen is the
+    // Lion-style no-animation variant — the window opens at screen
+    // size instantly, no Spaces transition to bypass show: false.
+    // The boot-splash overlay lives inline in index.html, so the
+    // first paint already shows the splash.
+    fullscreen: !isMac,
+    simpleFullscreen: isMac,
     titleBarStyle: isMac ? "hiddenInset" : "default",
-    backgroundColor: "#50b4cd", // sky-blue to match the game's background
-    show: false, // stays hidden until the splash hands off
+    backgroundColor: "#50b4cd", // sky-blue matches splash + game sky
+    show: false, // wait for first paint so the splash is what appears
   });
 
-  // Hand off from splash → main window. did-finish-load fires after
-  // JS+CSS+subresources have all loaded, so by the time we show the
-  // window the game's first real frame is ready.
-  const handoff = () => {
-    if (win.isDestroyed()) return;
-    // Go fullscreen BEFORE show() so the window never appears
-    // windowed. simpleFullScreen on macOS is instant (no Spaces
-    // animation); fullscreen on Windows/Linux has no such issue.
-    if (isMac) {
-      win.setSimpleFullScreen(true);
-    } else {
-      win.setFullScreen(true);
-    }
-    win.show();
-    if (!splash.isDestroyed()) splash.close();
-  };
-  win.webContents.once("did-finish-load", handoff);
-  // Failsafe: never leave the splash up for more than 15s even if
-  // the load event never fires (e.g. Vite server never comes up).
-  const failsafe = setTimeout(handoff, 15_000);
-  win.once("closed", () => clearTimeout(failsafe));
+  // Show the window only after the renderer has painted at least
+  // once. With the inline splash in index.html, that first paint is
+  // already the splash — so the window becomes visible already
+  // showing the splash, no black/white flash.
+  win.once("ready-to-show", () => {
+    if (!win.isDestroyed()) win.show();
+  });
 
   if (isDev) {
     // Dev: connect to the Vite dev server for HMR

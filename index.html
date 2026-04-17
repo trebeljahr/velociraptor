@@ -73,12 +73,185 @@
       href="assets/apple-touch-icon.png"
     />
     <style>
-      /* CSS moved to src/styles/ — imported via src/main.ts */
+      /*
+       * Boot splash — inline critical CSS so this paints on the very
+       * first frame, before the main bundle (and its imported CSS)
+       * loads. Covers the FOUC gap where unstyled SVG overlays
+       * (rotate-prompt, start-screen) would otherwise render at their
+       * natural size. Fades out via onGameReady() in the inline
+       * script below once assets + images are loaded.
+       *
+       * The rest of the site CSS still lives in src/styles/ and is
+       * imported via src/main.ts.
+       */
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: linear-gradient(180deg, #50b4cd 0%, #7ec9dd 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #ffffff;
+        user-select: none;
+        -webkit-user-select: none;
+        transition: opacity 0.6s ease-out;
+      }
+      #boot-splash.fade-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .boot-splash-stage {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+      }
+      .boot-splash-raptor {
+        height: 160px;
+        width: auto;
+        image-rendering: pixelated;
+        image-rendering: -moz-crisp-edges;
+        filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.18));
+        animation: boot-splash-bob 1.2s ease-in-out infinite;
+      }
+      @keyframes boot-splash-bob {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+      .boot-splash-ground {
+        width: 260px;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.35);
+        border-radius: 2px;
+        position: relative;
+        overflow: hidden;
+      }
+      .boot-splash-ground::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -80px;
+        width: 80px;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          #ffffff,
+          transparent
+        );
+        animation: boot-splash-scan 1.6s linear infinite;
+      }
+      @keyframes boot-splash-scan {
+        0% {
+          transform: translateX(0);
+        }
+        100% {
+          transform: translateX(340px);
+        }
+      }
+      .boot-splash-title {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      }
+      .boot-splash-dots {
+        display: flex;
+        gap: 7px;
+      }
+      .boot-splash-dots span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #ffffff;
+        opacity: 0.6;
+        animation: boot-splash-blink 1.2s ease-in-out infinite;
+      }
+      .boot-splash-dots span:nth-child(2) {
+        animation-delay: 0.15s;
+      }
+      .boot-splash-dots span:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+      @keyframes boot-splash-blink {
+        0%,
+        100% {
+          opacity: 0.25;
+          transform: translateY(0);
+        }
+        50% {
+          opacity: 1;
+          transform: translateY(-3px);
+        }
+      }
+
+      /*
+       * Desktop (Electron) vs. web chrome gating. The Electron preload
+       * exposes window.electronAPI — an inline script below sets
+       * html.is-desktop before first paint, so these rules apply
+       * without a visible flash.
+       *
+       * Desktop hides:
+       *   - top-right sound toggle (desktop games play sound by
+       *     default; toggle lives in the menu's Sound Settings)
+       *   - top-right fullscreen toggle (the window is already
+       *     fullscreen in Electron)
+       *
+       * Web hides:
+       *   - any element tagged .desktop-only (currently the Quit
+       *     menu item — browsers have a built-in close tab/window)
+       */
+      html.is-desktop .sound-btn,
+      html.is-desktop .fullscreen-btn {
+        display: none !important;
+      }
+      html:not(.is-desktop) .desktop-only {
+        display: none !important;
+      }
     </style>
+
+    <!-- Runs before DOMContentLoaded so the html.is-desktop class is
+         in place for the very first paint. Keeps desktop-only CSS
+         from flashing in or out of view. -->
+    <script>
+      if (window.electronAPI && window.electronAPI.isDesktop) {
+        document.documentElement.classList.add("is-desktop");
+      }
+    </script>
 
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
+    <!-- Boot splash: covers the entire viewport until the game is
+         loaded. Renders from the first paint (inline critical CSS in
+         <head>) so the FOUC gap — unstyled rotate-prompt / start-
+         screen SVGs rendering at natural size — is never visible.
+         Fade-out triggered by onGameReady() below. -->
+    <div id="boot-splash" aria-hidden="true">
+      <div class="boot-splash-stage">
+        <img
+          class="boot-splash-raptor"
+          src="assets/raptor-idle.png"
+          alt=""
+        />
+        <div class="boot-splash-ground"></div>
+        <div class="boot-splash-title">Raptor Runner</div>
+        <div class="boot-splash-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+
     <!-- Game canvas — sky, ground, clouds, cacti, raptor, score text,
          and the game-over overlay are all drawn here so layering works
          correctly (raptor hides under the game-over fade, etc.). -->
@@ -923,6 +1096,27 @@
               </span>
             </a>
           </li>
+          <li class="desktop-only">
+            <button id="menu-quit" class="menu-item" type="button">
+              <span class="inner">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>Quit</span>
+              </span>
+            </button>
+          </li>
         </ul>
         <div class="close-hint in-game-only">
           <button id="menu-close" type="button">Resume game</button>
@@ -963,6 +1157,17 @@
         const cog = document.getElementById("settings-cog");
         const overlay = document.getElementById("menu-overlay");
         const closeBtn = document.getElementById("menu-close");
+        const quitBtn = document.getElementById("menu-quit");
+        // Wire Quit (desktop only). Safe no-op in browser since the
+        // <li class="desktop-only"> is display:none and the element
+        // is still in the DOM.
+        if (quitBtn) {
+          quitBtn.addEventListener("click", () => {
+            if (window.electronAPI && typeof window.electronAPI.quit === "function") {
+              window.electronAPI.quit();
+            }
+          });
+        }
         const topSoundBtn = document.getElementById("sound-toggle");
         const fullscreenBtn = document.getElementById("fullscreen-toggle");
         const imprintOverlay = document.getElementById("imprint-overlay");
@@ -986,9 +1191,23 @@
         let imprintLoaded = false;
         let assetsReady = false;
 
+        // ───────── Boot splash fade-out ─────────
+        function hideBootSplash() {
+          const el = document.getElementById("boot-splash");
+          if (!el) return;
+          el.classList.add("fade-out");
+          const remove = () => {
+            if (el.parentNode) el.parentNode.removeChild(el);
+          };
+          el.addEventListener("transitionend", remove, { once: true });
+          // Failsafe in case transitionend never fires
+          setTimeout(remove, 1500);
+        }
+
         // ───────── Start screen ─────────
         function onGameReady() {
           assetsReady = true;
+          hideBootSplash();
           startBtn.classList.remove("loading");
           startBtn.disabled = false;
           startBtn.querySelector(".label").textContent = "Start Game";
@@ -1101,7 +1320,20 @@
           // context and re-apply the mute state so music starts if
           // the user previously chose to have sound on.
           if (window.Game.unlockAudio) window.Game.unlockAudio();
-          if (window.Game.setMuted) {
+          // Desktop default: if the player has never saved a mute
+          // preference, start unmuted. Web default stays muted (to
+          // respect browser autoplay expectations — a web page
+          // blasting music on open is unexpected). Desktop games are
+          // expected to play sound out of the box.
+          if (
+            window.electronAPI &&
+            window.electronAPI.isDesktop &&
+            window.Game.hasSavedMutePreference &&
+            !window.Game.hasSavedMutePreference() &&
+            window.Game.setMuted
+          ) {
+            window.Game.setMuted(false);
+          } else if (window.Game.setMuted) {
             window.Game.setMuted(window.Game.isMuted());
           }
           refreshSoundUI();

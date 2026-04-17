@@ -2153,6 +2153,24 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     bakeShootingStarSprite();
     if (ctx) warmShootingStarSprite(ctx);
 
+    // Warm ctx.shadowBlur on the live game canvas by drawing a
+    // tiny throwaway stroke with shadow on, off-screen. Chromium's
+    // Skia pipeline compiles a shader on first use of shadowBlur —
+    // previously caused a visible hitch on the very first lightning
+    // flash (when drawLightning uses shadowBlur: 15 on the bolt).
+    if (ctx) {
+      ctx.save();
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = "rgba(180,200,255,0.8)";
+      ctx.strokeStyle = "rgba(255,255,255,1)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-50, -50);
+      ctx.lineTo(-40, -40);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     canvas.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
 

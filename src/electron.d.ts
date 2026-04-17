@@ -10,11 +10,13 @@ export {};
 
 declare global {
   interface ElectronAPI {
+    readonly isDesktop: true;
     isSteam(): Promise<boolean>;
     unlockSteamAchievement(apiName: string): Promise<boolean>;
     getSteamAchievementStates(
       apiNames: string[],
     ): Promise<Record<string, boolean>>;
+    quit(): Promise<void>;
   }
 
   interface Window {
