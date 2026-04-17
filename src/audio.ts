@@ -100,14 +100,25 @@ function rampDownAndPause(el: HTMLAudioElement): void {
   });
 }
 
-/** Set volume to 0, start playback, then fade up to target over
- *  FADE_MS. If play() rejects (browser autoplay policy, no user
- *  gesture yet), we leave the volume at 0 — the next interaction
- *  will succeed. */
+/** Set volume to 0, start playback, wait a short silent pre-roll so
+ *  the MP3 decoder can stabilize, then fade up to target over FADE_MS.
+ *
+ *  The pre-roll handles the cold-decoder click: the first few
+ *  milliseconds of decoded audio after a fresh play() often contain a
+ *  spike (wrong sample alignment, codec priming frames, or the
+ *  decoder's discontinuity with silence). Without the pre-roll, those
+ *  samples play while the volume ramp is still near zero — attenuated
+ *  but still audible on sensitive systems.
+ *
+ *  If play() rejects (browser autoplay policy, no user gesture yet),
+ *  we leave the volume at 0 — the next interaction will succeed. */
+const DECODER_PREROLL_MS = 60;
 function rampUpAndPlay(el: HTMLAudioElement, targetVol: number): void {
   el.volume = 0;
   const p = el.play();
-  const startFade = () => rampVolume(el, targetVol);
+  const startFade = () => {
+    setTimeout(() => rampVolume(el, targetVol), DECODER_PREROLL_MS);
+  };
   if (p && typeof p.then === "function") {
     p.then(startFade).catch(() => {
       /* leave silent; next interaction will unblock */
@@ -315,15 +326,16 @@ export const audio = {
    * the first play() can stall the start-game click. A silent
    * play+pause inside the user-gesture context warms the decoder.
    *
-   * Skipped if music is already playing (unmuted with a saved
-   * preference) — priming would fight a live playback.
+   * Runs for every session regardless of saved preference — a
+   * returning player with music previously unmuted still has a
+   * cold decoder on their first interaction, and the cold-start
+   * click reaches the speaker before the real play()'s volume ramp
+   * can attenuate it. Priming kills the click by decoding the
+   * first frames at volume=0 before anything audible happens.
    */
   _primeMusicAudio() {
     if (this._musicPrimed) return;
     if (!this.music) return;
-    // If we're about to unmute and play music for real anyway, the
-    // real play() handles decode — don't double up.
-    if (!this.muted && !this.musicMuted && this.hasSavedPreference) return;
     this._musicPrimed = true;
     const targetVolume = this.music.volume;
     this.music.volume = 0;
