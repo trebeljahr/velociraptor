@@ -2312,10 +2312,17 @@
           }, duration);
         }
 
-        // TODO: replace with real Steam store URL once the game is
-        // listed. Falls back to the website for now so desktop players
-        // copying the invite still get something functional.
-        const STEAM_STORE_URL = "https://raptor.trebeljahr.com";
+        // URL embedded into the "Challenge a friend" clipboard invite
+        // on desktop. Sourced from VITE_STEAM_STORE_URL via Vite's
+        // HTML env substitution — change it in .env (or .env.local
+        // for a local-only override) without touching this file.
+        // The "%"-prefix check guards the case where Vite isn't
+        // doing HTML transform for some reason (e.g. the file is
+        // opened directly, not served).
+        const STEAM_STORE_URL_RAW = "%VITE_STEAM_STORE_URL%";
+        const STEAM_STORE_URL = STEAM_STORE_URL_RAW.startsWith("%VITE_")
+          ? "https://raptor.trebeljahr.com"
+          : STEAM_STORE_URL_RAW;
 
         function isDesktopApp() {
           return !!(window.electronAPI && window.electronAPI.isDesktop);
