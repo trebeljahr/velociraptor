@@ -35,9 +35,11 @@ import {
   CACTUS_SPAWN_GAP_SPEED_FACTOR,
   CACTUS_SPAWN_GAP_RANDOM_MAX,
   CACTUS_SPAWN_GAP_RANDOM_SHRINK,
-  CACTUS_BREATHER_PROBABILITY,
+  CACTUS_BREATHER_MIN_COUNT,
+  CACTUS_BREATHER_MAX_COUNT,
   CACTUS_BREATHER_MIN_SECONDS,
   CACTUS_BREATHER_MAX_SECONDS,
+  FLOWER_PATCH_WIDTH_PX,
   PARTY_HAT_SCORE_THRESHOLD,
   THUG_GLASSES_SCORE_THRESHOLD,
   BOW_TIE_SCORE_THRESHOLD,
@@ -130,44 +132,89 @@ export class Cactus {
 
 export class Cactuses {
   cacti: Cactus[] = [];
+  /** Distance-from-last-cactus that has to elapse before the next
+   *  cactus spawns. Set once per spawn by _rollNextGap() and then
+   *  read (not recomputed) every frame until the next spawn. The
+   *  previous getter-based design re-rolled this on every frame,
+   *  which broke breathers completely: the first frame the getter
+   *  decided "breather time!", returned the big gap, reset the
+   *  counter, and pushed flower patches. The very next frame, the
+   *  counter was already 0 so the getter fell through to the normal
+   *  path and returned a small gap — so a cactus spawned almost
+   *  immediately after the flower patches. Caching kills that bug. */
+  private _nextGap = 0;
 
   constructor(
     private raptor: Raptor,
     private onAchievementUnlock: CactusAchievementCallback,
     private onCosmeticBurst: CactusCosmeticBurstCallback,
-  ) {}
+  ) {
+    // Seed the gap for the very first spawn so update() has
+    // something to compare against.
+    this._rollNextGap();
+  }
 
-  get minSpawnDistance(): number {
-    // Breather roll: every so often return a long empty gap so the
-    // player gets 5-10 seconds of scenery-only before the next
-    // cactus. Measured in seconds-of-travel at the *current*
-    // velocity so the breather feels the same length regardless of
-    // how fast the player is going. Evaluated first so the normal
-    // pacing formula below is the fallback path.
-    if (Math.random() < CACTUS_BREATHER_PROBABILITY) {
+  /** Decide what gap to wait for before the *next* cactus spawn.
+   *  Called exactly once per spawn (from spawn() itself) plus once
+   *  at construction. All breather side-effects (resetting the
+   *  counter, picking the next breather target, pushing flower
+   *  patches, marking the grass-field span) fire from here — and
+   *  fire exactly once per breather, never per frame.
+   */
+  private _rollNextGap(): void {
+    if (state._cactiSinceBreather >= state._nextBreatherAt) {
+      // ── BREATHER ──
+      // Reset counter + pick when the NEXT breather should fire.
+      state._cactiSinceBreather = 0;
+      state._nextBreatherAt =
+        CACTUS_BREATHER_MIN_COUNT +
+        Math.floor(
+          Math.random() *
+            (CACTUS_BREATHER_MAX_COUNT - CACTUS_BREATHER_MIN_COUNT + 1),
+        );
+
       const seconds =
         CACTUS_BREATHER_MIN_SECONDS +
         Math.random() *
           (CACTUS_BREATHER_MAX_SECONDS - CACTUS_BREATHER_MIN_SECONDS);
-      // Convert bgVelocity (a per-frame multiplier) into px/sec.
-      // Matches the scroll math in Cactus.update(): each frame moves
-      // a cactus by bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR).
-      // Multiply by 60 to approximate frames-per-second.
+      // bgVelocity is a per-frame multiplier; ×60 → approx px/sec.
       const pxPerSec =
         state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * 60;
       const gap = seconds * pxPerSec;
-      // Drop a flower patch somewhere in the middle of the empty
-      // stretch — positioned at screen-space x so the patch scrolls
-      // in naturally with the rest of the foreground.
-      (state as any).flowerPatches = (state as any).flowerPatches || [];
-      const patchX = state.width + gap * (0.3 + Math.random() * 0.4);
-      (state as any).flowerPatches.push(makeFlowerPatch(patchX));
-      return gap;
+
+      // Mark the grass-field span so the renderer knows where to
+      // paint the top ground band green instead of desert-yellow.
+      // Scrolls with the ground — see updateGrassFields in main.ts.
+      state.grassFields = state.grassFields || [];
+      state.grassFields.push({
+        startX: state.width,
+        endX: state.width + gap,
+      });
+
+      // Tile flower patches densely across the whole rest area so
+      // it reads as a continuous *field*, not a few lonely clusters.
+      // Spacing at ≈40% of the patch width → neighbouring patches
+      // overlap by ~60%, erasing the visible gaps that the previous
+      // spacing (1.2 seconds × pxPerSec) left behind. Jittered ±30%
+      // so the patches don't tile. Leading and trailing patches
+      // sit one full patch-width inside the gap so the field
+      // doesn't start or end flush against a cactus.
+      state.flowerPatches = state.flowerPatches || [];
+      const patchSpacingPx = FLOWER_PATCH_WIDTH_PX * 0.4;
+      let x = state.width + FLOWER_PATCH_WIDTH_PX;
+      const endX = state.width + gap - FLOWER_PATCH_WIDTH_PX;
+      while (x < endX) {
+        state.flowerPatches.push(makeFlowerPatch(x));
+        x += patchSpacingPx * (0.7 + Math.random() * 0.6);
+      }
+      this._nextGap = gap;
+      return;
     }
 
+    // ── NORMAL GAP ──
     // Progress through the speed ramp: 0 at a fresh run, 1 once
-    // bgVelocity has reached MAX. Clamped so debug commands that push
-    // velocity beyond MAX don't produce negative random spans.
+    // bgVelocity has reached MAX. Clamped so debug commands that
+    // push velocity beyond MAX don't produce negative random spans.
     const t = Math.min(
       1,
       Math.max(
@@ -176,45 +223,40 @@ export class Cactuses {
           (MAX_BG_VELOCITY - INITIAL_BG_VELOCITY),
       ),
     );
-
-    // Minimum safe gap. Grows a touch with speed so impossible
+    // Minimum safe gap. Grows slightly with speed so impossible
     // back-to-back doubles don't spawn at terminal velocity.
-    // Default: 1.2w → 1.5w across the speed ramp.
+    // 1.2w → 1.5w across the ramp.
     const floorGap =
       this.raptor.w *
       (CACTUS_SPAWN_GAP_BASE + t * CACTUS_SPAWN_GAP_SPEED_FACTOR);
-
-    // Random top-up on top of the floor. Previously a fixed
-    //   Math.random() * raptor.w * 10
-    // which dominated the spawn gap at every speed and masked the
-    // progression — a long random roll at terminal velocity still
-    // created a long dead stretch, so the game didn't feel denser
-    // as you sped up.
-    //
-    // Now: the span starts wide (≈3.6w) so early-game has varied
-    // pacing with small variance, and collapses to ≈1.5w at terminal
-    // velocity so the late game reads as a tight relentless rhythm.
-    // Long rest periods are handled separately by the breather roll
-    // above, not by this span.
+    // Random top-up. Span starts wide (≈3.6w) so early game has
+    // varied pacing, collapses to ≈1.5w at terminal velocity so
+    // the late game reads as a tight relentless rhythm. Long rest
+    // periods are the breather's job, not this span's.
     const randSpan =
       this.raptor.w *
       CACTUS_SPAWN_GAP_RANDOM_MAX *
       Math.max(0, 1 - t * CACTUS_SPAWN_GAP_RANDOM_SHRINK);
 
-    return floorGap + Math.random() * randSpan;
+    this._nextGap = floorGap + Math.random() * randSpan;
   }
 
   spawn(): void {
     const variant =
       CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
     this.cacti.push(new Cactus(variant, this.raptor));
+    // Counts toward the next breather.
+    state._cactiSinceBreather = (state._cactiSinceBreather ?? 0) + 1;
+    // Decide the gap to the cactus after this one. Has to happen AFTER
+    // the counter increment so _rollNextGap sees the fresh count.
+    this._rollNextGap();
   }
 
   update(frameScale = 1): void {
     const last = this.cacti[this.cacti.length - 1];
     if (!last) {
       this.spawn();
-    } else if (state.width - last.x >= this.minSpawnDistance) {
+    } else if (state.width - last.x >= this._nextGap) {
       this.spawn();
       state.bgVelocity = Math.min(
         state.bgVelocity + SPEED_INCREMENT,

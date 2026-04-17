@@ -47,19 +47,28 @@ export const CACTUS_SPAWN_GAP_RANDOM_MAX = 3.6;
 // visibly increases" feel the design wants.
 export const CACTUS_SPAWN_GAP_RANDOM_SHRINK = 0.58;
 
-// ── Cactus-spawn breathers ────────────────────────────────
-// Occasionally skip a normal gap in favour of a long empty stretch
-// — a "just watch the scenery for a bit" moment that breaks the
-// rhythm and lets the player catch a breath. Gap length is measured
-// in seconds-of-travel at the current bgVelocity so it feels the
-// same regardless of speed (≈5-10 sec of dead air either way).
+// ── Cactus-spawn breathers (designed rest areas) ──────────
+// Every so often the spawner skips a normal gap in favour of a long
+// empty stretch filled with a flower field — a designed rest area
+// the player walks across for ~10 seconds while no cacti spawn.
 //
-// 0.10 = roughly one breather per ~10 spawns. At the new default
-// pacing that's one every ~20-30 seconds of play — frequent enough
-// to notice as a pattern, rare enough not to feel lazy.
-export const CACTUS_BREATHER_PROBABILITY = 0.10;
-export const CACTUS_BREATHER_MIN_SECONDS = 5;
-export const CACTUS_BREATHER_MAX_SECONDS = 10;
+// Counter-driven (not probabilistic) so the pacing is predictable:
+// after N cacti, the (N+1)th gap is a breather. N is randomised in
+// [MIN_COUNT, MAX_COUNT] so the arrival isn't metronomic, but it
+// can never crowd the last breather or go way too long between
+// them — both of which a pure coin-flip produces regularly.
+//
+// 40–55 cacti between breathers ≈ one rest area every 1½–2 minutes
+// at the new tight pacing; matches the "every 45 or so" cadence
+// the design asks for.
+export const CACTUS_BREATHER_MIN_COUNT = 40;
+export const CACTUS_BREATHER_MAX_COUNT = 55;
+// Length of each rest area in seconds-of-travel, measured against
+// the current bgVelocity so the stretch feels the same regardless
+// of how fast the player is going. Tight 9–12 window because the
+// design calls for "10ish seconds" and we don't want much spread.
+export const CACTUS_BREATHER_MIN_SECONDS = 9;
+export const CACTUS_BREATHER_MAX_SECONDS = 12;
 export const JUMP_BUFFER_MS = 100;
 export const JUMP_VIBRATION_MS = 15;
 export const FRAME_DELAY_SPEED_RANGE = 15;
@@ -67,11 +76,17 @@ export const FRAME_DELAY_SPEED_RANGE = 15;
 // ── Ground Rendering ───────────────────────────────────────
 export const GROUND_HEIGHT_RATIO = 1 / 10;
 export const GROUND_BAND_HEIGHTS_PX = [5, 10, 20, 200];
-// Top band is grass now (was yellow topsoil). The rest of the
-// ladder keeps the darker soil-to-sand gradient underneath so the
-// transition still reads as "thin grass on top of dirt and sand"
-// rather than a flat grass-on-sand cut.
-export const GROUND_BAND_COLORS = ["#7fb844", "#ebab21", "#ba8c27", "#EDC9AF"];
+// Top band is desert-yellow topsoil; the flower-field rest areas
+// overlay the top band in green (GRASS_FIELD_COLOR) via the draw
+// pass in main.ts, restricted to the grassFields x-ranges. That way
+// the map stays "desert" by default and grass appears only where
+// it should — inside the designed rest areas.
+export const GROUND_BAND_COLORS = ["#ebc334", "#ebab21", "#ba8c27", "#EDC9AF"];
+/** Green used to paint the top ground band inside a flower-field
+ *  rest area. Sits right over the topsoil band (GROUND_BAND_HEIGHTS_PX[0]
+ *  tall) so the transition into the field reads as "grass growing
+ *  on top of the sand". */
+export const GRASS_FIELD_COLOR = "#7fb844";
 
 // ── Flower patches ─────────────────────────────────────────
 // Spawned inside the long "breather" gaps between cacti so those

@@ -48,12 +48,15 @@ import {
   MAX_BG_VELOCITY,
   CACTUS_SPAWN_GAP_BASE,
   CACTUS_SPAWN_GAP_SPEED_FACTOR,
+  CACTUS_BREATHER_MIN_COUNT,
+  CACTUS_BREATHER_MAX_COUNT,
   JUMP_BUFFER_MS,
   JUMP_VIBRATION_MS,
   FRAME_DELAY_SPEED_RANGE,
   GROUND_HEIGHT_RATIO,
   GROUND_BAND_HEIGHTS_PX,
   GROUND_BAND_COLORS,
+  GRASS_FIELD_COLOR,
   SUN_PHASE_CENTER,
   MOON_PHASE_CENTER,
   CELESTIAL_ARC_HALF_WIDTH,
@@ -631,6 +634,21 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // inside Cactuses' breather roll so empty stretches read as
       // a scenic break, not dead grass.
       updateFlowerPatches(frameScale);
+      // Grass-field spans scroll at the same rate as the foreground
+      // (ground speed), then fall off the left edge once they've
+      // fully passed. Each span was pushed by a breather roll; it
+      // marks where the top ground band should render green.
+      if (state.grassFields && state.grassFields.length > 0) {
+        const dx =
+          state.bgVelocity *
+          (state.width / VELOCITY_SCALE_DIVISOR) *
+          frameScale;
+        for (const g of state.grassFields) {
+          g.startX -= dx;
+          g.endX -= dx;
+        }
+        state.grassFields = state.grassFields.filter((g) => g.endX > 0);
+      }
       // First-patch achievement. Scan once per frame; short-
       // circuits as soon as a hit is found, and crossed flags make
       // this O(1) on the steady state after the first patch.
@@ -915,12 +933,26 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // this pass so they read as part of the foreground atmosphere.
     drawFlowerPatches(fgCtx);
 
-    // Ground bands.
+    // Ground bands. Default top band is desert-yellow; grass-field
+    // rest-area spans overlay the top band in green afterwards.
     let bandY = 0;
     for (let i = 0; i < GROUND_BAND_COLORS.length; i++) {
       fgCtx.fillStyle = GROUND_BAND_COLORS[i];
       fgCtx.fillRect(0, state.ground + bandY, state.width, GROUND_BAND_HEIGHTS_PX[i]);
       bandY += GROUND_BAND_HEIGHTS_PX[i];
+    }
+    // Grass-field overlays — paint the top band green only where a
+    // flower-field rest area is currently on screen. Clipped to the
+    // visible x-range so off-screen span data doesn't draw.
+    if (state.grassFields && state.grassFields.length > 0) {
+      fgCtx.fillStyle = GRASS_FIELD_COLOR;
+      for (const g of state.grassFields) {
+        const sx = Math.max(0, g.startX);
+        const ex = Math.min(state.width, g.endX);
+        if (ex > sx) {
+          fgCtx.fillRect(sx, state.ground, ex - sx, GROUND_BAND_HEIGHTS_PX[0]);
+        }
+      }
     }
 
     // Cacti.
@@ -1215,6 +1247,17 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     state.rainParticles = [];
     state.lightning = { alpha: 0, nextAt: 0 };
     state.flowerPatches = [];
+    state.grassFields = [];
+    // Reset the breather counter so each new run starts a fresh
+    // cadence. Pick a new random target within the configured
+    // window so two consecutive runs don't land on the same rhythm.
+    state._cactiSinceBreather = 0;
+    state._nextBreatherAt =
+      CACTUS_BREATHER_MIN_COUNT +
+      Math.floor(
+        Math.random() *
+          (CACTUS_BREATHER_MAX_COUNT - CACTUS_BREATHER_MIN_COUNT + 1),
+      );
     if (hard) {
       // Full reset — tear down the ambient cycle too.
       state.currentSky = [...SKY_COLORS[0]];

@@ -126,6 +126,27 @@ export interface GameState {
   // ── Flower patches (front-foreground decoration) ───
   flowerPatches: any[];
 
+  // ── Grass-field spans (the rest-area top-band overlay) ────
+  /** Screen-space x-ranges where the top ground band should render
+   *  green grass instead of desert-yellow. Pushed once per breather
+   *  in Cactuses._rollNextGap; scrolled left each frame by the same
+   *  pxPerFrame as the cacti; dropped once they exit the left edge.
+   *  Without this the whole map was grass because GROUND_BAND_COLORS
+   *  had been flipped globally — see main.ts draw pass for the
+   *  overlay logic. */
+  grassFields: { startX: number; endX: number }[];
+
+  // ── Breather / rest-area pacing ────────────────────
+  /** How many cacti have spawned since the last breather rest area.
+   *  Reset when a breather fires, so the next breather is
+   *  predictably _nextBreatherAt cacti away. */
+  _cactiSinceBreather: number;
+  /** Target cactus count at which the next breather will fire. Set
+   *  to a fresh random value inside [MIN_COUNT, MAX_COUNT] each
+   *  time a breather triggers, so the cadence isn't perfectly
+   *  metronomic. */
+  _nextBreatherAt: number;
+
   // ── Rain weather ───────────────────────────────────
   totalDayCycles: number;
   lastCycleIndex: number;
@@ -200,6 +221,12 @@ export const state: GameState = {
   duneCacti: [],
   _nextDuneCactusX: 0,
   flowerPatches: [],
+  grassFields: [],
+  _cactiSinceBreather: 0,
+  // Initial value picked on first run. resetGame rerolls this each
+  // time a run ends so the first breather of a new run is a fresh
+  // random pick from the CACTUS_BREATHER_MIN/MAX_COUNT window.
+  _nextBreatherAt: 40,
   totalDayCycles: 0,
   lastCycleIndex: -1,
   isRaining: false,
