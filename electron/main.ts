@@ -8,12 +8,71 @@
  * support SW registration). The VitePWA plugin's "auto" inject
  * handles this gracefully — the register call fails silently and the
  * game runs without offline support, which is fine for a desktop app.
+ *
+ * Steam integration:
+ *   steamworks.js is initialized once before window creation. If Steam
+ *   isn't running / the user isn't logged in / the SDK fails to load,
+ *   steamClient stays null and every bridge call short-circuits — the
+ *   game still runs and unlocks land in localStorage.
+ *   STEAM_APP_ID defaults to 480 (Spacewar) for dev; override via env.
  */
 
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
+import steamworks from "steamworks.js";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+
+const STEAM_APP_ID = Number(process.env.STEAM_APP_ID ?? 480);
+
+type SteamClient = ReturnType<typeof steamworks.init>;
+let steamClient: SteamClient | null = null;
+
+try {
+  steamClient = steamworks.init(STEAM_APP_ID);
+  steamworks.electronEnableSteamOverlay();
+  console.log(`[steam] init ok, appid ${STEAM_APP_ID}`);
+} catch (err) {
+  console.warn("[steam] init failed, running without Steam:", err);
+  steamClient = null;
+}
+
+// IPC: renderer asks whether Steam is usable this session.
+ipcMain.handle("steam:isAvailable", () => steamClient !== null);
+
+// IPC: activate a Steam achievement by its API Name. Idempotent on
+// Steam's side — re-activating an already-unlocked achievement is a
+// no-op, so we don't need to gate on isActivated first. Returns true
+// on success, false on any failure (SDK absent, name unknown, etc).
+ipcMain.handle("steam:activateAchievement", (_evt, apiName: string) => {
+  if (!steamClient) return false;
+  try {
+    return steamClient.achievement.activate(apiName);
+  } catch (err) {
+    console.warn("[steam] activateAchievement failed:", apiName, err);
+    return false;
+  }
+});
+
+// IPC: batched state fetch used by the init reconcile pass. Returns
+// a record of { apiName: unlocked } for every name the renderer asks
+// about. Returns an empty object when Steam isn't available so the
+// renderer doesn't need a special null code path.
+ipcMain.handle(
+  "steam:getAchievementStates",
+  (_evt, apiNames: string[]): Record<string, boolean> => {
+    const out: Record<string, boolean> = {};
+    if (!steamClient) return out;
+    for (const name of apiNames) {
+      try {
+        out[name] = steamClient.achievement.isActivated(name);
+      } catch {
+        out[name] = false;
+      }
+    }
+    return out;
+  },
+);
 
 function createWindow(): void {
   const win = new BrowserWindow({
