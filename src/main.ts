@@ -780,6 +780,15 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // === uniformly sky-tinted, then composited onto the main pass) =
     fgCtx.clearRect(0, 0, state.width, state.height);
 
+    // UFO / Santa first — drawn underneath the clouds so the clouds
+    // pass in front of them instead of the events flying over the
+    // sky. Tumbleweed still draws in the dune layer, comet + meteor
+    // on the background canvas, so this only covers the mid-sky
+    // events. The dune + final sky tints that follow also hit these
+    // events, which reads as atmospheric depth (they feel distant,
+    // not stuck to the camera).
+    drawRareEventFg(fgCtx);
+
     // Clouds — drawn pure white here, the source-atop tint below
     // picks up the sky color and washes them toward it.
     for (const cloud of state.clouds) {
@@ -890,7 +899,6 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // Raptor.
     raptor.draw(fgCtx);
     drawDust(fgCtx);
-    drawRareEventFg(fgCtx);
     drawAsh(fgCtx);
 
     // Sky-light tint applied ONLY where the foreground has drawn
