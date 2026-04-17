@@ -187,6 +187,12 @@ export function updateLightning(frameScale: number, now: number) {
     // Generate a jagged bolt path — preferring cacti as targets
     const result = _generateBoltPath();
     state.lightning.bolt = result.path;
+    // Bake the jagged bolt + branches (with expensive shadowBlur)
+    // to an offscreen canvas exactly once per strike. drawLightning
+    // then composites it per frame via drawImage + globalAlpha,
+    // turning ~30–45 frames of shadow-blurred strokes into a single
+    // image blit.
+    _renderBoltToCache(result.path);
     // If the bolt struck a cactus, blacken it
     // Blacken the struck dune cactus (they scroll slowly enough
     // for the visual to read).
@@ -296,6 +302,39 @@ export function _drawBolt(ctx: CanvasRenderingContext2D, points: any[], lineWidt
   ctx.restore();
 }
 
+// Offscreen canvas that caches the rendered bolt so drawLightning
+// can composite via drawImage instead of redrawing the shadow-
+// blurred strokes every frame. Resized lazily when the viewport
+// size changes.
+let _boltCache: HTMLCanvasElement | null = null;
+let _boltCacheCtx: CanvasRenderingContext2D | null = null;
+
+function _ensureBoltCache(): CanvasRenderingContext2D | null {
+  const w = state.width;
+  const h = state.height;
+  if (w <= 0 || h <= 0) return null;
+  if (!_boltCache) {
+    _boltCache = document.createElement("canvas");
+    _boltCacheCtx = _boltCache.getContext("2d");
+  }
+  if (_boltCache.width !== w || _boltCache.height !== h) {
+    _boltCache.width = w;
+    _boltCache.height = h;
+  }
+  return _boltCacheCtx;
+}
+
+/** Bake the main bolt + bright core (with their shadow blur) into
+ *  the offscreen cache at full alpha. Per-frame fade is handled by
+ *  drawLightning's globalAlpha. Called once when a new strike fires. */
+function _renderBoltToCache(points: any[]): void {
+  const c = _ensureBoltCache();
+  if (!c || !_boltCache) return;
+  c.clearRect(0, 0, _boltCache.width, _boltCache.height);
+  _drawBolt(c, points, 3, 1);
+  _drawBolt(c, points, 1.2, 1);
+}
+
 export function drawLightning(ctx: CanvasRenderingContext2D) {
   if (state.lightning.alpha <= 0) return;
   // White flash overlay (dims faster than bolt)
@@ -304,15 +343,23 @@ export function drawLightning(ctx: CanvasRenderingContext2D) {
     ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
     ctx.fillRect(0, 0, state.width, state.height);
   }
-  // Draw the bolt arc
+  // Blit the pre-baked bolt with the current alpha as a single
+  // drawImage call. Falls back to the live renderer if the cache
+  // isn't ready yet (first frame of a strike, or pre-init).
   if (state.lightning.bolt) {
-    _drawBolt(ctx, state.lightning.bolt, 3, state.lightning.alpha);
-    // Draw a second thinner bright core
-    _drawBolt(
-      ctx,
-      state.lightning.bolt,
-      1.2,
-      Math.min(1, state.lightning.alpha * 1.5),
-    );
+    if (_boltCache) {
+      ctx.save();
+      ctx.globalAlpha = state.lightning.alpha;
+      ctx.drawImage(_boltCache, 0, 0);
+      ctx.restore();
+    } else {
+      _drawBolt(ctx, state.lightning.bolt, 3, state.lightning.alpha);
+      _drawBolt(
+        ctx,
+        state.lightning.bolt,
+        1.2,
+        Math.min(1, state.lightning.alpha * 1.5),
+      );
+    }
   }
 }
