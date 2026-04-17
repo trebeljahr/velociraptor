@@ -13,6 +13,12 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("electronAPI", {
+  // Synchronous flag: the mere presence of window.electronAPI means
+  // we're running under Electron. Keeping an explicit property
+  // lets renderer code read `window.electronAPI?.isDesktop` without
+  // an async round-trip — used to toggle desktop-only UI chrome.
+  isDesktop: true,
+
   // Has Steam init succeeded? Cheap boolean the renderer can cache
   // on startup to skip the reconcile pass when offline.
   isSteam: (): Promise<boolean> => ipcRenderer.invoke("steam:isAvailable"),
@@ -28,4 +34,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     apiNames: string[],
   ): Promise<Record<string, boolean>> =>
     ipcRenderer.invoke("steam:getAchievementStates", apiNames),
+
+  // Quit the app. Called from the desktop-only Quit button.
+  quit: (): Promise<void> => ipcRenderer.invoke("app:quit"),
 });

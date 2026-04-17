@@ -218,17 +218,96 @@ export const audio = {
 
   /** Unlock the Web Audio context (requires a user gesture). Called
    *  from the Start Game handler so the first jump SFX plays without
-   *  delay, regardless of mute state. Also primes the rain audio
-   *  decoder — see _primeRainAudio for the why. */
+   *  delay, regardless of mute state. Also primes rain + music audio
+   *  decoders and the Web Audio buffer-source pipeline — see the
+   *  individual _primeX / _warmX methods for the why. */
   unlockAudio() {
     this._ensureAudioCtx();
     if (this._audioCtx && this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
     }
     this._primeRainAudio();
+    this._primeMusicAudio();
+    this._warmWebAudioSources();
   },
 
   _rainPrimed: false as boolean,
+  _musicPrimed: false as boolean,
+  _webAudioWarmed: false as boolean,
+
+  /**
+   * Same decoder-priming trick as _primeRainAudio, applied to the
+   * music <audio> element. music2.mp3 is ~4.7MB — large enough that
+   * the first play() can stall the start-game click. A silent
+   * play+pause inside the user-gesture context warms the decoder.
+   *
+   * Skipped if music is already playing (unmuted with a saved
+   * preference) — priming would fight a live playback.
+   */
+  _primeMusicAudio() {
+    if (this._musicPrimed) return;
+    if (!this.music) return;
+    // If we're about to unmute and play music for real anyway, the
+    // real play() handles decode — don't double up.
+    if (!this.muted && !this.musicMuted && this.hasSavedPreference) return;
+    this._musicPrimed = true;
+    const targetVolume = this.music.volume;
+    this.music.volume = 0;
+    const restore = () => {
+      if (!this.music) return;
+      this.music.pause();
+      this.music.currentTime = 0;
+      this.music.volume = targetVolume;
+    };
+    try {
+      const p = this.music.play();
+      if (p && typeof p.then === "function") {
+        p.then(restore).catch(() => {
+          if (this.music) this.music.volume = targetVolume;
+          this._musicPrimed = false;
+        });
+      } else {
+        restore();
+      }
+    } catch {
+      if (this.music) this.music.volume = targetVolume;
+      this._musicPrimed = false;
+    }
+  },
+
+  /**
+   * Warm the Web Audio buffer-source pipeline by firing a silent
+   * (zero-gain, 10ms) BufferSource → Gain → destination graph for
+   * every pre-decoded buffer. Without this, the *first* real
+   * playJump() or playThunder() call can stall briefly while
+   * Chromium compiles the audio render graph.
+   *
+   * Buffers may still be null if init() is racing the fetches —
+   * safely no-ops per buffer and leaves _webAudioWarmed false so a
+   * future unlockAudio call can retry.
+   */
+  _warmWebAudioSources() {
+    if (this._webAudioWarmed) return;
+    if (!this._audioCtx) return;
+    const buffers = [this._jumpBuffer, this._thunderBuffer];
+    if (buffers.every((b) => b == null)) return; // retry later
+    this._webAudioWarmed = true;
+    for (const buf of buffers) {
+      if (!buf) continue;
+      try {
+        const src = this._audioCtx.createBufferSource();
+        src.buffer = buf;
+        const gain = this._audioCtx.createGain();
+        gain.gain.value = 0;
+        src.connect(gain);
+        gain.connect(this._audioCtx.destination);
+        src.start(0);
+        src.stop(this._audioCtx.currentTime + 0.01);
+      } catch {
+        /* ignore — warming is best-effort */
+      }
+    }
+  },
 
   /**
    * Force Chromium to decode rain.mp3 *now*, during the start-screen
