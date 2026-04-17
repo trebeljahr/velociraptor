@@ -221,6 +221,41 @@
       html.is-desktop .web-only {
         display: none !important;
       }
+
+      /* "View on Steam" link inside the achievements overlay.
+         Shown only in the desktop build. Understated so it
+         doesn't compete with the achievement grid; Steam-ish
+         blue on hover so it reads as a Steam-branded action. */
+      .achievements-steam-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 1rem;
+        padding: 0.45rem 0.85rem;
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 500;
+        background: transparent;
+        color: #3a6c8c;
+        border: 1px solid #cbd7df;
+        border-radius: 8px;
+        cursor: pointer;
+        transition:
+          background 0.15s ease,
+          color 0.15s ease,
+          border-color 0.15s ease;
+      }
+      .achievements-steam-link svg {
+        width: 16px;
+        height: 16px;
+      }
+      .achievements-steam-link:hover,
+      .achievements-steam-link:focus-visible {
+        background: #1b2838;
+        color: #66c0f4;
+        border-color: #1b2838;
+        outline: none;
+      }
     </style>
 
     <!-- Runs before DOMContentLoaded so the html.is-desktop class is
@@ -752,6 +787,26 @@
           <p id="achievements-progress" class="achievements-progress">
             0 / 0 unlocked
           </p>
+          <button
+            id="achievements-steam-link"
+            class="achievements-steam-link desktop-only"
+            type="button"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <polygon points="10 8 16 12 10 16 10 8"></polygon>
+            </svg>
+            View on Steam
+          </button>
           <ul id="achievements-list" class="achievements-list"></ul>
         </div>
       </div>
@@ -1139,6 +1194,27 @@
             </a>
           </li>
           <li class="desktop-only">
+            <button id="menu-steam-store" class="menu-item" type="button">
+              <span class="inner">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
+                  <line x1="3" y1="6" x2="21" y2="6"></line>
+                  <path d="M16 10a4 4 0 0 1-8 0"></path>
+                </svg>
+                <span>View on Steam Store</span>
+              </span>
+            </button>
+          </li>
+          <li class="desktop-only">
             <button id="menu-steam-friends" class="menu-item" type="button">
               <span class="inner">
                 <svg
@@ -1255,6 +1331,46 @@
               typeof window.electronAPI.openSteamOverlay === "function"
             ) {
               window.electronAPI.openSteamOverlay("Friends");
+            }
+          });
+        }
+        // Desktop-only: open the Steam overlay to the store page for
+        // this game. Uses the same STEAM_STORE_URL that the share/
+        // challenge invite text uses (declared below, sourced from
+        // VITE_STEAM_STORE_URL via Vite HTML env substitution) so
+        // there's one knob to turn when the real AppID ships.
+        const steamStoreBtn = document.getElementById("menu-steam-store");
+        if (steamStoreBtn) {
+          steamStoreBtn.addEventListener("click", () => {
+            if (
+              window.electronAPI &&
+              typeof window.electronAPI.openSteamOverlayUrl === "function"
+            ) {
+              // STEAM_STORE_URL isn't in scope yet (defined in the
+              // inner IIFE below) — reconstruct it here from the same
+              // env substitution.
+              const raw = "%VITE_STEAM_STORE_URL%";
+              const url = raw.startsWith("%VITE_")
+                ? "https://raptor.trebeljahr.com"
+                : raw;
+              window.electronAPI.openSteamOverlayUrl(url);
+            }
+          });
+        }
+        // Desktop-only: "View on Steam" button inside the achievements
+        // overlay. Opens the Steam overlay to the Achievements dialog
+        // for this game — player sees the canonical cross-platform
+        // achievement list right next to our in-game version.
+        const achievementsSteamLink = document.getElementById(
+          "achievements-steam-link",
+        );
+        if (achievementsSteamLink) {
+          achievementsSteamLink.addEventListener("click", () => {
+            if (
+              window.electronAPI &&
+              typeof window.electronAPI.openSteamOverlay === "function"
+            ) {
+              window.electronAPI.openSteamOverlay("Achievements");
             }
           });
         }
