@@ -1987,6 +1987,16 @@
           }
         }
 
+        // Small shims so the Capacitor bridge (src/mobile/bridge.ts) can
+        // route the Android hardware back button through the same menu
+        // code the cog button uses. Zero-cost on the web build — the
+        // bridge is only imported inside __IS_CAPACITOR__ guard.
+        window.__rrIsMenuOpen = function () {
+          return overlay.classList.contains("open");
+        };
+        window.__rrToggleMenu = toggleMenu;
+        window.__rrCloseMenu = closeMenu;
+
         closeBtn.addEventListener("click", closeMenu);
         overlay.addEventListener("click", (e) => {
           // Click outside the panel closes the menu.

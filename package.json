@@ -17,9 +17,27 @@
     "electron:compile": "tsc electron/main.ts electron/preload.ts --outDir electron --module CommonJS --moduleResolution node --esModuleInterop --target ES2022 --skipLibCheck",
     "electron:dev": "npm run dev",
     "electron:build": "npm run build && npm run electron:compile && electron-builder",
-    "electron:preview": "npm run build && npm run electron:compile && electron ."
+    "electron:preview": "npm run build && npm run electron:compile && electron .",
+    "build:mobile": "tsc --noEmit && VITE_TARGET=capacitor vite build",
+    "cap:sync": "npm run build:mobile && cap sync",
+    "cap:open:ios": "cap open ios",
+    "cap:open:android": "bash -c 'source scripts/android-env.sh && cap open android'",
+    "cap:run:ios": "npm run cap:sync && cap run ios",
+    "cap:run:android": "bash -c 'source scripts/android-env.sh && npm run build:mobile && cap sync android && cap run android'",
+    "dev:android": "bash scripts/android-dev.sh",
+    "dev:ios": "bash scripts/ios-dev.sh",
+    "android:emulator": "bash -c 'source scripts/android-env.sh && emulator -avd ${AVD:-Pixel_9_Pro} -netdelay none -netspeed full'",
+    "android:kill-emulator": "bash -c 'source scripts/android-env.sh && adb emu kill'",
+    "android:avds": "bash -c 'source scripts/android-env.sh && emulator -list-avds'",
+    "android:devices": "bash -c 'source scripts/android-env.sh && adb devices'",
+    "android:logcat": "bash -c 'source scripts/android-env.sh && adb logcat -s Capacitor Capacitor/Console Capacitor/WebView chromium'",
+    "mobile:assets": "capacitor-assets generate --iconBackgroundColor \"#50b4cd\" --splashBackgroundColor \"#50b4cd\""
   },
   "devDependencies": {
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.3.1",
+    "@capacitor/ios": "^8.3.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^20.11.0",
     "concurrently": "^9.2.1",
@@ -63,6 +81,15 @@
     }
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.3.1",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/screen-orientation": "^8.0.1",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
     "steamworks.js": "^0.4.0"
   }
 }

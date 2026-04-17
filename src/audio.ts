@@ -21,6 +21,7 @@ import {
   RAIN_MUTED_KEY,
   RAIN_AUDIO_MAX_VOLUME,
 } from "./constants";
+import { saveBoolFlag } from "./persistence";
 
 // webkitAudioContext is still the only Web Audio constructor on old
 // Safari — declare it so TS doesn't complain.
@@ -143,12 +144,8 @@ export const audio = {
       this._onUnmuteDuringRun();
     }
     if (persist) {
-      try {
-        window.localStorage.setItem(MUTED_KEY, this.muted ? "1" : "0");
-        this.hasSavedPreference = true;
-      } catch (e) {
-        /* ignored — storage may be unavailable */
-      }
+      saveBoolFlag(MUTED_KEY, this.muted);
+      this.hasSavedPreference = true;
     }
     if (!this.music) return;
     if (this.muted || this.musicMuted) {
@@ -360,14 +357,7 @@ export const audio = {
 
   setMusicMuted(muted: boolean) {
     this.musicMuted = !!muted;
-    try {
-      window.localStorage.setItem(
-        MUSIC_MUTED_KEY,
-        this.musicMuted ? "1" : "0",
-      );
-    } catch (e) {
-      /* ignored */
-    }
+    saveBoolFlag(MUSIC_MUTED_KEY, this.musicMuted);
     if (!this.music || this.muted) return;
     if (this.musicMuted) {
       this.music.pause();
@@ -384,26 +374,12 @@ export const audio = {
 
   setJumpMuted(muted: boolean) {
     this.jumpMuted = !!muted;
-    try {
-      window.localStorage.setItem(
-        JUMP_MUTED_KEY,
-        this.jumpMuted ? "1" : "0",
-      );
-    } catch (e) {
-      /* ignored */
-    }
+    saveBoolFlag(JUMP_MUTED_KEY, this.jumpMuted);
   },
 
   setRainMuted(muted: boolean) {
     this.rainMuted = !!muted;
-    try {
-      window.localStorage.setItem(
-        RAIN_MUTED_KEY,
-        this.rainMuted ? "1" : "0",
-      );
-    } catch (e) {
-      /* ignored */
-    }
+    saveBoolFlag(RAIN_MUTED_KEY, this.rainMuted);
     if (this.rainMuted && this._isRainPlaying) {
       this.stopRain();
     }

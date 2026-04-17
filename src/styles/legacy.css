@@ -1676,3 +1676,45 @@ html,
         border-radius: 3px;
         color: #fff;
       }
+
+      /* ───────── Capacitor native shell ─────────
+       * Everything here is gated on <body class="cap"> which is set by
+       * src/mobile/bridge.ts. The web build (no .cap class) is
+       * unaffected. Rules target only the mobile WebView's peculiarities:
+       *   - iOS rubber-band overscroll → disable
+       *   - Long-press on canvas showing text-selection callout → off
+       *   - Fullscreen toggle is meaningless (app always owns screen) → hide
+       *   - Steam-specific links hidden (no Steam on mobile) → hide
+       */
+      body.cap {
+        /* Stronger than touch-action for iOS rubber-band; prevents the
+           whole page from sliding when the player scrolls the menu. */
+        overscroll-behavior: none;
+      }
+      body.cap #game-canvas {
+        /* Suppress the iOS long-press callout ("Copy / Look Up / Share…")
+           which would otherwise pop up after a held tap on the canvas. */
+        -webkit-touch-callout: none;
+        touch-callout: none;
+      }
+      body.cap .fullscreen-btn {
+        /* No-op on native mobile — the WebView always fills the screen. */
+        display: none !important;
+      }
+      body.cap .achievements-steam-link,
+      body.cap .desktop-only {
+        /* Hide Steam-branded controls on mobile. */
+        display: none !important;
+      }
+      /* Hit-target safety: icon buttons at the default 14px offset sit
+         just outside the iPhone Dynamic Island in landscape. Adding a
+         few more px on native shells gives the thumb a comfortable
+         margin without looking oversized. */
+      body.cap .top-right-buttons {
+        top: calc(18px + env(safe-area-inset-top, 0px));
+        right: calc(18px + env(safe-area-inset-right, 0px));
+      }
+      body.cap .score-display {
+        top: calc(18px + env(safe-area-inset-top, 0px));
+        left: calc(18px + env(safe-area-inset-left, 0px));
+      }

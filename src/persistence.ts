@@ -20,10 +20,106 @@ import {
   ACHIEVEMENTS_KEY,
   TOTAL_DAY_CYCLES_KEY,
   RARE_EVENTS_SEEN_KEY,
+  MUTED_KEY,
+  MUSIC_MUTED_KEY,
+  JUMP_MUTED_KEY,
+  RAIN_MUTED_KEY,
+  UNLOCKED_PARTY_HAT_KEY,
+  UNLOCKED_THUG_GLASSES_KEY,
+  WEAR_PARTY_HAT_KEY,
+  WEAR_THUG_GLASSES_KEY,
+  UNLOCKED_BOW_TIE_KEY,
+  WEAR_BOW_TIE_KEY,
 } from "./constants";
 
 export type UnlockedAchievementSet = { [id: string]: true };
 export type RareEventsSeen = { [id: string]: number };
+
+// ── Durable mirror (Capacitor Preferences) ─────────────────
+//
+// On iOS WKWebView, localStorage is subject to eviction. Every write
+// here also fires an async mirror into @capacitor/preferences so the
+// player's progress survives a storage purge. The mirror module is
+// lazy-imported and its loader promise is cached so we only pay the
+// dynamic-import cost once per session. On the web build the guard is
+// evaluated at build time to `false`, so the entire branch (and the
+// mobile/ tree it references) dead-code-eliminates out of the bundle.
+
+type MirrorApi = {
+  mirrorSet(key: string, value: string): void;
+  mirrorRemove(key: string): void;
+};
+
+let _mirrorApi: MirrorApi | null = null;
+let _mirrorLoading: Promise<void> | null = null;
+
+function ensureMirror(): void {
+  if (!__IS_CAPACITOR__) return;
+  if (_mirrorApi || _mirrorLoading) return;
+  _mirrorLoading = import("./mobile/durable")
+    .then((m) => {
+      _mirrorApi = { mirrorSet: m.mirrorSet, mirrorRemove: m.mirrorRemove };
+    })
+    .catch(() => {
+      /* mirror unavailable — continue with localStorage only */
+    });
+}
+
+function mirrorWrite(key: string, value: string): void {
+  if (!__IS_CAPACITOR__) return;
+  ensureMirror();
+  if (_mirrorApi) _mirrorApi.mirrorSet(key, value);
+  else if (_mirrorLoading)
+    _mirrorLoading.then(() => _mirrorApi?.mirrorSet(key, value));
+}
+
+/** Every persistence write in the codebase goes through this. Writes
+ *  to localStorage synchronously (what the next sync load() will
+ *  read) AND queues a mirror into Preferences on mobile. */
+function _persistSet(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    /* ignore — no-op in environments without localStorage */
+  }
+  mirrorWrite(key, value);
+}
+
+/** The complete list of keys we mirror. Kept here so
+ *  hydratePersistence() has a single source of truth and the next
+ *  dev to add a key can't forget to include it in the mirror. */
+const DURABLE_KEYS: string[] = [
+  HIGH_SCORE_KEY,
+  TOTAL_JUMPS_KEY,
+  CAREER_RUNS_KEY,
+  ACHIEVEMENTS_KEY,
+  TOTAL_DAY_CYCLES_KEY,
+  RARE_EVENTS_SEEN_KEY,
+  MUTED_KEY,
+  MUSIC_MUTED_KEY,
+  JUMP_MUTED_KEY,
+  RAIN_MUTED_KEY,
+  UNLOCKED_PARTY_HAT_KEY,
+  UNLOCKED_THUG_GLASSES_KEY,
+  WEAR_PARTY_HAT_KEY,
+  WEAR_THUG_GLASSES_KEY,
+  UNLOCKED_BOW_TIE_KEY,
+  WEAR_BOW_TIE_KEY,
+];
+
+/** Call once at boot, BEFORE any load*() function reads localStorage.
+ *  On mobile, this copies any key present in Preferences but missing
+ *  from localStorage (the eviction-recovery path) back into
+ *  localStorage. On web it's a no-op that resolves immediately. */
+export async function hydratePersistence(): Promise<void> {
+  if (!__IS_CAPACITOR__) return;
+  try {
+    const { hydrateKeys } = await import("./mobile/durable");
+    await hydrateKeys(DURABLE_KEYS);
+  } catch {
+    /* fall through — continue with whatever localStorage has */
+  }
+}
 
 // ── High score ──────────────────────────────────────────────
 
@@ -40,11 +136,7 @@ export function loadHighScore(): number {
 
 /** Persist the high score. Silently no-ops if storage is unavailable. */
 export function saveHighScore(value: number): void {
-  try {
-    window.localStorage.setItem(HIGH_SCORE_KEY, String(value));
-  } catch (e) {
-    /* ignore — no-op in environments without localStorage */
-  }
+  _persistSet(HIGH_SCORE_KEY, String(value));
 }
 
 // ── Career runs ─────────────────────────────────────────────
@@ -61,11 +153,7 @@ export function loadCareerRuns(): number {
 }
 
 export function saveCareerRuns(value: number): void {
-  try {
-    window.localStorage.setItem(CAREER_RUNS_KEY, String(value));
-  } catch (e) {
-    /* ignore */
-  }
+  _persistSet(CAREER_RUNS_KEY, String(value));
 }
 
 // ── Unlocked achievements ───────────────────────────────────
@@ -86,12 +174,7 @@ export function loadUnlockedAchievements(): UnlockedAchievementSet {
 }
 
 export function saveUnlockedAchievements(set: UnlockedAchievementSet): void {
-  try {
-    const arr = Object.keys(set);
-    window.localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(arr));
-  } catch (e) {
-    /* ignore */
-  }
+  _persistSet(ACHIEVEMENTS_KEY, JSON.stringify(Object.keys(set)));
 }
 
 // ── Total jumps (career) ────────────────────────────────────
@@ -108,11 +191,7 @@ export function loadTotalJumps(): number {
 }
 
 export function saveTotalJumps(value: number): void {
-  try {
-    window.localStorage.setItem(TOTAL_JUMPS_KEY, String(value));
-  } catch (e) {
-    /* ignore */
-  }
+  _persistSet(TOTAL_JUMPS_KEY, String(value));
 }
 
 // ── Total day/night cycles witnessed ────────────────────────
@@ -127,11 +206,7 @@ export function loadTotalDayCycles(): number {
 }
 
 export function saveTotalDayCycles(n: number): void {
-  try {
-    window.localStorage.setItem(TOTAL_DAY_CYCLES_KEY, String(n));
-  } catch (e) {
-    /* ignored */
-  }
+  _persistSet(TOTAL_DAY_CYCLES_KEY, String(n));
 }
 
 // ── Rare events seen ────────────────────────────────────────
@@ -146,11 +221,7 @@ export function loadRareEventsSeen(): RareEventsSeen {
 }
 
 export function saveRareEventsSeen(seen: RareEventsSeen): void {
-  try {
-    window.localStorage.setItem(RARE_EVENTS_SEEN_KEY, JSON.stringify(seen));
-  } catch (e) {
-    /* ignored */
-  }
+  _persistSet(RARE_EVENTS_SEEN_KEY, JSON.stringify(seen));
 }
 
 // ── Generic boolean flag (per-channel mute, cosmetic unlocks) ─
@@ -168,9 +239,5 @@ export function loadBoolFlag(key: string, fallback: boolean): boolean {
 }
 
 export function saveBoolFlag(key: string, value: boolean): void {
-  try {
-    window.localStorage.setItem(key, value ? "1" : "0");
-  } catch (e) {
-    /* ignore */
-  }
+  _persistSet(key, value ? "1" : "0");
 }

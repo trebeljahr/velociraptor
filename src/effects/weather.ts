@@ -28,6 +28,7 @@ import {
 import { state } from "../state";
 import { audio } from "../audio";
 import { duneHeight } from "../render/world";
+import { hapticThunder } from "../haptic";
 
 /**
  * Deterministic rain check: within each block of 10 cycles, exactly
@@ -178,7 +179,7 @@ export function updateLightning(frameScale: number, now: number) {
     // varying strike distances (~35–200m away).
     const thunderDelay = THUNDER_DELAY_MIN_MS + Math.random() * (THUNDER_DELAY_MAX_MS - THUNDER_DELAY_MIN_MS);
     setTimeout(() => audio.playThunder(), thunderDelay);
-    if (!audio.muted && navigator.vibrate) navigator.vibrate(30);
+    if (!audio.muted) hapticThunder();
     // Gamepad rumble — medium rumble for thunder.
     try {
       const gp = navigator.getGamepads?.()[0];
