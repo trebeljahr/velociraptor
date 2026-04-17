@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import AVFoundation
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,7 +8,26 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Audio session: .playback so the game's music + jump SFX play
+        // even when the iPhone silent-switch is on. Default WKWebView
+        // behavior inherits .ambient, which honors the mute switch —
+        // fine for a page that happens to have audio, wrong for a game.
+        //
+        // .mixWithOthers is off on purpose: if the user is already
+        // playing Spotify, we interrupt (the game has its own music).
+        // The system will auto-restore the other audio when the app
+        // backgrounds.
+        do {
+            try AVAudioSession.sharedInstance().setCategory(
+                .playback,
+                mode: .default,
+                options: []
+            )
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            // Non-fatal — fall back to default session (audio will
+            // still play, just honor the ringer switch).
+        }
         return true
     }
 
