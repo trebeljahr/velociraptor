@@ -457,14 +457,21 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       if (!state.isRaining && shouldRainForCycle(state.totalDayCycles)) {
         state.isRaining = true;
         state.rainEndPhase = state.smoothPhase + 0.3 + Math.random() * 0.9;
+        // Mark that the player witnessed this storm's beginning — a
+        // prerequisite for the rainy-day achievement when it ends.
+        state._runSawRainStart = true;
       }
     }
     state.lastCycleIndex = cycleIndex;
 
-    // End rain when duration expires
+    // End rain when duration expires. Only grant the achievement if
+    // the storm actually started during the current run — continuing
+    // through an inherited post-death storm doesn't qualify.
     if (state.isRaining && state.smoothPhase >= state.rainEndPhase) {
       state.isRaining = false;
-      if (!state.gameOver) unlockAchievement("rainy-day");
+      if (!state.gameOver && state._runSawRainStart) {
+        unlockAchievement("rainy-day");
+      }
     }
 
     // Smooth rain intensity transition (0→1 fade in, 1→0 fade out)
@@ -1109,23 +1116,41 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     state._pendingNights = 0;
     state.runShootingStars = 0;
     state._wasInNight = false;
+    // Rainy Day achievement: gate on whether the player witnessed
+    // the rain START during this run. A continuation run that begins
+    // already-raining (because soft-reset preserves weather across
+    // deaths) leaves this false — so surviving until THIS storm ends
+    // is not enough; only a storm that started during the current
+    // run counts. Flips true in the rain-start handler below.
+    state._runSawRainStart = false;
     // Sound of Silence: snapshot the mute state right now.
     // If the player unmutes at any point during the run,
     // setMuted() flips this to false. Checked at game-over.
     state._runMutedThroughout = !!(audio && audio.muted);
   }
 
-  function resetGame() {
+  /** Reset game state for a new run.
+   *
+   *  `hard = false` (default, post-death soft restart):
+   *    Preserves the ambient day/night/weather cycle so the world
+   *    keeps running uninterrupted — player doesn't feel like the
+   *    universe rewinds every time they die to a cactus. Only
+   *    per-run things (score, velocity, particles, dust) reset.
+   *
+   *  `hard = true` (explicit return-to-home / progress reset):
+   *    Nukes everything. New cycle, fresh sky, no inherited weather.
+   */
+  function resetGame(hard: boolean = false) {
     state.gameOver = false;
     state.gameOverFade = 0;
     state.gameOverFrame = 0;
     state.newHighScore = false;
-    state.currentSky = [...SKY_COLORS[0]];
-    state.lastSkyScore = -1;
-    state.smoothPhase = 0;
     state.score = 0;
     state.bgVelocity = INITIAL_BG_VELOCITY;
     state.lastNow = null;
+    // Ephemeral per-frame particle pools: always cleared (the death
+    // animation snapshot burned them out visually, starting fresh is
+    // correct regardless of hard/soft).
     state.shootingStars = [];
     state.confetti = [];
     state.dust = [];
@@ -1133,15 +1158,27 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     state.activeRareEvent = null;
     state.rainParticles = [];
     state.lightning = { alpha: 0, nextAt: 0 };
-    state.isRaining = false;
-    state.rainIntensity = 0;
-    state.rainEndPhase = 0;
-    state.rainbow = null;
-    state.lastCycleIndex = -1;
-    audio.stopRain();
-    // Cloud density: 20% cloudless, 50% normal, 30% extra cloudy
-    const cdRoll = Math.random();
-    state._cloudDensity = cdRoll < 0.2 ? 0 : cdRoll < 0.7 ? 1 : 2;
+    if (hard) {
+      // Full reset — tear down the ambient cycle too.
+      state.currentSky = [...SKY_COLORS[0]];
+      state.lastSkyScore = -1;
+      state.smoothPhase = 0;
+      state.isRaining = false;
+      state.rainIntensity = 0;
+      state.rainEndPhase = 0;
+      state.rainbow = null;
+      state.lastCycleIndex = -1;
+      audio.stopRain();
+      // Cloud density reroll: 20% cloudless, 50% normal, 30% extra cloudy
+      const cdRoll = Math.random();
+      state._cloudDensity = cdRoll < 0.2 ? 0 : cdRoll < 0.7 ? 1 : 2;
+    }
+    // Note: soft reset keeps state.isRaining, state.rainIntensity,
+    // state.smoothPhase, state.currentSky, state.rainbow,
+    // state.lastCycleIndex, state._cloudDensity, and the in-flight
+    // rain audio playing — the world keeps going. The rain-achievement
+    // guard in initRunState() catches the edge case where a run
+    // starts already-raining.
     initRunState();
     // Fresh dunes and cacti each run.
     initDunes();
@@ -1541,7 +1578,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
      *  with re-showing the start screen when the player picks
      *  "Back to home screen" from the menu. */
     returnToHome() {
-      resetGame();
+      // Hard reset — returning to the home screen should feel like
+      // a fresh boot, not a paused continuation. Clears sky / weather
+      // / smoothPhase so the next Start Game doesn't begin mid-storm.
+      resetGame(true);
       state.started = false;
       state.paused = true;
     },
@@ -1601,6 +1641,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         // Start a natural-length rain cycle
         state.isRaining = true;
         state.rainEndPhase = state.smoothPhase + 0.3 + Math.random() * 0.9;
+        state._runSawRainStart = true;
       }
       return state.isRaining;
     },
