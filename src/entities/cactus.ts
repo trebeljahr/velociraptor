@@ -33,6 +33,11 @@ import {
   MAX_BG_VELOCITY,
   CACTUS_SPAWN_GAP_BASE,
   CACTUS_SPAWN_GAP_SPEED_FACTOR,
+  CACTUS_SPAWN_GAP_RANDOM_MAX,
+  CACTUS_SPAWN_GAP_RANDOM_SHRINK,
+  CACTUS_BREATHER_PROBABILITY,
+  CACTUS_BREATHER_MIN_SECONDS,
+  CACTUS_BREATHER_MAX_SECONDS,
   PARTY_HAT_SCORE_THRESHOLD,
   THUG_GLASSES_SCORE_THRESHOLD,
   BOW_TIE_SCORE_THRESHOLD,
@@ -132,13 +137,63 @@ export class Cactuses {
   ) {}
 
   get minSpawnDistance(): number {
-    // At higher speeds, increase the minimum gap so tight doubles
-    // don't appear — keeps the game humanly playable.
-    const speedFactor = Math.max(1, state.bgVelocity / INITIAL_BG_VELOCITY);
-    const minGap =
+    // Breather roll: every so often return a long empty gap so the
+    // player gets 5-10 seconds of scenery-only before the next
+    // cactus. Measured in seconds-of-travel at the *current*
+    // velocity so the breather feels the same length regardless of
+    // how fast the player is going. Evaluated first so the normal
+    // pacing formula below is the fallback path.
+    if (Math.random() < CACTUS_BREATHER_PROBABILITY) {
+      const seconds =
+        CACTUS_BREATHER_MIN_SECONDS +
+        Math.random() *
+          (CACTUS_BREATHER_MAX_SECONDS - CACTUS_BREATHER_MIN_SECONDS);
+      // Convert bgVelocity (a per-frame multiplier) into px/sec.
+      // Matches the scroll math in Cactus.update(): each frame moves
+      // a cactus by bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR).
+      // Multiply by 60 to approximate frames-per-second.
+      const pxPerSec =
+        state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * 60;
+      return seconds * pxPerSec;
+    }
+
+    // Progress through the speed ramp: 0 at a fresh run, 1 once
+    // bgVelocity has reached MAX. Clamped so debug commands that push
+    // velocity beyond MAX don't produce negative random spans.
+    const t = Math.min(
+      1,
+      Math.max(
+        0,
+        (state.bgVelocity - INITIAL_BG_VELOCITY) /
+          (MAX_BG_VELOCITY - INITIAL_BG_VELOCITY),
+      ),
+    );
+
+    // Minimum safe gap. Grows a touch with speed so impossible
+    // back-to-back doubles don't spawn at terminal velocity.
+    // Default: 1.2w → 1.5w across the speed ramp.
+    const floorGap =
       this.raptor.w *
-      (CACTUS_SPAWN_GAP_BASE + speedFactor * CACTUS_SPAWN_GAP_SPEED_FACTOR);
-    return minGap + Math.floor(Math.random() * this.raptor.w * 10);
+      (CACTUS_SPAWN_GAP_BASE + t * CACTUS_SPAWN_GAP_SPEED_FACTOR);
+
+    // Random top-up on top of the floor. Previously a fixed
+    //   Math.random() * raptor.w * 10
+    // which dominated the spawn gap at every speed and masked the
+    // progression — a long random roll at terminal velocity still
+    // created a long dead stretch, so the game didn't feel denser
+    // as you sped up.
+    //
+    // Now: the span starts wide (≈3.6w) so early-game has varied
+    // pacing with small variance, and collapses to ≈1.5w at terminal
+    // velocity so the late game reads as a tight relentless rhythm.
+    // Long rest periods are handled separately by the breather roll
+    // above, not by this span.
+    const randSpan =
+      this.raptor.w *
+      CACTUS_SPAWN_GAP_RANDOM_MAX *
+      Math.max(0, 1 - t * CACTUS_SPAWN_GAP_RANDOM_SHRINK);
+
+    return floorGap + Math.random() * randSpan;
   }
 
   spawn(): void {

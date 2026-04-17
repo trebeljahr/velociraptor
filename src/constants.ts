@@ -23,8 +23,43 @@ export const VELOCITY_SCALE_DIVISOR = 1000;
 export const DOWNWARD_ACCEL_DIVISOR = 10;
 export const SPEED_INCREMENT = 0.1;
 export const MAX_BG_VELOCITY = 17;
-export const CACTUS_SPAWN_GAP_BASE = 1.5;
+// Minimum spawn gap between cacti, in raptor-widths. This is the
+// floor at a fresh run — no two cacti can be closer than BASE raptor
+// widths apart. Lowered from 1.5 to 1.2 so early-game feels more
+// active from the first cactus.
+export const CACTUS_SPAWN_GAP_BASE = 1.2;
+// How much the minimum-safe floor grows as bgVelocity climbs from
+// INITIAL to MAX — keeps impossible back-to-back doubles from
+// spawning at terminal velocity. Floor = BASE at t=0, BASE+FACTOR
+// at t=1 (i.e. 1.2w → 1.5w).
 export const CACTUS_SPAWN_GAP_SPEED_FACTOR = 0.3;
+// Max extra gap on top of the floor, in raptor-widths. This is the
+// "sometimes you get a breather" variance knob. Previously a static
+// *10 in the spawn code, which dominated the total and masked the
+// speed progression: the game didn't feel denser at high speed
+// because the random roll was the same size at any velocity.
+export const CACTUS_SPAWN_GAP_RANDOM_MAX = 3.6;
+// How much the random span shrinks by the time we hit terminal
+// velocity. 0.58 means the span collapses to 42% of its starting
+// size at max speed (≈3.6w → ≈1.5w), giving a perceptible ramp from
+// "varied pacing with occasional long gaps" to "tight rhythmic
+// onslaught". This is what drives the "amount of jumps per minute
+// visibly increases" feel the design wants.
+export const CACTUS_SPAWN_GAP_RANDOM_SHRINK = 0.58;
+
+// ── Cactus-spawn breathers ────────────────────────────────
+// Occasionally skip a normal gap in favour of a long empty stretch
+// — a "just watch the scenery for a bit" moment that breaks the
+// rhythm and lets the player catch a breath. Gap length is measured
+// in seconds-of-travel at the current bgVelocity so it feels the
+// same regardless of speed (≈5-10 sec of dead air either way).
+//
+// 0.10 = roughly one breather per ~10 spawns. At the new default
+// pacing that's one every ~20-30 seconds of play — frequent enough
+// to notice as a pattern, rare enough not to feel lazy.
+export const CACTUS_BREATHER_PROBABILITY = 0.10;
+export const CACTUS_BREATHER_MIN_SECONDS = 5;
+export const CACTUS_BREATHER_MAX_SECONDS = 10;
 export const JUMP_BUFFER_MS = 100;
 export const JUMP_VIBRATION_MS = 15;
 export const FRAME_DELAY_SPEED_RANGE = 15;
@@ -156,9 +191,13 @@ export const TOTAL_DAY_CYCLES_KEY = "raptor-runner:totalDayCycles";
 export const RARE_EVENTS_SEEN_KEY = "raptor-runner:rareEventsSeen";
 
 // ── Cosmetic unlock thresholds (single-run scores) ─────────
+// Rebalanced from 100/200/500 → 100/150/200. The original top tier
+// at 500 was steep enough that almost no one reached it; this
+// compresses the ladder so each unlock is genuinely attainable
+// within a focused session.
 export const PARTY_HAT_SCORE_THRESHOLD = 100;
-export const THUG_GLASSES_SCORE_THRESHOLD = 500;
-export const BOW_TIE_SCORE_THRESHOLD = 200;
+export const BOW_TIE_SCORE_THRESHOLD = 150;
+export const THUG_GLASSES_SCORE_THRESHOLD = 200;
 
 // ── Raptor sprite sheet ────────────────────────────────────
 export const RAPTOR_NATIVE_W = 578;

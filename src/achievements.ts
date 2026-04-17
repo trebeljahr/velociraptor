@@ -85,13 +85,16 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
   {
     id: "dinosaurs-forever",
     title: "Dinosaurs Forever",
-    desc: "Score 200 points in a single run",
+    desc: "Score 150 points in a single run",
     iconImage: "assets/bow-tie.png",
   },
   {
+    // id stays "score-250" for storage compatibility — renaming would
+    // reset every existing player's unlock. The threshold moved from
+    // 500 to 200 as part of the ladder rebalance.
     id: "score-250",
     title: "Raptor Legend",
-    desc: "Score 500 points in a single run",
+    desc: "Score 200 points in a single run",
     iconImage: "assets/thug-glasses.png",
   },
   {
