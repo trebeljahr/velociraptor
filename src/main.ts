@@ -626,6 +626,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
             state.gameOver = true;
             state.gameOverFrame = state.frame;
             audio.playHit();
+            audio.pauseMusicForGameOver();
             if (!audio.muted) hapticDeath();
             // Gamepad rumble — heavy jolt on death.
             try {
@@ -1162,6 +1163,9 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     state.score = 0;
     state.bgVelocity = INITIAL_BG_VELOCITY;
     state.lastNow = null;
+    // Bring music back up after the game-over fade — respects the
+    // current mute flags, so a muted player stays silent.
+    audio.resumeMusicOnRunStart();
     // Ephemeral per-frame particle pools: always cleared (the death
     // animation snapshot burned them out visually, starting fresh is
     // correct regardless of hard/soft).

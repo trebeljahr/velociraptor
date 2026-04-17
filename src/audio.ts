@@ -281,6 +281,35 @@ export const audio = {
     return this.muted;
   },
 
+  /** Fade out the background music over ~800ms and pause it.
+   *  Called at game-over so the death screen doesn't sit over the
+   *  still-playing score. No-op when already muted/paused. */
+  pauseMusicForGameOver() {
+    if (!this.music) return;
+    if (this.muted || this.musicMuted) return;
+    if (this.music.paused) return;
+    rampVolume(this.music, 0, 800).then(() => {
+      if (this.music && this.music.volume < 0.01) this.music.pause();
+    });
+  },
+
+  /** Re-start music when a new run begins after a game-over. Mirror
+   *  of rampUpAndPlay but with a softer 400ms ramp since the death
+   *  fade was also generous. */
+  resumeMusicOnRunStart() {
+    if (!this.music) return;
+    if (this.muted || this.musicMuted) return;
+    if (!this.music.paused && this.music.volume > 0.49) return;
+    this.music.volume = 0;
+    const p = this.music.play();
+    const fade = () => rampVolume(this.music!, 0.5, 400);
+    if (p && typeof p.then === "function") {
+      p.then(fade).catch(() => {});
+    } else {
+      fade();
+    }
+  },
+
   /** Plays the original jump.mp3 sample through Web Audio.
    *  _silenceSteps runs first so a running-step sample doesn't
    *  bleed under the jump. */
@@ -692,9 +721,11 @@ export const audio = {
   /** Cactus impact: plays the licensed marimba "lose" sample.
    *  Routed through jumpMuted so the SFX channel toggle covers it.
    *
-   *  Skips the first ~100ms of the source buffer because the MP3 has
-   *  a silent pickup before the first marimba note — without the
-   *  offset the "plink" lands perceptibly after the collision. */
+   *  Two offsets: a 115ms buffer offset lands the sample exactly on
+   *  the marimba's first transient (silencedetect places the head
+   *  silence at 112–114ms depending on threshold), and a 150ms
+   *  absolute-time delay pushes the cue a beat after the collision
+   *  so it reads as the game-over moment rather than the hit itself. */
   playHit() {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || !this._hitBuffer) return;
@@ -702,16 +733,17 @@ export const audio = {
       this._audioCtx.resume().catch(() => {});
     }
     try {
-      const src = this._audioCtx.createBufferSource();
+      const ctx = this._audioCtx;
+      const src = ctx.createBufferSource();
       src.buffer = this._hitBuffer;
-      const gain = this._audioCtx.createGain();
+      const gain = ctx.createGain();
       gain.gain.value = 0.6;
       src.connect(gain);
-      gain.connect(this._audioCtx.destination);
+      gain.connect(ctx.destination);
       src.onended = () => {
         try { src.disconnect(); gain.disconnect(); } catch {}
       };
-      src.start(0, 0.1);
+      src.start(ctx.currentTime + 0.15, 0.115);
     } catch {
       /* SFX is non-critical */
     }
