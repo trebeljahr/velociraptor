@@ -152,34 +152,78 @@ export function drawMoon(ctx: CanvasRenderingContext2D) {
   const arc = celestialArc(MOON_PHASE_CENTER, CELESTIAL_ARC_HALF_WIDTH);
   if (!arc.visible) return;
   const r = Math.max(MOON_MIN_RADIUS_PX, state.width * MOON_RADIUS_SCALE);
-  const core: [number,number,number] = [250, 250, 252];
-  const halo: [number,number,number] = [220, 230, 250];
-  const shadow = [
-    Math.round(state.currentSky[0] * 0.5),
-    Math.round(state.currentSky[1] * 0.5),
-    Math.round(state.currentSky[2] * 0.5),
-  ];
+  const core: [number, number, number] = [250, 250, 252];
+  const halo: [number, number, number] = [220, 230, 250];
+
+  const ph = state.moonPhase;
+  const illum = (1 - Math.cos(ph * Math.PI * 2)) / 2;
+  const waxing = ph < 0.5;
+  const gibbous = illum > 0.5;
+  const isFull = illum > 0.99;
 
   ctx.save();
   ctx.globalAlpha = arc.alpha * (0.2 + 0.8 * (1 - state.rainIntensity));
-  // Halo
-  const glow = ctx.createRadialGradient(arc.x, arc.y, r * 0.3, arc.x, arc.y, r * 2.6);
-  glow.addColorStop(0, rgba(halo, 0.45));
-  glow.addColorStop(0.5, rgba(halo, 0.14));
-  glow.addColorStop(1, rgba(halo, 0));
-  ctx.fillStyle = glow;
+
+  // Halo — scales with illumination so the new moon has no glow
+  // and the full moon blooms. Previously the halo was a constant
+  // radial gradient, which meant an "empty" moon still painted a
+  // bright aura onto the sky.
+  if (illum > 0.01) {
+    const glow = ctx.createRadialGradient(
+      arc.x, arc.y, r * 0.3,
+      arc.x, arc.y, r * 2.6,
+    );
+    glow.addColorStop(0, rgba(halo, 0.45 * illum));
+    glow.addColorStop(0.5, rgba(halo, 0.14 * illum));
+    glow.addColorStop(1, rgba(halo, 0));
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(arc.x, arc.y, r * 2.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Build the lit-region path once. Used both to fill the moon
+  // and as the clip region for craters. No full disc + shadow
+  // overlay this time: the sky just shows through the shadow side,
+  // so a crescent reads as a thin sliver of moon instead of a full
+  // disc with a semi-transparent shadow painted over half of it.
   ctx.beginPath();
-  ctx.arc(arc.x, arc.y, r * 2.6, 0, Math.PI * 2);
-  ctx.fill();
-  // Disc
+  if (isFull) {
+    ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
+  } else {
+    // Horizontal semi-axis of the terminator ellipse. |cos(ph*2π)|
+    // is the correct projection — 0 at quarter phases, r at
+    // new/full.
+    const termRx = r * Math.abs(Math.cos(ph * Math.PI * 2));
+    if (waxing) {
+      // Lit side is on the RIGHT. Sweep top → right → bottom, then
+      // the terminator ellipse back up to the top.
+      ctx.arc(arc.x, arc.y, r, -Math.PI * 0.5, Math.PI * 0.5);
+      ctx.ellipse(
+        arc.x, arc.y,
+        termRx, r, 0,
+        Math.PI * 0.5, -Math.PI * 0.5,
+        !gibbous,
+      );
+    } else {
+      // Lit side is on the LEFT.
+      ctx.arc(arc.x, arc.y, r, Math.PI * 0.5, Math.PI * 1.5);
+      ctx.ellipse(
+        arc.x, arc.y,
+        termRx, r, 0,
+        -Math.PI * 0.5, Math.PI * 0.5,
+        !gibbous,
+      );
+    }
+  }
+
+  // Fill the lit region with the moon's core colour.
   ctx.fillStyle = rgb(core);
-  ctx.beginPath();
-  ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
   ctx.fill();
-  // Craters
+
+  // Craters — clipped to the same lit-region path so they don't
+  // bleed over onto the sky.
   ctx.save();
-  ctx.beginPath();
-  ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
   ctx.clip();
   ctx.fillStyle = `rgba(200, 200, 210, 0.15)`;
   const craters = [
@@ -196,67 +240,7 @@ export function drawMoon(ctx: CanvasRenderingContext2D) {
     ctx.fill();
   }
   ctx.restore();
-  // Moon phase terminator.
-  //
-  // Path = (half-circle on shadow side) + (half-ellipse for the
-  // terminator). The half-ellipse's horizontal semi-axis controls
-  // how much of the disc is shadowed:
-  //   ph=0.00 → rx=r (new moon, shadow is full disc)
-  //   ph=0.25 → rx=0 (first quarter, terminator is a straight line)
-  //   ph=0.50 → rx=r (full moon, skipped via `illum > 0.99` below)
-  //   ph=0.75 → rx=0 (third quarter)
-  //   ph=1.00 → rx=r (back to new)
-  //
-  // Previous revision used `r*cos(illum*π)` for rx, which gave the
-  // wrong horizontal radius at crescent/gibbous phases and made the
-  // shadow render as a near-full moon — the source of the "there are
-  // two full moons per cycle" visual bug. `|cos(ph*2π)|` is the
-  // physically correct projection of the terminator ellipse onto the
-  // moon's visible disc.
-  //
-  // Direction of the ellipse sweep (counterclockwise flag) flips at
-  // illum=0.5: crescent phases the terminator bulges into the lit
-  // side, gibbous it bulges into the shadow. Previous revision had
-  // this reversed.
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
-  ctx.clip();
-  const ph = state.moonPhase;
-  const illum = (1 - Math.cos(ph * Math.PI * 2)) / 2;
-  if (illum < 0.99) {
-    const termRx = r * Math.abs(Math.cos(ph * Math.PI * 2));
-    const waxing = ph < 0.5;
-    const gibbous = illum > 0.5;
-    ctx.fillStyle = rgba(shadow as [number,number,number], 0.8);
-    ctx.beginPath();
-    if (waxing) {
-      // Shadow covers the LEFT half. Arc: bottom → left → top.
-      ctx.arc(arc.x, arc.y, r, Math.PI * 0.5, Math.PI * 1.5);
-      // Terminator from top back down to bottom. Bulges LEFT when
-      // gibbous (small shadow crescent), RIGHT when crescent phase
-      // (shadow is most of the disc).
-      ctx.ellipse(
-        arc.x, arc.y,
-        termRx, r, 0,
-        -Math.PI * 0.5, Math.PI * 0.5,
-        gibbous,
-      );
-    } else {
-      // Shadow covers the RIGHT half. Arc: top → right → bottom.
-      ctx.arc(arc.x, arc.y, r, -Math.PI * 0.5, Math.PI * 0.5);
-      // Terminator from bottom back up to top. Same bulge rule —
-      // gibbous bulges away from the bulk of the shadow.
-      ctx.ellipse(
-        arc.x, arc.y,
-        termRx, r, 0,
-        Math.PI * 0.5, -Math.PI * 0.5,
-        gibbous,
-      );
-    }
-    ctx.fill();
-  }
-  ctx.restore();
+
   ctx.restore();
 }
 
