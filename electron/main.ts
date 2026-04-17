@@ -120,6 +120,8 @@ function createSplash(): BrowserWindow {
 function createWindow(): void {
   const splash = createSplash();
 
+  const isMac = process.platform === "darwin";
+
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -132,23 +134,32 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    // Launch fullscreen by default — this is a desktop game, not a
-    // productivity tool. ESC exits fullscreen for debugging.
-    fullscreen: true,
-    // Frameless on macOS for a cleaner look; standard frame on Windows/Linux.
-    // Takes effect if the user exits fullscreen.
-    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    // IMPORTANT: don't set `fullscreen: true` in the constructor. On
+    // macOS that triggers the windowed→fullscreen transition
+    // animation which bypasses `show: false` and briefly renders the
+    // empty window behind the splash (showing the unstyled FOUC of
+    // oversized SVG icons from index.html). We go fullscreen AFTER
+    // did-finish-load, using simpleFullScreen on macOS (no animation)
+    // so the first pixel the player sees is the fully-rendered game.
+    titleBarStyle: isMac ? "hiddenInset" : "default",
     backgroundColor: "#50b4cd", // sky-blue to match the game's background
     show: false, // stays hidden until the splash hands off
   });
 
-  // Hand off from splash → main window. Using did-finish-load rather
-  // than ready-to-show because the game's own JS needs a tick to
-  // initialize after the HTML paints; closing the splash on
-  // did-finish-load lets the game's first real frame be what the
-  // player sees rather than a white flash of unstyled content.
+  // Hand off from splash → main window. did-finish-load fires after
+  // JS+CSS+subresources have all loaded, so by the time we show the
+  // window the game's first real frame is ready.
   const handoff = () => {
-    if (!win.isDestroyed()) win.show();
+    if (win.isDestroyed()) return;
+    // Go fullscreen BEFORE show() so the window never appears
+    // windowed. simpleFullScreen on macOS is instant (no Spaces
+    // animation); fullscreen on Windows/Linux has no such issue.
+    if (isMac) {
+      win.setSimpleFullScreen(true);
+    } else {
+      win.setFullScreen(true);
+    }
+    win.show();
     if (!splash.isDestroyed()) splash.close();
   };
   win.webContents.once("did-finish-load", handoff);
