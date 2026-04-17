@@ -93,6 +93,11 @@ export interface GameState {
   /** Was the player muted for the entire current run? Flipped to
    *  false the instant the player touches the mute toggle mid-run. */
   _runMutedThroughout: boolean;
+  /** Did a rain cycle START during the current run? Gates the
+   *  "rainy-day" achievement so a player who dies mid-storm and
+   *  continues into the next run (which inherits the still-falling
+   *  rain via soft-reset) doesn't get credit for surviving it. */
+  _runSawRainStart: boolean;
 
   // ── Cosmetic unlocks (sticky) and wear prefs ───────
   unlockedPartyHat: boolean;
@@ -173,6 +178,7 @@ export const state: GameState = {
   careerRuns: 0,
   unlockedAchievements: {},
   _runMutedThroughout: false,
+  _runSawRainStart: false,
   unlockedPartyHat: false,
   wearPartyHat: true,
   unlockedThugGlasses: false,
