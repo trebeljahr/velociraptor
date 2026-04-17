@@ -621,6 +621,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
           if (polygonsOverlap(raptorPoly, c.collisionPolygon())) {
             state.gameOver = true;
             state.gameOverFrame = state.frame;
+            audio.playHit();
             if (!audio.muted) hapticDeath();
             // Gamepad rumble — heavy jolt on death.
             try {

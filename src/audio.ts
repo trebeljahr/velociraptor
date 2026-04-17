@@ -529,4 +529,128 @@ export const audio = {
       /* non-critical */
     }
   },
+
+  // ── Procedural SFX (no files) ──────────────────────────────
+  // Short, cheap one-shots synthesized on the fly. Steps fire twice
+  // per run cycle, so going procedural avoids shipping two more MP3s
+  // and lets us alternate pitch between feet without extra assets.
+
+  _noiseBuffer: null as AudioBuffer | null,
+
+  /** Lazily create a shared 0.5s white-noise buffer, reused across
+   *  every step/hit burst. Samples are cheap but allocating a fresh
+   *  buffer per footfall would be silly. */
+  _getNoiseBuffer(): AudioBuffer | null {
+    if (!this._audioCtx) return null;
+    if (this._noiseBuffer) return this._noiseBuffer;
+    const len = Math.floor(this._audioCtx.sampleRate * 0.5);
+    const buf = this._audioCtx.createBuffer(1, len, this._audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    this._noiseBuffer = buf;
+    return buf;
+  },
+
+  /** Footfall: sine thump + short filtered noise scrape. `foot`
+   *  biases pitch so alternating calls read as left/right. */
+  playStep(foot: "left" | "right" = "left") {
+    if (this.muted || this.jumpMuted) return;
+    if (!this._audioCtx) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    try {
+      const ctx = this._audioCtx;
+      const t0 = ctx.currentTime;
+
+      // Low-frequency thump — body weight hitting sand.
+      const thumpFreq = foot === "left" ? 110 : 92;
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(thumpFreq, t0);
+      osc.frequency.exponentialRampToValueAtTime(thumpFreq * 0.5, t0 + 0.07);
+      const oscGain = ctx.createGain();
+      oscGain.gain.setValueAtTime(0, t0);
+      oscGain.gain.linearRampToValueAtTime(0.14, t0 + 0.004);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.09);
+      osc.connect(oscGain);
+      oscGain.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.1);
+
+      // Brief sand-scrape — bandpass noise on top of the thump.
+      const noiseBuf = this._getNoiseBuffer();
+      if (noiseBuf) {
+        const noise = ctx.createBufferSource();
+        noise.buffer = noiseBuf;
+        const bp = ctx.createBiquadFilter();
+        bp.type = "bandpass";
+        bp.frequency.value = 1800;
+        bp.Q.value = 1.2;
+        const nGain = ctx.createGain();
+        nGain.gain.setValueAtTime(0, t0);
+        nGain.gain.linearRampToValueAtTime(0.05, t0 + 0.003);
+        nGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05);
+        noise.connect(bp);
+        bp.connect(nGain);
+        nGain.connect(ctx.destination);
+        noise.start(t0);
+        noise.stop(t0 + 0.06);
+      }
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
+
+  /** Cactus impact: sharp highpass-noise crunch stacked on a
+   *  square-wave thud that pitches down — reads as "hit something
+   *  spiky and hard". Routed through jumpMuted so the SFX channel
+   *  toggle covers it too. */
+  playHit() {
+    if (this.muted || this.jumpMuted) return;
+    if (!this._audioCtx) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    try {
+      const ctx = this._audioCtx;
+      const t0 = ctx.currentTime;
+
+      // Body-weight thud, pitched down further/faster than a step.
+      const thud = ctx.createOscillator();
+      thud.type = "square";
+      thud.frequency.setValueAtTime(170, t0);
+      thud.frequency.exponentialRampToValueAtTime(42, t0 + 0.22);
+      const thudGain = ctx.createGain();
+      thudGain.gain.setValueAtTime(0, t0);
+      thudGain.gain.linearRampToValueAtTime(0.22, t0 + 0.005);
+      thudGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.25);
+      thud.connect(thudGain);
+      thudGain.connect(ctx.destination);
+      thud.start(t0);
+      thud.stop(t0 + 0.28);
+
+      // Spiky crunch — highpassed noise gives the "scrape against
+      // something sharp" character.
+      const noiseBuf = this._getNoiseBuffer();
+      if (noiseBuf) {
+        const noise = ctx.createBufferSource();
+        noise.buffer = noiseBuf;
+        const hp = ctx.createBiquadFilter();
+        hp.type = "highpass";
+        hp.frequency.value = 900;
+        const nGain = ctx.createGain();
+        nGain.gain.setValueAtTime(0, t0);
+        nGain.gain.linearRampToValueAtTime(0.2, t0 + 0.002);
+        nGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.18);
+        noise.connect(hp);
+        hp.connect(nGain);
+        nGain.connect(ctx.destination);
+        noise.start(t0);
+        noise.stop(t0 + 0.2);
+      }
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
 };

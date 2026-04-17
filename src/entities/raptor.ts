@@ -179,6 +179,9 @@ export class Raptor {
       if (now - this.lastFrameAdvanceAt > this.frameDelay) {
         this.frame = (this.frame + 1) % RAPTOR_FRAMES;
         this.lastFrameAdvanceAt = now;
+        // Two footfalls per 12-frame cycle, half a cycle apart.
+        if (this.frame === 0) audio.playStep("left");
+        else if (this.frame === 6) audio.playStep("right");
       }
     } else {
       this.frame = RAPTOR_IDLE_FRAME;
