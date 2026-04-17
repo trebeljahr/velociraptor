@@ -310,19 +310,29 @@ export function drawConfetti(ctx: CanvasRenderingContext2D): void {
 // Dust particles (landing puff)
 // ══════════════════════════════════════════════════════════════════
 
-export function spawnDust(x: number, y: number): void {
-  const count =
+/**
+ * Spawn a puff of dust at (x, y). `scale` is a multiplier applied to
+ * the count, per-particle size, and x-jitter width — letting callers
+ * dial in a subtle per-footstep puff (scale < 1) versus a fuller
+ * two-feet-hit-the-ground landing burst (scale > 1) while sharing one
+ * particle template. Speed stays constant so the animation duration
+ * feels identical across scales (you just see more / larger motes).
+ */
+export function spawnDust(x: number, y: number, scale: number = 1): void {
+  const baseCount =
     DUST_BURST_MIN +
     Math.floor(Math.random() * (DUST_BURST_MAX - DUST_BURST_MIN + 1));
+  const count = Math.max(1, Math.round(baseCount * scale));
+  const jitter = 12 * scale;
   for (let i = 0; i < count; i++) {
     const angle = Math.PI + Math.random() * Math.PI; // upper hemisphere fan
     const speed = 30 + Math.random() * 70;
     state.dust.push({
-      x: x + (Math.random() - 0.5) * 12,
+      x: x + (Math.random() - 0.5) * jitter,
       y,
       vx: Math.cos(angle) * speed,
       vy: -Math.abs(Math.sin(angle)) * speed * 0.5,
-      size: 3 + Math.random() * 4,
+      size: (3 + Math.random() * 4) * scale,
       age: 0,
       life: 0.2 + Math.random() * 0.15,
     });
