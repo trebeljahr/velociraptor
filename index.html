@@ -546,10 +546,7 @@
                   <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
                   <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
                 </svg>
-                <span class="label"
-                  ><span class="web-only">Share your score</span
-                  ><span class="desktop-only">Challenge a friend</span></span
-                >
+                <span class="label">Share your score</span>
               </span>
             </button>
             <button
@@ -739,6 +736,86 @@
           src="about:blank"
           loading="lazy"
         ></iframe>
+      </div>
+    </div>
+
+    <!-- Credits overlay — static, in-app content (no iframe). Unlike
+         the imprint overlay this doesn't depend on a separate HTML
+         file being bundled, so it works identically on web, desktop
+         Electron, and Capacitor. Legal links (Imprint, Privacy) at
+         the bottom point at the website so the full legally-required
+         text lives in one canonical place and gets indexed. -->
+    <div
+      id="credits-overlay"
+      class="imprint-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Credits"
+    >
+      <div class="imprint-sheet credits-sheet">
+        <button id="credits-close" class="imprint-close" aria-label="Close">
+          ×
+        </button>
+        <div class="credits-scroll">
+          <h1 class="credits-heading" tabindex="-1">Credits</h1>
+          <section class="credits-section">
+            <h2>Game</h2>
+            <p>
+              Design, code, and everything else by
+              <a href="https://portfolio.trebeljahr.com" target="_blank" rel="noopener"
+                >Rico Trebeljahr</a
+              >.
+            </p>
+          </section>
+          <section class="credits-section">
+            <h2>Art</h2>
+            <p>
+              Dino sprite and the running raptor animation by
+              <a href="https://www.instagram.com/chrismasna" target="_blank" rel="noopener"
+                >Chris Masna</a
+              >.
+            </p>
+          </section>
+          <section class="credits-section">
+            <h2>Homage</h2>
+            <p>
+              A love letter to the Chrome "No Internet" dinosaur game,
+              extended with a full day/night cycle, a rotating
+              starfield, and the occasional visit from something
+              weirder.
+            </p>
+          </section>
+          <section class="credits-section">
+            <h2>Writing &amp; more</h2>
+            <ul class="credits-links">
+              <li>
+                <a href="https://ricos.site/newsletters" target="_blank" rel="noopener"
+                  >Rico's writing at ricos.site</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/trebeljahr/velociraptor" target="_blank" rel="noopener"
+                  >Source on GitHub</a
+                >
+              </li>
+            </ul>
+          </section>
+          <section class="credits-section credits-legal">
+            <h2>Legal</h2>
+            <ul class="credits-links">
+              <li>
+                <a href="https://raptor.trebeljahr.com/imprint.html" target="_blank" rel="noopener"
+                  >Imprint / Impressum</a
+                >
+              </li>
+              <li>
+                <a href="https://raptor.trebeljahr.com/imprint.html#privacy" target="_blank" rel="noopener"
+                  >Privacy policy</a
+                >
+              </li>
+            </ul>
+          </section>
+        </div>
       </div>
     </div>
 
@@ -1147,7 +1224,29 @@
               </span>
             </a>
           </li>
-          <li class="web-only">
+          <li>
+            <button id="menu-credits" class="menu-item" type="button">
+              <span class="inner">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+                  ></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span>Credits</span>
+              </span>
+            </button>
+          </li>
+          <li id="menu-imprint-li" class="web-only">
             <a class="menu-item" href="imprint.html">
               <span class="inner">
                 <svg
@@ -1172,7 +1271,7 @@
               </span>
             </a>
           </li>
-          <li class="web-only">
+          <li id="menu-github-li" class="web-only">
             <a
               class="menu-item"
               href="https://github.com/trebeljahr/velociraptor"
@@ -1682,6 +1781,48 @@
         if (aboutOverlay) {
           aboutOverlay.addEventListener("click", (e) => {
             if (e.target === aboutOverlay) closeAbout();
+          });
+        }
+
+        // ───────── Credits overlay ─────────
+        // Static content (no iframe) so it works identically on
+        // every platform including Capacitor, where standalone HTML
+        // files in the build root aren't bundled.
+        const creditsOverlay = document.getElementById("credits-overlay");
+        const creditsCloseBtn = document.getElementById("credits-close");
+        const creditsBtn = document.getElementById("menu-credits");
+        function openCredits() {
+          if (!creditsOverlay) return;
+          creditsOverlay.classList.add("open");
+          const heading = creditsOverlay.querySelector(".credits-heading");
+          if (heading) heading.focus();
+          if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
+            window.Game.pause();
+          }
+        }
+        function closeCredits() {
+          if (!creditsOverlay) return;
+          creditsOverlay.classList.remove("open");
+          if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
+            window.Game.resume();
+          }
+        }
+        if (creditsBtn) {
+          creditsBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            closeMenu();
+            openCredits();
+          });
+        }
+        if (creditsCloseBtn) {
+          creditsCloseBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            closeCredits();
+          });
+        }
+        if (creditsOverlay) {
+          creditsOverlay.addEventListener("click", (e) => {
+            if (e.target === creditsOverlay) closeCredits();
           });
         }
 
@@ -2362,6 +2503,11 @@
                 achievementsOverlay.classList.contains("open")
               ) {
                 closeAchievements();
+              } else if (
+                creditsOverlay &&
+                creditsOverlay.classList.contains("open")
+              ) {
+                closeCredits();
               } else if (
                 aboutOverlay &&
                 aboutOverlay.classList.contains("open")

@@ -1115,9 +1115,13 @@ html,
         color: #222;
         border-radius: 12px;
         padding: 1.75rem 1.75rem 1.5rem;
-        /* Scales across mobile to desktop: at least 280px, prefers
-           340px, never more than 90% of the viewport width. */
-        width: clamp(280px, 340px, 90vw);
+        /* Scales across mobile to desktop: at least 320px, prefers
+           420px, never more than 92% of the viewport width. The 420px
+           target sits comfortably inside every phone-in-landscape
+           width (smallest common: iPhone SE at 667×375 = 667px wide
+           in landscape, leaving ~250px of margin around a 420px
+           panel). */
+        width: clamp(320px, 420px, 92vw);
         max-height: 80vh;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
@@ -1128,13 +1132,32 @@ html,
          against the top/bottom edges. */
       @media (max-height: 500px) {
         .menu-panel {
-          max-height: 70vh;
-          padding: 1.1rem 1.25rem 1rem;
+          /* Claim almost all of the short-landscape viewport — the
+             default 70vh wasted ~30% of the screen to margin. */
+          max-height: 92vh;
+          /* Trim vertical padding aggressively; horizontal stays
+             generous so text doesn't jam against the edges. */
+          padding: 0.75rem 1.25rem 0.65rem;
           border-radius: 10px;
         }
         .menu-panel h2 {
-          font-size: 1.15rem;
-          margin-bottom: 0.6rem;
+          font-size: 1.1rem;
+          margin-bottom: 0.5rem;
+        }
+        /* The sound-settings disclosure is the biggest vertical item
+           when open; tighten its internal spacing too. */
+        .menu-panel .sound-settings-summary {
+          padding: 0.5rem 0.85rem;
+        }
+        .menu-panel .sound-settings-body {
+          padding: 0.3rem 0.4rem 0.45rem;
+        }
+        /* Tighten each menu item row. */
+        .menu-panel .menu-item {
+          padding: 0.5rem 0.85rem;
+        }
+        .menu-panel li {
+          margin: 0.25rem 0;
         }
       }
       .menu-panel h2 {
@@ -1406,6 +1429,15 @@ html,
         padding: 3rem 1.5rem;
         animation: fadeIn 0.2s ease-out;
       }
+      /* On short landscape screens the 3rem × 2 top+bottom padding
+         (96 px) eats a huge chunk of a 375 px-tall iPhone SE. Drop
+         to something safe-area-aware so the sheet can use almost
+         the whole viewport. */
+      @media (max-height: 500px) {
+        .imprint-overlay.open {
+          padding: 0.5rem 1rem;
+        }
+      }
       .imprint-sheet {
         position: relative;
         width: 100%;
@@ -1417,6 +1449,11 @@ html,
         box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
         color: #222;
         overflow: hidden;
+      }
+      @media (max-height: 500px) {
+        .imprint-sheet {
+          height: calc(100vh - 1rem);
+        }
       }
       .imprint-sheet iframe {
         width: 100%;
@@ -1528,6 +1565,93 @@ html,
       .achievement-item.locked .icon {
         filter: grayscale(0.8) opacity(0.55);
       }
+
+      /* ───────── Credits overlay ─────────
+       * Static content rendered in the parent window (no iframe),
+       * styled to match the achievements sheet so both overlays feel
+       * like one family. Lives on every platform, including
+       * Capacitor — the imprint overlay (which depends on the
+       * standalone imprint.html being bundled) stays web + desktop
+       * only. */
+      .credits-sheet {
+        background: #ffffff;
+      }
+      .credits-scroll {
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 2rem 1.75rem 1.75rem;
+        box-sizing: border-box;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        color: #333;
+      }
+      .credits-heading {
+        font-size: 2rem;
+        margin: 0 0 1rem;
+        color: #222;
+        letter-spacing: -0.02em;
+      }
+      .credits-section {
+        margin: 0 0 1.25rem;
+      }
+      .credits-section h2 {
+        margin: 0 0 0.35rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #6e7a88;
+      }
+      .credits-section p {
+        margin: 0;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: #333;
+      }
+      .credits-section a {
+        color: #3a6c8c;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        text-decoration-thickness: 1px;
+        text-decoration-color: rgba(58, 108, 140, 0.4);
+      }
+      .credits-section a:hover {
+        text-decoration-color: currentColor;
+      }
+      .credits-links {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .credits-links li {
+        margin: 0.35rem 0;
+        font-size: 0.95rem;
+      }
+      .credits-legal h2 {
+        color: #a06060;
+      }
+      /* Compact layout when the overlay has to fit a short landscape
+         phone. The imprint-sheet already shrinks via max-height:
+         calc(100vh - 6rem); here we just tighten padding + type. */
+      @media (max-height: 500px) {
+        .credits-scroll {
+          padding: 1.1rem 1.25rem 1rem;
+        }
+        .credits-heading {
+          font-size: 1.3rem;
+          margin-bottom: 0.5rem;
+        }
+        .credits-section {
+          margin-bottom: 0.7rem;
+        }
+        .credits-section p,
+        .credits-links li {
+          font-size: 0.85rem;
+        }
+      }
+
       /* Reset-progress confirmation dialog — must sit above both
          the menu (2700) and any other overlay so the prompt is
          unmissable. */
@@ -1704,6 +1828,25 @@ html,
       body.cap .achievements-steam-link,
       body.cap .desktop-only {
         /* Hide Steam-branded controls on mobile. */
+        display: none !important;
+      }
+      /* Web-ish items that don't make sense inside a native shell:
+         - PWA install prompt (beforeinstallprompt never fires in a
+           Capacitor WebView; the "app" is already installed).
+         - Imprint link — points at imprint.html, which is intentionally
+           excluded from the Capacitor bundle (rollupOptions in
+           vite.config.ts only emits index.html on mobile). The link
+           would resolve to a 404 inside the WebView. The Credits
+           overlay's "Legal" section links to the hosted imprint page
+           as a replacement.
+         - GitHub link — kept on web (discoverable), hidden on native
+           because the Credits overlay links to it from one place.
+         - "Press Esc to close" hint — Esc is a keyboard concept; on
+           touch the cog + tap-outside-to-dismiss is self-evident. */
+      body.cap #menu-install-li,
+      body.cap #menu-imprint-li,
+      body.cap #menu-github-li,
+      body.cap .menu-panel .menu-hint {
         display: none !important;
       }
       /* Hit-target safety: icon buttons at the default 14px offset sit
