@@ -123,6 +123,9 @@ export interface GameState {
   duneCacti: any[];
   _nextDuneCactusX: number;
 
+  // ── Flower patches (front-foreground decoration) ───
+  flowerPatches: any[];
+
   // ── Rain weather ───────────────────────────────────
   totalDayCycles: number;
   lastCycleIndex: number;
@@ -196,6 +199,7 @@ export const state: GameState = {
   duneOffset: 0,
   duneCacti: [],
   _nextDuneCactusX: 0,
+  flowerPatches: [],
   totalDayCycles: 0,
   lastCycleIndex: -1,
   isRaining: false,

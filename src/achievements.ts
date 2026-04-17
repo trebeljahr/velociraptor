@@ -98,6 +98,23 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
     iconImage: "assets/thug-glasses.png",
   },
   {
+    id: "stop-and-smell",
+    title: "Stop and Smell the Roses",
+    desc: "Run through your first flower patch",
+    // Simple SVG: a pink five-petal bloom on a green stem + leaves.
+    iconHTML:
+      '<circle cx="12" cy="12" r="12" fill="#eef4e2"/>' +
+      '<path d="M12 17 L12 22" stroke="#4a7f2f" stroke-width="1.6" stroke-linecap="round"/>' +
+      '<path d="M12 19 Q10 20 8.5 19 Q10 19.2 12 18.5 Z" fill="#4a7f2f"/>' +
+      '<path d="M12 20 Q14 21 15.5 20 Q14 20.2 12 19.5 Z" fill="#4a7f2f"/>' +
+      '<circle cx="12" cy="9" r="2.6" fill="#e85f8a"/>' +
+      '<circle cx="8.4" cy="10.8" r="2.2" fill="#f08ab0"/>' +
+      '<circle cx="15.6" cy="10.8" r="2.2" fill="#f08ab0"/>' +
+      '<circle cx="9.7" cy="14.2" r="2.2" fill="#f08ab0"/>' +
+      '<circle cx="14.3" cy="14.2" r="2.2" fill="#f08ab0"/>' +
+      '<circle cx="12" cy="11.5" r="1.1" fill="#f7e26b"/>',
+  },
+  {
     id: "first-night",
     title: "Night Owl",
     desc: "Survive your first full night",

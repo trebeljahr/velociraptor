@@ -192,6 +192,11 @@ import { Stars } from "./entities/stars";
 import { Raptor } from "./entities/raptor";
 import { Cactus, Cactuses } from "./entities/cactus";
 import {
+  updateFlowerPatches,
+  drawFlowerPatches,
+  raptorCrossingPatch,
+} from "./entities/flowers";
+import {
   setParticlesAchievementHandler,
   bakeShootingStarSprite,
   maybeSpawnShootingStar,
@@ -617,6 +622,18 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     if (!state.gameOver) {
       raptor.update(now, frameScale);
       cactuses.update(frameScale);
+      // Flowers scroll at ground speed like cacti. Spawn happens
+      // inside Cactuses' breather roll so empty stretches read as
+      // a scenic break, not dead grass.
+      updateFlowerPatches(frameScale);
+      // First-patch achievement. Scan once per frame; short-
+      // circuits as soon as a hit is found, and crossed flags make
+      // this O(1) on the steady state after the first patch.
+      const crossed = raptorCrossingPatch(raptor.x, raptor.w);
+      if (crossed) {
+        crossed.crossed = true;
+        unlockAchievement("stop-and-smell");
+      }
 
       // Collision: raptor concave polygon vs each cactus polygon.
       if (!state.noCollisions) {
@@ -886,6 +903,12 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       fgCtx.fillRect(0, 0, state.width, state.height);
       fgCtx.restore();
     }
+
+    // Flower patches — painted between the grass band and the
+    // cacti so cacti and the raptor layer on top if they overlap.
+    // Flowers also pick up the final sky-light tint at the end of
+    // this pass so they read as part of the foreground atmosphere.
+    drawFlowerPatches(fgCtx);
 
     // Ground bands.
     let bandY = 0;
@@ -1186,6 +1209,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     state.activeRareEvent = null;
     state.rainParticles = [];
     state.lightning = { alpha: 0, nextAt: 0 };
+    state.flowerPatches = [];
     if (hard) {
       // Full reset — tear down the ambient cycle too.
       state.currentSky = [...SKY_COLORS[0]];

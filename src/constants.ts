@@ -67,7 +67,25 @@ export const FRAME_DELAY_SPEED_RANGE = 15;
 // ── Ground Rendering ───────────────────────────────────────
 export const GROUND_HEIGHT_RATIO = 1 / 10;
 export const GROUND_BAND_HEIGHTS_PX = [5, 10, 20, 200];
-export const GROUND_BAND_COLORS = ["#ebc334", "#ebab21", "#ba8c27", "#EDC9AF"];
+// Top band is grass now (was yellow topsoil). The rest of the
+// ladder keeps the darker soil-to-sand gradient underneath so the
+// transition still reads as "thin grass on top of dirt and sand"
+// rather than a flat grass-on-sand cut.
+export const GROUND_BAND_COLORS = ["#7fb844", "#ebab21", "#ba8c27", "#EDC9AF"];
+
+// ── Flower patches ─────────────────────────────────────────
+// Spawned inside the long "breather" gaps between cacti so those
+// empty stretches read as a scenic break rather than dead grass.
+// A patch is a cluster of 3–7 flowers along the grass line.
+export const FLOWER_PATCH_MIN_COUNT = 3;
+export const FLOWER_PATCH_MAX_COUNT = 7;
+// Display height range per flower, in px. Gives a cluster a bit
+// of scale variance so it doesn't read as tiled.
+export const FLOWER_MIN_HEIGHT_PX = 34;
+export const FLOWER_MAX_HEIGHT_PX = 58;
+// Pixel width of a patch cluster. Individual flowers are
+// distributed across this span with random offsets.
+export const FLOWER_PATCH_WIDTH_PX = 220;
 
 // ── Celestial Bodies (Sun & Moon) ──────────────────────────
 export const SUN_PHASE_CENTER = 1 / 6;
