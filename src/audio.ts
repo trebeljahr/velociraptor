@@ -667,7 +667,11 @@ export const audio = {
   },
 
   /** Cactus impact: plays the licensed marimba "lose" sample.
-   *  Routed through jumpMuted so the SFX channel toggle covers it. */
+   *  Routed through jumpMuted so the SFX channel toggle covers it.
+   *
+   *  Skips the first ~100ms of the source buffer because the MP3 has
+   *  a silent pickup before the first marimba note — without the
+   *  offset the "plink" lands perceptibly after the collision. */
   playHit() {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || !this._hitBuffer) return;
@@ -684,7 +688,7 @@ export const audio = {
       src.onended = () => {
         try { src.disconnect(); gain.disconnect(); } catch {}
       };
-      src.start(0);
+      src.start(0, 0.1);
     } catch {
       /* SFX is non-critical */
     }
@@ -742,7 +746,8 @@ export const audio = {
       };
       this._ufoSource = src;
       this._ufoGain = gain;
-      src.start(0);
+      // Skip ~80ms of silent lead-in at the start of the sample.
+      src.start(0, 0.08);
     } catch {
       /* SFX is non-critical */
     }
