@@ -74,7 +74,52 @@ ipcMain.handle(
   },
 );
 
+/**
+ * A lightweight frameless window shown from app launch until the main
+ * renderer finishes its first paint. This covers the otherwise-blank
+ * sky-blue gap (in dev: while waiting for Vite and the bundle; in
+ * prod: while Electron parses the bundle) and hides the macOS window
+ * icon flash that appears during that gap.
+ *
+ * Loads electron/splash.html with a raptor-image path injected via
+ * query string so the same splash works in dev (public/assets) and
+ * in the packaged app (dist/).
+ */
+function createSplash(): BrowserWindow {
+  // Vite copies public/* to dist/* preserving structure, so the
+  // packaged asset lives at dist/assets/raptor-idle.png.
+  const raptorPath = isDev
+    ? path.join(__dirname, "..", "public", "assets", "raptor-idle.png")
+    : path.join(__dirname, "..", "dist", "assets", "raptor-idle.png");
+
+  const splash = new BrowserWindow({
+    width: 480,
+    height: 320,
+    frame: false,
+    resizable: false,
+    movable: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    transparent: false,
+    backgroundColor: "#50b4cd",
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  splash.once("ready-to-show", () => splash.show());
+  splash.loadFile(path.join(__dirname, "splash.html"), {
+    query: { raptor: `file://${raptorPath}` },
+  });
+
+  return splash;
+}
+
 function createWindow(): void {
+  const splash = createSplash();
+
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -87,17 +132,30 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    // Frameless on macOS for a cleaner look; standard frame on Windows/Linux
+    // Launch fullscreen by default — this is a desktop game, not a
+    // productivity tool. ESC exits fullscreen for debugging.
+    fullscreen: true,
+    // Frameless on macOS for a cleaner look; standard frame on Windows/Linux.
+    // Takes effect if the user exits fullscreen.
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     backgroundColor: "#50b4cd", // sky-blue to match the game's background
-    show: false, // don't flash white — show after ready-to-show
+    show: false, // stays hidden until the splash hands off
   });
 
-  // Show once content is painted so the sky-blue backgroundColor
-  // is the only thing visible during load, not a white flash.
-  win.once("ready-to-show", () => {
-    win.show();
-  });
+  // Hand off from splash → main window. Using did-finish-load rather
+  // than ready-to-show because the game's own JS needs a tick to
+  // initialize after the HTML paints; closing the splash on
+  // did-finish-load lets the game's first real frame be what the
+  // player sees rather than a white flash of unstyled content.
+  const handoff = () => {
+    if (!win.isDestroyed()) win.show();
+    if (!splash.isDestroyed()) splash.close();
+  };
+  win.webContents.once("did-finish-load", handoff);
+  // Failsafe: never leave the splash up for more than 15s even if
+  // the load event never fires (e.g. Vite server never comes up).
+  const failsafe = setTimeout(handoff, 15_000);
+  win.once("closed", () => clearTimeout(failsafe));
 
   if (isDev) {
     // Dev: connect to the Vite dev server for HMR
@@ -119,6 +177,21 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  // macOS dock icon. In packaged builds this comes from the .icns
+  // baked into the app bundle (build.mac.icon), but in dev mode
+  // Electron shows its own icon unless we override it here. Windows
+  // / Linux dock/taskbar icons come from the BrowserWindow `icon:`
+  // option below.
+  if (process.platform === "darwin" && app.dock) {
+    try {
+      app.dock.setIcon(
+        path.join(__dirname, "..", "public", "assets", "icon-512.png"),
+      );
+    } catch (err) {
+      console.warn("[app] failed to set dock icon:", err);
+    }
+  }
+
   createWindow();
 
   // macOS: re-create window when dock icon is clicked and no windows open
