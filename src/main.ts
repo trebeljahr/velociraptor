@@ -2215,6 +2215,50 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // until Game.start() is called by the Start button click handler.
     _rafId = requestAnimationFrame(loop);
 
+    // Capacitor wire-up. Gated on __IS_CAPACITOR__ so Rollup drops the
+    // dynamic import and the entire src/mobile/ tree from the web
+    // bundle. The async work is fire-and-forget: a slow lock or a
+    // missing plugin must never block the first frame.
+    if (__IS_CAPACITOR__) {
+      import("./mobile/bridge")
+        .then(({ initMobile, hideSplash }) => {
+          initMobile({
+            onBackButton: () => {
+              const w = window as any;
+              if (w.__rrIsMenuOpen && w.__rrIsMenuOpen()) {
+                w.__rrCloseMenu?.();
+                return true;
+              }
+              w.__rrToggleMenu?.();
+              return true;
+            },
+            // Backgrounded: freeze the game. Audio is already gated on
+            // state.paused via the visibilitychange hook; pausing is
+            // enough.
+            onPause: () => {
+              GameAPI.pause();
+            },
+            // Returning from background: DO NOT auto-resume — leave
+            // the game paused and show the menu, so the player isn't
+            // killed by a cactus that appeared while they were away.
+            onResume: () => {
+              GameAPI.pause();
+              const w = window as any;
+              if (w.__rrIsMenuOpen && !w.__rrIsMenuOpen()) {
+                w.__rrToggleMenu?.();
+              }
+            },
+          });
+          // Dismiss the native splash now that the rAF loop is running
+          // and has rendered at least the first frame. 300ms fade hides
+          // any remaining asset-decode jitter.
+          hideSplash();
+        })
+        .catch(() => {
+          /* ignore — missing bridge must not break the web game */
+        });
+    }
+
     GameAPI._ready = true;
     if (GameAPI._readyCb) {
       const cb = GameAPI._readyCb;
