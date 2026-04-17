@@ -31,11 +31,17 @@
     "directories": {
       "output": "release"
     },
+    "asarUnpack": [
+      "node_modules/steamworks.js/**"
+    ],
     "files": [
       "dist/**/*",
       "electron/main.js",
       "electron/preload.js",
-      "public/assets/icon-512.png"
+      "electron/package.json",
+      "public/assets/icon-512.png",
+      "node_modules/steamworks.js/**",
+      "steam_appid.txt"
     ],
     "mac": {
       "target": "dmg",
@@ -49,5 +55,8 @@
       "target": "AppImage",
       "icon": "public/assets/icon-512.png"
     }
+  },
+  "dependencies": {
+    "steamworks.js": "^0.4.0"
   }
 }

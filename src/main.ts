@@ -228,6 +228,7 @@ import {
   drawRareEventFg,
   drawRareEvent,
 } from "./effects/rareEvents";
+import { pushAchievementToSteam, reconcileWithSteam } from "./steamBridge";
 import {
   _isNightBand,
   _isDayBand,
@@ -1069,6 +1070,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     if (state.unlockedAchievements[id]) return;
     state.unlockedAchievements[id] = true;
     saveUnlockedAchievements(state.unlockedAchievements);
+    // Mirror to Steam. Fire-and-forget: no-op in the browser build,
+    // silent when Steam isn't running. Next successful init reconcile
+    // will recover anything that fails here.
+    pushAchievementToSteam(id);
     for (const cb of GameAPI._achievementCbs) {
       try {
         cb(def);
@@ -2064,6 +2069,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     state._rareEventsSeen = loadRareEventsSeen();
     state.careerRuns = loadCareerRuns();
     state.unlockedAchievements = loadUnlockedAchievements();
+    // Bidirectional reconcile with Steam. Runs in the background so
+    // the game doesn't block on IPC during startup. Remote unlocks
+    // discovered here are merged silently into localStorage (no toast
+    // flood on first launch). No-op in the browser build.
+    reconcileWithSteam(state.unlockedAchievements, (id) => {
+      state.unlockedAchievements[id] = true;
+      saveUnlockedAchievements(state.unlockedAchievements);
+    });
     state.unlockedPartyHat = loadBoolFlag(UNLOCKED_PARTY_HAT_KEY, false);
     state.unlockedThugGlasses = loadBoolFlag(UNLOCKED_THUG_GLASSES_KEY, false);
     state.wearPartyHat = loadBoolFlag(WEAR_PARTY_HAT_KEY, true);
