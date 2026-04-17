@@ -232,6 +232,10 @@ import {
 } from "./effects/rareEvents";
 import { pushAchievementToSteam, reconcileWithSteam } from "./steamBridge";
 import {
+  unlockAchievement as reportAchievementToServices,
+  submitScore as reportScoreToServices,
+} from "./services/gameServices";
+import {
   _isNightBand,
   _isDayBand,
   isNightPhase,
@@ -1083,6 +1087,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // silent when Steam isn't running. Next successful init reconcile
     // will recover anything that fails here.
     pushAchievementToSteam(id);
+    // Mirror to Game Center / Play Games Services. Also a no-op until
+    // the Capacitor adapter is wired up with a real plugin — see
+    // src/mobile/gameServices.ts and docs/GAME_SERVICES.md.
+    reportAchievementToServices(id);
     for (const cb of GameAPI._achievementCbs) {
       try {
         cb(def);
@@ -1106,6 +1114,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     } else {
       state.newHighScore = false;
     }
+    // Report every finished run's score to the platform leaderboard.
+    // The service keeps the best — submitting a lower score is fine and
+    // expected. No-op on web/desktop + on mobile until the adapter is
+    // wired up.
+    reportScoreToServices(state.score);
   }
 
   /** Reset per-run tracking state. Called from both start()

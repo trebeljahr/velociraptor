@@ -1,5 +1,20 @@
 apply plugin: 'com.android.application'
 
+// ── Release signing config (optional) ────────────────────────
+//
+// Reads keystore info from android/keystore.properties, which is NOT
+// checked in (see .gitignore). If that file is absent, release builds
+// fall through to debug-signed output — fine for local testing, NOT
+// for uploading to Play Console.
+//
+// To create a keystore and the properties file, see docs/ANDROID_RELEASE.md.
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasReleaseKeystore = keystorePropertiesFile.exists()
+if (hasReleaseKeystore) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.ricoslabs.raptorrunner"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +31,29 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    if (hasReleaseKeystore) {
+        signingConfigs {
+            release {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            }
+        }
+    }
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // R8 with minifyEnabled true shrinks + obfuscates the app,
+            // which is required for a reasonable final APK size (~30%
+            // smaller) and for Play Store's optimized delivery. Proguard
+            // rules below exclude the Capacitor bridge from obfuscation
+            // so JS can still call into native plugins at runtime.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
