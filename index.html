@@ -218,14 +218,47 @@
       html:not(.is-desktop) .desktop-only {
         display: none !important;
       }
+      html.is-desktop .web-only {
+        display: none !important;
+      }
     </style>
 
     <!-- Runs before DOMContentLoaded so the html.is-desktop class is
          in place for the very first paint. Keeps desktop-only CSS
-         from flashing in or out of view. -->
+         from flashing in or out of view. Also handles desktop-only
+         cleanup: the PWA service worker has no role in Electron
+         (file://), so unregister any leftover SW from a prior PWA
+         install to keep things tidy. -->
     <script>
       if (window.electronAPI && window.electronAPI.isDesktop) {
         document.documentElement.classList.add("is-desktop");
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker
+            .getRegistrations()
+            .then(function (regs) {
+              regs.forEach(function (r) {
+                r.unregister();
+              });
+            })
+            .catch(function () {
+              /* ignore — best-effort cleanup */
+            });
+        }
+        // Strip "or tap" from the game canvas aria-label and any
+        // other input-hint text — desktop/Steam players aren't on a
+        // touch device. Runs after DOMContentLoaded.
+        document.addEventListener("DOMContentLoaded", function () {
+          var canvas = document.getElementById("game-canvas");
+          if (canvas) {
+            var label = canvas.getAttribute("aria-label");
+            if (label) {
+              canvas.setAttribute(
+                "aria-label",
+                label.replace(/,?\s*or tap/i, ""),
+              );
+            }
+          }
+        });
       }
     </script>
 
@@ -415,17 +448,23 @@
           />
         </svg>
         by
-        <a href="https://portfolio.trebeljahr.com" target="_blank"
-          >Rico Trebeljahr</a
-        >
-        <span class="dot">·</span>
-        <a href="https://ricos.site/newsletters" target="_blank"
-          >Writing at ricos.site</a
-        >
-        <span class="dot">·</span>
-        Dino Art by
-        <a href="https://www.instagram.com/chrismasna" target="_blank"
-          >Chris Masna</a
+        <span class="web-only">
+          <a href="https://portfolio.trebeljahr.com" target="_blank"
+            >Rico Trebeljahr</a
+          >
+          <span class="dot">·</span>
+          <a href="https://ricos.site/newsletters" target="_blank"
+            >Writing at ricos.site</a
+          >
+          <span class="dot">·</span>
+          Dino Art by
+          <a href="https://www.instagram.com/chrismasna" target="_blank"
+            >Chris Masna</a
+          >
+        </span>
+        <span class="desktop-only"
+          >Rico Trebeljahr <span class="dot">·</span> Dino Art by Chris
+          Masna</span
         >
       </p>
     </div>
@@ -472,7 +511,10 @@
                   <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
                   <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
                 </svg>
-                <span class="label">Share your score</span>
+                <span class="label"
+                  ><span class="web-only">Share your score</span
+                  ><span class="desktop-only">Challenge a friend</span></span
+                >
               </span>
             </button>
             <button
@@ -1008,7 +1050,7 @@
               </span>
             </button>
           </li>
-          <li id="menu-install-li" style="display: none">
+          <li id="menu-install-li" class="web-only" style="display: none">
             <button id="menu-install" class="menu-item" type="button">
               <span class="inner">
                 <svg
@@ -1050,7 +1092,7 @@
               </span>
             </a>
           </li>
-          <li>
+          <li class="web-only">
             <a class="menu-item" href="imprint.html">
               <span class="inner">
                 <svg
@@ -1075,7 +1117,7 @@
               </span>
             </a>
           </li>
-          <li>
+          <li class="web-only">
             <a
               class="menu-item"
               href="https://github.com/trebeljahr/velociraptor"
@@ -1122,7 +1164,7 @@
           <button id="menu-close" type="button">Resume game</button>
         </div>
         <p class="menu-hint">Press <kbd>Esc</kbd> to close</p>
-        <p class="made-by in-game-only">
+        <p class="made-by in-game-only web-only">
           Made with
           <svg
             class="heart"
@@ -2270,7 +2312,19 @@
           }, duration);
         }
 
+        // TODO: replace with real Steam store URL once the game is
+        // listed. Falls back to the website for now so desktop players
+        // copying the invite still get something functional.
+        const STEAM_STORE_URL = "https://raptor.trebeljahr.com";
+
+        function isDesktopApp() {
+          return !!(window.electronAPI && window.electronAPI.isDesktop);
+        }
+
         function buildShareText(score) {
+          if (isDesktopApp()) {
+            return `🦖 I scored ${score} in Raptor Runner — can you beat me? ${STEAM_STORE_URL}`;
+          }
           return `Can you beat my highscore of ${score} at https://raptor.trebeljahr.com?`;
         }
 
@@ -2328,7 +2382,7 @@
                     "text/plain": textBlob,
                   }),
                 ]);
-                flashShareLabel("Copied!");
+                flashShareLabel(isDesktopApp() ? "Invite copied!" : "Copied!");
                 return;
               } catch (e) {
                 // Some browsers reject multi-type ClipboardItems;
@@ -2337,7 +2391,7 @@
                   await navigator.clipboard.write([
                     new ClipboardItem({ "image/png": currentCardBlob }),
                   ]);
-                  flashShareLabel("Copied!");
+                  flashShareLabel(isDesktopApp() ? "Invite copied!" : "Copied!");
                   return;
                 } catch (e2) {
                   // fall through to text-only copy

@@ -93,6 +93,13 @@
       body.in-frame {
         padding-top: 1rem;
       }
+      /* Desktop (Electron) gating. The parent window's inline detect
+         script sets html.is-desktop on the TOP document, but about.html
+         loads in an iframe so it has its own document — replicate the
+         detection here via postMessage-free checks. */
+      html.is-desktop .web-only {
+        display: none !important;
+      }
     </style>
     <script>
       // Detect iframe embedding as early as possible so the back link
@@ -102,6 +109,24 @@
         document.addEventListener("DOMContentLoaded", function () {
           document.body.classList.add("in-frame");
         });
+      }
+      // Desktop detection: this iframe lives in the top-level game
+      // window. contextBridge's window.electronAPI is exposed on the
+      // top document only, so inspect the parent's html classList —
+      // same-origin, always readable.
+      try {
+        if (
+          window.parent &&
+          window.parent !== window &&
+          window.parent.document &&
+          window.parent.document.documentElement.classList.contains(
+            "is-desktop",
+          )
+        ) {
+          document.documentElement.classList.add("is-desktop");
+        }
+      } catch (_) {
+        /* cross-origin boundary — assume web */
       }
     </script>
   </head>
@@ -168,8 +193,8 @@
         <li>
           A proper start screen, a settings menu, achievements + unlocks with
           remembered preference, persistent personal high-scores, a shareable
-          score card, an installable app... the list of improvements goes on and
-          on, but now this is something that I am genuinely happy with.
+          score card... the list of improvements goes on and on, but now this is
+          something that I am genuinely happy with.
         </li>
       </ul>
       <p>
@@ -207,16 +232,21 @@
         >
         —freelance developer, writer, and side-project enthusiast. If this
         resonated, come say hi on
-        <a href="https://ricos.site/" target="_blank">ricos.site</a>, or poke at
-        the
-        <a href="https://github.com/trebeljahr/velociraptor" target="_blank"
-          >source on GitHub</a
+        <a href="https://ricos.site/" target="_blank">ricos.site</a
+        ><span class="web-only">
+          , or poke at the
+          <a href="https://github.com/trebeljahr/velociraptor" target="_blank"
+            >source on GitHub</a
+          ></span
         >.
       </p>
 
       <div class="footer-links">
-        <a href="imprint.html">Imprint</a>
-        <a href="https://github.com/trebeljahr/velociraptor" target="_blank"
+        <a class="web-only" href="imprint.html">Imprint</a>
+        <a
+          class="web-only"
+          href="https://github.com/trebeljahr/velociraptor"
+          target="_blank"
           >GitHub</a
         >
         <a href="https://portfolio.trebeljahr.com" target="_blank">Portfolio</a>

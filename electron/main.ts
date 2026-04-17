@@ -17,7 +17,7 @@
  *   STEAM_APP_ID defaults to 480 (Spacewar) for dev; override via env.
  */
 
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import path from "path";
 import steamworks from "steamworks.js";
 
@@ -113,6 +113,48 @@ function createWindow(): void {
   // showing the splash, no black/white flash.
   win.once("ready-to-show", () => {
     if (!win.isDestroyed()) win.show();
+  });
+
+  // Open external links (GitHub, portfolio, ricos.site, etc.) in the
+  // user's system browser instead of inside the Electron window.
+  // Without this, an <a target="_blank"> would either load inside
+  // the main window (breaking the game) or open a bare Electron
+  // window with no chrome. shell.openExternal hands the URL to the
+  // OS so it opens in Safari/Chrome/Firefox/whatever.
+  const handleExternal = (url: string) => {
+    if (/^https?:\/\//i.test(url)) {
+      shell.openExternal(url).catch(() => {
+        /* swallow — best-effort */
+      });
+      return { action: "deny" as const };
+    }
+    return { action: "allow" as const };
+  };
+  win.webContents.setWindowOpenHandler(({ url }) => handleExternal(url));
+  // Same handler for iframe contents (about.html, imprint.html):
+  win.webContents.on("did-attach-webview", (_e, wc) => {
+    wc.setWindowOpenHandler(({ url }) => handleExternal(url));
+  });
+  // Also intercept top-level navigations — clicking a link without
+  // target="_blank" would otherwise replace the renderer with the
+  // external URL and break the game.
+  win.webContents.on("will-navigate", (event, url) => {
+    const current = win.webContents.getURL();
+    // Let same-origin navigation continue (e.g. Vite dev HMR,
+    // in-app hash changes). Block cross-origin http(s) loads in
+    // the main webContents.
+    if (/^https?:\/\//i.test(url)) {
+      try {
+        const target = new URL(url);
+        const here = new URL(current);
+        if (target.origin !== here.origin) {
+          event.preventDefault();
+          shell.openExternal(url).catch(() => {});
+        }
+      } catch {
+        /* malformed URL — let Electron handle */
+      }
+    }
   });
 
   if (isDev) {
