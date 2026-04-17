@@ -2,9 +2,12 @@
  * Raptor Runner — shared third-party attribution data.
  *
  * Single source of truth for credits that appear in more than one
- * place. Consumed by:
- *   • index.html           — via src/main.ts's credits-overlay mount
- *   • imprint.html         — via src/imprintCredits.ts module entry
+ * place. Consumed at BUILD TIME by the creditsBuildInjectPlugin in
+ * vite.config.ts, which renders the sections into two places:
+ *   • index.html   → #credits-attribution-sections (credits overlay)
+ *   • imprint.html → #imprint-attribution-sections ("Credits & Asset Sources")
+ * Both pages ship as static HTML — no runtime module has to execute
+ * for the attributions to appear.
  *
  * The game-side-only sections (Game / Homage / Writing / Legal) live
  * in index.html directly because they don't appear in the imprint.

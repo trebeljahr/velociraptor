@@ -774,10 +774,11 @@
             </p>
           </section>
 
-          <!-- Art / Music / Sound effects / Engine — rendered at runtime
-               from src/credits.ts so the imprint and this overlay can't
-               drift out of sync. See the init block in main.ts's
-               DOMContentLoaded handler. -->
+          <!-- Art / Music / Sound effects / Engine — injected at BUILD
+               time from src/credits.ts by the creditsBuildInjectPlugin
+               in vite.config.ts. Same data also powers imprint.html,
+               so the two can't drift out of sync. Static HTML — no
+               runtime mount needed. -->
           <div id="credits-attribution-sections"></div>
 
           <section class="credits-section">

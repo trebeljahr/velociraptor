@@ -130,9 +130,11 @@
       </p>
 
       <!-- Shared attribution sections (Art / Music / Sound effects /
-           Engine & code) are rendered from src/credits.ts at load
-           time. Exact same data also powers the in-game credits
-           overlay, so the two can't drift out of sync. -->
+           Engine & code) are injected at BUILD time from src/credits.ts
+           by the creditsBuildInjectPlugin in vite.config.ts. The same
+           data also powers the in-game credits overlay, so the two
+           can't drift out of sync. Ships as static HTML — no runtime
+           JS needed for the attributions to appear. -->
       <div id="imprint-attribution-sections"></div>
 
       <p class="muted">
