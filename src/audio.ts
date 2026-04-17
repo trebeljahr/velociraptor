@@ -35,6 +35,88 @@ declare global {
  *  progress — used to invalidate the Sound of Silence streak. */
 export type UnmuteDuringRunCallback = () => void;
 
+// ── Pop-free volume ramps ──────────────────────────────────
+//
+// `<audio>.pause()` and `.play()` stop/start the waveform at whatever
+// amplitude it was at — if that's non-zero (almost always, for music
+// and rain loops), the abrupt discontinuity reads as a "plop" click.
+// The fix is to ramp the element's volume to 0 before pausing, and
+// ramp from 0 up to the target after starting. ~40 ms is enough to
+// kill the click without being perceptible as a fade.
+//
+// A WeakMap-tracked token guards against overlapping fades: if the
+// player taps the mute button twice quickly, the in-flight fade
+// notices it's been superseded on its next rAF tick and stops
+// mutating the element, leaving the new fade in control.
+
+const FADE_MS = 40;
+const _activeFade = new WeakMap<HTMLAudioElement, object>();
+
+function rampVolume(
+  el: HTMLAudioElement,
+  targetVol: number,
+  ms: number = FADE_MS,
+): Promise<void> {
+  return new Promise((resolve) => {
+    const token = {};
+    _activeFade.set(el, token);
+    const fromVol = el.volume;
+    if (ms <= 0 || fromVol === targetVol) {
+      el.volume = targetVol;
+      resolve();
+      return;
+    }
+    const start = performance.now();
+    const step = (now: number) => {
+      if (_activeFade.get(el) !== token) {
+        // Superseded by a later rampVolume — stop touching the element.
+        resolve();
+        return;
+      }
+      const t = Math.min(1, (now - start) / ms);
+      el.volume = fromVol + (targetVol - fromVol) * t;
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        _activeFade.delete(el);
+        resolve();
+      }
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+/** Fade an <audio> element's volume down to 0 over FADE_MS, then pause.
+ *  The element retains its playback position, so the next rampUpAndPlay
+ *  resumes from where it was. Safe to call on a paused element. */
+function rampDownAndPause(el: HTMLAudioElement): void {
+  if (el.paused) return;
+  rampVolume(el, 0).then(() => {
+    // Guard against a rampUp starting during the fade: only pause if
+    // we're still at/near zero. If another ramp already took over
+    // (towards a non-zero target), the WeakMap supersede logic will
+    // have stopped our fade early — el.volume may not be 0.
+    if (el.volume < 0.001) el.pause();
+  });
+}
+
+/** Set volume to 0, start playback, then fade up to target over
+ *  FADE_MS. If play() rejects (browser autoplay policy, no user
+ *  gesture yet), we leave the volume at 0 — the next interaction
+ *  will succeed. */
+function rampUpAndPlay(el: HTMLAudioElement, targetVol: number): void {
+  el.volume = 0;
+  const p = el.play();
+  const startFade = () => rampVolume(el, targetVol);
+  if (p && typeof p.then === "function") {
+    p.then(startFade).catch(() => {
+      /* leave silent; next interaction will unblock */
+    });
+  } else {
+    startFade();
+  }
+}
+
 export const audio = {
   // Default to muted so autoplay policies don't complain; the saved
   // preference (if any) is applied later in init() once the music
@@ -149,8 +231,8 @@ export const audio = {
     }
     if (!this.music) return;
     if (this.muted || this.musicMuted) {
-      this.music.pause();
-      if (this.rain && this._isRainPlaying) this.rain.pause();
+      rampDownAndPause(this.music);
+      if (this.rain && this._isRainPlaying) rampDownAndPause(this.rain);
     } else {
       // Resume the Web Audio context on the first unmute — mobile
       // browsers suspend it until a user gesture unblocks it.
@@ -158,15 +240,10 @@ export const audio = {
       if (this._audioCtx && this._audioCtx.state === "suspended") {
         this._audioCtx.resume().catch(() => {});
       }
-      // .play() returns a Promise that can reject (autoplay policy,
-      // user-gesture required). Swallow the rejection — the next user
-      // interaction will succeed.
-      const p = this.music.play();
-      if (p && typeof p.catch === "function") p.catch(() => {});
+      rampUpAndPlay(this.music, 0.5);
       // Resume rain if it was playing
       if (this.rain && this._isRainPlaying) {
-        const rp = this.rain.play();
-        if (rp && typeof rp.catch === "function") rp.catch(() => {});
+        rampUpAndPlay(this.rain, RAIN_AUDIO_MAX_VOLUME);
       }
     }
   },
@@ -360,14 +437,12 @@ export const audio = {
     saveBoolFlag(MUSIC_MUTED_KEY, this.musicMuted);
     if (!this.music || this.muted) return;
     if (this.musicMuted) {
-      this.music.pause();
-      if (this.rain && this._isRainPlaying) this.rain.pause();
+      rampDownAndPause(this.music);
+      if (this.rain && this._isRainPlaying) rampDownAndPause(this.rain);
     } else {
-      const p = this.music.play();
-      if (p && typeof p.catch === "function") p.catch(() => {});
+      rampUpAndPlay(this.music, 0.5);
       if (this.rain && this._isRainPlaying) {
-        const rp = this.rain.play();
-        if (rp && typeof rp.catch === "function") rp.catch(() => {});
+        rampUpAndPlay(this.rain, RAIN_AUDIO_MAX_VOLUME);
       }
     }
   },
@@ -403,14 +478,13 @@ export const audio = {
     if (this._isRainPlaying) return;
     if (this.muted || this.musicMuted || this.rainMuted) return;
     if (!this.rain) return;
-    const p = this.rain.play();
-    if (p && typeof p.catch === "function") p.catch(() => {});
+    rampUpAndPlay(this.rain, RAIN_AUDIO_MAX_VOLUME);
     this._isRainPlaying = true;
   },
 
   stopRain() {
     if (!this._isRainPlaying) return;
-    if (this.rain) this.rain.pause();
+    if (this.rain) rampDownAndPause(this.rain);
     this._isRainPlaying = false;
   },
 
