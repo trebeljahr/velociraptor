@@ -729,11 +729,10 @@ export const audio = {
   /** Cactus impact: plays the licensed marimba "lose" sample.
    *  Routed through jumpMuted so the SFX channel toggle covers it.
    *
-   *  Two offsets: a 115ms buffer offset lands the sample exactly on
-   *  the marimba's first transient (silencedetect places the head
-   *  silence at 112–114ms depending on threshold), and a 150ms
-   *  absolute-time delay pushes the cue a beat after the collision
-   *  so it reads as the game-over moment rather than the hit itself. */
+   *  The 115 ms buffer offset lands the sample exactly on the
+   *  marimba's first transient — silencedetect puts the head silence
+   *  at 112–114 ms depending on threshold — so the very first
+   *  audible sample is the strike, fired on the collision frame. */
   playHit() {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || !this._hitBuffer) return;
@@ -741,17 +740,16 @@ export const audio = {
       this._audioCtx.resume().catch(() => {});
     }
     try {
-      const ctx = this._audioCtx;
-      const src = ctx.createBufferSource();
+      const src = this._audioCtx.createBufferSource();
       src.buffer = this._hitBuffer;
-      const gain = ctx.createGain();
+      const gain = this._audioCtx.createGain();
       gain.gain.value = 0.6;
       src.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(this._audioCtx.destination);
       src.onended = () => {
         try { src.disconnect(); gain.disconnect(); } catch {}
       };
-      src.start(ctx.currentTime + 0.15, 0.115);
+      src.start(0, 0.115);
     } catch {
       /* SFX is non-critical */
     }
