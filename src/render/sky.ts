@@ -196,30 +196,64 @@ export function drawMoon(ctx: CanvasRenderingContext2D) {
     ctx.fill();
   }
   ctx.restore();
-  // Moon phase terminator
+  // Moon phase terminator.
+  //
+  // Path = (half-circle on shadow side) + (half-ellipse for the
+  // terminator). The half-ellipse's horizontal semi-axis controls
+  // how much of the disc is shadowed:
+  //   ph=0.00 → rx=r (new moon, shadow is full disc)
+  //   ph=0.25 → rx=0 (first quarter, terminator is a straight line)
+  //   ph=0.50 → rx=r (full moon, skipped via `illum > 0.99` below)
+  //   ph=0.75 → rx=0 (third quarter)
+  //   ph=1.00 → rx=r (back to new)
+  //
+  // Previous revision used `r*cos(illum*π)` for rx, which gave the
+  // wrong horizontal radius at crescent/gibbous phases and made the
+  // shadow render as a near-full moon — the source of the "there are
+  // two full moons per cycle" visual bug. `|cos(ph*2π)|` is the
+  // physically correct projection of the terminator ellipse onto the
+  // moon's visible disc.
+  //
+  // Direction of the ellipse sweep (counterclockwise flag) flips at
+  // illum=0.5: crescent phases the terminator bulges into the lit
+  // side, gibbous it bulges into the shadow. Previous revision had
+  // this reversed.
   ctx.save();
   ctx.beginPath();
   ctx.arc(arc.x, arc.y, r, 0, Math.PI * 2);
   ctx.clip();
   const ph = state.moonPhase;
   const illum = (1 - Math.cos(ph * Math.PI * 2)) / 2;
-  if (illum < 0.98) {
-    const terminatorX = r * Math.cos(illum * Math.PI);
+  if (illum < 0.99) {
+    const termRx = r * Math.abs(Math.cos(ph * Math.PI * 2));
     const waxing = ph < 0.5;
+    const gibbous = illum > 0.5;
     ctx.fillStyle = rgba(shadow as [number,number,number], 0.8);
     ctx.beginPath();
     if (waxing) {
+      // Shadow covers the LEFT half. Arc: bottom → left → top.
       ctx.arc(arc.x, arc.y, r, Math.PI * 0.5, Math.PI * 1.5);
+      // Terminator from top back down to bottom. Bulges LEFT when
+      // gibbous (small shadow crescent), RIGHT when crescent phase
+      // (shadow is most of the disc).
+      ctx.ellipse(
+        arc.x, arc.y,
+        termRx, r, 0,
+        -Math.PI * 0.5, Math.PI * 0.5,
+        gibbous,
+      );
     } else {
+      // Shadow covers the RIGHT half. Arc: top → right → bottom.
       ctx.arc(arc.x, arc.y, r, -Math.PI * 0.5, Math.PI * 0.5);
+      // Terminator from bottom back up to top. Same bulge rule —
+      // gibbous bulges away from the bulk of the shadow.
+      ctx.ellipse(
+        arc.x, arc.y,
+        termRx, r, 0,
+        Math.PI * 0.5, -Math.PI * 0.5,
+        gibbous,
+      );
     }
-    ctx.ellipse(
-      arc.x, arc.y,
-      Math.abs(terminatorX), r, 0,
-      waxing ? -Math.PI * 0.5 : Math.PI * 0.5,
-      waxing ? Math.PI * 0.5 : -Math.PI * 0.5,
-      waxing ? terminatorX > 0 : terminatorX < 0,
-    );
     ctx.fill();
   }
   ctx.restore();

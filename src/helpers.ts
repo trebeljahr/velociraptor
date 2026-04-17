@@ -6,6 +6,30 @@
  * Safe to import from any module.
  */
 
+import { MOON_SYNODIC_CYCLE, MOON_PHASE_OFFSET_DAYS } from "./constants";
+
+// ── Moon phase ─────────────────────────────────────────────
+
+/** Map a day-cycle counter onto a moon phase in [0, 1).
+ *
+ *   0.00  new moon (invisible)
+ *   0.25  first quarter (right half lit)
+ *   0.50  full moon
+ *   0.75  third quarter (left half lit)
+ *
+ * The MOON_PHASE_OFFSET_DAYS shift lands the very first night of a
+ * fresh save (totalDayCycles=0) on a small waxing crescent instead
+ * of new moon, and pulls the first full moon achievement in to
+ * day 13 of the save (instead of day 15). The cycle length stays 30
+ * days so achievement progression still feels "monthly". */
+export function moonPhaseFromCycles(totalDayCycles: number): number {
+  const shifted =
+    ((totalDayCycles + MOON_PHASE_OFFSET_DAYS) % MOON_SYNODIC_CYCLE +
+      MOON_SYNODIC_CYCLE) %
+    MOON_SYNODIC_CYCLE;
+  return shifted / MOON_SYNODIC_CYCLE;
+}
+
 // ── Color / interpolation ──────────────────────────────────
 
 export type RgbTuple = readonly [number, number, number];

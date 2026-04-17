@@ -63,7 +63,6 @@ import {
   SUN_RADIUS_SCALE,
   MOON_MIN_RADIUS_PX,
   MOON_RADIUS_SCALE,
-  MOON_SYNODIC_CYCLE,
   DUNE_SCROLL_SPEED,
   DUNE_BASE_HEIGHT_RATIO,
   DUNE_CACTUS_MIN_HEIGHT_PX,
@@ -181,6 +180,7 @@ import {
   segmentsIntersect,
   cross,
   shrinkPolygon,
+  moonPhaseFromCycles,
 } from "./helpers";
 import { ACHIEVEMENTS, ACHIEVEMENTS_BY_ID } from "./achievements";
 import { CACTUS_VARIANTS } from "./cactusVariants";
@@ -450,7 +450,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       state.totalDayCycles += 1;
       saveTotalDayCycles(state.totalDayCycles);
       // Moon phase: realistic ~29.5 day synodic month
-      state.moonPhase = (state.totalDayCycles % MOON_SYNODIC_CYCLE) / MOON_SYNODIC_CYCLE;
+      state.moonPhase = moonPhaseFromCycles(state.totalDayCycles);
       if (Math.abs(state.moonPhase - 0.5) < 0.02)
         unlockAchievement("full-moon");
       // Start rain at cycle boundaries; duration is 0.3–1.2 day cycles
@@ -1633,7 +1633,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     advanceMoonPhase() {
       state.totalDayCycles += 1;
       saveTotalDayCycles(state.totalDayCycles);
-      state.moonPhase = (state.totalDayCycles % MOON_SYNODIC_CYCLE) / MOON_SYNODIC_CYCLE;
+      state.moonPhase = moonPhaseFromCycles(state.totalDayCycles);
       // Jump to the start of night (band 6 of 12 = phase 0.5)
       state.smoothPhase = Math.floor(state.smoothPhase) + 0.5;
       state.lastCycleIndex = Math.floor(state.smoothPhase);
@@ -2101,6 +2101,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // last saved.
     state.totalJumps = loadTotalJumps();
     state.totalDayCycles = loadTotalDayCycles();
+    // Derive the initial moon phase from saved cycle count — otherwise
+    // a returning player renders at ph=0 (invisible new moon) until the
+    // next day-cycle boundary, even if they were mid-cycle last session.
+    state.moonPhase = moonPhaseFromCycles(state.totalDayCycles);
     state._rareEventsSeen = loadRareEventsSeen();
     state.careerRuns = loadCareerRuns();
     state.unlockedAchievements = loadUnlockedAchievements();

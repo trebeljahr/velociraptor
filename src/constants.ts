@@ -45,6 +45,12 @@ export const SUN_RADIUS_SCALE = 0.03;
 export const MOON_MIN_RADIUS_PX = 13;
 export const MOON_RADIUS_SCALE = 0.0192;
 export const MOON_SYNODIC_CYCLE = 30;
+/** Day-cycle offset added before mapping to moon phase. The very first
+ *  night of a fresh save should show a small waxing crescent, not an
+ *  invisible new moon, so we shift the whole cycle forward by a couple
+ *  of days. A value of 2 lands the first night at ~20° past new, which
+ *  draws as a visible fingernail sliver. */
+export const MOON_PHASE_OFFSET_DAYS = 2;
 
 // ── Gamepad / controller ─────────────────────────────────
 // Standard Gamepad layout button indices.
