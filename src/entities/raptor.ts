@@ -14,6 +14,11 @@
  *               to spawn the dust burst
  *   • onJump  — fires on a successful jump; the caller uses this to
  *               run the rare-event spawn roll
+ *   • onStep  — fires on each individual footfall during the run
+ *               cycle (frames 0 and 6 of the 12-frame sheet). The
+ *               caller typically spawns a small dust puff at the
+ *               foot's X offset; the audio step SFX is handled here
+ *               via audio.playStep() so the two stay in sync.
  *
  * Every other reference (audio, state, persistence, images, helpers,
  * constants) is imported directly.
@@ -49,6 +54,7 @@ import { hapticJump } from "../haptic";
 import { clamp, lerp, shrinkPolygon, Polygon } from "../helpers";
 
 export type RaptorCallback = () => void;
+export type RaptorStepCallback = (foot: "left" | "right") => void;
 
 export class Raptor {
   x: number = 0;
@@ -72,6 +78,7 @@ export class Raptor {
   constructor(
     private onLand: RaptorCallback,
     private onJump: RaptorCallback,
+    private onStep: RaptorStepCallback = () => {},
   ) {
     this.sheet = IMAGES.raptorSheet;
     this.resize();
@@ -184,8 +191,15 @@ export class Raptor {
         this.frame = (this.frame + 1) % RAPTOR_FRAMES;
         this.lastFrameAdvanceAt = now;
         // Two footfalls per 12-frame cycle, half a cycle apart.
-        if (this.frame === 0) audio.playStep("left");
-        else if (this.frame === 6) audio.playStep("right");
+        // The SFX + dust puff fire from the same check so they stay
+        // tightly synced with the visible foot plant.
+        if (this.frame === 0) {
+          audio.playStep("left");
+          this.onStep("left");
+        } else if (this.frame === 6) {
+          audio.playStep("right");
+          this.onStep("right");
+        }
       }
     } else {
       this.frame = RAPTOR_IDLE_FRAME;

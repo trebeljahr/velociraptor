@@ -2245,13 +2245,36 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // Pass the landing-dust and rare-event-roll hooks into the raptor
     // so src/entities/raptor.ts has no dependency on module-local
     // helpers. Both are defined later in this file.
+    // Foot-position offsets as fractions of raptor width. Extracted
+    // by eyeballing the sprite: two distinct contact points that the
+    // feet cycle between during the run.
+    const FOOT_LEFT_OFFSET = 0.51;
+    const FOOT_RIGHT_OFFSET = 0.73;
     raptor = new Raptor(
       () => {
-        spawnDust(raptor.x + raptor.w * 0.51, state.ground);
-        spawnDust(raptor.x + raptor.w * 0.73, state.ground);
+        // Landing from a jump: both feet plant together, and we want
+        // the puff to read as beefier than a single running step.
+        spawnDust(
+          raptor.x + raptor.w * FOOT_LEFT_OFFSET,
+          state.ground,
+          1.3,
+        );
+        spawnDust(
+          raptor.x + raptor.w * FOOT_RIGHT_OFFSET,
+          state.ground,
+          1.3,
+        );
       },
       () => {
         maybeSpawnRareEvent();
+      },
+      (foot) => {
+        // Per-step dust during the run cycle. Smaller than a landing
+        // puff so the screen doesn't fill with motes at terminal
+        // velocity (~7 steps/s), but still reads as the feet kicking
+        // up a trail.
+        const offset = foot === "left" ? FOOT_LEFT_OFFSET : FOOT_RIGHT_OFFSET;
+        spawnDust(raptor.x + raptor.w * offset, state.ground, 0.55);
       },
     );
     cactuses = new Cactuses(
