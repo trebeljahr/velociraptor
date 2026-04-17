@@ -53,6 +53,7 @@ import { IMAGES } from "../images";
 import { saveBoolFlag } from "../persistence";
 import { CACTUS_VARIANTS, CactusVariant } from "../cactusVariants";
 import { Polygon } from "../helpers";
+import { makeFlowerPatch } from "./flowers";
 import { Raptor } from "./raptor";
 
 export type CactusAchievementCallback = (id: string) => void;
@@ -154,7 +155,14 @@ export class Cactuses {
       // Multiply by 60 to approximate frames-per-second.
       const pxPerSec =
         state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * 60;
-      return seconds * pxPerSec;
+      const gap = seconds * pxPerSec;
+      // Drop a flower patch somewhere in the middle of the empty
+      // stretch — positioned at screen-space x so the patch scrolls
+      // in naturally with the rest of the foreground.
+      (state as any).flowerPatches = (state as any).flowerPatches || [];
+      const patchX = state.width + gap * (0.3 + Math.random() * 0.4);
+      (state as any).flowerPatches.push(makeFlowerPatch(patchX));
+      return gap;
     }
 
     // Progress through the speed ramp: 0 at a fresh run, 1 once

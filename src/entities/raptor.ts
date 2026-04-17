@@ -104,17 +104,21 @@ export class Raptor {
     this._jumpBufferedAt = 0;
     audio.playJump();
     if (!audio.muted) hapticJump();
-    // Gamepad rumble — light tap on jump.
-    try {
-      const gp = navigator.getGamepads?.()[0];
-      if (gp?.vibrationActuator) {
-        gp.vibrationActuator.playEffect("dual-rumble", {
+    // Gamepad rumble — light tap on jump. Dispatched via a macrotask
+    // (setTimeout 0) because on Chromium/Electron the playEffect IPC
+    // to the gamepad driver can block the main thread long enough to
+    // miss a frame — getting rumble off the critical path keeps the
+    // jump itself smooth.
+    setTimeout(() => {
+      try {
+        const gp = navigator.getGamepads?.()[0];
+        gp?.vibrationActuator?.playEffect("dual-rumble", {
           duration: 40,
           weakMagnitude: 0.3,
           strongMagnitude: 0.1,
         });
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }, 0);
     // Bump both the career-wide total and the per-run counter.
     state.totalJumps += 1;
     state.runJumps += 1;
