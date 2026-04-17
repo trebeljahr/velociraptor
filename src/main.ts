@@ -1420,6 +1420,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
 
     pause() {
       state.paused = true;
+      // Silence every non-music sound while the menu/pause is open:
+      // UFO hover loop, Santa bells, any in-flight SFX tail, and the
+      // rain ambience. Music is left playing — see audio.ts for the
+      // full rationale.
+      audio.pauseGameplaySounds();
     },
 
     resume() {
@@ -1428,6 +1433,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // frame doesn't see a huge elapsed time and teleport
       // everything forward.
       state.lastNow = null;
+      audio.resumeGameplaySounds();
       state.paused = false;
     },
 

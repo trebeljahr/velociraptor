@@ -1082,4 +1082,64 @@ export const audio = {
     this._cometSource = null;
     this._cometGain = null;
   },
+
+  // ── Menu / pause coordination ──────────────────────────────
+  //
+  // When the pause menu opens (or Game.pause() fires for any other
+  // reason — alt-tab, invisibility, external trigger), every sound
+  // that belongs to gameplay should fall silent while the music keeps
+  // playing. The user's framing: "santa, ufo and other non-music
+  // sounds should stop".
+  //
+  // Strategy:
+  //   • Web Audio context: a single suspend() call pauses every
+  //     in-flight node — the UFO hover loop, the Santa bells loop,
+  //     any meteor tail still rumbling, the comet glitter tail, any
+  //     running-step or landing sample mid-fade. resume() picks them
+  //     all back up at the exact sample they paused on.
+  //   • Rain <audio>: Web Audio doesn't own it. We fade + pause the
+  //     element directly on pause, and resume it on un-pause only
+  //     if rain is still logically active (_isRainPlaying remains
+  //     the source of truth) and no mute toggle has been flipped
+  //     against it in the meantime.
+  //   • Music: intentionally left alone — menu music is a UX staple.
+  //
+  // These methods are idempotent: calling pauseGameplaySounds twice
+  // is harmless, and calling resume without a prior pause is a no-op.
+
+  /** Suspend gameplay-layer audio (called from Game.pause).
+   *  Music continues. */
+  pauseGameplaySounds() {
+    if (this._audioCtx && this._audioCtx.state === "running") {
+      this._audioCtx.suspend().catch(() => {});
+    }
+    // Only fade the rain element if it's actually making sound — the
+    // _isRainPlaying flag stays true so the game state still thinks
+    // rain is on, which is what we want for a clean resume.
+    if (this._isRainPlaying && this.rain && !this.rain.paused) {
+      rampDownAndPause(this.rain);
+    }
+  },
+
+  /** Resume gameplay-layer audio (called from Game.resume). */
+  resumeGameplaySounds() {
+    if (this._audioCtx && this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    // Restart rain only if it's still logically active AND no mute
+    // has been toggled while the menu was open. If the player muted
+    // rain or music during the pause, _isRainPlaying will already
+    // be false (stopRain was called), or the top-level mute guards
+    // will correctly bail.
+    if (
+      this._isRainPlaying &&
+      this.rain &&
+      this.rain.paused &&
+      !this.muted &&
+      !this.musicMuted &&
+      !this.rainMuted
+    ) {
+      rampUpAndPlay(this.rain, RAIN_AUDIO_MAX_VOLUME);
+    }
+  },
 };
