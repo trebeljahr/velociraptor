@@ -19,6 +19,17 @@ declare global {
     quit(): Promise<void>;
     setFullscreen(on: boolean): Promise<boolean>;
     isFullscreen(): Promise<boolean>;
+    openSteamOverlay(
+      dialog:
+        | "Friends"
+        | "Community"
+        | "Players"
+        | "Settings"
+        | "OfficialGameGroup"
+        | "Stats"
+        | "Achievements",
+    ): Promise<boolean>;
+    openSteamOverlayUrl(url: string): Promise<boolean>;
   }
 
   interface Window {

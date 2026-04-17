@@ -1139,6 +1139,28 @@
             </a>
           </li>
           <li class="desktop-only">
+            <button id="menu-steam-friends" class="menu-item" type="button">
+              <span class="inner">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span>Friends on Steam</span>
+              </span>
+            </button>
+          </li>
+          <li class="desktop-only">
             <button id="menu-fullscreen-toggle" class="menu-item" type="button">
               <span class="inner">
                 <svg
@@ -1221,6 +1243,21 @@
         const cog = document.getElementById("settings-cog");
         const overlay = document.getElementById("menu-overlay");
         const closeBtn = document.getElementById("menu-close");
+        // Desktop-only: open the Steam overlay directly to the Friends
+        // panel. Note: on macOS the Steam overlay is flaky/unreliable
+        // for Electron apps (Valve limitation), so this click may be
+        // a no-op visually. Windows and Linux fully support it.
+        const steamFriendsBtn = document.getElementById("menu-steam-friends");
+        if (steamFriendsBtn) {
+          steamFriendsBtn.addEventListener("click", () => {
+            if (
+              window.electronAPI &&
+              typeof window.electronAPI.openSteamOverlay === "function"
+            ) {
+              window.electronAPI.openSteamOverlay("Friends");
+            }
+          });
+        }
         const quitBtn = document.getElementById("menu-quit");
         // Wire Quit (desktop only). Safe no-op in browser since the
         // <li class="desktop-only"> is display:none and the element

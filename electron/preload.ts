@@ -44,4 +44,19 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("window:setFullscreen", on),
   isFullscreen: (): Promise<boolean> =>
     ipcRenderer.invoke("window:isFullscreen"),
+
+  // Steam overlay dialogs (Friends / Achievements / etc.). Returns
+  // false if Steam isn't running or the client refuses.
+  openSteamOverlay: (
+    dialog:
+      | "Friends"
+      | "Community"
+      | "Players"
+      | "Settings"
+      | "OfficialGameGroup"
+      | "Stats"
+      | "Achievements",
+  ): Promise<boolean> => ipcRenderer.invoke("steam:openOverlay", dialog),
+  openSteamOverlayUrl: (url: string): Promise<boolean> =>
+    ipcRenderer.invoke("steam:openOverlayUrl", url),
 });
