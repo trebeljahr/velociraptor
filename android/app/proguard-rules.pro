@@ -5,17 +5,38 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# ── Capacitor bridge ─────────────────────────────────────────
+# Capacitor plugins are invoked from JavaScript by their class name
+# + annotated method name, using reflection. R8 must not rename
+# any of this or the JS side of the bridge starts crashing at
+# runtime with ClassNotFoundException.
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+-keep class com.getcapacitor.** { *; }
+-keep class com.capacitorjs.** { *; }
+-keep class * extends com.getcapacitor.Plugin { *; }
+-keep @com.getcapacitor.annotation.CapacitorPlugin class * { *; }
+-keepclassmembers class * {
+    @com.getcapacitor.PluginMethod <methods>;
+    @com.getcapacitor.annotation.PluginMethod <methods>;
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Our own MainActivity subclass is referenced by name in the Android
+# manifest, so R8 already keeps it — no extra rule needed. But if a
+# future plugin adds its own Activity/Service/Receiver, add a
+# `-keep class com.ricoslabs.raptorrunner.YourClass` rule here.
+
+# ── WebView JS interface ────────────────────────────────────
+# Anything exposed to JS via @JavascriptInterface must keep its
+# public method signatures.
+
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# ── Reasonable stack traces ─────────────────────────────────
+# Keep source file + line numbers so crash reports from the Play
+# Console are readable. Rename the file name to "SourceFile" since
+# we don't want the original package paths in public traces.
+
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
