@@ -253,57 +253,34 @@ export const audio = {
     return this.muted;
   },
 
-  /** Jump cue: reuses the left footstep sample at lower playback
-   *  rate for extra weight, layered with a rising sine sweep so the
-   *  push-off reads as an upward launch rather than another flat
-   *  step. Matches the step SFX texture while feeling forceful.
-   *
-   *  If the step buffer hasn't loaded yet (first seconds of a cold
-   *  page), only the sweep plays — still better than the old
-   *  generic click. */
+  /** Jump cue: short sub-bass thump that pitches down a bit —
+   *  reads as body weight pushing off. No rising sweep (that was
+   *  the "cartoon boing" the user disliked), no grass-sample
+   *  overlay (the step cue handles the texture). Energy sits
+   *  below typical music fundamentals so it doesn't fight the mix. */
   playJump() {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || this._audioCtx.state !== "running") return;
+    // Cut any in-flight step source before laying the jump on top.
+    this._silenceSteps();
     try {
       const ctx = this._audioCtx;
       const t0 = ctx.currentTime;
-
-      // Layer 1: grass push-off — loud, pitch-shifted step sample.
-      const buf = this._stepLeftBuffer;
-      if (buf) {
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        // 0.8× playback stretches the sample ~25% longer and drops
-        // pitch ~4 semitones — reads as a heavier, committed foot
-        // plant instead of a casual step.
-        src.playbackRate.value = 0.8;
-        const srcGain = ctx.createGain();
-        srcGain.gain.value = 2.6;
-        src.connect(srcGain);
-        srcGain.connect(ctx.destination);
-        src.onended = () => {
-          try { src.disconnect(); srcGain.disconnect(); } catch {}
-        };
-        src.start(0);
-      }
-
-      // Layer 2: short rising sine — the "liftoff" thrust. Sub-bass
-      // range so it doesn't fight the grass sample's mids.
       const osc = ctx.createOscillator();
       osc.type = "sine";
-      osc.frequency.setValueAtTime(75, t0);
-      osc.frequency.exponentialRampToValueAtTime(170, t0 + 0.11);
+      osc.frequency.setValueAtTime(95, t0);
+      osc.frequency.exponentialRampToValueAtTime(48, t0 + 0.1);
       const oscGain = ctx.createGain();
       oscGain.gain.setValueAtTime(0, t0);
-      oscGain.gain.linearRampToValueAtTime(0.22, t0 + 0.005);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
+      oscGain.gain.linearRampToValueAtTime(0.16, t0 + 0.004);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.13);
       osc.connect(oscGain);
       oscGain.connect(ctx.destination);
       osc.onended = () => {
         try { osc.disconnect(); oscGain.disconnect(); } catch {}
       };
       osc.start(t0);
-      osc.stop(t0 + 0.15);
+      osc.stop(t0 + 0.14);
     } catch {
       /* SFX is non-critical */
     }
@@ -567,11 +544,14 @@ export const audio = {
   },
 
   // ── Footstep SFX (freesound_community grass-loop excerpts) ──
-  // Two ~300ms samples trimmed out of a public-domain "running in
-  // grass" loop. `playStep(foot)` picks the matching buffer so L/R
-  // feet sound slightly different.
-  _stepLeftBuffer: null as AudioBuffer | null,
-  _stepRightBuffer: null as AudioBuffer | null,
+  // Four ~300ms samples trimmed from a public-domain "running in
+  // grass" loop. playStep rotates through them with a small pitch
+  // + volume jitter so the cadence doesn't loop perceptibly.
+  _stepBuffers: [] as AudioBuffer[],
+  _stepLastIdx: -1,
+  // In-flight step sources tracked so playJump can fade them out —
+  // prevents the "running" sample bleeding over the jump cue.
+  _activeStepGains: new Set<GainNode>(),
 
   _preloadStepBuffers() {
     if (
@@ -579,7 +559,14 @@ export const audio = {
       typeof window.webkitAudioContext === "undefined"
     )
       return;
-    const load = (path: string, set: (b: AudioBuffer) => void) =>
+    const paths = [
+      "assets/step-left.mp3",
+      "assets/step-right.mp3",
+      "assets/step-a.mp3",
+      "assets/step-b.mp3",
+    ];
+    this._stepBuffers = new Array(paths.length).fill(null);
+    paths.forEach((path, i) => {
       fetch(path)
         .then((r) => r.arrayBuffer())
         .then((buf) => {
@@ -588,41 +575,72 @@ export const audio = {
           return this._audioCtx.decodeAudioData(buf);
         })
         .then((decoded) => {
-          if (decoded) set(decoded);
+          if (decoded) this._stepBuffers[i] = decoded;
         })
         .catch(() => {
-          /* step SFX simply won't play */
+          /* individual step sample just won't play */
         });
-    load("assets/step-left.mp3", (b) => (this._stepLeftBuffer = b));
-    load("assets/step-right.mp3", (b) => (this._stepRightBuffer = b));
+    });
   },
 
-  /** Footfall: plays the L or R grass-step sample. Nodes are
-   *  explicitly disconnected in onended because iOS WKWebView leaks
-   *  stopped nodes still attached to ctx.destination — at 6–12
-   *  steps/sec during a run, the graph bloats fast enough to break
-   *  the shared audio session. */
-  playStep(foot: "left" | "right" = "left") {
+  /** Footfall: plays one of the grass-step samples with a small
+   *  pitch + volume jitter so repeated cycles don't sound tiled.
+   *  The `foot` hint is kept for call-site readability but the
+   *  sample choice is round-robin across all loaded buffers,
+   *  which is what actually breaks the monotony. */
+  playStep(_foot: "left" | "right" = "left") {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || this._audioCtx.state !== "running") return;
-    const buf =
-      foot === "left" ? this._stepLeftBuffer : this._stepRightBuffer;
-    if (!buf) return;
+    // Pick a buffer other than the last one played — avoids the
+    // same waveform back-to-back. Falls back to random on very
+    // first call before any have loaded.
+    const loaded = this._stepBuffers
+      .map((b, i) => ({ b, i }))
+      .filter((x) => x.b);
+    if (loaded.length === 0) return;
+    let pick = loaded[Math.floor(Math.random() * loaded.length)];
+    if (loaded.length > 1) {
+      while (pick.i === this._stepLastIdx) {
+        pick = loaded[Math.floor(Math.random() * loaded.length)];
+      }
+    }
+    this._stepLastIdx = pick.i;
     try {
-      const src = this._audioCtx.createBufferSource();
-      src.buffer = buf;
-      const gain = this._audioCtx.createGain();
-      // Source material is quiet (peaks ~ -23dB) — push it up so the
-      // cadence is audible against the music without dominating.
-      gain.gain.value = 1.8;
+      const ctx = this._audioCtx;
+      const src = ctx.createBufferSource();
+      src.buffer = pick.b;
+      // ±4 % playback rate → ~70-cent pitch wobble, imperceptible
+      // individually but effective at hiding the tile.
+      src.playbackRate.value = 1 + (Math.random() - 0.5) * 0.08;
+      const gain = ctx.createGain();
+      // ±12 % gain jitter around a lower baseline — the previous
+      // 1.8 was too loud against the music.
+      gain.gain.value = 0.75 * (0.88 + Math.random() * 0.24);
       src.connect(gain);
-      gain.connect(this._audioCtx.destination);
+      gain.connect(ctx.destination);
+      this._activeStepGains.add(gain);
       src.onended = () => {
+        this._activeStepGains.delete(gain);
         try { src.disconnect(); gain.disconnect(); } catch {}
       };
       src.start(0);
     } catch {
       /* SFX is non-critical */
+    }
+  },
+
+  /** Quickly fade out every in-flight step source. Called from
+   *  playJump so the jump cue isn't sharing the mix with a
+   *  leftover running-grass sample. */
+  _silenceSteps() {
+    if (!this._audioCtx) return;
+    const now = this._audioCtx.currentTime;
+    for (const g of this._activeStepGains) {
+      try {
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(g.gain.value, now);
+        g.gain.linearRampToValueAtTime(0, now + 0.02);
+      } catch {}
     }
   },
 
@@ -718,7 +736,7 @@ export const audio = {
       const src = this._audioCtx.createBufferSource();
       src.buffer = this._ufoBuffer;
       const gain = this._audioCtx.createGain();
-      gain.gain.value = 0.45;
+      gain.gain.value = 0.28;
       src.connect(gain);
       gain.connect(this._audioCtx.destination);
       src.onended = () => {
@@ -782,27 +800,66 @@ export const audio = {
       });
   },
 
-  /** Play the sleigh-bell sample once for a Santa event spawn. */
+  // Santa plays as a loop that fades in when santa appears and
+  // fades out when santa leaves the screen. Kept as handles so
+  // stopSanta can time the fade-out from the caller.
+  _santaSource: null as AudioBufferSourceNode | null,
+  _santaGain: null as GainNode | null,
+  _santaTargetGain: 0.4,
+
+  /** Start the looping sleigh-bell sample with a 0.3s fade-in.
+   *  stopSanta is responsible for the fade-out when the santa
+   *  event reaches the far side of the screen. */
   playSanta() {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || !this._santaBuffer) return;
     if (this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
     }
+    if (this._santaSource) return;
     try {
-      const src = this._audioCtx.createBufferSource();
+      const ctx = this._audioCtx;
+      const src = ctx.createBufferSource();
       src.buffer = this._santaBuffer;
-      const gain = this._audioCtx.createGain();
-      gain.gain.value = 0.5;
+      src.loop = true;
+      const gain = ctx.createGain();
+      const t0 = ctx.currentTime;
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(this._santaTargetGain, t0 + 0.3);
       src.connect(gain);
-      gain.connect(this._audioCtx.destination);
+      gain.connect(ctx.destination);
       src.onended = () => {
         try { src.disconnect(); gain.disconnect(); } catch {}
+        if (this._santaSource === src) {
+          this._santaSource = null;
+          this._santaGain = null;
+        }
       };
+      this._santaSource = src;
+      this._santaGain = gain;
       src.start(0);
     } catch {
       /* SFX is non-critical */
     }
+  },
+
+  /** Fade out and stop the looping sleigh bells. */
+  stopSanta() {
+    if (!this._audioCtx || !this._santaSource || !this._santaGain) return;
+    const ctx = this._audioCtx;
+    const src = this._santaSource;
+    const gain = this._santaGain;
+    const t = ctx.currentTime;
+    try {
+      gain.gain.cancelScheduledValues(t);
+      gain.gain.setValueAtTime(gain.gain.value, t);
+      gain.gain.linearRampToValueAtTime(0, t + 0.35);
+      src.stop(t + 0.36);
+    } catch {
+      try { src.stop(0); } catch {}
+    }
+    this._santaSource = null;
+    this._santaGain = null;
   },
 
   // ── Meteor-impact SFX (DRAGON-STUDIO nuclear explosion) ───
@@ -831,7 +888,11 @@ export const audio = {
 
   /** Play the explosion sample at meteor impact. Sample is ~7.5s,
    *  longer than the event lifetime (~5s) — the tail rumble lingers
-   *  after the visual fades, which reads as aftermath weight. */
+   *  after the visual fades, which reads as aftermath weight.
+   *
+   *  Scheduled ~400ms after the call to simulate sound-over-distance
+   *  lag: the flash hits the retina instantly but the boom takes
+   *  time to travel across the desert. */
   playMeteor() {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || !this._meteorBuffer) return;
@@ -839,17 +900,21 @@ export const audio = {
       this._audioCtx.resume().catch(() => {});
     }
     try {
-      const src = this._audioCtx.createBufferSource();
+      const ctx = this._audioCtx;
+      const src = ctx.createBufferSource();
       src.buffer = this._meteorBuffer;
-      const gain = this._audioCtx.createGain();
+      const gain = ctx.createGain();
       gain.gain.value = 0.5;
       src.connect(gain);
-      gain.connect(this._audioCtx.destination);
+      gain.connect(ctx.destination);
       src.onended = () => {
         try { src.disconnect(); gain.disconnect(); } catch {}
       };
-      // Skip ~50ms of silent lead-in.
-      src.start(0, 0.05);
+      // Schedule against the Web Audio clock so the gap tracks the
+      // audio tick exactly (no setTimeout drift). First arg is
+      // absolute start time, second is buffer offset (skip silent
+      // lead-in).
+      src.start(ctx.currentTime + 0.4, 0.05);
     } catch {
       /* SFX is non-critical */
     }

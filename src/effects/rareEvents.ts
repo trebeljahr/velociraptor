@@ -279,10 +279,12 @@ export function updateRareEvent(dtSec: number): void {
     }
   }
   if (e.age >= e.life) {
-    // Cut the UFO hover sample if it's still playing. Sample length
-    // (~12s) is shorter than the event lifetime (~20s), so this is
-    // mostly a safety net for early-terminated events.
+    // Fade out any rare-event audio that plays for the whole event
+    // window. UFO's ~12s sample is shorter than the ~20s event so
+    // this is just a safety net there; santa's loop needs the
+    // explicit stop + fade-out as it approaches the far edge.
     if (e.id === "ufo") audio.stopUfo();
+    else if (e.id === "santa") audio.stopSanta();
     state.activeRareEvent = null;
   }
 }
