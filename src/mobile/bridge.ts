@@ -70,6 +70,15 @@ export async function initMobile(handlers: MobileHandlers): Promise<void> {
   // serve-to-test config. isNativePlatform() returns false for web.
   if (!Capacitor.isNativePlatform()) return;
 
+  // Tag <body> so CSS can branch on "we're in a native shell" — used
+  // to hide the fullscreen button (it's a no-op when the app already
+  // owns the full screen), add safe-area insets to UI overlays, and
+  // disable long-press callouts on the canvas. The class is set before
+  // any native plugin work so CSS applies even if the plugins below
+  // fail.
+  document.body.classList.add("cap");
+  document.body.setAttribute("data-platform", Capacitor.getPlatform());
+
   // Lock to landscape. The PWA manifest's `orientation: "landscape"`
   // is a hint that iOS ignores; this plugin call is the real lock.
   try {
