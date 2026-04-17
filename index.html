@@ -1139,6 +1139,28 @@
             </a>
           </li>
           <li class="desktop-only">
+            <button id="menu-fullscreen-toggle" class="menu-item" type="button">
+              <span class="inner">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+                  <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+                  <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+                  <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+                </svg>
+                <span id="menu-fullscreen-label">Fullscreen: on</span>
+              </span>
+            </button>
+          </li>
+          <li class="desktop-only">
             <button id="menu-quit" class="menu-item" type="button">
               <span class="inner">
                 <svg
@@ -1209,6 +1231,47 @@
               window.electronAPI.quit();
             }
           });
+        }
+        // Desktop-only fullscreen toggle. The top-right fullscreen
+        // button is hidden on desktop (it's redundant — the window
+        // opens fullscreen by default), but players still want an
+        // opt-out. The Electron main process owns the window state
+        // and persists it across launches via prefs.json in
+        // userData. We ask it for the current state each time the
+        // menu opens so the label stays honest even if the player
+        // toggled via ESC on macOS Spaces fullscreen.
+        const fullscreenToggle = document.getElementById(
+          "menu-fullscreen-toggle",
+        );
+        const fullscreenLabel = document.getElementById(
+          "menu-fullscreen-label",
+        );
+        let fullscreenState = true; // mirror of win state
+        function syncFullscreenLabel() {
+          if (!fullscreenLabel) return;
+          fullscreenLabel.textContent =
+            "Fullscreen: " + (fullscreenState ? "on" : "off");
+        }
+        async function refreshFullscreenState() {
+          if (!window.electronAPI || typeof window.electronAPI.isFullscreen !== "function") {
+            return;
+          }
+          try {
+            fullscreenState = !!(await window.electronAPI.isFullscreen());
+            syncFullscreenLabel();
+          } catch (_) {}
+        }
+        if (fullscreenToggle && window.electronAPI) {
+          fullscreenToggle.addEventListener("click", async () => {
+            if (typeof window.electronAPI.setFullscreen !== "function") return;
+            try {
+              fullscreenState = !!(await window.electronAPI.setFullscreen(
+                !fullscreenState,
+              ));
+              syncFullscreenLabel();
+            } catch (_) {}
+          });
+          refreshFullscreenState();
         }
         const topSoundBtn = document.getElementById("sound-toggle");
         const fullscreenBtn = document.getElementById("fullscreen-toggle");
@@ -1719,6 +1782,9 @@
           refreshEasterEggUI();
           refreshScoreEditor();
           refreshMenuHighscore();
+          // Refresh the fullscreen toggle label so it's honest if the
+          // player hit ESC or Cmd-Ctrl-F outside the menu. No-op on web.
+          refreshFullscreenState();
           // Toggle a "pre-game" class on the panel so items that only
           // make sense mid-run (Back to home screen, Resume game,
           // Press Esc hint) are hidden on the start screen.

@@ -17,6 +17,8 @@ declare global {
       apiNames: string[],
     ): Promise<Record<string, boolean>>;
     quit(): Promise<void>;
+    setFullscreen(on: boolean): Promise<boolean>;
+    isFullscreen(): Promise<boolean>;
   }
 
   interface Window {
