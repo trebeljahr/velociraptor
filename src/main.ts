@@ -628,17 +628,19 @@ import { generateScoreCardBlob } from "./render/scoreCard";
             audio.playHit();
             audio.pauseMusicForGameOver();
             if (!audio.muted) hapticDeath();
-            // Gamepad rumble — heavy jolt on death.
-            try {
-              const gp = navigator.getGamepads?.()[0];
-              if (gp?.vibrationActuator) {
-                gp.vibrationActuator.playEffect("dual-rumble", {
+            // Gamepad rumble — heavy jolt on death. Deferred via
+            // setTimeout(0) so the blocking playEffect IPC doesn't
+            // steal frame time from the death animation.
+            setTimeout(() => {
+              try {
+                const gp = navigator.getGamepads?.()[0];
+                gp?.vibrationActuator?.playEffect("dual-rumble", {
                   duration: 150,
                   weakMagnitude: 0.8,
                   strongMagnitude: 1.0,
                 });
-              }
-            } catch (_) {}
+              } catch (_) {}
+            }, 0);
             commitRunScore();
             // Bump the career run counter and unlock the
             // "first-run" / "century-runner" milestones.
