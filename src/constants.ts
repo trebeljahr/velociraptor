@@ -205,8 +205,13 @@ export const RAPTOR_NATIVE_H = 212;
 export const RAPTOR_ASPECT = RAPTOR_NATIVE_H / RAPTOR_NATIVE_W;
 export const RAPTOR_FRAMES = 12;
 export const RAPTOR_IDLE_FRAME = 11;
-export const RAPTOR_FRAME_DELAY_MIN = 40;
-export const RAPTOR_FRAME_DELAY_MAX = 70;
+// Animation cadence for the running loop. frameDelay scales inversely
+// with bgVelocity — MAX at the start-of-run slow pace, MIN at top
+// speed. Previously 70 / 40 which felt a touch floaty; a 1.3x bump
+// (54 / 31) lands the run cadence closer to the raptor's visual stride
+// length, so the feet don't appear to pedal air.
+export const RAPTOR_FRAME_DELAY_MIN = 31;
+export const RAPTOR_FRAME_DELAY_MAX = 54;
 export const RAPTOR_COLLISION_INSET = 4;
 
 // Per-frame head reference points, extracted by scanning each frame of
