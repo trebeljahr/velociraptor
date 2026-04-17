@@ -151,6 +151,8 @@ export const audio = {
   jumpMuted: false as boolean,
   rainMuted: false as boolean,
   _audioCtx: null as AudioContext | null,
+  _jumpBuffer: null as AudioBuffer | null,
+  _jumpVolume: 0.67,
 
   // Main-module-provided hook for achievement invalidation. Left null
   // if the caller hasn't wired it up — audio still works.
@@ -172,6 +174,7 @@ export const audio = {
     // AudioContext is created lazily on the first user gesture
     // (required by autoplay policy), but we fetch + decode the
     // file eagerly so the first jump has zero latency.
+    this._preloadJumpBuffer();
     this._preloadThunderBuffer();
     this._preloadHitBuffer();
     this._preloadUfoBuffer();
@@ -193,6 +196,30 @@ export const audio = {
     } catch (e) {
       /* ignored */
     }
+  },
+
+  /** Fetch jump.mp3, decode it into an AudioBuffer, and stash it
+   *  for instant playback via Web Audio. Falls back gracefully if
+   *  Web Audio isn't available (old browsers). */
+  _preloadJumpBuffer() {
+    if (
+      typeof AudioContext === "undefined" &&
+      typeof window.webkitAudioContext === "undefined"
+    )
+      return;
+    fetch("assets/jump.mp3")
+      .then((r) => r.arrayBuffer())
+      .then((buf) => {
+        this._ensureAudioCtx();
+        if (!this._audioCtx) return;
+        return this._audioCtx.decodeAudioData(buf);
+      })
+      .then((decoded) => {
+        if (decoded) this._jumpBuffer = decoded;
+      })
+      .catch(() => {
+        /* no-op — jump SFX simply won't play */
+      });
   },
 
   _ensureAudioCtx() {
@@ -254,54 +281,27 @@ export const audio = {
     return this.muted;
   },
 
-  /** Jump cue: pitched-down grass step (body weight push-off)
-   *  layered with a rising sine sweep (liftoff thrust). Before the
-   *  synth version we tried earlier — the user preferred this one.
-   *  _silenceSteps first so an in-flight running-step sample
-   *  doesn't stack messily under the cue. */
+  /** Plays the original jump.mp3 sample through Web Audio.
+   *  _silenceSteps runs first so a running-step sample doesn't
+   *  bleed under the jump. */
   playJump() {
     if (this.muted || this.jumpMuted) return;
-    if (!this._audioCtx || this._audioCtx.state !== "running") return;
+    if (!this._audioCtx || !this._jumpBuffer) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
     this._silenceSteps();
     try {
-      const ctx = this._audioCtx;
-      const t0 = ctx.currentTime;
-
-      // Layer 1: grass push-off — pitched-down step sample, heavier
-      // than a running footfall. Picks a random loaded step buffer
-      // so consecutive jumps don't sound identical.
-      const loaded = this._stepBuffers.filter((b) => b);
-      const buf = loaded[Math.floor(Math.random() * loaded.length)];
-      if (buf) {
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        src.playbackRate.value = 0.8;
-        const srcGain = ctx.createGain();
-        srcGain.gain.value = 2.0;
-        src.connect(srcGain);
-        srcGain.connect(ctx.destination);
-        src.onended = () => {
-          try { src.disconnect(); srcGain.disconnect(); } catch {}
-        };
-        src.start(0);
-      }
-
-      // Layer 2: rising sine thrust — the "liftoff" feel.
-      const osc = ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(75, t0);
-      osc.frequency.exponentialRampToValueAtTime(170, t0 + 0.11);
-      const oscGain = ctx.createGain();
-      oscGain.gain.setValueAtTime(0, t0);
-      oscGain.gain.linearRampToValueAtTime(0.2, t0 + 0.005);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
-      osc.connect(oscGain);
-      oscGain.connect(ctx.destination);
-      osc.onended = () => {
-        try { osc.disconnect(); oscGain.disconnect(); } catch {}
+      const src = this._audioCtx.createBufferSource();
+      src.buffer = this._jumpBuffer;
+      const gain = this._audioCtx.createGain();
+      gain.gain.value = this._jumpVolume;
+      src.connect(gain);
+      gain.connect(this._audioCtx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
       };
-      osc.start(t0);
-      osc.stop(t0 + 0.15);
+      src.start(0);
     } catch {
       /* SFX is non-critical */
     }
@@ -391,7 +391,7 @@ export const audio = {
   _warmWebAudioSources() {
     if (this._webAudioWarmed) return;
     if (!this._audioCtx) return;
-    const buffers = [this._hitBuffer, this._thunderBuffer];
+    const buffers = [this._jumpBuffer, this._thunderBuffer];
     if (buffers.every((b) => b == null)) return; // retry later
     this._webAudioWarmed = true;
     for (const buf of buffers) {
@@ -992,11 +992,12 @@ export const audio = {
         const ctx = this._audioCtx;
         const src = ctx.createBufferSource();
         src.buffer = this._cometBuffer;
-        // Loop only over the audible region — the sample has ~540ms
-        // of silence at the head and ~2.2s of quiet tail.
+        // Loop just the active-sparkle body. The sample decays to
+        // near-silence between 2.53 s and 3.95 s and previously
+        // read as a dip-then-restart when wrapped back to 0.54.
         src.loop = true;
-        src.loopStart = 0.54;
-        src.loopEnd = 3.95;
+        src.loopStart = 0.6;
+        src.loopEnd = 2.53;
         const gain = ctx.createGain();
         const t0 = ctx.currentTime;
         gain.gain.setValueAtTime(0, t0);
@@ -1012,7 +1013,7 @@ export const audio = {
         };
         this._cometSource = src;
         this._cometGain = gain;
-        src.start(0, 0.54);
+        src.start(0, 0.6);
       } catch {
         /* SFX is non-critical */
       }
