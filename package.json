@@ -21,9 +21,16 @@
     "build:mobile": "tsc --noEmit && VITE_TARGET=capacitor vite build",
     "cap:sync": "npm run build:mobile && cap sync",
     "cap:open:ios": "cap open ios",
-    "cap:open:android": "cap open android",
+    "cap:open:android": "bash -c 'source scripts/android-env.sh && cap open android'",
     "cap:run:ios": "npm run cap:sync && cap run ios",
-    "cap:run:android": "npm run cap:sync && cap run android",
+    "cap:run:android": "bash -c 'source scripts/android-env.sh && npm run build:mobile && cap sync android && cap run android'",
+    "dev:android": "bash scripts/android-dev.sh",
+    "dev:ios": "bash scripts/ios-dev.sh",
+    "android:emulator": "bash -c 'source scripts/android-env.sh && emulator -avd ${AVD:-Pixel_9_Pro} -netdelay none -netspeed full'",
+    "android:kill-emulator": "bash -c 'source scripts/android-env.sh && adb emu kill'",
+    "android:avds": "bash -c 'source scripts/android-env.sh && emulator -list-avds'",
+    "android:devices": "bash -c 'source scripts/android-env.sh && adb devices'",
+    "android:logcat": "bash -c 'source scripts/android-env.sh && adb logcat -s Capacitor Capacitor/Console Capacitor/WebView chromium'",
     "mobile:assets": "capacitor-assets generate --iconBackgroundColor \"#50b4cd\" --splashBackgroundColor \"#50b4cd\""
   },
   "devDependencies": {

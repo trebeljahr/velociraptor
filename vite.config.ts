@@ -21,6 +21,25 @@ export default defineConfig({
     // pulling in any Capacitor symbols at import time.
     __IS_CAPACITOR__: JSON.stringify(IS_CAPACITOR),
   },
+  server: {
+    // Narrow the file-watcher to source files only. Without this,
+    // Vite reloads the page every time we save a shell script, the
+    // package.json, the Android/iOS native projects, or the Electron
+    // main — none of which affect the running page. The repo-wide
+    // watcher was also wasting inotify slots on two sibling worktrees.
+    watch: {
+      ignored: [
+        "**/android/**",
+        "**/ios/**",
+        "**/electron/**",
+        "**/scripts/**",
+        "**/release/**",
+        "**/dist/**",
+        "**/.claude/**",
+        "**/node_modules/**",
+      ],
+    },
+  },
   plugins: [
     tailwindcss(),
     // The PWA service worker is desktop/web-only. Skipping it on

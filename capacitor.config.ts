@@ -29,6 +29,27 @@ const config: CapacitorConfig = {
   // launch transition from splash → canvas doesn't flash a different hue.
   backgroundColor: "#50b4cd",
 
+  // Live-reload during development. When CAP_DEV_URL is set at
+  // `cap sync` time (by scripts/android-dev.sh / scripts/ios-dev.sh),
+  // the WebView loads from the Vite dev server on your LAN instead
+  // of the bundled dist/ folder. Edits to src/ hot-reload in place
+  // — no APK rebuild per change.
+  //
+  // On production builds (CAP_DEV_URL unset), this block is omitted
+  // entirely and the WebView loads bundled assets as normal.
+  //
+  // cleartext: true because Vite serves over plain HTTP. This only
+  // applies when server.url is set; the production build blocks
+  // cleartext by default.
+  ...(process.env.CAP_DEV_URL
+    ? {
+        server: {
+          url: process.env.CAP_DEV_URL,
+          cleartext: true,
+        },
+      }
+    : {}),
+
   plugins: {
     SplashScreen: {
       // Hold the splash until Game.onReady() fires, then call
