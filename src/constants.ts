@@ -108,19 +108,53 @@ export const MOON_PHASE_OFFSET_DAYS = 2;
 // ── Gamepad / controller ─────────────────────────────────
 // Standard Gamepad layout button indices.
 // https://www.w3.org/TR/gamepad/#remapping
-export const GAMEPAD_JUMP_BUTTONS = [0, 1, 12]; // A, B, D-pad Up
-export const GAMEPAD_MENU_BUTTON = 9; // Start / Options
-// Home / Guide / Xbox button. Reported as button 16 on most modern
-// browsers; older Firefox didn't expose it. Used as a secondary
-// open-menu trigger so players who forget about Start have a path.
+//
+// We target a broad cross-section of controllers: Xbox-style, PS
+// DualShock/DualSense, Switch Pro, generic clones. The naming of
+// face buttons (ABXY vs Cross/Circle/Square/Triangle vs BAXY on
+// Nintendo hardware) shifts by vendor, but Standard Mapping always
+// puts the "bottom" face button at index 0 and "right" at 1 — which
+// is WHY we accept all four. The ABXY/BA swap on Switch Pro means
+// a Nintendo player reaching for "A to confirm" presses button 1,
+// while an Xbox player reaches for "A to confirm" and presses 0.
+// Treating every face button as "select" lands both correctly
+// without having to detect the hardware.
+
+/** Buttons that trigger a jump during gameplay. A, B, X, Y, and
+ *  D-pad up — any face button works so players don't have to hunt
+ *  for "the right one". */
+export const GAMEPAD_JUMP_BUTTONS = [0, 1, 2, 3, 12];
+
+/** Buttons that toggle the pause menu from gameplay, and close it
+ *  from inside. Index 8 is Back / Select / Share / View / Minus
+ *  (−), index 9 is Start / Options / Plus (+), index 16 is
+ *  Guide / Home / PS / Xbox, index 17 is a few oddball pads' extra
+ *  meta button. Accepting all four means the player can open the
+ *  menu with whichever "system" button sits under their thumb. */
+export const GAMEPAD_MENU_TOGGLE_BUTTONS = [8, 9, 16, 17];
+
+// Back-compat aliases for the primary Start and Home indices.
+export const GAMEPAD_MENU_BUTTON = 9;
 export const GAMEPAD_HOME_BUTTON = 16;
-// In-menu navigation. When the menu is open, these intercept what
-// would otherwise be the jump buttons so D-pad up/down walks the
-// focus ring instead of dispatching jumps.
-export const GAMEPAD_MENU_SELECT_BUTTON = 0; // A / Cross — activates focused item
-export const GAMEPAD_MENU_BACK_BUTTON = 1; // B / Circle — closes the menu
-export const GAMEPAD_MENU_UP_BUTTON = 12; // D-pad up
-export const GAMEPAD_MENU_DOWN_BUTTON = 13; // D-pad down
+
+/** Buttons that activate the focused menu item. All four face
+ *  buttons — see the rationale at the top of this section. */
+export const GAMEPAD_MENU_SELECT_BUTTONS = [0, 1, 2, 3];
+
+/** D-pad buttons for menu navigation. Left stick Y axis is also
+ *  checked separately via `axes[1]` so players without a usable
+ *  D-pad (rare but it happens on some knock-offs) can still walk
+ *  the focus ring. */
+export const GAMEPAD_MENU_UP_BUTTONS = [12];
+export const GAMEPAD_MENU_DOWN_BUTTONS = [13];
+
+/** Left-stick Y deadzone + threshold for counting a "press up" or
+ *  "press down" event. Above the threshold the stick is treated as
+ *  a discrete direction; returning below the deadzone re-arms the
+ *  next press. The gap between them is hysteresis — stops a stick
+ *  resting near the threshold from rapid-firing navigations. */
+export const GAMEPAD_STICK_PRESS_THRESHOLD = 0.6;
+export const GAMEPAD_STICK_DEADZONE = 0.25;
 
 // ── Cinematic / filming mode (F9) ────────────────────────
 // Phase values derived from SKY_COLORS band order + sun/moon arcs.

@@ -147,12 +147,12 @@ import {
   SKY_COLORS,
   NIGHT_COLOR,
   GAMEPAD_JUMP_BUTTONS,
-  GAMEPAD_MENU_BUTTON,
-  GAMEPAD_HOME_BUTTON,
-  GAMEPAD_MENU_SELECT_BUTTON,
-  GAMEPAD_MENU_BACK_BUTTON,
-  GAMEPAD_MENU_UP_BUTTON,
-  GAMEPAD_MENU_DOWN_BUTTON,
+  GAMEPAD_MENU_TOGGLE_BUTTONS,
+  GAMEPAD_MENU_SELECT_BUTTONS,
+  GAMEPAD_MENU_UP_BUTTONS,
+  GAMEPAD_MENU_DOWN_BUTTONS,
+  GAMEPAD_STICK_PRESS_THRESHOLD,
+  GAMEPAD_STICK_DEADZONE,
   CINEMATIC_PHASES,
 } from "./constants";
 import {
@@ -2059,7 +2059,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
 
   const _gamepad = {
     connected: false,
-    prevButtons: new Array(17).fill(false) as boolean[],
+    // 18 slots covers every Standard Mapping index (0-16) plus one
+    // vendor-specific extra (17). Padded with false so a smaller
+    // reported buttons[] still indexes cleanly.
+    prevButtons: new Array(18).fill(false) as boolean[],
+    // Analog stick direction state for debounced menu navigation.
+    // -1 = held up past threshold, +1 = held down, 0 = at rest
+    // (somewhere inside the deadzone → re-arm for the next press).
+    stickDir: 0 as -1 | 0 | 1,
   };
 
   function pollGamepad() {
@@ -2085,6 +2092,33 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       const nowPressed = btns[idx].value > 0.5 || btns[idx].pressed;
       return nowPressed && !prev[idx];
     };
+    const anyJustPressed = (indices: readonly number[]): boolean => {
+      for (const i of indices) if (justPressed(i)) return true;
+      return false;
+    };
+
+    // ── Analog stick navigation (debounced) ──────────────────
+    // axes[1] on Standard Mapping is the left-stick Y axis. -1 is
+    // full up, +1 is full down, with a small neutral band around 0.
+    // We edge-detect: each time the stick crosses the press
+    // threshold we emit exactly ONE navigation event; the stick has
+    // to return inside the deadzone before the next event fires.
+    // Without hysteresis a stick resting slightly past threshold
+    // would rapid-fire through the whole menu.
+    const axes = gp.axes || [];
+    const stickY = axes.length > 1 ? axes[1] : 0;
+    let stickPress: -1 | 0 | 1 = 0;
+    if (_gamepad.stickDir === 0) {
+      if (stickY <= -GAMEPAD_STICK_PRESS_THRESHOLD) {
+        _gamepad.stickDir = -1;
+        stickPress = -1;
+      } else if (stickY >= GAMEPAD_STICK_PRESS_THRESHOLD) {
+        _gamepad.stickDir = 1;
+        stickPress = 1;
+      }
+    } else if (Math.abs(stickY) < GAMEPAD_STICK_DEADZONE) {
+      _gamepad.stickDir = 0;
+    }
 
     const w = window as unknown as {
       __rrIsMenuOpen?: () => boolean;
@@ -2100,19 +2134,23 @@ import { generateScoreCardBlob } from "./render/scoreCard";
 
     if (menuOpen) {
       // ── In-menu navigation ─────────────────────────────────
-      // D-pad up/down moves the focus ring between menu items. A
-      // activates the focused item (same effect as clicking it).
-      // B and Start/Home close the menu. These intercept what would
-      // otherwise be jump buttons — without this branch the player
-      // couldn't press A inside the menu without also jumping.
-      if (justPressed(GAMEPAD_MENU_UP_BUTTON)) w.__rrMenuFocusPrev?.();
-      if (justPressed(GAMEPAD_MENU_DOWN_BUTTON)) w.__rrMenuFocusNext?.();
-      if (justPressed(GAMEPAD_MENU_SELECT_BUTTON)) w.__rrMenuSelect?.();
-      if (
-        justPressed(GAMEPAD_MENU_BACK_BUTTON) ||
-        justPressed(GAMEPAD_MENU_BUTTON) ||
-        justPressed(GAMEPAD_HOME_BUTTON)
-      ) {
+      // Wide acceptance by design (see src/constants.ts header):
+      // any face button (0-3) activates the focused item. Any
+      // system button (Start / Back / Home / Guide / +/− — indices
+      // 8, 9, 16, 17) closes the menu. D-pad up/down + left-stick
+      // Y navigate. This handles Xbox, PlayStation, Switch Pro,
+      // and generic clones without caring which vendor labels
+      // button 0 as "A" vs "B" vs "Cross" vs "B".
+      if (anyJustPressed(GAMEPAD_MENU_UP_BUTTONS) || stickPress === -1) {
+        w.__rrMenuFocusPrev?.();
+      }
+      if (anyJustPressed(GAMEPAD_MENU_DOWN_BUTTONS) || stickPress === 1) {
+        w.__rrMenuFocusNext?.();
+      }
+      if (anyJustPressed(GAMEPAD_MENU_SELECT_BUTTONS)) {
+        w.__rrMenuSelect?.();
+      }
+      if (anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS)) {
         w.__rrCloseMenu?.();
       }
     } else {
@@ -2128,13 +2166,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
           }
         }
       }
-      // Start / Home both open the menu (or start the game if not
-      // started yet). Home is button 16 — not reported by every
-      // browser, so Start is the primary.
-      if (
-        justPressed(GAMEPAD_MENU_BUTTON) ||
-        justPressed(GAMEPAD_HOME_BUTTON)
-      ) {
+      // Any system button opens the menu (or starts the game if
+      // nothing's running yet). Accepting all four covers different
+      // vendors' idea of "the menu button" — Xbox View/Menu, PS
+      // Options/Share, Switch Pro +/−, etc.
+      if (anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS)) {
         if (!state.started) {
           w.__onStartKey?.();
         } else {

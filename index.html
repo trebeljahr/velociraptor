@@ -1394,11 +1394,18 @@
              gamepadconnected / gamepaddisconnected listeners in
              src/main.ts) AND (b) we're not inside a Capacitor shell
              (body.cap). On mobile the row would waste vertical space
-             when nobody plugs in a controller. -->
+             when nobody plugs in a controller.
+
+             Labels are vendor-neutral on purpose: Xbox "A" and
+             Nintendo "A" sit at opposite positions on the face
+             cluster, so lettered hints actively mislead half our
+             players. ● stands for "any face button" (the poller
+             accepts all four) and ☰ for "any system / menu button"
+             (Start, Back, Home, Plus, Minus — any works). -->
         <p class="menu-gamepad-hint">
           <span><kbd>↕</kbd> Navigate</span>
-          <span><kbd class="gp-a">A</kbd> Select</span>
-          <span><kbd class="gp-b">B</kbd> Back</span>
+          <span><kbd class="gp-select">●</kbd> Select</span>
+          <span><kbd class="gp-back">☰</kbd> Close</span>
         </p>
         <p class="made-by in-game-only web-only">
           Made with
