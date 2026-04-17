@@ -46,10 +46,24 @@ export function spawnDuneCactus(worldX: number) {
 }
 
 export function initDunes() {
+  // Spawn range must be anchored to the CURRENT duneOffset, not the
+  // absolute world origin. `duneOffset` is never reset — it keeps
+  // growing across runs so the dune silhouette remains continuous.
+  // Rendering draws a cactus at screen x = wx - duneOffset, so a
+  // fresh cactus at absolute wx=0 on a run that starts with
+  // duneOffset=50000 ends up at screen x=-50000 (far off-screen),
+  // leaving the background empty while the update-loop spawner
+  // slowly catches up at one cactus per frame. That's the
+  // "cacti pop into existence" effect — when the spawner finally
+  // reaches the real right edge, cacti start materialising there
+  // instead of having been there from frame zero.
+  //
+  // Re-anchoring to duneOffset guarantees the first render of a
+  // new run has cacti in their correct screen positions.
   state.duneCacti = [];
-  state._nextDuneCactusX = 0;
-  let wx = -state.width * 0.5;
-  while (wx < state.width * 2) {
+  const base = state.duneOffset;
+  let wx = base - state.width * 0.5;
+  while (wx < base + state.width * 2) {
     state.duneCacti.push(spawnDuneCactus(wx));
     wx += DUNE_CACTUS_MIN_SPACING_PX + Math.random() * DUNE_CACTUS_SPACING_RANGE_PX;
   }
