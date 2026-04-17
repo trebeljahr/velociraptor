@@ -37,4 +37,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Quit the app. Called from the desktop-only Quit button.
   quit: (): Promise<void> => ipcRenderer.invoke("app:quit"),
+
+  // Toggle fullscreen / windowed from the desktop settings menu.
+  // Persists across app restarts (prefs.json in userData).
+  setFullscreen: (on: boolean): Promise<boolean> =>
+    ipcRenderer.invoke("window:setFullscreen", on),
+  isFullscreen: (): Promise<boolean> =>
+    ipcRenderer.invoke("window:isFullscreen"),
 });

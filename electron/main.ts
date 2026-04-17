@@ -19,6 +19,7 @@
 
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import path from "path";
+import fs from "fs";
 import steamworks from "steamworks.js";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
@@ -44,6 +45,68 @@ ipcMain.handle("steam:isAvailable", () => steamClient !== null);
 // the settings menu.
 ipcMain.handle("app:quit", () => {
   app.quit();
+});
+
+/**
+ * Persisted user prefs (currently just fullscreen mode). Stored as a
+ * tiny JSON blob in app.getPath("userData") so the choice survives
+ * app restarts without reaching into localStorage.
+ *
+ * Kept intentionally minimal: reads are synchronous at app start so
+ * we can apply prefs to the BrowserWindow constructor, writes are
+ * best-effort from the IPC handler and never block the caller.
+ */
+type Prefs = { fullscreen?: boolean };
+let _prefsPath = "";
+function prefsPath(): string {
+  if (!_prefsPath) {
+    _prefsPath = path.join(app.getPath("userData"), "prefs.json");
+  }
+  return _prefsPath;
+}
+function loadPrefs(): Prefs {
+  try {
+    return JSON.parse(fs.readFileSync(prefsPath(), "utf8")) as Prefs;
+  } catch {
+    return {};
+  }
+}
+function savePrefs(patch: Prefs): void {
+  try {
+    const current = loadPrefs();
+    const next = { ...current, ...patch };
+    fs.writeFileSync(prefsPath(), JSON.stringify(next), "utf8");
+  } catch (err) {
+    console.warn("[prefs] save failed:", err);
+  }
+}
+
+// IPC: toggle fullscreen from the desktop menu. Persists so the
+// preference survives app restart.
+ipcMain.handle(
+  "window:setFullscreen",
+  (evt, wantFullscreen: boolean) => {
+    const win = BrowserWindow.fromWebContents(evt.sender);
+    if (!win || win.isDestroyed()) return false;
+    const isMac = process.platform === "darwin";
+    if (isMac) {
+      win.setSimpleFullScreen(!!wantFullscreen);
+    } else {
+      win.setFullScreen(!!wantFullscreen);
+    }
+    savePrefs({ fullscreen: !!wantFullscreen });
+    return !!wantFullscreen;
+  },
+);
+
+// IPC: read current fullscreen state (used by the menu to sync the
+// toggle label when the overlay opens).
+ipcMain.handle("window:isFullscreen", (evt) => {
+  const win = BrowserWindow.fromWebContents(evt.sender);
+  if (!win || win.isDestroyed()) return false;
+  return process.platform === "darwin"
+    ? win.isSimpleFullScreen()
+    : win.isFullScreen();
 });
 
 // IPC: activate a Steam achievement by its API Name. Idempotent on
@@ -82,6 +145,11 @@ ipcMain.handle(
 
 function createWindow(): void {
   const isMac = process.platform === "darwin";
+  // Default fullscreen for desktop games. Player can opt-out via the
+  // Fullscreen toggle in the settings menu; that writes prefs.json,
+  // which we read here to restore the preference on next launch.
+  const prefs = loadPrefs();
+  const wantFullscreen = prefs.fullscreen !== false; // default true
 
   const win = new BrowserWindow({
     width: 1280,
@@ -95,12 +163,16 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    // Fullscreen in constructor. On macOS simpleFullScreen is the
-    // Lion-style no-animation variant — the window opens at screen
-    // size instantly, no Spaces transition to bypass show: false.
-    // The boot-splash overlay lives inline in index.html, so the
-    // first paint already shows the splash.
-    fullscreen: !isMac,
+    // Fullscreen + simpleFullScreen together are required on macOS:
+    //   - `fullscreen: true` alone uses Lion-style Spaces transition
+    //     which animates the window visibly even with show: false
+    //     (caused the earlier FOUC-behind-splash bug).
+    //   - `simpleFullscreen: true` alone just ENABLES the capability;
+    //     the window still opens windowed unless fullscreen is set.
+    //   - Both together: window opens instantly at screen size in
+    //     pre-Lion style fullscreen, no Spaces animation.
+    // On Windows/Linux plain fullscreen is already animation-free.
+    fullscreen: wantFullscreen,
     simpleFullscreen: isMac,
     titleBarStyle: isMac ? "hiddenInset" : "default",
     backgroundColor: "#50b4cd", // sky-blue matches splash + game sky
