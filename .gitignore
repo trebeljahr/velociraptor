@@ -7,3 +7,7 @@ release/
 .vite/
 electron/main.js
 electron/preload.js
+# Per-developer env overrides. Vite convention: commit .env (safe
+# defaults), keep .env.local out of version control.
+.env.local
+.env.*.local
