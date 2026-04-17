@@ -339,11 +339,21 @@ export const audio = {
     this._musicPrimed = true;
     const targetVolume = this.music.volume;
     this.music.volume = 0;
+    // If the user is (or will stay) muted, tear the silent playback
+    // back down once the decoder is warm. If they're unmuted, setMuted
+    // is running rampUpAndPlay in parallel on the same element —
+    // pausing/rewinding here would silence the real play that's in
+    // flight (on mobile the cold-decoder play() resolves after the
+    // real one fires, so this restore lands AFTER the ramp has
+    // started). Leaving the element playing at volume=0 lets the
+    // rampUpAndPlay take over cleanly.
     const restore = () => {
       if (!this.music) return;
-      this.music.pause();
-      this.music.currentTime = 0;
       this.music.volume = targetVolume;
+      if (this.muted || this.musicMuted) {
+        this.music.pause();
+        this.music.currentTime = 0;
+      }
     };
     try {
       const p = this.music.play();
@@ -422,11 +432,17 @@ export const audio = {
     this._rainPrimed = true;
     const targetVolume = this.rain.volume;
     this.rain.volume = 0;
+    // Only tear the silent playback back down if rain isn't currently
+    // in its "on" state. If startRain() ran during priming (e.g. the
+    // session began inside a rain window and the restored weather
+    // state triggered it), pausing here would kill the real rain.
     const restore = () => {
       if (!this.rain) return;
-      this.rain.pause();
-      this.rain.currentTime = 0;
       this.rain.volume = targetVolume;
+      if (!this._isRainPlaying) {
+        this.rain.pause();
+        this.rain.currentTime = 0;
+      }
     };
     try {
       const p = this.rain.play();
@@ -564,13 +580,16 @@ export const audio = {
   },
 
   /** Footfall: sine thump + short filtered noise scrape. `foot`
-   *  biases pitch so alternating calls read as left/right. */
+   *  biases pitch so alternating calls read as left/right.
+   *
+   *  Every node is explicitly .disconnect()'d in onended because iOS
+   *  WKWebView leaks stopped nodes connected to ctx.destination — at
+   *  6–12 steps/sec during a run, the graph bloats fast enough to
+   *  break the audio session (and the music element that shares it).
+   */
   playStep(foot: "left" | "right" = "left") {
     if (this.muted || this.jumpMuted) return;
-    if (!this._audioCtx) return;
-    if (this._audioCtx.state === "suspended") {
-      this._audioCtx.resume().catch(() => {});
-    }
+    if (!this._audioCtx || this._audioCtx.state !== "running") return;
     try {
       const ctx = this._audioCtx;
       const t0 = ctx.currentTime;
@@ -587,6 +606,9 @@ export const audio = {
       oscGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.09);
       osc.connect(oscGain);
       oscGain.connect(ctx.destination);
+      osc.onended = () => {
+        try { osc.disconnect(); oscGain.disconnect(); } catch {}
+      };
       osc.start(t0);
       osc.stop(t0 + 0.1);
 
@@ -606,6 +628,9 @@ export const audio = {
         noise.connect(bp);
         bp.connect(nGain);
         nGain.connect(ctx.destination);
+        noise.onended = () => {
+          try { noise.disconnect(); bp.disconnect(); nGain.disconnect(); } catch {}
+        };
         noise.start(t0);
         noise.stop(t0 + 0.06);
       }
@@ -620,10 +645,7 @@ export const audio = {
    *  toggle covers it too. */
   playHit() {
     if (this.muted || this.jumpMuted) return;
-    if (!this._audioCtx) return;
-    if (this._audioCtx.state === "suspended") {
-      this._audioCtx.resume().catch(() => {});
-    }
+    if (!this._audioCtx || this._audioCtx.state !== "running") return;
     try {
       const ctx = this._audioCtx;
       const t0 = ctx.currentTime;
@@ -639,6 +661,9 @@ export const audio = {
       thudGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.25);
       thud.connect(thudGain);
       thudGain.connect(ctx.destination);
+      thud.onended = () => {
+        try { thud.disconnect(); thudGain.disconnect(); } catch {}
+      };
       thud.start(t0);
       thud.stop(t0 + 0.28);
 
@@ -658,6 +683,9 @@ export const audio = {
         noise.connect(hp);
         hp.connect(nGain);
         nGain.connect(ctx.destination);
+        noise.onended = () => {
+          try { noise.disconnect(); hp.disconnect(); nGain.disconnect(); } catch {}
+        };
         noise.start(t0);
         noise.stop(t0 + 0.2);
       }
