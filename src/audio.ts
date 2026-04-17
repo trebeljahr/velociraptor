@@ -179,6 +179,7 @@ export const audio = {
     this._preloadHitBuffer();
     this._preloadUfoBuffer();
     this._preloadSantaBuffer();
+    this._preloadMeteorBuffer();
     this.initRain();
   },
 
@@ -820,6 +821,56 @@ export const audio = {
         try { src.disconnect(); gain.disconnect(); } catch {}
       };
       src.start(0);
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
+
+  // ── Meteor-impact SFX (DRAGON-STUDIO nuclear explosion) ───
+  _meteorBuffer: null as AudioBuffer | null,
+
+  _preloadMeteorBuffer() {
+    if (
+      typeof AudioContext === "undefined" &&
+      typeof window.webkitAudioContext === "undefined"
+    )
+      return;
+    fetch("assets/meteor.mp3")
+      .then((r) => r.arrayBuffer())
+      .then((buf) => {
+        this._ensureAudioCtx();
+        if (!this._audioCtx) return;
+        return this._audioCtx.decodeAudioData(buf);
+      })
+      .then((decoded) => {
+        if (decoded) this._meteorBuffer = decoded;
+      })
+      .catch(() => {
+        /* meteor SFX simply won't play */
+      });
+  },
+
+  /** Play the explosion sample at meteor impact. Sample is ~7.5s,
+   *  longer than the event lifetime (~5s) — the tail rumble lingers
+   *  after the visual fades, which reads as aftermath weight. */
+  playMeteor() {
+    if (this.muted || this.jumpMuted) return;
+    if (!this._audioCtx || !this._meteorBuffer) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    try {
+      const src = this._audioCtx.createBufferSource();
+      src.buffer = this._meteorBuffer;
+      const gain = this._audioCtx.createGain();
+      gain.gain.value = 0.5;
+      src.connect(gain);
+      gain.connect(this._audioCtx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
+      };
+      // Skip ~50ms of silent lead-in.
+      src.start(0, 0.05);
     } catch {
       /* SFX is non-critical */
     }

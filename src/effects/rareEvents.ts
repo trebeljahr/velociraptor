@@ -264,6 +264,9 @@ export function updateRareEvent(dtSec: number): void {
       e.vx = (e.targetX - e.startX) / (e.life * flightT);
       e.vy = (e.targetY - e.startY) / (e.life * flightT);
     } else {
+      // First frame past the flight phase — fire the explosion cue
+      // exactly once per meteor, on the transition into impact.
+      if (!e.impact) audio.playMeteor();
       e.impact = true;
       e.impactX = e.impactX || e.targetX;
       // Recalculate impact Y from current dune position (dunes
