@@ -225,17 +225,17 @@ export const RAPTOR_FRAMES = 12;
 export const RAPTOR_IDLE_FRAME = 11;
 // Animation cadence for the running loop. frameDelay scales inversely
 // with bgVelocity — MAX at the start-of-run slow pace, MIN at top
-// speed. Previously 70 / 40 which felt a touch floaty; a 1.3x bump
-// (54 / 31) lands the run cadence closer to the raptor's visual stride
-// length, so the feet don't appear to pedal air.
+// speed. Original values were 70 / 40 (feet pedaling air). Tightened
+// in two 1.3x passes (70→54→42, 40→31→24) for a combined ~1.67x
+// speedup — the feet now drive the motion instead of lagging it.
 //
 // The step SFX (src/audio.ts playStep + src/entities/raptor.ts frame-
 // advance handler) fire on frames 0 and 6 of the 12-frame walk cycle,
 // so they're frame-synced: changing these constants automatically
-// retimes the grass-running footfalls at the same 1.3x ratio without
+// retimes the grass-running footfalls at the same ratio without
 // needing a separate step-interval knob.
-export const RAPTOR_FRAME_DELAY_MIN = 31;
-export const RAPTOR_FRAME_DELAY_MAX = 54;
+export const RAPTOR_FRAME_DELAY_MIN = 24;
+export const RAPTOR_FRAME_DELAY_MAX = 42;
 export const RAPTOR_COLLISION_INSET = 4;
 
 // Per-frame head reference points, extracted by scanning each frame of
