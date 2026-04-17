@@ -1201,6 +1201,17 @@ html,
       .menu-panel .menu-item:hover {
         background: #e8ecf0;
       }
+      /* Keyboard + gamepad focus ring. :focus-visible fires on
+         tab-navigation and programmatic focus (which is what
+         window.__rrMenuFocusNext/Prev use), but NOT on plain mouse
+         clicks, so mouse users don't get a stuck outline after every
+         tap. 3px solid is emphatic enough to read from 10ft away
+         when the player is holding a controller in their lap. */
+      .menu-panel .menu-item:focus-visible {
+        outline: 3px solid #50b4cd;
+        outline-offset: 2px;
+        background: #e8ecf0;
+      }
       .menu-panel .menu-item .inner {
         display: inline-flex;
         align-items: center;
@@ -1229,6 +1240,71 @@ html,
         color: #888;
         font-size: 0.8rem;
         margin-top: 0.5rem;
+      }
+
+      /* ── Gamepad button hint ──────────────────────────────
+       * Shown only when body.gamepad-connected is set AND we're not
+       * inside a Capacitor shell. Hidden by default — the
+       * gamepadconnected listener in src/main.ts flips the body
+       * class, and body.cap (set by src/mobile/bridge.ts) hides it
+       * for mobile installs where controllers are rare.
+       *
+       * Each span is "icon + label"; the kbd chips get a subtle
+       * round-pill treatment so they read as controller faces, not
+       * keyboard keys. A/B use their standard Xbox colors so the
+       * player's muscle memory maps instantly. */
+      .menu-panel .menu-gamepad-hint {
+        display: none;
+        margin-top: 0.5rem;
+        color: #666;
+        font-size: 0.78rem;
+        gap: 0.95rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .menu-panel .menu-gamepad-hint span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      .menu-panel .menu-gamepad-hint kbd {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.35rem;
+        height: 1.35rem;
+        padding: 0 0.45rem;
+        font: inherit;
+        font-size: 0.72rem;
+        font-weight: 700;
+        line-height: 1;
+        color: #fff;
+        background: #555;
+        border-radius: 999px;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+      }
+      /* Generic face-button chip — a filled dot stands in for "any
+         button on the face cluster" so players reading the hint
+         don't have to translate from Xbox A → PlayStation Cross →
+         Switch Pro B in their heads. */
+      .menu-panel .menu-gamepad-hint kbd.gp-select {
+        background: #50b4cd; /* game brand */
+      }
+      /* System/menu-toggle button. ☰ glyph to evoke a burger menu,
+         the most universal "menu" indicator. */
+      .menu-panel .menu-gamepad-hint kbd.gp-back {
+        background: #555;
+      }
+      /* Reveal when a controller is attached. The gameplay build path
+         toggles body.gamepad-connected from the gamepadconnected
+         listener in src/main.ts. body.cap (Capacitor) hides it
+         further down — mobile players typically aren't on a pad. */
+      body.gamepad-connected .menu-panel .menu-gamepad-hint {
+        display: flex;
+      }
+      body.cap .menu-panel .menu-gamepad-hint {
+        display: none !important;
       }
       .menu-panel .close-hint {
         margin-top: 1rem;

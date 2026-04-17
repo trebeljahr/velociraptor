@@ -147,7 +147,12 @@ import {
   SKY_COLORS,
   NIGHT_COLOR,
   GAMEPAD_JUMP_BUTTONS,
-  GAMEPAD_MENU_BUTTON,
+  GAMEPAD_MENU_TOGGLE_BUTTONS,
+  GAMEPAD_MENU_SELECT_BUTTONS,
+  GAMEPAD_MENU_UP_BUTTONS,
+  GAMEPAD_MENU_DOWN_BUTTONS,
+  GAMEPAD_STICK_PRESS_THRESHOLD,
+  GAMEPAD_STICK_DEADZONE,
   CINEMATIC_PHASES,
 } from "./constants";
 import {
@@ -2054,7 +2059,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
 
   const _gamepad = {
     connected: false,
-    prevButtons: new Array(17).fill(false) as boolean[],
+    // 18 slots covers every Standard Mapping index (0-16) plus one
+    // vendor-specific extra (17). Padded with false so a smaller
+    // reported buttons[] still indexes cleanly.
+    prevButtons: new Array(18).fill(false) as boolean[],
+    // Analog stick direction state for debounced menu navigation.
+    // -1 = held up past threshold, +1 = held down, 0 = at rest
+    // (somewhere inside the deadzone → re-arm for the next press).
+    stickDir: 0 as -1 | 0 | 1,
   };
 
   function pollGamepad() {
@@ -2075,51 +2087,94 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     const prev = _gamepad.prevButtons;
     const btns = gp.buttons;
 
-    // ── Jump / start / restart (A, B, D-pad Up) ──────────────
-    for (const idx of GAMEPAD_JUMP_BUTTONS) {
-      if (idx >= btns.length) continue;
-      const pressed = btns[idx].value > 0.5 || btns[idx].pressed;
-      if (pressed && !prev[idx]) {
-        if (!state.started) {
-          if (typeof (window as any).__onStartKey === "function") {
-            (window as any).__onStartKey();
-          }
-        } else if (state.paused) {
-          window.dispatchEvent(
-            new KeyboardEvent("keydown", {
-              key: "Escape",
-              code: "Escape",
-              bubbles: true,
-              cancelable: true,
-            }),
-          );
-        } else if (state.gameOver) {
-          maybeResetAfterGameOver();
-        } else {
-          if (!raptor.jump()) raptor.bufferJump(performance.now());
-        }
+    const justPressed = (idx: number): boolean => {
+      if (idx >= btns.length) return false;
+      const nowPressed = btns[idx].value > 0.5 || btns[idx].pressed;
+      return nowPressed && !prev[idx];
+    };
+    const anyJustPressed = (indices: readonly number[]): boolean => {
+      for (const i of indices) if (justPressed(i)) return true;
+      return false;
+    };
+
+    // ── Analog stick navigation (debounced) ──────────────────
+    // axes[1] on Standard Mapping is the left-stick Y axis. -1 is
+    // full up, +1 is full down, with a small neutral band around 0.
+    // We edge-detect: each time the stick crosses the press
+    // threshold we emit exactly ONE navigation event; the stick has
+    // to return inside the deadzone before the next event fires.
+    // Without hysteresis a stick resting slightly past threshold
+    // would rapid-fire through the whole menu.
+    const axes = gp.axes || [];
+    const stickY = axes.length > 1 ? axes[1] : 0;
+    let stickPress: -1 | 0 | 1 = 0;
+    if (_gamepad.stickDir === 0) {
+      if (stickY <= -GAMEPAD_STICK_PRESS_THRESHOLD) {
+        _gamepad.stickDir = -1;
+        stickPress = -1;
+      } else if (stickY >= GAMEPAD_STICK_PRESS_THRESHOLD) {
+        _gamepad.stickDir = 1;
+        stickPress = 1;
       }
+    } else if (Math.abs(stickY) < GAMEPAD_STICK_DEADZONE) {
+      _gamepad.stickDir = 0;
     }
 
-    // ── Start / Options button → toggle menu ─────────────────
-    if (GAMEPAD_MENU_BUTTON < btns.length) {
-      const pressed =
-        btns[GAMEPAD_MENU_BUTTON].value > 0.5 ||
-        btns[GAMEPAD_MENU_BUTTON].pressed;
-      if (pressed && !prev[GAMEPAD_MENU_BUTTON]) {
-        if (!state.started) {
-          if (typeof (window as any).__onStartKey === "function") {
-            (window as any).__onStartKey();
+    const w = window as unknown as {
+      __rrIsMenuOpen?: () => boolean;
+      __rrToggleMenu?: () => void;
+      __rrCloseMenu?: () => void;
+      __rrMenuFocusNext?: () => void;
+      __rrMenuFocusPrev?: () => void;
+      __rrMenuSelect?: () => void;
+      __onStartKey?: () => void;
+    };
+
+    const menuOpen = !!w.__rrIsMenuOpen?.();
+
+    if (menuOpen) {
+      // ── In-menu navigation ─────────────────────────────────
+      // Wide acceptance by design (see src/constants.ts header):
+      // any face button (0-3) activates the focused item. Any
+      // system button (Start / Back / Home / Guide / +/− — indices
+      // 8, 9, 16, 17) closes the menu. D-pad up/down + left-stick
+      // Y navigate. This handles Xbox, PlayStation, Switch Pro,
+      // and generic clones without caring which vendor labels
+      // button 0 as "A" vs "B" vs "Cross" vs "B".
+      if (anyJustPressed(GAMEPAD_MENU_UP_BUTTONS) || stickPress === -1) {
+        w.__rrMenuFocusPrev?.();
+      }
+      if (anyJustPressed(GAMEPAD_MENU_DOWN_BUTTONS) || stickPress === 1) {
+        w.__rrMenuFocusNext?.();
+      }
+      if (anyJustPressed(GAMEPAD_MENU_SELECT_BUTTONS)) {
+        w.__rrMenuSelect?.();
+      }
+      if (anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS)) {
+        w.__rrCloseMenu?.();
+      }
+    } else {
+      // ── Gameplay ───────────────────────────────────────────
+      for (const idx of GAMEPAD_JUMP_BUTTONS) {
+        if (justPressed(idx)) {
+          if (!state.started) {
+            w.__onStartKey?.();
+          } else if (state.gameOver) {
+            maybeResetAfterGameOver();
+          } else {
+            if (!raptor.jump()) raptor.bufferJump(performance.now());
           }
+        }
+      }
+      // Any system button opens the menu (or starts the game if
+      // nothing's running yet). Accepting all four covers different
+      // vendors' idea of "the menu button" — Xbox View/Menu, PS
+      // Options/Share, Switch Pro +/−, etc.
+      if (anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS)) {
+        if (!state.started) {
+          w.__onStartKey?.();
         } else {
-          window.dispatchEvent(
-            new KeyboardEvent("keydown", {
-              key: "Escape",
-              code: "Escape",
-              bubbles: true,
-              cancelable: true,
-            }),
-          );
+          w.__rrToggleMenu?.();
         }
       }
     }
@@ -2339,14 +2394,20 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     canvas.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
 
-    // Gamepad connection tracking.
+    // Gamepad connection tracking. Tagging <body> lets CSS reveal the
+    // in-menu gamepad-button hint (body.gamepad-connected, see
+    // legacy.css) — gated further on :not(.cap) so the hint stays
+    // hidden on mobile where gamepads are rare and the row would take
+    // valuable vertical space in the menu.
     window.addEventListener("gamepadconnected", (e: GamepadEvent) => {
       _gamepad.connected = true;
+      document.body.classList.add("gamepad-connected");
       console.log("Gamepad connected:", e.gamepad.id);
     });
     window.addEventListener("gamepaddisconnected", () => {
       _gamepad.connected = false;
       _gamepad.prevButtons.fill(false);
+      document.body.classList.remove("gamepad-connected");
       console.log("Gamepad disconnected");
     });
 
