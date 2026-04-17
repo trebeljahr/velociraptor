@@ -28,7 +28,6 @@ import {
   VELOCITY_SCALE_DIVISOR,
   DOWNWARD_ACCEL_DIVISOR,
   JUMP_CLEARANCE_MULTIPLIER,
-  JUMP_VIBRATION_MS,
   JUMP_BUFFER_MS,
   FRAME_DELAY_SPEED_RANGE,
   INITIAL_BG_VELOCITY,
@@ -46,6 +45,7 @@ import { state } from "../state";
 import { audio } from "../audio";
 import { IMAGES } from "../images";
 import { saveTotalJumps } from "../persistence";
+import { hapticJump } from "../haptic";
 import { clamp, lerp, shrinkPolygon, Polygon } from "../helpers";
 
 export type RaptorCallback = () => void;
@@ -103,7 +103,7 @@ export class Raptor {
     this.velocity = -v;
     this._jumpBufferedAt = 0;
     audio.playJump();
-    if (!audio.muted && navigator.vibrate) navigator.vibrate(JUMP_VIBRATION_MS);
+    if (!audio.muted) hapticJump();
     // Gamepad rumble — light tap on jump.
     try {
       const gp = navigator.getGamepads?.()[0];

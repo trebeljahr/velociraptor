@@ -168,6 +168,7 @@ import {
   saveBoolFlag,
   hydratePersistence,
 } from "./persistence";
+import { hapticDeath } from "./haptic";
 import {
   lerp,
   lerpColor,
@@ -613,8 +614,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
           if (polygonsOverlap(raptorPoly, c.collisionPolygon())) {
             state.gameOver = true;
             state.gameOverFrame = state.frame;
-            if (!audio.muted && navigator.vibrate)
-              navigator.vibrate([50, 30, 80]);
+            if (!audio.muted) hapticDeath();
             // Gamepad rumble — heavy jolt on death.
             try {
               const gp = navigator.getGamepads?.()[0];
