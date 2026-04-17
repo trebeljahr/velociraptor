@@ -1671,6 +1671,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         x: state.width + 50,
         y: state.height * (0.1 + Math.random() * 0.3),
       };
+      // Mirror the SFX fire in maybeSpawnRareEvent so debug triggers
+      // sound the same as natural spawns.
+      if (evt.id === "ufo") audio.playUfo();
+      else if (evt.id === "santa") audio.playSanta();
       if (!state._rareEventsSeen[evt.id]) {
         state._rareEventsSeen[evt.id] = 1;
         saveRareEventsSeen(state._rareEventsSeen);

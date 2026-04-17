@@ -582,8 +582,9 @@ export const audio = {
     return buf;
   },
 
-  /** Footfall: sine thump + short filtered noise scrape. `foot`
-   *  biases pitch so alternating calls read as left/right.
+  /** Footfall: quiet sub-bass thud under a muffled lowpass-noise
+   *  "paf" to suggest a paw pressing sand. `foot` biases pitch so
+   *  alternating calls read as left/right without being obvious.
    *
    *  Every node is explicitly .disconnect()'d in onended because iOS
    *  WKWebView leaks stopped nodes connected to ctx.destination — at
@@ -597,45 +598,48 @@ export const audio = {
       const ctx = this._audioCtx;
       const t0 = ctx.currentTime;
 
-      // Low-frequency thump — body weight hitting sand.
-      const thumpFreq = foot === "left" ? 110 : 92;
+      // Very soft sub-bass thump — "body weight" layer, felt more
+      // than heard. Dropped well below the music's fundamental so it
+      // doesn't fight the mix.
+      const thumpFreq = foot === "left" ? 68 : 56;
       const osc = ctx.createOscillator();
       osc.type = "sine";
       osc.frequency.setValueAtTime(thumpFreq, t0);
-      osc.frequency.exponentialRampToValueAtTime(thumpFreq * 0.5, t0 + 0.07);
+      osc.frequency.exponentialRampToValueAtTime(thumpFreq * 0.6, t0 + 0.04);
       const oscGain = ctx.createGain();
       oscGain.gain.setValueAtTime(0, t0);
-      oscGain.gain.linearRampToValueAtTime(0.14, t0 + 0.004);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.09);
+      oscGain.gain.linearRampToValueAtTime(0.05, t0 + 0.002);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.06);
       osc.connect(oscGain);
       oscGain.connect(ctx.destination);
       osc.onended = () => {
         try { osc.disconnect(); oscGain.disconnect(); } catch {}
       };
       osc.start(t0);
-      osc.stop(t0 + 0.1);
+      osc.stop(t0 + 0.07);
 
-      // Brief sand-scrape — bandpass noise on top of the thump.
+      // Muffled sand-press — lowpassed noise tucked under the thump.
+      // Lowpass (rather than bandpass) removes the harsh scrape that
+      // made the earlier version grating at high step rates.
       const noiseBuf = this._getNoiseBuffer();
       if (noiseBuf) {
         const noise = ctx.createBufferSource();
         noise.buffer = noiseBuf;
-        const bp = ctx.createBiquadFilter();
-        bp.type = "bandpass";
-        bp.frequency.value = 1800;
-        bp.Q.value = 1.2;
+        const lp = ctx.createBiquadFilter();
+        lp.type = "lowpass";
+        lp.frequency.value = 480;
         const nGain = ctx.createGain();
         nGain.gain.setValueAtTime(0, t0);
-        nGain.gain.linearRampToValueAtTime(0.05, t0 + 0.003);
-        nGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05);
-        noise.connect(bp);
-        bp.connect(nGain);
+        nGain.gain.linearRampToValueAtTime(0.025, t0 + 0.002);
+        nGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.035);
+        noise.connect(lp);
+        lp.connect(nGain);
         nGain.connect(ctx.destination);
         noise.onended = () => {
-          try { noise.disconnect(); bp.disconnect(); nGain.disconnect(); } catch {}
+          try { noise.disconnect(); lp.disconnect(); nGain.disconnect(); } catch {}
         };
         noise.start(t0);
-        noise.stop(t0 + 0.06);
+        noise.stop(t0 + 0.04);
       }
     } catch {
       /* SFX is non-critical */
