@@ -1,7 +1,11 @@
-import { defineConfig } from "vite";
+import { defineConfig, Plugin } from "vite";
 import { resolve } from "path";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
+import {
+  ATTRIBUTION_SECTIONS,
+  renderAttributionHTML,
+} from "./src/credits";
 
 // Build target selector. `VITE_TARGET=capacitor npm run build` produces
 // the native-mobile bundle: the PWA service worker is skipped (Workbox's
@@ -10,6 +14,68 @@ import { VitePWA } from "vite-plugin-pwa";
 // mobile, not separate navigable pages).
 const TARGET = process.env.VITE_TARGET ?? "web";
 const IS_CAPACITOR = TARGET === "capacitor";
+
+/**
+ * Build-time injection of the shared credits/attributions into
+ * index.html (credits overlay) and imprint.html (Credits & Asset
+ * Sources block). Both pages ship as plain static HTML — no runtime
+ * module has to execute for the attributions to appear, so the
+ * content is crawlable and doesn't flash in on page load.
+ *
+ * Source of truth: src/credits.ts. Change an entry there and both
+ * pages pick it up on the next build.
+ *
+ * Runs in dev (transformIndexHtml fires on every served HTML request)
+ * and in prod (runs once per emitted HTML).
+ */
+function creditsBuildInjectPlugin(): Plugin {
+  const overlayHTML = renderAttributionHTML(ATTRIBUTION_SECTIONS);
+  const imprintHTML = renderAttributionHTML(ATTRIBUTION_SECTIONS, {
+    // Imprint nests the attribution subsections under the existing
+    // "Credits & Asset Sources" <h2>, so we emit <h3>s underneath.
+    headingLevel: "h3",
+    // No <section class="credits-section"> wrapper — the imprint's
+    // CSS styles headings and lists directly.
+    sectionWrap: false,
+    // The imprint's <ul> elements have no class; they inherit the
+    // default page styling defined in the imprint's <style> block.
+    listClass: null,
+    // Match the inline style the original handwritten <h3>s used.
+    headingInlineStyle:
+      "font-size: 1rem; margin-top: 1rem; margin-bottom: 0.3rem; color: #222;",
+    // Keep single-item sections (Music, Engine & code) as <ul><li> so
+    // the imprint's bullet styling stays consistent across sections.
+    listAlways: true,
+  });
+
+  const OVERLAY_MARKER = '<div id="credits-attribution-sections"></div>';
+  const IMPRINT_MARKER = '<div id="imprint-attribution-sections"></div>';
+
+  return {
+    name: "credits-build-inject",
+    // Run before vite's built-in HTML processing so downstream plugins
+    // see the final markup.
+    transformIndexHtml: {
+      order: "pre",
+      handler(html, ctx) {
+        const name = ctx.filename;
+        if (name.endsWith("imprint.html")) {
+          return html.replace(
+            IMPRINT_MARKER,
+            `<div id="imprint-attribution-sections">${imprintHTML}</div>`,
+          );
+        }
+        if (name.endsWith("index.html")) {
+          return html.replace(
+            OVERLAY_MARKER,
+            `<div id="credits-attribution-sections">${overlayHTML}</div>`,
+          );
+        }
+        return html;
+      },
+    },
+  };
+}
 
 export default defineConfig({
   // Capacitor serves assets from a WebView-local scheme, so relative paths
@@ -41,6 +107,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    creditsBuildInjectPlugin(),
     tailwindcss(),
     // The PWA service worker is desktop/web-only. Skipping it on
     // Capacitor avoids a Workbox navigateFallback vs. capacitor://

@@ -702,7 +702,9 @@ export const audio = {
     }
   },
 
-  // ── Cactus-collision SFX (Universfield marimba lose) ───────
+  // ── Game-over / cactus-impact SFX (freesound_community) ───
+  // Sample credit: freesound_community on Pixabay — see imprint.html
+  // and the credits overlay in index.html for the full attribution.
   _hitBuffer: null as AudioBuffer | null,
 
   _preloadHitBuffer() {

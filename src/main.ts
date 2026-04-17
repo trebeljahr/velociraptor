@@ -2145,6 +2145,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       /* no-op */
     }
 
+
     // Populate the shared contexts bag from src/canvas.ts, then alias
     // the local let-variables so the existing render code (which
     // still references bare `ctx`, `skyCtx`, etc.) keeps working.

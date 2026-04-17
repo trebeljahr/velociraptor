@@ -773,15 +773,13 @@
               >.
             </p>
           </section>
-          <section class="credits-section">
-            <h2>Art</h2>
-            <p>
-              Dino sprite and the running raptor animation by
-              <a href="https://www.instagram.com/chrismasna" target="_blank" rel="noopener"
-                >Chris Masna</a
-              >.
-            </p>
-          </section>
+
+          <!-- Art / Music / Sound effects / Engine — rendered at runtime
+               from src/credits.ts so the imprint and this overlay can't
+               drift out of sync. See the init block in main.ts's
+               DOMContentLoaded handler. -->
+          <div id="credits-attribution-sections"></div>
+
           <section class="credits-section">
             <h2>Homage</h2>
             <p>
@@ -791,6 +789,7 @@
               weirder.
             </p>
           </section>
+
           <section class="credits-section">
             <h2>Writing &amp; more</h2>
             <ul class="credits-links">
@@ -806,6 +805,7 @@
               </li>
             </ul>
           </section>
+
           <section class="credits-section credits-legal">
             <h2>Legal</h2>
             <ul class="credits-links">
