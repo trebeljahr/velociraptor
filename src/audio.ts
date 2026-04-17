@@ -218,11 +218,64 @@ export const audio = {
 
   /** Unlock the Web Audio context (requires a user gesture). Called
    *  from the Start Game handler so the first jump SFX plays without
-   *  delay, regardless of mute state. */
+   *  delay, regardless of mute state. Also primes the rain audio
+   *  decoder — see _primeRainAudio for the why. */
   unlockAudio() {
     this._ensureAudioCtx();
     if (this._audioCtx && this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
+    }
+    this._primeRainAudio();
+  },
+
+  _rainPrimed: false as boolean,
+
+  /**
+   * Force Chromium to decode rain.mp3 *now*, during the start-screen
+   * user gesture, instead of when gameplay triggers the first real
+   * rain.play() mid-run.
+   *
+   * Why: rain.mp3 is ~3MB. Even with `preload="auto"` on the <audio>
+   * element, Chromium defers the MP3 decode until the first play()
+   * call if the element has never been played. That decode happens
+   * on the main thread and stalls the game loop for hundreds of
+   * milliseconds — long enough for the raptor to die to a cactus
+   * that appeared during the hitch.
+   *
+   * Trick: play at volume 0 and immediately pause. The browser
+   * decodes the stream to start playback, then we stop. The decoder
+   * state stays warm so the *next* play() (when rain actually
+   * starts in-game) is a no-op on the decode path.
+   *
+   * Idempotent — only runs once per session. If the play() promise
+   * rejects (autoplay policy still blocking, non-gesture context),
+   * we reset the flag so the next gesture gets another shot.
+   */
+  _primeRainAudio() {
+    if (this._rainPrimed) return;
+    if (!this.rain) return;
+    this._rainPrimed = true;
+    const targetVolume = this.rain.volume;
+    this.rain.volume = 0;
+    const restore = () => {
+      if (!this.rain) return;
+      this.rain.pause();
+      this.rain.currentTime = 0;
+      this.rain.volume = targetVolume;
+    };
+    try {
+      const p = this.rain.play();
+      if (p && typeof p.then === "function") {
+        p.then(restore).catch(() => {
+          if (this.rain) this.rain.volume = targetVolume;
+          this._rainPrimed = false;
+        });
+      } else {
+        restore();
+      }
+    } catch {
+      if (this.rain) this.rain.volume = targetVolume;
+      this._rainPrimed = false;
     }
   },
 

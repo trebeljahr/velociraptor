@@ -1779,6 +1779,34 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     );
   }
 
+  /**
+   * Warm the GPU texture cache for every loaded image by drawing it
+   * once to a tiny offscreen canvas. Without this, the first
+   * in-game drawImage of a sprite that hasn't been used yet (UFO,
+   * Santa sleigh, reindeer, tumbleweed, cosmetic overlays) triggers
+   * a texture upload stall — a frame hitch big enough to kill the
+   * player when a rare event first spawns mid-run.
+   *
+   * Cacti and the raptor sprite don't need this because they're
+   * drawn from frame 1 and warm naturally.
+   */
+  function warmImageTextures() {
+    const warm = document.createElement("canvas");
+    warm.width = 2;
+    warm.height = 2;
+    const wctx = warm.getContext("2d");
+    if (!wctx) return;
+    for (const key of Object.keys(IMAGES)) {
+      const img = IMAGES[key];
+      if (!img) continue;
+      try {
+        wctx.drawImage(img, 0, 0, 2, 2);
+      } catch {
+        /* ignore — warm is best-effort */
+      }
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════════
   // Cinematic / filming mode (F9)
   // ══════════════════════════════════════════════════════════════════
@@ -2089,6 +2117,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     window.addEventListener("orientationchange", onResize);
 
     await preloadImages();
+    // Pre-upload every sprite to the GPU now so the first drawImage
+    // of a rare-event sprite doesn't cause a texture-upload hitch
+    // mid-run (previously killed the player when the UFO spawned).
+    warmImageTextures();
 
     // Re-init dunes now that images are loaded so background cacti
     // don't "plop in" on the first frame (onResize already called
