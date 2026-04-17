@@ -110,21 +110,31 @@
         justify-content: center;
         gap: 18px;
       }
+      /*
+       * Cycle through the 12-frame sprite sheet (578×2544, 12 frames
+       * stacked vertically). At a displayed width of 436px the per-
+       * frame height is 160px, so the run animation sweeps the
+       * background-position from 0 to -1920px in 12 equal steps.
+       * `steps(12)` makes the frame flips crisp — no interpolation.
+       */
       .boot-splash-raptor {
+        width: 436px;
         height: 160px;
-        width: auto;
+        background-image: url(assets/raptor-sheet.png);
+        background-repeat: no-repeat;
+        background-size: 100% auto;
+        background-position: 0 0;
         image-rendering: pixelated;
         image-rendering: -moz-crisp-edges;
         filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.18));
-        animation: boot-splash-bob 1.2s ease-in-out infinite;
+        animation: boot-splash-run 0.9s steps(12) infinite;
       }
-      @keyframes boot-splash-bob {
-        0%,
-        100% {
-          transform: translateY(0);
+      @keyframes boot-splash-run {
+        from {
+          background-position: 0 0;
         }
-        50% {
-          transform: translateY(-10px);
+        to {
+          background-position: 0 -1920px;
         }
       }
       .boot-splash-ground {
@@ -307,11 +317,7 @@
          Fade-out triggered by onGameReady() below. -->
     <div id="boot-splash" aria-hidden="true">
       <div class="boot-splash-stage">
-        <img
-          class="boot-splash-raptor"
-          src="assets/raptor-idle.png"
-          alt=""
-        />
+        <div class="boot-splash-raptor" role="img" aria-label=""></div>
         <div class="boot-splash-ground"></div>
         <div class="boot-splash-title">Raptor Runner</div>
         <div class="boot-splash-dots">
