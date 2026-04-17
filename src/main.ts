@@ -1675,6 +1675,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // sound the same as natural spawns.
       if (evt.id === "ufo") audio.playUfo();
       else if (evt.id === "santa") audio.playSanta();
+      else if (evt.id === "comet") audio.playComet();
       if (!state._rareEventsSeen[evt.id]) {
         state._rareEventsSeen[evt.id] = 1;
         saveRareEventsSeen(state._rareEventsSeen);
@@ -2204,6 +2205,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       () => {
         spawnDust(raptor.x + raptor.w * 0.51, state.ground);
         spawnDust(raptor.x + raptor.w * 0.73, state.ground);
+        audio.playLanding();
       },
       () => {
         maybeSpawnRareEvent();

@@ -142,6 +142,7 @@ export function maybeSpawnRareEvent(): void {
   // channel, so this is a no-op when the user has SFX off.
   if (evt.id === "ufo") audio.playUfo();
   else if (evt.id === "santa") audio.playSanta();
+  else if (evt.id === "comet") audio.playComet();
   // Unlock achievement on first sighting
   if (!state._rareEventsSeen[evt.id]) {
     state._rareEventsSeen[evt.id] = 1;

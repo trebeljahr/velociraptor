@@ -177,6 +177,7 @@ export const audio = {
     this._preloadUfoBuffer();
     this._preloadSantaBuffer();
     this._preloadMeteorBuffer();
+    this._preloadCometBuffer();
     this._preloadStepBuffers();
     this.initRain();
   },
@@ -253,34 +254,54 @@ export const audio = {
     return this.muted;
   },
 
-  /** Jump cue: short sub-bass thump that pitches down a bit —
-   *  reads as body weight pushing off. No rising sweep (that was
-   *  the "cartoon boing" the user disliked), no grass-sample
-   *  overlay (the step cue handles the texture). Energy sits
-   *  below typical music fundamentals so it doesn't fight the mix. */
+  /** Jump cue: pitched-down grass step (body weight push-off)
+   *  layered with a rising sine sweep (liftoff thrust). Before the
+   *  synth version we tried earlier — the user preferred this one.
+   *  _silenceSteps first so an in-flight running-step sample
+   *  doesn't stack messily under the cue. */
   playJump() {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || this._audioCtx.state !== "running") return;
-    // Cut any in-flight step source before laying the jump on top.
     this._silenceSteps();
     try {
       const ctx = this._audioCtx;
       const t0 = ctx.currentTime;
+
+      // Layer 1: grass push-off — pitched-down step sample, heavier
+      // than a running footfall. Picks a random loaded step buffer
+      // so consecutive jumps don't sound identical.
+      const loaded = this._stepBuffers.filter((b) => b);
+      const buf = loaded[Math.floor(Math.random() * loaded.length)];
+      if (buf) {
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.playbackRate.value = 0.8;
+        const srcGain = ctx.createGain();
+        srcGain.gain.value = 2.0;
+        src.connect(srcGain);
+        srcGain.connect(ctx.destination);
+        src.onended = () => {
+          try { src.disconnect(); srcGain.disconnect(); } catch {}
+        };
+        src.start(0);
+      }
+
+      // Layer 2: rising sine thrust — the "liftoff" feel.
       const osc = ctx.createOscillator();
       osc.type = "sine";
-      osc.frequency.setValueAtTime(95, t0);
-      osc.frequency.exponentialRampToValueAtTime(48, t0 + 0.1);
+      osc.frequency.setValueAtTime(75, t0);
+      osc.frequency.exponentialRampToValueAtTime(170, t0 + 0.11);
       const oscGain = ctx.createGain();
       oscGain.gain.setValueAtTime(0, t0);
-      oscGain.gain.linearRampToValueAtTime(0.16, t0 + 0.004);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.13);
+      oscGain.gain.linearRampToValueAtTime(0.2, t0 + 0.005);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
       osc.connect(oscGain);
       oscGain.connect(ctx.destination);
       osc.onended = () => {
         try { osc.disconnect(); oscGain.disconnect(); } catch {}
       };
       osc.start(t0);
-      osc.stop(t0 + 0.14);
+      osc.stop(t0 + 0.15);
     } catch {
       /* SFX is non-critical */
     }
@@ -629,6 +650,50 @@ export const audio = {
     }
   },
 
+  /** Landing thud: two grass-step samples played with a ~35ms
+   *  delay, both pitched ~15% lower than a running step, the
+   *  second slightly lower still. Reads as a heavier two-foot
+   *  impact instead of a single running stride. Built from the
+   *  same source material as playStep so the texture matches. */
+  playLanding() {
+    if (this.muted || this.jumpMuted) return;
+    if (!this._audioCtx || this._audioCtx.state !== "running") return;
+    const loaded = this._stepBuffers.filter((b) => b);
+    if (loaded.length === 0) return;
+    try {
+      const ctx = this._audioCtx;
+      const now = ctx.currentTime;
+      const play = (buf: AudioBuffer, delay: number, rate: number) => {
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.playbackRate.value = rate;
+        const gain = ctx.createGain();
+        gain.gain.value = 1.1;
+        src.connect(gain);
+        gain.connect(ctx.destination);
+        this._activeStepGains.add(gain);
+        src.onended = () => {
+          this._activeStepGains.delete(gain);
+          try { src.disconnect(); gain.disconnect(); } catch {}
+        };
+        src.start(now + delay);
+      };
+      // Two different buffers if possible, else reuse the one we
+      // have. Second foot lands a touch deeper than the first.
+      const a = loaded[Math.floor(Math.random() * loaded.length)];
+      const b =
+        loaded.length > 1
+          ? loaded.filter((x) => x !== a)[
+              Math.floor(Math.random() * (loaded.length - 1))
+            ]
+          : a;
+      play(a, 0, 0.85);
+      play(b, 0.035, 0.78);
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
+
   /** Quickly fade out every in-flight step source. Called from
    *  playJump so the jump cue isn't sharing the mix with a
    *  leftover running-grass sample. */
@@ -914,7 +979,56 @@ export const audio = {
       // audio tick exactly (no setTimeout drift). First arg is
       // absolute start time, second is buffer offset (skip silent
       // lead-in).
-      src.start(ctx.currentTime + 0.4, 0.05);
+      src.start(ctx.currentTime + 0.2, 0.05);
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
+
+  // ── Comet rare-event SFX (Alice_soundz glitter) ────────────
+  _cometBuffer: null as AudioBuffer | null,
+
+  _preloadCometBuffer() {
+    if (
+      typeof AudioContext === "undefined" &&
+      typeof window.webkitAudioContext === "undefined"
+    )
+      return;
+    fetch("assets/comet.mp3")
+      .then((r) => r.arrayBuffer())
+      .then((buf) => {
+        this._ensureAudioCtx();
+        if (!this._audioCtx) return;
+        return this._audioCtx.decodeAudioData(buf);
+      })
+      .then((decoded) => {
+        if (decoded) this._cometBuffer = decoded;
+      })
+      .catch(() => {
+        /* comet SFX simply won't play */
+      });
+  },
+
+  /** Sparkly glitter cue for a comet flyby. Sample has ~540ms of
+   *  leading silence, offset past it so the shimmer lands with
+   *  the comet entering frame. */
+  playComet() {
+    if (this.muted || this.jumpMuted) return;
+    if (!this._audioCtx || !this._cometBuffer) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    try {
+      const src = this._audioCtx.createBufferSource();
+      src.buffer = this._cometBuffer;
+      const gain = this._audioCtx.createGain();
+      gain.gain.value = 0.4;
+      src.connect(gain);
+      gain.connect(this._audioCtx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
+      };
+      src.start(0, 0.54);
     } catch {
       /* SFX is non-critical */
     }
