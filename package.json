@@ -31,7 +31,7 @@
     "android:avds": "bash -c 'source scripts/android-env.sh && emulator -list-avds'",
     "android:devices": "bash -c 'source scripts/android-env.sh && adb devices'",
     "android:logcat": "bash -c 'source scripts/android-env.sh && adb logcat -s Capacitor Capacitor/Console Capacitor/WebView chromium'",
-    "mobile:assets": "capacitor-assets generate --iconBackgroundColor \"#50b4cd\" --splashBackgroundColor \"#50b4cd\""
+    "mobile:assets": "capacitor-assets generate --ios --android --iconBackgroundColor \"#50b4cd\" --splashBackgroundColor \"#50b4cd\""
   },
   "devDependencies": {
     "@capacitor/android": "^8.3.1",
