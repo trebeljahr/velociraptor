@@ -148,6 +148,11 @@ import {
   NIGHT_COLOR,
   GAMEPAD_JUMP_BUTTONS,
   GAMEPAD_MENU_BUTTON,
+  GAMEPAD_HOME_BUTTON,
+  GAMEPAD_MENU_SELECT_BUTTON,
+  GAMEPAD_MENU_BACK_BUTTON,
+  GAMEPAD_MENU_UP_BUTTON,
+  GAMEPAD_MENU_DOWN_BUTTON,
   CINEMATIC_PHASES,
 } from "./constants";
 import {
@@ -2075,51 +2080,65 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     const prev = _gamepad.prevButtons;
     const btns = gp.buttons;
 
-    // ── Jump / start / restart (A, B, D-pad Up) ──────────────
-    for (const idx of GAMEPAD_JUMP_BUTTONS) {
-      if (idx >= btns.length) continue;
-      const pressed = btns[idx].value > 0.5 || btns[idx].pressed;
-      if (pressed && !prev[idx]) {
-        if (!state.started) {
-          if (typeof (window as any).__onStartKey === "function") {
-            (window as any).__onStartKey();
+    const justPressed = (idx: number): boolean => {
+      if (idx >= btns.length) return false;
+      const nowPressed = btns[idx].value > 0.5 || btns[idx].pressed;
+      return nowPressed && !prev[idx];
+    };
+
+    const w = window as unknown as {
+      __rrIsMenuOpen?: () => boolean;
+      __rrToggleMenu?: () => void;
+      __rrCloseMenu?: () => void;
+      __rrMenuFocusNext?: () => void;
+      __rrMenuFocusPrev?: () => void;
+      __rrMenuSelect?: () => void;
+      __onStartKey?: () => void;
+    };
+
+    const menuOpen = !!w.__rrIsMenuOpen?.();
+
+    if (menuOpen) {
+      // ── In-menu navigation ─────────────────────────────────
+      // D-pad up/down moves the focus ring between menu items. A
+      // activates the focused item (same effect as clicking it).
+      // B and Start/Home close the menu. These intercept what would
+      // otherwise be jump buttons — without this branch the player
+      // couldn't press A inside the menu without also jumping.
+      if (justPressed(GAMEPAD_MENU_UP_BUTTON)) w.__rrMenuFocusPrev?.();
+      if (justPressed(GAMEPAD_MENU_DOWN_BUTTON)) w.__rrMenuFocusNext?.();
+      if (justPressed(GAMEPAD_MENU_SELECT_BUTTON)) w.__rrMenuSelect?.();
+      if (
+        justPressed(GAMEPAD_MENU_BACK_BUTTON) ||
+        justPressed(GAMEPAD_MENU_BUTTON) ||
+        justPressed(GAMEPAD_HOME_BUTTON)
+      ) {
+        w.__rrCloseMenu?.();
+      }
+    } else {
+      // ── Gameplay ───────────────────────────────────────────
+      for (const idx of GAMEPAD_JUMP_BUTTONS) {
+        if (justPressed(idx)) {
+          if (!state.started) {
+            w.__onStartKey?.();
+          } else if (state.gameOver) {
+            maybeResetAfterGameOver();
+          } else {
+            if (!raptor.jump()) raptor.bufferJump(performance.now());
           }
-        } else if (state.paused) {
-          window.dispatchEvent(
-            new KeyboardEvent("keydown", {
-              key: "Escape",
-              code: "Escape",
-              bubbles: true,
-              cancelable: true,
-            }),
-          );
-        } else if (state.gameOver) {
-          maybeResetAfterGameOver();
-        } else {
-          if (!raptor.jump()) raptor.bufferJump(performance.now());
         }
       }
-    }
-
-    // ── Start / Options button → toggle menu ─────────────────
-    if (GAMEPAD_MENU_BUTTON < btns.length) {
-      const pressed =
-        btns[GAMEPAD_MENU_BUTTON].value > 0.5 ||
-        btns[GAMEPAD_MENU_BUTTON].pressed;
-      if (pressed && !prev[GAMEPAD_MENU_BUTTON]) {
+      // Start / Home both open the menu (or start the game if not
+      // started yet). Home is button 16 — not reported by every
+      // browser, so Start is the primary.
+      if (
+        justPressed(GAMEPAD_MENU_BUTTON) ||
+        justPressed(GAMEPAD_HOME_BUTTON)
+      ) {
         if (!state.started) {
-          if (typeof (window as any).__onStartKey === "function") {
-            (window as any).__onStartKey();
-          }
+          w.__onStartKey?.();
         } else {
-          window.dispatchEvent(
-            new KeyboardEvent("keydown", {
-              key: "Escape",
-              code: "Escape",
-              bubbles: true,
-              cancelable: true,
-            }),
-          );
+          w.__rrToggleMenu?.();
         }
       }
     }
@@ -2338,14 +2357,20 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     canvas.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
 
-    // Gamepad connection tracking.
+    // Gamepad connection tracking. Tagging <body> lets CSS reveal the
+    // in-menu gamepad-button hint (body.gamepad-connected, see
+    // legacy.css) — gated further on :not(.cap) so the hint stays
+    // hidden on mobile where gamepads are rare and the row would take
+    // valuable vertical space in the menu.
     window.addEventListener("gamepadconnected", (e: GamepadEvent) => {
       _gamepad.connected = true;
+      document.body.classList.add("gamepad-connected");
       console.log("Gamepad connected:", e.gamepad.id);
     });
     window.addEventListener("gamepaddisconnected", () => {
       _gamepad.connected = false;
       _gamepad.prevButtons.fill(false);
+      document.body.classList.remove("gamepad-connected");
       console.log("Gamepad disconnected");
     });
 

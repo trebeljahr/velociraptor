@@ -107,8 +107,20 @@ export const MOON_PHASE_OFFSET_DAYS = 2;
 
 // ── Gamepad / controller ─────────────────────────────────
 // Standard Gamepad layout button indices.
+// https://www.w3.org/TR/gamepad/#remapping
 export const GAMEPAD_JUMP_BUTTONS = [0, 1, 12]; // A, B, D-pad Up
 export const GAMEPAD_MENU_BUTTON = 9; // Start / Options
+// Home / Guide / Xbox button. Reported as button 16 on most modern
+// browsers; older Firefox didn't expose it. Used as a secondary
+// open-menu trigger so players who forget about Start have a path.
+export const GAMEPAD_HOME_BUTTON = 16;
+// In-menu navigation. When the menu is open, these intercept what
+// would otherwise be the jump buttons so D-pad up/down walks the
+// focus ring instead of dispatching jumps.
+export const GAMEPAD_MENU_SELECT_BUTTON = 0; // A / Cross — activates focused item
+export const GAMEPAD_MENU_BACK_BUTTON = 1; // B / Circle — closes the menu
+export const GAMEPAD_MENU_UP_BUTTON = 12; // D-pad up
+export const GAMEPAD_MENU_DOWN_BUTTON = 13; // D-pad down
 
 // ── Cinematic / filming mode (F9) ────────────────────────
 // Phase values derived from SKY_COLORS band order + sun/moon arcs.

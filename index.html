@@ -1389,6 +1389,17 @@
           <button id="menu-close" type="button">Resume game</button>
         </div>
         <p class="menu-hint">Press <kbd>Esc</kbd> to close</p>
+        <!-- Gamepad hint row — only visible when (a) a gamepad is
+             connected (body.gamepad-connected, toggled by the
+             gamepadconnected / gamepaddisconnected listeners in
+             src/main.ts) AND (b) we're not inside a Capacitor shell
+             (body.cap). On mobile the row would waste vertical space
+             when nobody plugs in a controller. -->
+        <p class="menu-gamepad-hint">
+          <span><kbd>↕</kbd> Navigate</span>
+          <span><kbd class="gp-a">A</kbd> Select</span>
+          <span><kbd class="gp-b">B</kbd> Back</span>
+        </p>
         <p class="made-by in-game-only web-only">
           Made with
           <svg
@@ -2134,15 +2145,74 @@
           }
         }
 
-        // Small shims so the Capacitor bridge (src/mobile/bridge.ts) can
-        // route the Android hardware back button through the same menu
-        // code the cog button uses. Zero-cost on the web build — the
-        // bridge is only imported inside __IS_CAPACITOR__ guard.
+        // Small shims so the Capacitor bridge (src/mobile/bridge.ts) and
+        // the gamepad poller in src/main.ts can route through the same
+        // menu code the cog button uses. Zero-cost on the web build —
+        // the Capacitor bridge is only imported inside __IS_CAPACITOR__
+        // guard, and the gamepad poller no-ops if no pad is attached.
         window.__rrIsMenuOpen = function () {
           return overlay.classList.contains("open");
         };
         window.__rrToggleMenu = toggleMenu;
         window.__rrCloseMenu = closeMenu;
+
+        // ── Gamepad navigation ──────────────────────────────
+        // Walks the focus ring across the menu's visible buttons/
+        // links. Uses computed display + offsetParent to skip items
+        // hidden by .pre-game / .in-game-only / .debug-only gates, so
+        // navigation wraps around only the currently-visible set.
+        function getNavigableMenuItems() {
+          const all = overlay.querySelectorAll(".menu-item");
+          const list = [];
+          for (const el of all) {
+            if (el.disabled) continue;
+            // offsetParent=null when display:none up the tree.
+            if (!el.offsetParent) continue;
+            list.push(el);
+          }
+          return list;
+        }
+        let _menuFocusIdx = 0;
+        function focusMenuIndex(idx) {
+          const items = getNavigableMenuItems();
+          if (!items.length) return;
+          _menuFocusIdx =
+            ((idx % items.length) + items.length) % items.length;
+          const target = items[_menuFocusIdx];
+          // Visible highlight + browser-level focus so keyboard users
+          // and screen readers also benefit. The corresponding CSS is
+          // in legacy.css under body.gamepad-focus .menu-item...
+          target.focus();
+          target.scrollIntoView({ block: "nearest" });
+        }
+        window.__rrMenuFocusNext = function () {
+          focusMenuIndex(_menuFocusIdx + 1);
+        };
+        window.__rrMenuFocusPrev = function () {
+          focusMenuIndex(_menuFocusIdx - 1);
+        };
+        window.__rrMenuSelect = function () {
+          const items = getNavigableMenuItems();
+          const target = items[_menuFocusIdx];
+          if (target && typeof target.click === "function") {
+            target.click();
+          }
+        };
+        // Reset focus index to the first visible item on every menu
+        // open so the gamepad user lands somewhere predictable.
+        const _origOpenMenu = openMenu;
+        openMenu = function () {
+          _origOpenMenu();
+          _menuFocusIdx = 0;
+          // Delay until after the panel layout settles (pre-game
+          // toggle, score editor refresh, etc.) so offsetParent is
+          // accurate when we pick the first visible item.
+          requestAnimationFrame(() => focusMenuIndex(0));
+        };
+        window.__rrToggleMenu = function () {
+          if (overlay.classList.contains("open")) closeMenu();
+          else openMenu();
+        };
 
         closeBtn.addEventListener("click", closeMenu);
         overlay.addEventListener("click", (e) => {
