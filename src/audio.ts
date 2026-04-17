@@ -281,14 +281,14 @@ export const audio = {
     return this.muted;
   },
 
-  /** Fade out the background music over ~800ms and pause it.
-   *  Called at game-over so the death screen doesn't sit over the
-   *  still-playing score. No-op when already muted/paused. */
+  /** Hard cut the background music at game-over: 250 ms fade then
+   *  pause. Kept short so the death screen doesn't linger over a
+   *  tail of the score. No-op when already muted/paused. */
   pauseMusicForGameOver() {
     if (!this.music) return;
     if (this.muted || this.musicMuted) return;
     if (this.music.paused) return;
-    rampVolume(this.music, 0, 800).then(() => {
+    rampVolume(this.music, 0, 250).then(() => {
       if (this.music && this.music.volume < 0.01) this.music.pause();
     });
   },
@@ -310,9 +310,14 @@ export const audio = {
     }
   },
 
-  /** Plays the original jump.mp3 sample through Web Audio.
+  /** Plays the jump.mp3 sample through Web Audio.
    *  _silenceSteps runs first so a running-step sample doesn't
-   *  bleed under the jump. */
+   *  bleed under the jump.
+   *
+   *  SFX_Jump_22 begins at non-zero amplitude (−10 dB on its very
+   *  first sample), which reads as a click when it hits the
+   *  speaker cold. A 4 ms gain ramp smooths that transient without
+   *  costing any audible attack time. */
   playJump() {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || !this._jumpBuffer) return;
@@ -321,16 +326,19 @@ export const audio = {
     }
     this._silenceSteps();
     try {
-      const src = this._audioCtx.createBufferSource();
+      const ctx = this._audioCtx;
+      const t0 = ctx.currentTime;
+      const src = ctx.createBufferSource();
       src.buffer = this._jumpBuffer;
-      const gain = this._audioCtx.createGain();
-      gain.gain.value = this._jumpVolume;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(this._jumpVolume, t0 + 0.004);
       src.connect(gain);
-      gain.connect(this._audioCtx.destination);
+      gain.connect(ctx.destination);
       src.onended = () => {
         try { src.disconnect(); gain.disconnect(); } catch {}
       };
-      src.start(0);
+      src.start(t0);
     } catch {
       /* SFX is non-critical */
     }
