@@ -2158,6 +2158,12 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // Skia pipeline compiles a shader on first use of shadowBlur —
     // previously caused a visible hitch on the very first lightning
     // flash (when drawLightning uses shadowBlur: 15 on the bolt).
+    //
+    // Same trick for gradients: first createRadialGradient and first
+    // multi-stop createLinearGradient also compile shaders on use.
+    // Previously caused a hitch on the meteor (extinction event)
+    // first spawn, when the streak head glow and trail fill the
+    // render with fresh gradients.
     if (ctx) {
       ctx.save();
       ctx.shadowBlur = 15;
@@ -2169,6 +2175,26 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       ctx.lineTo(-40, -40);
       ctx.stroke();
       ctx.restore();
+
+      // Warm radial-gradient shader with the same color-stop profile
+      // used by the meteor head glow (white → orange → transparent).
+      const rg = ctx.createRadialGradient(-100, -100, 0, -100, -100, 12);
+      rg.addColorStop(0, "rgba(255, 255, 220, 1)");
+      rg.addColorStop(0.4, "rgba(255, 180, 50, 0.6)");
+      rg.addColorStop(1, "rgba(255, 80, 0, 0)");
+      ctx.fillStyle = rg;
+      ctx.fillRect(-200, -200, 30, 30);
+
+      // Warm multi-stop linear-gradient shader (4 stops — same shape
+      // as the meteor trail) and a 2-stop variant covering the
+      // common case used elsewhere (sky gradient, lightning bolt).
+      const lg4 = ctx.createLinearGradient(-100, -100, -50, -50);
+      lg4.addColorStop(0, "rgba(255, 220, 80, 0.8)");
+      lg4.addColorStop(0.3, "rgba(255, 120, 20, 0.4)");
+      lg4.addColorStop(0.7, "rgba(220, 50, 0, 0.15)");
+      lg4.addColorStop(1, "rgba(150, 30, 0, 0)");
+      ctx.fillStyle = lg4;
+      ctx.fillRect(-200, -200, 30, 30);
     }
 
     canvas.addEventListener("pointerdown", onPointerDown);

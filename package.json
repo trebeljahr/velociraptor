@@ -13,6 +13,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "icons:generate": "cd public/assets && magick icon-512.png -resize 1024x1024 icon-tmp.png && magick icon-tmp.png \\( -size 1024x1024 xc:none -fill white -draw 'roundrectangle 0,0,1023,1023,229,229' \\) -alpha set -compose DstIn -composite PNG32:icon-rounded-1024.png && magick icon-rounded-1024.png -resize 512x512 PNG32:icon-rounded-512.png && rm icon-tmp.png",
     "electron:compile": "tsc electron/main.ts electron/preload.ts --outDir electron --module CommonJS --moduleResolution node --esModuleInterop --target ES2022 --skipLibCheck",
     "electron:dev": "npm run dev",
     "electron:build": "npm run build && npm run electron:compile && electron-builder",
@@ -44,21 +45,21 @@
       "electron/main.js",
       "electron/preload.js",
       "electron/package.json",
-      "public/assets/icon-512.png",
+      "public/assets/icon-rounded-1024.png",
       "node_modules/steamworks.js/**",
       "steam_appid.txt"
     ],
     "mac": {
       "target": "dmg",
-      "icon": "public/assets/icon-512.png"
+      "icon": "public/assets/icon-rounded-1024.png"
     },
     "win": {
       "target": "nsis",
-      "icon": "public/assets/icon-512.png"
+      "icon": "public/assets/icon-rounded-1024.png"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "public/assets/icon-512.png"
+      "icon": "public/assets/icon-rounded-1024.png"
     }
   },
   "dependencies": {
