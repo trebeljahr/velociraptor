@@ -305,7 +305,12 @@ export function drawRareEventSky(ctx: CanvasRenderingContext2D) {
 }
 
 /** Draw foreground rare events (UFO, Santa, tumbleweed) — on fgCtx, gets tint. */
-/** Draw the UFO beam on the background canvas so dunes paint over it. */
+/** Draw the UFO beam on the background canvas so dunes paint over
+ *  it. The beam's top edge is pulled up into the UFO's base — so
+ *  it visually emerges from the window/aperture rather than below
+ *  the hull — and a vertical gradient fades the first few pixels
+ *  so the top reads as glowing emission instead of a hard-edged
+ *  rectangle sitting against the sprite. */
 export function drawUfoBeam(ctx: CanvasRenderingContext2D) {
   if (!state.activeRareEvent || state.activeRareEvent.id !== "ufo") return;
   const e = state.activeRareEvent;
@@ -313,15 +318,30 @@ export function drawUfoBeam(ctx: CanvasRenderingContext2D) {
   const ufoH = IMAGES.ufo ? 60 * (IMAGES.ufo.height / IMAGES.ufo.width) : 35;
   const scan =
     0.4 + 0.2 * Math.sin(e.age * 4.5) + 0.1 * Math.sin(e.age * 7.3);
-  const beamBottomL = e.x - 30,
-    beamBottomR = e.x + 30;
+  const beamBottomL = e.x - 30;
+  const beamBottomR = e.x + 30;
+  // Tuck the top of the beam 8px up into the UFO body — the bottom
+  // window on the sprite sits ~30% up from the hull's lower edge.
+  const beamTopY = e.y + ufoH / 2 - 8;
+  const beamBottomY = state.ground;
+  // Gradient fade for the top ~14px so the beam feathers into the
+  // hull instead of abutting it as a flat rectangle.
+  const fadeLen = 14;
+  const fadeStop = Math.min(
+    1,
+    fadeLen / Math.max(1, beamBottomY - beamTopY),
+  );
+  const grad = ctx.createLinearGradient(0, beamTopY, 0, beamBottomY);
+  grad.addColorStop(0, "rgba(245, 250, 255, 0)");
+  grad.addColorStop(fadeStop, `rgba(245, 250, 255, ${scan})`);
+  grad.addColorStop(1, `rgba(245, 250, 255, ${scan})`);
   ctx.save();
-  ctx.fillStyle = `rgba(245, 250, 255, ${scan})`;
+  ctx.fillStyle = grad;
   ctx.beginPath();
-  ctx.moveTo(e.x - 12, e.y + ufoH / 2);
-  ctx.lineTo(e.x + 12, e.y + ufoH / 2);
-  ctx.lineTo(beamBottomR, state.ground);
-  ctx.lineTo(beamBottomL, state.ground);
+  ctx.moveTo(e.x - 10, beamTopY);
+  ctx.lineTo(e.x + 10, beamTopY);
+  ctx.lineTo(beamBottomR, beamBottomY);
+  ctx.lineTo(beamBottomL, beamBottomY);
   ctx.closePath();
   ctx.fill();
   ctx.restore();
