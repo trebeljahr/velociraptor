@@ -180,6 +180,7 @@ export const audio = {
     this._preloadUfoBuffer();
     this._preloadSantaBuffer();
     this._preloadMeteorBuffer();
+    this._preloadStepBuffers();
     this.initRain();
   },
 
@@ -562,86 +563,61 @@ export const audio = {
     }
   },
 
-  // ── Procedural SFX (no files) ──────────────────────────────
-  // Short, cheap one-shots synthesized on the fly. Steps fire twice
-  // per run cycle, so going procedural avoids shipping two more MP3s
-  // and lets us alternate pitch between feet without extra assets.
+  // ── Footstep SFX (freesound_community grass-loop excerpts) ──
+  // Two ~300ms samples trimmed out of a public-domain "running in
+  // grass" loop. `playStep(foot)` picks the matching buffer so L/R
+  // feet sound slightly different.
+  _stepLeftBuffer: null as AudioBuffer | null,
+  _stepRightBuffer: null as AudioBuffer | null,
 
-  _noiseBuffer: null as AudioBuffer | null,
-
-  /** Lazily create a shared 0.5s white-noise buffer, reused across
-   *  every step/hit burst. Samples are cheap but allocating a fresh
-   *  buffer per footfall would be silly. */
-  _getNoiseBuffer(): AudioBuffer | null {
-    if (!this._audioCtx) return null;
-    if (this._noiseBuffer) return this._noiseBuffer;
-    const len = Math.floor(this._audioCtx.sampleRate * 0.5);
-    const buf = this._audioCtx.createBuffer(1, len, this._audioCtx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-    this._noiseBuffer = buf;
-    return buf;
+  _preloadStepBuffers() {
+    if (
+      typeof AudioContext === "undefined" &&
+      typeof window.webkitAudioContext === "undefined"
+    )
+      return;
+    const load = (path: string, set: (b: AudioBuffer) => void) =>
+      fetch(path)
+        .then((r) => r.arrayBuffer())
+        .then((buf) => {
+          this._ensureAudioCtx();
+          if (!this._audioCtx) return;
+          return this._audioCtx.decodeAudioData(buf);
+        })
+        .then((decoded) => {
+          if (decoded) set(decoded);
+        })
+        .catch(() => {
+          /* step SFX simply won't play */
+        });
+    load("assets/step-left.mp3", (b) => (this._stepLeftBuffer = b));
+    load("assets/step-right.mp3", (b) => (this._stepRightBuffer = b));
   },
 
-  /** Footfall: quiet sub-bass thud under a muffled lowpass-noise
-   *  "paf" to suggest a paw pressing sand. `foot` biases pitch so
-   *  alternating calls read as left/right without being obvious.
-   *
-   *  Every node is explicitly .disconnect()'d in onended because iOS
-   *  WKWebView leaks stopped nodes connected to ctx.destination — at
-   *  6–12 steps/sec during a run, the graph bloats fast enough to
-   *  break the audio session (and the music element that shares it).
-   */
+  /** Footfall: plays the L or R grass-step sample. Nodes are
+   *  explicitly disconnected in onended because iOS WKWebView leaks
+   *  stopped nodes still attached to ctx.destination — at 6–12
+   *  steps/sec during a run, the graph bloats fast enough to break
+   *  the shared audio session. */
   playStep(foot: "left" | "right" = "left") {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || this._audioCtx.state !== "running") return;
+    const buf =
+      foot === "left" ? this._stepLeftBuffer : this._stepRightBuffer;
+    if (!buf) return;
     try {
-      const ctx = this._audioCtx;
-      const t0 = ctx.currentTime;
-
-      // Very soft sub-bass thump — "body weight" layer, felt more
-      // than heard. Dropped well below the music's fundamental so it
-      // doesn't fight the mix.
-      const thumpFreq = foot === "left" ? 68 : 56;
-      const osc = ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(thumpFreq, t0);
-      osc.frequency.exponentialRampToValueAtTime(thumpFreq * 0.6, t0 + 0.04);
-      const oscGain = ctx.createGain();
-      oscGain.gain.setValueAtTime(0, t0);
-      oscGain.gain.linearRampToValueAtTime(0.05, t0 + 0.002);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.06);
-      osc.connect(oscGain);
-      oscGain.connect(ctx.destination);
-      osc.onended = () => {
-        try { osc.disconnect(); oscGain.disconnect(); } catch {}
+      const src = this._audioCtx.createBufferSource();
+      src.buffer = buf;
+      const gain = this._audioCtx.createGain();
+      // Source material is quiet (peaks ~ -23dB) — push it up so the
+      // cadence is audible against the music without dominating.
+      gain.gain.value = 1.8;
+      src.connect(gain);
+      gain.connect(this._audioCtx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
       };
-      osc.start(t0);
-      osc.stop(t0 + 0.07);
-
-      // Muffled sand-press — lowpassed noise tucked under the thump.
-      // Lowpass (rather than bandpass) removes the harsh scrape that
-      // made the earlier version grating at high step rates.
-      const noiseBuf = this._getNoiseBuffer();
-      if (noiseBuf) {
-        const noise = ctx.createBufferSource();
-        noise.buffer = noiseBuf;
-        const lp = ctx.createBiquadFilter();
-        lp.type = "lowpass";
-        lp.frequency.value = 480;
-        const nGain = ctx.createGain();
-        nGain.gain.setValueAtTime(0, t0);
-        nGain.gain.linearRampToValueAtTime(0.025, t0 + 0.002);
-        nGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.035);
-        noise.connect(lp);
-        lp.connect(nGain);
-        nGain.connect(ctx.destination);
-        noise.onended = () => {
-          try { noise.disconnect(); lp.disconnect(); nGain.disconnect(); } catch {}
-        };
-        noise.start(t0);
-        noise.stop(t0 + 0.04);
-      }
+      src.start(0);
     } catch {
       /* SFX is non-critical */
     }
