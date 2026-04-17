@@ -726,13 +726,13 @@ export const audio = {
       });
   },
 
-  /** Cactus impact: plays the licensed marimba "lose" sample.
-   *  Routed through jumpMuted so the SFX channel toggle covers it.
+  /** Cactus impact / game-over cue: plays the "error-notification
+   *  banjo" sample (freesound_community, Pixabay 45430). Routed
+   *  through jumpMuted so the SFX channel toggle covers it.
    *
-   *  The 115 ms buffer offset lands the sample exactly on the
-   *  marimba's first transient — silencedetect puts the head silence
-   *  at 112–114 ms depending on threshold — so the very first
-   *  audible sample is the strike, fired on the collision frame. */
+   *  55 ms buffer offset skips the sample's silent head so the
+   *  first audible sample is the banjo strike on the collision
+   *  frame. */
   playHit() {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || !this._hitBuffer) return;
@@ -749,7 +749,7 @@ export const audio = {
       src.onended = () => {
         try { src.disconnect(); gain.disconnect(); } catch {}
       };
-      src.start(0, 0.115);
+      src.start(0, 0.055);
     } catch {
       /* SFX is non-critical */
     }
