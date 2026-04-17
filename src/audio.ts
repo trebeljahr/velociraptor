@@ -151,8 +151,6 @@ export const audio = {
   jumpMuted: false as boolean,
   rainMuted: false as boolean,
   _audioCtx: null as AudioContext | null,
-  _jumpBuffer: null as AudioBuffer | null,
-  _jumpVolume: 0.67,
 
   // Main-module-provided hook for achievement invalidation. Left null
   // if the caller hasn't wired it up — audio still works.
@@ -174,7 +172,6 @@ export const audio = {
     // AudioContext is created lazily on the first user gesture
     // (required by autoplay policy), but we fetch + decode the
     // file eagerly so the first jump has zero latency.
-    this._preloadJumpBuffer();
     this._preloadThunderBuffer();
     this._preloadHitBuffer();
     this._preloadUfoBuffer();
@@ -195,33 +192,6 @@ export const audio = {
     } catch (e) {
       /* ignored */
     }
-  },
-
-  /** Fetch jump.mp3, decode it into an AudioBuffer, and stash it for
-   *  instant playback via Web Audio. Falls back gracefully if Web
-   *  Audio isn't available (old browsers). */
-  _preloadJumpBuffer() {
-    if (
-      typeof AudioContext === "undefined" &&
-      typeof window.webkitAudioContext === "undefined"
-    )
-      return;
-    fetch("assets/jump.mp3")
-      .then((r) => r.arrayBuffer())
-      .then((buf) => {
-        // AudioContext may not exist yet (needs user gesture on some
-        // browsers). Create it now — decodeAudioData doesn't require
-        // a running context, just an instance.
-        this._ensureAudioCtx();
-        if (!this._audioCtx) return;
-        return this._audioCtx.decodeAudioData(buf);
-      })
-      .then((decoded) => {
-        if (decoded) this._jumpBuffer = decoded;
-      })
-      .catch(() => {
-        /* no-op — jump SFX simply won't play */
-      });
   },
 
   _ensureAudioCtx() {
@@ -283,26 +253,59 @@ export const audio = {
     return this.muted;
   },
 
+  /** Jump cue: reuses the left footstep sample at lower playback
+   *  rate for extra weight, layered with a rising sine sweep so the
+   *  push-off reads as an upward launch rather than another flat
+   *  step. Matches the step SFX texture while feeling forceful.
+   *
+   *  If the step buffer hasn't loaded yet (first seconds of a cold
+   *  page), only the sweep plays — still better than the old
+   *  generic click. */
   playJump() {
     if (this.muted || this.jumpMuted) return;
-    if (!this._audioCtx || !this._jumpBuffer) return;
-    // Resume context if it was suspended (e.g. after a tab switch).
-    if (this._audioCtx.state === "suspended") {
-      this._audioCtx.resume().catch(() => {});
-    }
+    if (!this._audioCtx || this._audioCtx.state !== "running") return;
     try {
-      // Each play creates a fresh source node — they're cheap,
-      // single-use objects designed for this pattern. A gain node
-      // controls volume without touching the global output.
-      const src = this._audioCtx.createBufferSource();
-      src.buffer = this._jumpBuffer;
-      const gain = this._audioCtx.createGain();
-      gain.gain.value = this._jumpVolume;
-      src.connect(gain);
-      gain.connect(this._audioCtx.destination);
-      src.start(0);
-    } catch (e) {
-      /* swallow — SFX is non-critical */
+      const ctx = this._audioCtx;
+      const t0 = ctx.currentTime;
+
+      // Layer 1: grass push-off — loud, pitch-shifted step sample.
+      const buf = this._stepLeftBuffer;
+      if (buf) {
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        // 0.8× playback stretches the sample ~25% longer and drops
+        // pitch ~4 semitones — reads as a heavier, committed foot
+        // plant instead of a casual step.
+        src.playbackRate.value = 0.8;
+        const srcGain = ctx.createGain();
+        srcGain.gain.value = 2.6;
+        src.connect(srcGain);
+        srcGain.connect(ctx.destination);
+        src.onended = () => {
+          try { src.disconnect(); srcGain.disconnect(); } catch {}
+        };
+        src.start(0);
+      }
+
+      // Layer 2: short rising sine — the "liftoff" thrust. Sub-bass
+      // range so it doesn't fight the grass sample's mids.
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(75, t0);
+      osc.frequency.exponentialRampToValueAtTime(170, t0 + 0.11);
+      const oscGain = ctx.createGain();
+      oscGain.gain.setValueAtTime(0, t0);
+      oscGain.gain.linearRampToValueAtTime(0.22, t0 + 0.005);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
+      osc.connect(oscGain);
+      oscGain.connect(ctx.destination);
+      osc.onended = () => {
+        try { osc.disconnect(); oscGain.disconnect(); } catch {}
+      };
+      osc.start(t0);
+      osc.stop(t0 + 0.15);
+    } catch {
+      /* SFX is non-critical */
     }
   },
 
@@ -390,7 +393,7 @@ export const audio = {
   _warmWebAudioSources() {
     if (this._webAudioWarmed) return;
     if (!this._audioCtx) return;
-    const buffers = [this._jumpBuffer, this._thunderBuffer];
+    const buffers = [this._hitBuffer, this._thunderBuffer];
     if (buffers.every((b) => b == null)) return; // retry later
     this._webAudioWarmed = true;
     for (const buf of buffers) {
