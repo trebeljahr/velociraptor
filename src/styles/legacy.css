@@ -1685,6 +1685,54 @@ html,
           -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
         color: #333;
       }
+
+      /* ─── Custom scrollbars ─────────────────────────────────
+       * All scrollable sub-overlays share a warm, calm bar that
+       * matches the desert palette used in the menu icons (the
+       * darker #6d4927 echoes the cactus spine / party-hat trim).
+       * Thin + semi-transparent so it recedes when not actively
+       * scrolling; hoverable for a subtle interaction hint.
+       *
+       * Firefox uses scrollbar-width + scrollbar-color. WebKit
+       * uses the ::-webkit-scrollbar pseudo family. Both are
+       * declared so the look matches on Chrome, Safari, Edge,
+       * Firefox, and Electron. */
+      .credits-scroll,
+      .achievements-scroll,
+      .menu-panel,
+      .sound-settings-body {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(109, 73, 39, 0.45) transparent;
+      }
+      .credits-scroll::-webkit-scrollbar,
+      .achievements-scroll::-webkit-scrollbar,
+      .menu-panel::-webkit-scrollbar,
+      .sound-settings-body::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      .credits-scroll::-webkit-scrollbar-track,
+      .achievements-scroll::-webkit-scrollbar-track,
+      .menu-panel::-webkit-scrollbar-track,
+      .sound-settings-body::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .credits-scroll::-webkit-scrollbar-thumb,
+      .achievements-scroll::-webkit-scrollbar-thumb,
+      .menu-panel::-webkit-scrollbar-thumb,
+      .sound-settings-body::-webkit-scrollbar-thumb {
+        background: rgba(109, 73, 39, 0.35);
+        border-radius: 999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+      }
+      .credits-scroll::-webkit-scrollbar-thumb:hover,
+      .achievements-scroll::-webkit-scrollbar-thumb:hover,
+      .menu-panel::-webkit-scrollbar-thumb:hover,
+      .sound-settings-body::-webkit-scrollbar-thumb:hover {
+        background: rgba(109, 73, 39, 0.6);
+        background-clip: padding-box;
+      }
       .credits-heading {
         font-size: 2rem;
         margin: 0 0 1rem;

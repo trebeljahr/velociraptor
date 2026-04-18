@@ -2181,12 +2181,62 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       __rrMenuFocusNext?: () => void;
       __rrMenuFocusPrev?: () => void;
       __rrMenuSelect?: () => void;
+      __rrSubOverlayOpen?: () => boolean;
+      __rrActiveScrollable?: () => {
+        scrollBy(dx: number, dy: number): void;
+      } | null;
+      __rrCloseActiveSubOverlay?: () => boolean;
       __onStartKey?: () => void;
     };
 
+    // Continuous-state button helpers for scrolling — edge-detect
+    // is wrong here because we want held buttons to keep scrolling
+    // frame after frame.
+    const anyPressed = (indices: readonly number[]): boolean => {
+      for (const idx of indices) {
+        if (idx >= btns.length) continue;
+        if (btns[idx].value > 0.5 || btns[idx].pressed) return true;
+      }
+      return false;
+    };
+
+    const subOverlayOpen = !!w.__rrSubOverlayOpen?.();
     const menuOpen = !!w.__rrIsMenuOpen?.();
 
-    if (menuOpen) {
+    if (subOverlayOpen) {
+      // ── Sub-overlay (credits / achievements / imprint / about) ─
+      // D-pad up/down + left-stick scroll the overlay's scrollable
+      // child (or the iframe inside for imprint / about). System
+      // buttons and the "cancel" face button (Xbox B, PS Circle,
+      // gamepad index 1) close the overlay — that matches the
+      // universal "back" affordance on every vendor.
+      //
+      // Continuous while held; no edge detection here, so reading
+      // a full screen of credits is one gesture rather than 40
+      // button-mashes. 14 px per frame ≈ 840 px/sec = one screen
+      // in ~1 second, which lines up with feel-right scroll speed
+      // for controller users.
+      const scrollable = w.__rrActiveScrollable?.();
+      if (scrollable) {
+        const scrollPx = 14;
+        const stickYRaw = axes.length > 1 ? axes[1] : 0;
+        const upHeld = anyPressed(GAMEPAD_MENU_UP_BUTTONS) || stickYRaw < -0.3;
+        const downHeld = anyPressed(GAMEPAD_MENU_DOWN_BUTTONS) || stickYRaw > 0.3;
+        if (upHeld) scrollable.scrollBy(0, -scrollPx);
+        if (downHeld) scrollable.scrollBy(0, scrollPx);
+      }
+      // Close: any system button OR the cancel face button.
+      // GAMEPAD_JUMP_BUTTONS includes [0, 1, 12]; here we only want
+      // index 1 (B / Circle) as a cancel, not 0 (A / Cross) which
+      // is universally "confirm". Not worth making a new constant
+      // array for one number — hard-coded here with a comment.
+      if (
+        anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS) ||
+        justPressed(1)
+      ) {
+        w.__rrCloseActiveSubOverlay?.();
+      }
+    } else if (menuOpen) {
       // ── In-menu navigation ─────────────────────────────────
       // Wide acceptance by design (see src/constants.ts header):
       // any face button (0-3) activates the focused item. Any

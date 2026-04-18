@@ -2167,17 +2167,101 @@
         window.__rrToggleMenu = toggleMenu;
         window.__rrCloseMenu = closeMenu;
 
+        // ── Sub-overlay helpers for gamepad support ────────
+        // The sub-overlays (credits / achievements / imprint /
+        // about / reset-confirm) all share the .imprint-overlay
+        // class and the .open toggle. Only one is open at a time.
+        // These two helpers let the gamepad poller in src/main.ts
+        // (a) scroll whichever sub-overlay is open by driving the
+        // overlay's scrollable child, and (b) close it on cancel
+        // buttons without knowing which overlay is active.
+        /**
+         * Resolve a scroll handle for the currently open sub-overlay.
+         * Covers three content shapes the overlays use:
+         *   • .credits-scroll      — same-origin scrollable div
+         *   • .achievements-scroll — same-origin scrollable div
+         *   • <iframe>             — cross-document (same-origin in
+         *                            practice), scroll via contentWindow
+         * Returns an object with a scrollBy(dx, dy) method so the
+         * caller doesn't have to branch on element type, or null if
+         * no scrollable sub-overlay is open.
+         */
+        window.__rrActiveScrollable = function () {
+          const overlays = document.querySelectorAll(
+            ".imprint-overlay.open",
+          );
+          if (!overlays.length) return null;
+          const active = overlays[0];
+          const scroll = active.querySelector(
+            ".credits-scroll, .achievements-scroll",
+          );
+          if (scroll) {
+            return {
+              scrollBy(dx, dy) {
+                scroll.scrollBy(dx, dy);
+              },
+            };
+          }
+          const iframe = active.querySelector("iframe");
+          if (iframe) {
+            return {
+              scrollBy(dx, dy) {
+                try {
+                  iframe.contentWindow?.scrollBy?.(dx, dy);
+                } catch (_) {
+                  /* cross-origin somehow — give up gracefully */
+                }
+              },
+            };
+          }
+          // Open sub-overlay with no scrollable content (reset-confirm).
+          // Returning null lets the caller still detect "sub-overlay
+          // active" via __rrSubOverlayOpen below.
+          return null;
+        };
+        /** True if any sub-overlay is currently open. Used by the
+         *  gamepad poller to decide which nav mode to run even when
+         *  the overlay has no scrollable content (e.g. reset-confirm). */
+        window.__rrSubOverlayOpen = function () {
+          return !!document.querySelector(".imprint-overlay.open");
+        };
+        /** Click the close button of the active sub-overlay. Routes
+         *  through the overlay's existing click handler so any
+         *  Game.resume() / state-restore hooks fire correctly. */
+        window.__rrCloseActiveSubOverlay = function () {
+          const active = document.querySelector(".imprint-overlay.open");
+          if (!active) return false;
+          const closeBtn = active.querySelector(".imprint-close");
+          if (closeBtn && typeof closeBtn.click === "function") {
+            closeBtn.click();
+            return true;
+          }
+          return false;
+        };
+
         // ── Gamepad navigation ──────────────────────────────
         // Walks the focus ring across the menu's visible buttons/
-        // links. Uses computed display + offsetParent to skip items
-        // hidden by .pre-game / .in-game-only / .debug-only gates, so
-        // navigation wraps around only the currently-visible set.
+        // links. The three filters here together define "visible
+        // AND interactable right now":
         //
-        // Include .sound-settings-summary too — it's a <summary>, not
-        // a .menu-item, but functionally it IS a navigable button (it
-        // toggles the collapsible). Without it, gamepad up/down
-        // skipped right past the "Sound Settings" row and the player
-        // couldn't fold it open or closed with a controller.
+        //   1. Not disabled.
+        //   2. offsetParent is truthy — skips items under a
+        //      display:none ancestor (the .pre-game / .in-game-only
+        //      / .debug-only gates).
+        //   3. Not inside a closed <details>. Browsers DO hide the
+        //      children of a collapsed <details>, but the mechanism
+        //      varies (content-visibility, UA-internal, etc.) and
+        //      offsetParent isn't reliably null for every element
+        //      inside a closed summary. Without this explicit check,
+        //      gamepad up/down walked THROUGH the folded dropdown's
+        //      hidden items instead of jumping to the row after the
+        //      summary.
+        //
+        // Include .sound-settings-summary too — it's a <summary>,
+        // not a .menu-item, but functionally IS a navigable button
+        // (it toggles the collapsible). Without it, gamepad nav
+        // skipped right past the "Sound Settings" row and the
+        // player couldn't fold it open/closed with a controller.
         function getNavigableMenuItems() {
           const all = overlay.querySelectorAll(
             ".menu-item, .sound-settings-summary",
@@ -2185,8 +2269,19 @@
           const list = [];
           for (const el of all) {
             if (el.disabled) continue;
-            // offsetParent=null when display:none up the tree.
             if (!el.offsetParent) continue;
+            // Collapsed <details> — summaries themselves are fine
+            // to navigate TO, but items INSIDE a closed details
+            // aren't reachable visually and must not appear in
+            // the nav list.
+            const closestDetails = el.closest("details");
+            if (
+              closestDetails &&
+              !closestDetails.open &&
+              el.tagName.toLowerCase() !== "summary"
+            ) {
+              continue;
+            }
             list.push(el);
           }
           return list;
@@ -2198,21 +2293,46 @@
           _menuFocusIdx =
             ((idx % items.length) + items.length) % items.length;
           const target = items[_menuFocusIdx];
-          // Visible highlight + browser-level focus so keyboard users
-          // and screen readers also benefit. The corresponding CSS is
-          // in legacy.css under body.gamepad-focus .menu-item...
           target.focus();
           target.scrollIntoView({ block: "nearest" });
         }
+        /**
+         * Resolve the current menu-focus position from live state
+         * instead of trusting the stored _menuFocusIdx. Handles two
+         * cases the stored index couldn't cover:
+         *   - Focus drifted off the menu entirely (user clicked
+         *     outside the panel, browser gave focus to body, etc.).
+         *     __rrMenuFocusNext / Prev from a controller should
+         *     snap back into the menu, not silently no-op.
+         *   - The set of visible items changed (pre-game class,
+         *     the sound-settings dropdown opening / closing)
+         *     invalidating a stored index that used to be in range.
+         *
+         * Returns the index of the currently-focused menu item in
+         * the live items array, or the clamped stored index if
+         * focus is elsewhere.
+         */
+        function currentMenuFocusIdx() {
+          const items = getNavigableMenuItems();
+          if (!items.length) return 0;
+          const active = document.activeElement;
+          const matchIdx = items.indexOf(active);
+          if (matchIdx !== -1) return matchIdx;
+          // Focus is off-menu or on an item that isn't navigable
+          // anymore. Clamp the stored index into the new range.
+          return Math.min(Math.max(0, _menuFocusIdx), items.length - 1);
+        }
         window.__rrMenuFocusNext = function () {
-          focusMenuIndex(_menuFocusIdx + 1);
+          focusMenuIndex(currentMenuFocusIdx() + 1);
         };
         window.__rrMenuFocusPrev = function () {
-          focusMenuIndex(_menuFocusIdx - 1);
+          focusMenuIndex(currentMenuFocusIdx() - 1);
         };
         window.__rrMenuSelect = function () {
           const items = getNavigableMenuItems();
-          const target = items[_menuFocusIdx];
+          if (!items.length) return;
+          const idx = currentMenuFocusIdx();
+          const target = items[idx];
           if (target && typeof target.click === "function") {
             target.click();
           }
