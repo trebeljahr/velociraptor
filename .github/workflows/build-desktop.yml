@@ -1,0 +1,138 @@
+name: Build desktop binaries
+
+# Builds the Electron app for macOS, Windows, and Linux in parallel and
+# uploads the packaged artifacts. Triggers:
+#   - Push of a tag matching v* (e.g. v1.0.0)    → release-candidate build
+#   - Manual workflow_dispatch                    → ad-hoc build
+#   - Pull requests touching desktop-relevant    → smoke build (no upload
+#     files                                        to itch, artifacts only)
+#
+# The actual `butler push` step lives in a separate publish job that only
+# runs on tag pushes, so PR builds never accidentally publish.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "electron/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/build-desktop.yml"
+      - "build/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            itch_channel: osx
+            artifact_glob: "release/*.{dmg,zip}"
+          - os: windows-latest
+            itch_channel: windows
+            artifact_glob: "release/*.{exe,zip}"
+          - os: ubuntu-latest
+            itch_channel: linux
+            artifact_glob: "release/*.AppImage"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build desktop package
+        # GH_TOKEN is for electron-builder's auto-publish path; we're
+        # NOT publishing to GH Releases automatically, so pass an empty
+        # string to prevent electron-builder from trying.
+        env:
+          GH_TOKEN: ""
+          # No STEAM_APP_ID — itch builds must not init steamworks.
+          # For Steam builds, trigger this workflow with STEAM_APP_ID
+          # set in the environment (via a separate workflow_dispatch
+          # input) or switch to the steam-publish workflow.
+        run: npm run electron:build
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: raptor-runner-${{ matrix.os }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.AppImage
+          if-no-files-found: warn
+          retention-days: 14
+
+  publish-itch:
+    name: Publish to itch.io
+    needs: build
+    # Only publish on tag pushes. PR builds and manual dispatches stay
+    # as artifacts only — no accidental channel updates.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Install butler
+        run: |
+          curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+          unzip butler.zip
+          chmod +x butler
+          ./butler -V
+
+      - name: Push to itch.io
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          ITCH_USER: ${{ vars.ITCH_USER }}
+          ITCH_GAME: ${{ vars.ITCH_GAME }}
+        # Channel naming matches itch conventions: one channel per OS
+        # plus an arch tag where relevant. Version comes from the git
+        # tag (v1.2.3 → 1.2.3).
+        run: |
+          set -e
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          push() {
+            local channel="$1"
+            local path="$2"
+            if [ -e "$path" ]; then
+              echo "::group::butler push $channel"
+              ./butler push --userversion "$VERSION" "$path" "$ITCH_USER/$ITCH_GAME:$channel"
+              echo "::endgroup::"
+            else
+              echo "skip $channel — no artifact at $path"
+            fi
+          }
+
+          # macOS: prefer the zip (itch app unpacks it cleanly); dmg
+          # as a fallback download for users who install it manually.
+          push osx       "$(ls artifacts/raptor-runner-macos-latest/*.zip 2>/dev/null | head -n1)"
+          push osx-dmg   "$(ls artifacts/raptor-runner-macos-latest/*.dmg 2>/dev/null | head -n1)"
+
+          # Windows: portable exe plus nsis installer.
+          push windows          "$(ls artifacts/raptor-runner-windows-latest/*.exe 2>/dev/null | grep -v Setup | head -n1)"
+          push windows-setup    "$(ls artifacts/raptor-runner-windows-latest/*Setup*.exe 2>/dev/null | head -n1)"
+
+          # Linux: AppImage.
+          push linux "$(ls artifacts/raptor-runner-ubuntu-latest/*.AppImage 2>/dev/null | head -n1)"
