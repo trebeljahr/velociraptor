@@ -166,6 +166,16 @@ export default defineConfig({
         globPatterns: [
           "**/*.{js,css,html,ico,png,svg,webmanifest,mp3}",
         ],
+        // PWA manifest icons are injected separately by vite-plugin-pwa
+        // (without a __WB_REVISION__ query). If the glob scan also picks
+        // them up it adds a second entry WITH revision, and Workbox's
+        // addToCacheList refuses the conflict. Excluding them here lets
+        // the manifest-side injection be the only source of truth.
+        globIgnores: [
+          "**/icon-192.png",
+          "**/icon-512.png",
+          "**/apple-touch-icon.png",
+        ],
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/about\.html$/, /^\/imprint\.html$/],
         cleanupOutdatedCaches: true,
