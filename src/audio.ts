@@ -310,6 +310,37 @@ export const audio = {
     }
   },
 
+  /** Lightweight UI "click" feedback for start-screen button
+   *  presses. Reuses the jump buffer at a higher playback rate
+   *  and lower gain so it reads as a crisp button tick rather
+   *  than a gameplay jump — keeps the 8-bit vibe consistent
+   *  across the UI without shipping another sample. */
+  playClick() {
+    if (this.muted || this.jumpMuted) return;
+    if (!this._audioCtx || !this._jumpBuffer) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    try {
+      const ctx = this._audioCtx;
+      const t0 = ctx.currentTime;
+      const src = ctx.createBufferSource();
+      src.buffer = this._jumpBuffer;
+      src.playbackRate.value = 1.35;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(0.4, t0 + 0.003);
+      src.connect(gain);
+      gain.connect(ctx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
+      };
+      src.start(t0);
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
+
   /** Plays the jump.mp3 sample through Web Audio.
    *  _silenceSteps runs first so a running-step sample doesn't
    *  bleed under the jump.

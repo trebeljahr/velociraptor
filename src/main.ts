@@ -1476,12 +1476,34 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     }
 
     // Before the game has started, Space/Enter acts as "Start Game".
+    //
+    // Two escape hatches before we hijack the keypress:
+    //   1. If an interactive control has focus (cog, sound toggle,
+    //      fullscreen, a menu item, anything a player can tab to) let
+    //      the browser fire that button's native Space/Enter click.
+    //      Without this, focusing the cog and hitting Space would
+    //      silently start the game instead of opening the menu — the
+    //      button press gets eaten by preventDefault + __onStartKey.
+    //   2. If the settings menu is open, the overlay is modal; Space
+    //      or Enter should never fall through to "start the game".
+    //      Menu buttons handle themselves via path 1; this covers the
+    //      edge case where focus has drifted to <body>.
     if (!state.started) {
       if (
         e.code === "Space" ||
         e.code === "Enter" ||
         e.code === "NumpadEnter"
       ) {
+        const active = document.activeElement as HTMLElement | null;
+        const isInteractive =
+          !!active &&
+          active !== document.body &&
+          (active.tagName === "BUTTON" ||
+            active.tagName === "A" ||
+            active.getAttribute("role") === "button");
+        if (isInteractive) return;
+        const rrIsMenuOpen = (window as any).__rrIsMenuOpen;
+        if (typeof rrIsMenuOpen === "function" && rrIsMenuOpen()) return;
         e.preventDefault();
         if (typeof (window as any).__onStartKey === "function") {
           (window as any).__onStartKey();
@@ -1613,6 +1635,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
 
     unlockAudio() {
       audio.unlockAudio();
+    },
+
+    playClick() {
+      audio.playClick();
     },
 
     setMusicMuted(muted: boolean) {
