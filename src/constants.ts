@@ -33,18 +33,23 @@ export const CACTUS_SPAWN_GAP_BASE = 1.2;
 // spawning at terminal velocity. Floor = BASE at t=0, BASE+FACTOR
 // at t=1 (i.e. 1.2w → 1.5w).
 export const CACTUS_SPAWN_GAP_SPEED_FACTOR = 0.3;
-// Max extra gap on top of the floor, in raptor-widths. This is the
-// "sometimes you get a breather" variance knob. Previously a static
-// *10 in the spawn code, which dominated the total and masked the
-// speed progression: the game didn't feel denser at high speed
-// because the random roll was the same size at any velocity.
-export const CACTUS_SPAWN_GAP_RANDOM_MAX = 3.6;
+// Max extra gap on top of the floor, in raptor-widths. Adds variance
+// so the spawn pacing isn't metronomic but stays tight enough to
+// keep the run feeling relentless. At floor=1.2w and random top-up
+// up to 1.0w, the average gap is 1.7w — which happens to match the
+// effective spacing produced by the pre-flower-field bug where the
+// `minSpawnDistance` getter rolled fresh every frame and the
+// resulting distribution collapsed to ≈floor+10%·randSpan.
+//
+// Dropped from 3.6 to 1.0 after the flower-field commit moved to a
+// cached _nextGap (one honest roll per spawn). With 3.6, the honest
+// average jumped to 3.0w and the cadence felt ~1.8× slower than
+// "earlier today". 1.0 restores the remembered pace.
+export const CACTUS_SPAWN_GAP_RANDOM_MAX = 1.0;
 // How much the random span shrinks by the time we hit terminal
 // velocity. 0.58 means the span collapses to 42% of its starting
-// size at max speed (≈3.6w → ≈1.5w), giving a perceptible ramp from
-// "varied pacing with occasional long gaps" to "tight rhythmic
-// onslaught". This is what drives the "amount of jumps per minute
-// visibly increases" feel the design wants.
+// size at max speed (1.0w → 0.42w), keeping the "late game reads
+// denser than early game" ramp the design wants.
 export const CACTUS_SPAWN_GAP_RANDOM_SHRINK = 0.58;
 
 // ── Cactus-spawn breathers (designed rest areas) ──────────
