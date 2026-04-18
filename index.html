@@ -2206,6 +2206,30 @@
         };
         window.__rrToggleMenu = toggleMenu;
         window.__rrCloseMenu = closeMenu;
+        /**
+         * Stepwise "back" for the pause menu. The gamepad B button
+         * and D-pad left route through this so the back motion
+         * unwinds UI one level at a time instead of nuking the
+         * whole menu:
+         *   1. If any <details> dropdown inside the menu is open,
+         *      close THAT and park focus on its summary.
+         *   2. Otherwise close the menu itself.
+         * Matches what console menu systems conventionally do —
+         * B collapses the innermost open thing, not the entire
+         * screen.
+         */
+        window.__rrMenuBack = function () {
+          const openDetails = overlay.querySelector("details[open]");
+          if (openDetails) {
+            openDetails.removeAttribute("open");
+            const summary = openDetails.querySelector("summary");
+            if (summary && typeof summary.focus === "function") {
+              summary.focus();
+            }
+            return;
+          }
+          closeMenu();
+        };
 
         // ── Sub-overlay helpers for gamepad support ────────
         // The sub-overlays (credits / achievements / imprint /

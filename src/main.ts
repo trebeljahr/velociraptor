@@ -412,6 +412,56 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   // updateLightning / _generateBoltPath / _drawBolt / drawLightning
   // live in src/effects/weather.ts.
 
+  // Rainbow pre-bake cache. The rainbow is a big radial-gradient
+  // ring; filling it every frame was dropping the frame rate for
+  // the full ~6-second rainbow lifetime. The cache stores the
+  // ring bitmap at full alpha — we blit with globalAlpha each
+  // frame to get the fade in/out. Invalidated (re-rendered) when
+  // any of the position/size inputs change.
+  let _rainbowCache: HTMLCanvasElement | null = null;
+  let _rainbowCacheKey = "";
+
+  /** Return the pre-baked rainbow bitmap, re-rendering if any of
+   *  the geometric inputs changed (viewport resize, ground shifting
+   *  from HUD toggles, etc.). */
+  function ensureRainbowCache(): HTMLCanvasElement | null {
+    const cx = state.width * 0.7;
+    const cy = state.ground + state.height * 0.15;
+    const outerR = state.height * 0.55;
+    const thickness = Math.max(15, state.width * 0.025);
+    const innerR = outerR - thickness;
+    const key = `${state.width}|${state.height}|${cx}|${cy}|${outerR}|${innerR}`;
+    if (_rainbowCache && _rainbowCacheKey === key) return _rainbowCache;
+    const canvas =
+      _rainbowCache ?? (typeof document !== "undefined"
+        ? document.createElement("canvas")
+        : null);
+    if (!canvas) return null;
+    canvas.width = state.width;
+    canvas.height = state.height;
+    const g = canvas.getContext("2d");
+    if (!g) return null;
+    g.clearRect(0, 0, canvas.width, canvas.height);
+    // Render at FULL alpha. globalAlpha at blit time handles fade.
+    const grad = g.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
+    grad.addColorStop(0, "rgba(148, 0, 211, 1)"); // violet
+    grad.addColorStop(0.17, "rgba(75, 0, 200, 1)"); // indigo
+    grad.addColorStop(0.33, "rgba(30, 130, 255, 1)"); // blue
+    grad.addColorStop(0.5, "rgba(30, 200, 30, 1)"); // green
+    grad.addColorStop(0.67, "rgba(255, 240, 30, 1)"); // yellow
+    grad.addColorStop(0.83, "rgba(255, 140, 0, 1)"); // orange
+    grad.addColorStop(1, "rgba(255, 30, 30, 1)"); // red
+    g.fillStyle = grad;
+    g.beginPath();
+    g.arc(cx, cy, outerR, Math.PI, 0);
+    g.arc(cx, cy, innerR, 0, Math.PI, true);
+    g.closePath();
+    g.fill();
+    _rainbowCache = canvas;
+    _rainbowCacheKey = key;
+    return _rainbowCache;
+  }
+
   // drawShootingStars lives in src/effects/particles.ts.
 
   // Sun + Moon rendering lives in src/render/sky.ts.
@@ -784,8 +834,24 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // Comet/meteor draw ON TOP of sun, moon, and stars.
     drawRareEventSky(ctx);
 
+    // Lightning — drawn on the BACKGROUND ctx so the flash + bolt
+    // read as "distant sky lighting up the scene", with the
+    // raptor and cacti silhouetted in front of it. The previous
+    // placement was after the fg composite, which front-lit
+    // everything including the raptor, obscuring the gameplay.
+    drawLightning(ctx);
+
     // Rainbow — drawn in the background so foreground elements
     // (ground, cacti, raptor, clouds, dunes) all render on top.
+    //
+    // Pre-bake to an offscreen canvas the first frame a new
+    // rainbow is visible. The per-frame cost of filling a huge
+    // radial-gradient ring at full viewport scale was measurable
+    // (multi-ms on integrated GPUs) — the player experienced it
+    // as a sustained frame-rate drop for the whole rainbow life.
+    // Caching the ring as a static bitmap drops the per-frame
+    // cost to a single drawImage plus a globalAlpha scalar for
+    // the fade in / out.
     if (state.rainbow) {
       const rb = state.rainbow;
       let alpha;
@@ -794,28 +860,13 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       else alpha = 1 - (rb.age - 3) / 3;
       alpha = Math.max(0, Math.min(1, alpha)) * RAINBOW_MAX_OPACITY;
       if (alpha > 0) {
-        const cx = state.width * 0.7;
-        const cy = state.ground + state.height * 0.15;
-        const outerR = state.height * 0.55;
-        const thickness = Math.max(15, state.width * 0.025);
-        const innerR = outerR - thickness;
-        // Continuous radial gradient — colors blend smoothly
-        const grad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
-        grad.addColorStop(0, `rgba(148, 0, 211, ${alpha})`); // violet (inner)
-        grad.addColorStop(0.17, `rgba(75, 0, 200, ${alpha})`); // indigo
-        grad.addColorStop(0.33, `rgba(30, 130, 255, ${alpha})`); // blue
-        grad.addColorStop(0.5, `rgba(30, 200, 30, ${alpha})`); // green
-        grad.addColorStop(0.67, `rgba(255, 240, 30, ${alpha})`); // yellow
-        grad.addColorStop(0.83, `rgba(255, 140, 0, ${alpha})`); // orange
-        grad.addColorStop(1, `rgba(255, 30, 30, ${alpha})`); // red (outer)
-        ctx.save();
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, outerR, Math.PI, 0);
-        ctx.arc(cx, cy, innerR, 0, Math.PI, true);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
+        const cache = ensureRainbowCache();
+        if (cache) {
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.drawImage(cache, 0, 0);
+          ctx.restore();
+        }
       }
     }
 
@@ -956,13 +1007,20 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       }
     }
 
+    // Ash — drawn BEFORE cacti + raptor so the debris cloud from a
+    // lightning-struck cactus sits behind other cacti and the
+    // raptor silhouette instead of smearing over them. Also means
+    // ash picks up the same sky-light tint the foreground gets,
+    // so it reads as part of the scene rather than a foreground
+    // particle layer.
+    drawAsh(fgCtx);
+
     // Cacti.
     cactuses.draw(fgCtx);
 
     // Raptor.
     raptor.draw(fgCtx);
     drawDust(fgCtx);
-    drawAsh(fgCtx);
 
     // Sky-light tint applied ONLY where the foreground has drawn
     // pixels. `source-atop` performs alpha blending only over
@@ -1007,7 +1065,6 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     }
 
     drawRain(ctx);
-    drawLightning(ctx);
 
     // Score text lives in the DOM now (see #score-display in
     // index.html), not on the canvas. That means it doesn't appear
@@ -2186,6 +2243,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       __rrIsMenuOpen?: () => boolean;
       __rrToggleMenu?: () => void;
       __rrCloseMenu?: () => void;
+      __rrMenuBack?: () => void;
       __rrMenuFocusNext?: () => void;
       __rrMenuFocusPrev?: () => void;
       __rrMenuSelect?: () => void;
@@ -2264,15 +2322,17 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       if (anyJustPressed(GAMEPAD_MENU_SELECT_BUTTONS)) {
         w.__rrMenuSelect?.();
       }
-      // B (index 1) + D-pad left close the menu. Separate from the
-      // system-button close path so the two intents — "I want to
-      // leave this screen" (B) and "I want to unpause by dismissing
-      // the pause menu" (Start/Back) — both land on the same action
-      // but the UI can label them distinctly in the gamepad hint.
-      if (
-        anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS) ||
-        anyJustPressed(GAMEPAD_MENU_BACK_BUTTONS)
-      ) {
+      // Stepwise back: B / D-pad left close any open dropdown
+      // first; only close the menu itself if nothing was open
+      // inside. Matches console menu conventions — back unwinds
+      // one level, not the whole screen.
+      if (anyJustPressed(GAMEPAD_MENU_BACK_BUTTONS)) {
+        w.__rrMenuBack?.();
+      }
+      // System buttons (Start / Options / etc.) dismiss the menu
+      // outright regardless of dropdown state — that's the
+      // "resume gameplay now" path, not a back-navigation.
+      if (anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS)) {
         w.__rrCloseMenu?.();
       }
     } else {
