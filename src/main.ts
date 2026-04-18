@@ -2695,6 +2695,30 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       lg4.addColorStop(1, "rgba(150, 30, 0, 0)");
       ctx.fillStyle = lg4;
       ctx.fillRect(-200, -200, 30, 30);
+
+      // Warm ctx.filter with the exact string we use for the
+      // lightning-struck dune cactus in _drawDuneCacti (brightness
+      // + saturate). Skia compiles a filter-chain shader on first
+      // use of a specific filter expression; without warming, the
+      // first struck cactus paints with a visible hitch right when
+      // the lightning flash is still on screen.
+      //
+      // We need an image to drawImage through the filter. Any
+      // already-loaded sprite works — raptor-idle is tiny and
+      // guaranteed loaded by this point (see warmImageTextures
+      // above).
+      const warmImg = IMAGES.raptorIdle || IMAGES.raptorSheet;
+      if (warmImg) {
+        // Also do the fgCtx in case it has a separate shader cache.
+        for (const c of [ctx, fgCtx]) {
+          if (!c) continue;
+          c.save();
+          c.filter = "brightness(0.1) saturate(0)";
+          c.globalAlpha = 0.01; // imperceptible paint off-screen
+          c.drawImage(warmImg, -500, -500, 4, 4);
+          c.restore();
+        }
+      }
     }
 
     canvas.addEventListener("pointerdown", onPointerDown);
