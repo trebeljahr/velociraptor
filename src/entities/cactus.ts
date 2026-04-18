@@ -182,12 +182,24 @@ export class Cactuses {
         state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * 60;
       const gap = seconds * pxPerSec;
 
+      // The last cactus JUST spawned at x = state.width. It has to
+      // travel the full state.width (plus its own width) before
+      // scrolling fully off the left edge. During that window the
+      // flower field and grass overlay would visibly overlap the
+      // cactus — a "cacti on the flower field" bug that looked wrong.
+      // Push the flower / grass start point state.width pixels
+      // further off-screen so it enters the viewport right-edge only
+      // after the cactus has already exited the left-edge. The
+      // velocity cancels out: at any bgVelocity the cactus exit and
+      // the first patch entry arrive at state.width at the same time.
+      const exitMargin = state.width;
+
       // Mark the grass-field span so the renderer knows where to
       // paint the top ground band green instead of desert-yellow.
       // Scrolls with the ground — see updateGrassFields in main.ts.
       state.grassFields = state.grassFields || [];
       state.grassFields.push({
-        startX: state.width,
+        startX: state.width + exitMargin,
         endX: state.width + gap,
       });
 
@@ -197,11 +209,14 @@ export class Cactuses {
       // overlap by ~60%, erasing the visible gaps that the previous
       // spacing (1.2 seconds × pxPerSec) left behind. Jittered ±30%
       // so the patches don't tile. Leading and trailing patches
-      // sit one full patch-width inside the gap so the field
-      // doesn't start or end flush against a cactus.
+      // sit one full patch-width inside the usable zone so the field
+      // doesn't start or end flush against a cactus. If the gap is
+      // so short that no patches fit (happens at low bgVelocity with
+      // the short 4–6s breather), that's fine — the while() loop
+      // just doesn't enter.
       state.flowerPatches = state.flowerPatches || [];
       const patchSpacingPx = FLOWER_PATCH_WIDTH_PX * 0.4;
-      let x = state.width + FLOWER_PATCH_WIDTH_PX;
+      let x = state.width + exitMargin + FLOWER_PATCH_WIDTH_PX;
       const endX = state.width + gap - FLOWER_PATCH_WIDTH_PX;
       while (x < endX) {
         state.flowerPatches.push(makeFlowerPatch(x));

@@ -65,10 +65,13 @@ export const CACTUS_BREATHER_MIN_COUNT = 40;
 export const CACTUS_BREATHER_MAX_COUNT = 55;
 // Length of each rest area in seconds-of-travel, measured against
 // the current bgVelocity so the stretch feels the same regardless
-// of how fast the player is going. Tight 9–12 window because the
-// design calls for "10ish seconds" and we don't want much spread.
-export const CACTUS_BREATHER_MIN_SECONDS = 9;
-export const CACTUS_BREATHER_MAX_SECONDS = 12;
+// of how fast the player is going. Tightened from 9–12 to 4–6 —
+// the longer window made the overall pacing feel genuinely slower
+// than pre-breather-fix because the rest was such a big chunk of
+// total playtime. 4–6 lands closer to "a few seconds to breathe"
+// without the player feeling the game has paused.
+export const CACTUS_BREATHER_MIN_SECONDS = 4;
+export const CACTUS_BREATHER_MAX_SECONDS = 6;
 export const JUMP_BUFFER_MS = 100;
 export const JUMP_VIBRATION_MS = 15;
 export const FRAME_DELAY_SPEED_RANGE = 15;
