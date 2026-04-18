@@ -151,8 +151,6 @@ import {
   NIGHT_COLOR,
   GAMEPAD_JUMP_BUTTONS,
   GAMEPAD_MENU_TOGGLE_BUTTONS,
-  GAMEPAD_MENU_SELECT_BUTTONS,
-  GAMEPAD_MENU_BACK_BUTTONS,
   GAMEPAD_MENU_UP_BUTTONS,
   GAMEPAD_MENU_DOWN_BUTTONS,
   GAMEPAD_STICK_PRESS_THRESHOLD,
@@ -2214,6 +2212,55 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     stickDir: 0 as -1 | 0 | 1,
   };
 
+  /**
+   * Face-button layout detection.
+   *
+   * The W3C Gamepad Standard Mapping places the "bottom" face
+   * button at index 0 and "right" at 1 — regardless of the
+   * label the vendor stamps on the plastic. On Xbox and PS
+   * pads, the on-pad label A / Cross (= confirm) sits at the
+   * bottom (index 0) and B / Circle (= cancel) sits at the
+   * right (index 1). On Nintendo Switch Pro + Joy-Con, those
+   * two face labels are swapped: the A button (= confirm) is
+   * on the RIGHT (index 1) and B (= cancel) is on the BOTTOM
+   * (index 0).
+   *
+   * Without per-pad detection, a Nintendo player reaching for
+   * "A" to confirm presses button 1, which our menu code
+   * would interpret as "back / cancel" under the standard
+   * layout. Felt like A and B were flipped. They weren't — we
+   * just had to swap which index means "confirm" vs "back"
+   * based on the pad vendor.
+   *
+   * Detection uses the Gamepad.id string. The Gamepad API
+   * emits e.g.:
+   *   "Pro Controller (STANDARD GAMEPAD Vendor: 057e Product: 2009)"
+   *   "Joy-Con (L) (Vendor: 057e Product: 2006)"
+   * Nintendo's USB vendor id is 057e; we also match common
+   * readable fragments for browser stacks that strip the vendor
+   * numbers.
+   *
+   * Override via URL query: `?gamepad=nintendo` or
+   * `?gamepad=standard` — handy when the heuristic misses a
+   * clone or a third-party controller (8BitDo etc.) that
+   * follows one layout or the other.
+   */
+  const _gamepadLayoutForce = (() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get("gamepad");
+      if (p === "nintendo" || p === "standard") return p;
+    } catch {
+      /* no-op */
+    }
+    return null as "nintendo" | "standard" | null;
+  })();
+  function faceLayout(gp: Gamepad): "nintendo" | "standard" {
+    if (_gamepadLayoutForce) return _gamepadLayoutForce;
+    return /057e|nintendo|joy.?con|switch pro/i.test(gp.id)
+      ? "nintendo"
+      : "standard";
+  }
+
   function pollGamepad() {
     let gp: Gamepad | undefined;
     try {
@@ -2295,6 +2342,17 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     const subOverlayOpen = !!w.__rrSubOverlayOpen?.();
     const menuOpen = !!w.__rrIsMenuOpen?.();
 
+    // Per-pad face-button routing. See faceLayout(): Nintendo
+    // pads swap the physical A/B positions relative to the
+    // Standard Mapping indices. Selecting the arrays per-poll
+    // means a player hot-swapping an Xbox pad for a Switch Pro
+    // pad mid-session gets the right behaviour immediately —
+    // no remount required.
+    const layout = faceLayout(gp);
+    const selectButtons =
+      layout === "nintendo" ? [1, 2, 3] : [0, 2, 3];
+    const backButtons = layout === "nintendo" ? [0, 14] : [1, 14];
+
     if (subOverlayOpen) {
       // ── Sub-overlay (credits / achievements / imprint / about) ─
       // D-pad up/down + left-stick scroll the overlay's scrollable
@@ -2319,40 +2377,35 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       }
       // Close triggers. Universally "back" across vendors:
       //   • Any system / menu button (Start / Back / Select / ±).
-      //   • Button 1 — the right face button (Xbox B, PS Circle,
-      //     Switch A-but-opposite-layout). Ubiquitously "cancel".
-      //   • Button 14 — D-pad left. Common convention for "go
-      //     back a page" in console menu systems.
+      //   • backButtons: the "cancel" face button at the vendor's
+      //     A-is-confirm position plus D-pad left. Layout-aware —
+      //     index 1 on Xbox/PS (B / Circle), index 0 on Nintendo
+      //     (B, which sits at the BOTTOM on Switch Pro).
       if (
         anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS) ||
-        justPressed(1) ||
-        justPressed(14)
+        anyJustPressed(backButtons)
       ) {
         w.__rrCloseActiveSubOverlay?.();
       }
     } else if (menuOpen) {
       // ── In-menu navigation ─────────────────────────────────
-      // Wide acceptance by design (see src/constants.ts header):
-      // any face button (0-3) activates the focused item. Any
-      // system button (Start / Back / Home / Guide / +/− — indices
-      // 8, 9, 16, 17) closes the menu. D-pad up/down + left-stick
-      // Y navigate. This handles Xbox, PlayStation, Switch Pro,
-      // and generic clones without caring which vendor labels
-      // button 0 as "A" vs "B" vs "Cross" vs "B".
+      // Select vs back indices are layout-aware (see faceLayout
+      // above): on Nintendo the physical labels A and B are at
+      // swapped Standard Mapping indices, so we swap which
+      // index we treat as "confirm" vs "cancel". The on-pad
+      // label meaning stays stable for the player.
       if (anyJustPressed(GAMEPAD_MENU_UP_BUTTONS) || stickPress === -1) {
         w.__rrMenuFocusPrev?.();
       }
       if (anyJustPressed(GAMEPAD_MENU_DOWN_BUTTONS) || stickPress === 1) {
         w.__rrMenuFocusNext?.();
       }
-      if (anyJustPressed(GAMEPAD_MENU_SELECT_BUTTONS)) {
+      if (anyJustPressed(selectButtons)) {
         w.__rrMenuSelect?.();
       }
-      // Stepwise back: B / D-pad left close any open dropdown
-      // first; only close the menu itself if nothing was open
-      // inside. Matches console menu conventions — back unwinds
-      // one level, not the whole screen.
-      if (anyJustPressed(GAMEPAD_MENU_BACK_BUTTONS)) {
+      // Stepwise back: close any open dropdown first, only then
+      // the menu itself. Console convention.
+      if (anyJustPressed(backButtons)) {
         w.__rrMenuBack?.();
       }
       // System buttons (Start / Options / etc.) dismiss the menu
