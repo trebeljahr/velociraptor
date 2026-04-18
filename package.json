@@ -20,6 +20,10 @@
     "electron:dev": "npm run dev:desktop",
     "electron:build": "npm run build && npm run electron:compile && electron-builder",
     "electron:preview": "npm run build && npm run electron:compile && electron .",
+    "icons:desktop": "mkdir -p build/icon.iconset && cp public/assets/icon-512.png build/icon.png && for sz in 16 32 64 128 256 512; do sips -z $sz $sz build/icon.png --out build/icon.iconset/icon_${sz}x${sz}.png > /dev/null; done && cp build/icon.iconset/icon_32x32.png build/icon.iconset/icon_16x16@2x.png && cp build/icon.iconset/icon_64x64.png build/icon.iconset/icon_32x32@2x.png && cp build/icon.iconset/icon_256x256.png build/icon.iconset/icon_128x128@2x.png && cp build/icon.iconset/icon_512x512.png build/icon.iconset/icon_256x256@2x.png && cp build/icon.png build/icon.iconset/icon_512x512@2x.png && iconutil -c icns build/icon.iconset -o build/icon.icns && sips -z 256 256 build/icon.png --out build/icon-256.png > /dev/null && node scripts/make-ico.mjs build/icon-256.png build/icon.ico && rm -r build/icon.iconset build/icon-256.png",
+    "itch:push:mac": "butler push --userversion-file release/latest-mac.yml release/*-mac.zip $ITCH_USER/$ITCH_GAME:osx",
+    "itch:push:win": "butler push release/*-win.zip $ITCH_USER/$ITCH_GAME:windows",
+    "itch:push:linux": "butler push release/*.AppImage $ITCH_USER/$ITCH_GAME:linux",
     "build:mobile": "tsc --noEmit && VITE_TARGET=capacitor vite build",
     "cap:sync": "npm run build:mobile && cap sync",
     "cap:open:ios": "cap open ios",
@@ -58,31 +62,42 @@
     "appId": "com.trebeljahr.raptor-runner",
     "productName": "Raptor Runner",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
     },
     "asarUnpack": [
       "node_modules/steamworks.js/**"
     ],
+    "_comment_files": "steam_appid.txt is intentionally NOT in this files list. Shipping the Spacewar id (480) in a non-Steam distribution would cause steamworks.js to attach to Spacewar on machines where Steam is running. For a Steam build, override this config via a Steam-specific electron-builder profile that adds `extraFiles: [\"steam_appid.txt\"]` (extraFiles places the file next to the executable, not inside resources/).",
     "files": [
       "dist/**/*",
       "electron/main.js",
       "electron/preload.js",
       "electron/package.json",
       "public/assets/icon-rounded-1024.png",
-      "node_modules/steamworks.js/**",
-      "steam_appid.txt"
+      "node_modules/steamworks.js/**"
     ],
     "mac": {
-      "target": "dmg",
-      "icon": "public/assets/icon-rounded-1024.png"
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] },
+        { "target": "zip", "arch": ["x64", "arm64"] }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.games"
     },
     "win": {
-      "target": "nsis",
-      "icon": "public/assets/icon-rounded-1024.png"
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico"
     },
     "linux": {
-      "target": "AppImage",
-      "icon": "public/assets/icon-rounded-1024.png"
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.png",
+      "category": "Game"
     }
   },
   "dependencies": {
