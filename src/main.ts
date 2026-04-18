@@ -2435,16 +2435,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
           }
         }
       }
-      // Any system button opens the menu (or starts the game if
-      // nothing's running yet). Accepting all four covers different
-      // vendors' idea of "the menu button" — Xbox View/Menu, PS
-      // Options/Share, Switch Pro +/−, etc.
+      // Any system button opens the menu — including on the start
+      // screen, so the player can change settings before kicking
+      // off a run. A (jump) and the d-pad start the game; the menu
+      // button always does the menu. Accepting all four covers
+      // different vendors' idea of "the menu button" — Xbox
+      // View/Menu, PS Options/Share, Switch Pro +/−, etc.
       if (anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS)) {
-        if (!state.started) {
-          w.__onStartKey?.();
-        } else {
-          w.__rrToggleMenu?.();
-        }
+        w.__rrToggleMenu?.();
       }
     }
 
