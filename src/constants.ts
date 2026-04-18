@@ -182,6 +182,12 @@ export const GAMEPAD_MENU_BACK_BUTTONS = [1, 14];
  *  the focus ring. */
 export const GAMEPAD_MENU_UP_BUTTONS = [12];
 export const GAMEPAD_MENU_DOWN_BUTTONS = [13];
+// Left / right d-pad — only meaningful in sub-overlays that lay
+// buttons out side-by-side (the reset-confirm dialog is the main
+// consumer). The main menu treats all four directions as prev/next
+// so a player never has to remember the layout.
+export const GAMEPAD_MENU_LEFT_BUTTONS = [14];
+export const GAMEPAD_MENU_RIGHT_BUTTONS = [15];
 
 /** Left-stick Y deadzone + threshold for counting a "press up" or
  *  "press down" event. Above the threshold the stick is treated as

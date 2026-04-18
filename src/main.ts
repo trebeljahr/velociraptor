@@ -153,6 +153,8 @@ import {
   GAMEPAD_MENU_TOGGLE_BUTTONS,
   GAMEPAD_MENU_UP_BUTTONS,
   GAMEPAD_MENU_DOWN_BUTTONS,
+  GAMEPAD_MENU_LEFT_BUTTONS,
+  GAMEPAD_MENU_RIGHT_BUTTONS,
   GAMEPAD_STICK_PRESS_THRESHOLD,
   GAMEPAD_STICK_DEADZONE,
   CINEMATIC_PHASES,
@@ -2333,6 +2335,9 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         scrollBy(dx: number, dy: number): void;
       } | null;
       __rrCloseActiveSubOverlay?: () => boolean;
+      __rrSubOverlayFocusNext?: () => void;
+      __rrSubOverlayFocusPrev?: () => void;
+      __rrSubOverlaySelect?: () => void;
       __onStartKey?: () => void;
     };
 
@@ -2382,6 +2387,30 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         const downHeld = anyPressed(GAMEPAD_MENU_DOWN_BUTTONS) || stickYRaw > 0.3;
         if (upHeld) scrollable.scrollBy(0, -scrollPx);
         if (downHeld) scrollable.scrollBy(0, scrollPx);
+      } else {
+        // No scrollable content → this is a modal dialog (reset-
+        // confirm). Wire d-pad in all four directions to button
+        // navigation, and the confirm button to click the focused
+        // button. The helpers self-heal if the user clicked with a
+        // mouse and focus drifted off the overlay — the next
+        // gamepad press snaps focus back into the dialog.
+        if (
+          anyJustPressed(GAMEPAD_MENU_UP_BUTTONS) ||
+          anyJustPressed(GAMEPAD_MENU_LEFT_BUTTONS) ||
+          stickPress === -1
+        ) {
+          w.__rrSubOverlayFocusPrev?.();
+        }
+        if (
+          anyJustPressed(GAMEPAD_MENU_DOWN_BUTTONS) ||
+          anyJustPressed(GAMEPAD_MENU_RIGHT_BUTTONS) ||
+          stickPress === 1
+        ) {
+          w.__rrSubOverlayFocusNext?.();
+        }
+        if (anyJustPressed(selectButtons)) {
+          w.__rrSubOverlaySelect?.();
+        }
       }
       // Close triggers. Universally "back" across vendors:
       //   • Any system / menu button (Start / Back / Select / ±).

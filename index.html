@@ -2345,6 +2345,61 @@
           return false;
         };
 
+        /**
+         * Gamepad button navigation for sub-overlays that lay out
+         * side-by-side buttons (the reset-confirm dialog is the
+         * main consumer — "Cancel" and "Reset everything" sit
+         * horizontally). Each of Next / Prev / Select self-heals
+         * if focus has drifted off the overlay (mouse click
+         * dropping focus to body, etc.) — the next gamepad
+         * press always snaps focus back into the live overlay so
+         * controller users never get into a stuck state.
+         */
+        function _rrSubOverlayButtons() {
+          const active = document.querySelector(".imprint-overlay.open");
+          if (!active) return { active: null, buttons: [] };
+          const buttons = Array.from(
+            active.querySelectorAll(
+              'button:not([disabled]), a[href], [role="button"]',
+            ),
+          ).filter((el) => el.offsetParent !== null);
+          return { active, buttons };
+        }
+        function _rrSubOverlayMoveFocus(delta) {
+          const { buttons } = _rrSubOverlayButtons();
+          if (!buttons.length) return;
+          let current = buttons.indexOf(document.activeElement);
+          if (current === -1) current = delta > 0 ? -1 : 0;
+          const next =
+            ((current + delta) % buttons.length + buttons.length) %
+            buttons.length;
+          const target = buttons[next];
+          if (target && typeof target.focus === "function") target.focus();
+        }
+        window.__rrSubOverlayFocusNext = function () {
+          _rrSubOverlayMoveFocus(1);
+        };
+        window.__rrSubOverlayFocusPrev = function () {
+          _rrSubOverlayMoveFocus(-1);
+        };
+        window.__rrSubOverlaySelect = function () {
+          const { active, buttons } = _rrSubOverlayButtons();
+          if (!active || !buttons.length) return;
+          const focused = document.activeElement;
+          if (
+            focused &&
+            active.contains(focused) &&
+            typeof focused.click === "function"
+          ) {
+            focused.click();
+            return;
+          }
+          // Focus drifted outside the overlay (user clicked the
+          // backdrop, alt-tabbed, etc.). Snap focus to the first
+          // button but DON'T fire it — next A press will confirm.
+          buttons[0].focus();
+        };
+
         // ── Gamepad navigation ──────────────────────────────
         // Walks the focus ring across the menu's visible buttons/
         // links. The three filters here together define "visible
@@ -2787,7 +2842,15 @@
         const resetNo = document.getElementById("reset-confirm-no");
 
         function openResetConfirm() {
-          if (resetOverlay) resetOverlay.classList.add("open");
+          if (!resetOverlay) return;
+          resetOverlay.classList.add("open");
+          // Auto-focus the Cancel button so a gamepad A press on an
+          // already-focused button doesn't immediately confirm a
+          // destructive action. User has to d-pad RIGHT onto the red
+          // "Reset everything" button before A fires reset.
+          if (resetNo && typeof resetNo.focus === "function") {
+            resetNo.focus();
+          }
         }
         function closeResetConfirm() {
           if (resetOverlay) resetOverlay.classList.remove("open");
