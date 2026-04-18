@@ -2,11 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- See index.html for the rationale. Same policy keeps the
-         imprint overlay iframe source-compatible with the parent. -->
+    <!-- See index.html for the rationale. script-src uses a sha256
+         hash for the one in-frame-detection inline script below —
+         regenerate via the node -e snippet in index.html if the
+         script body changes. style-src keeps 'unsafe-inline' for
+         the inline <style> block. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss: http://localhost:* https://localhost:*; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self';"
+      content="default-src 'self'; script-src 'self' 'sha256-Yrd4P7qekLXa4tOZhOuX8XkNG5+EjPOpuv9Zbka184M='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss: http://localhost:* https://localhost:*; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self';"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Imprint – Raptor Runner</title>

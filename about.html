@@ -2,11 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- See index.html for the rationale. Same policy so the about
-         iframe loads from the same origin the parent page uses. -->
+    <!-- See index.html for the rationale. script-src uses a sha256
+         hash for the inline in-frame-detection + small bootstrap
+         script below — regenerate via the node -e snippet in
+         index.html if the script body changes. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss: http://localhost:* https://localhost:*; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self';"
+      content="default-src 'self'; script-src 'self' 'sha256-YE4ParMmhFGucwIgGyt1qsFkcfgS3KeDFsLapykyas8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss: http://localhost:* https://localhost:*; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self';"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>About – Raptor Runner</title>
