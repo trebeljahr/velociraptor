@@ -213,15 +213,15 @@ export class Cactuses {
 
       // The last cactus JUST spawned at x = state.width. It has to
       // travel the full state.width (plus its own width) before
-      // scrolling fully off the left edge. During that window the
-      // flower field and grass overlay would visibly overlap the
-      // cactus — a "cacti on the flower field" bug that looked wrong.
-      // Push the flower / grass start point state.width pixels
-      // further off-screen so it enters the viewport right-edge only
-      // after the cactus has already exited the left-edge. The
-      // velocity cancels out: at any bgVelocity the cactus exit and
-      // the first patch entry arrive at state.width at the same time.
-      const exitMargin = state.width;
+      // scrolling fully off the left edge. Pushing the flower-field
+      // start one viewport width past the cactus makes the first
+      // patch enter the right edge right as the cactus exits the
+      // left edge — but "enters exactly as cactus exits" still
+      // reads as abrupt. Adding a normal spawn-gap of pre-field
+      // buffer on top gives the player visible empty ground between
+      // the last cactus and the start of the flowers, same feel as
+      // the post-field buffer on the trailing edge.
+      const exitMargin = state.width + this._rollNormalGap();
 
       // Mark the grass-field span so the renderer knows where to
       // paint the top ground band green instead of desert-yellow.

@@ -2481,11 +2481,21 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   }
 
   async function init() {
-    // Parse `?debug=true` — turns on debug mode which makes the
-    // "Show hitboxes" toggle visible in the menu.
+    // Debug mode is gated on `import.meta.env.DEV` (true only for
+    // `npm run dev` / `dev:web` / `dev:desktop`). Production bundles
+    // from `vite build` get DEV=false, which makes the URL query
+    // a dead knob — no way for a player on raptor.trebeljahr.com
+    // to flip on hitboxes, noCollisions, score-edit, or the debug
+    // menu rows by appending `?debug=true`. Rollup/Vite's dead-code
+    // elimination also strips the debug branches from the prod
+    // bundle, so debug-only helpers don't even ship.
     try {
+      // `import.meta.env.DEV` (no optional chain so Vite statically
+       // replaces it with the literal boolean at build time — the
+       // whole debug block dead-codes out in prod).
+      const devBuild = import.meta.env.DEV === true;
       const params = new URLSearchParams(window.location.search);
-      state.debug = params.get("debug") === "true";
+      state.debug = devBuild && params.get("debug") === "true";
       if (state.debug) {
         document.body.setAttribute("data-debug", "true");
         state.showHitboxes = false;
