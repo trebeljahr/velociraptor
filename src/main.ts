@@ -1639,6 +1639,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       audio.playClick();
     },
 
+    /** Same UI click tap the menu system uses for every button. Exposed
+     *  so index.html can call it from the start-button handler — keeps
+     *  start + menu + game-over feedback audibly identical without any
+     *  caller having to reach directly into the audio module. */
+    playMenuTap() {
+      audio.playMenuTap();
+    },
+
     setMusicMuted(muted: boolean) {
       audio.setMusicMuted(muted);
     },
@@ -2680,17 +2688,29 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // buttons on those overlays, the play-again button on the
     // game-over panel, and the "Press Enter / ● to restart" hint.
     //
+    // CAPTURE PHASE (third arg) rather than bubble — several button
+    // handlers already call e.stopPropagation() to keep the click
+    // from reaching the overlay backdrop (which would re-trigger
+    // the close action). stopPropagation in a bubble-phase ancestor
+    // kills any later bubble-phase listener, so a document-level
+    // bubble listener never saw those clicks. Capture phase fires
+    // top-down before stopPropagation can take effect.
+    //
     // The `.tapped` class runs the CSS animation once (@keyframes
     // menu-item-tap). Remove + reflow + re-add so consecutive
     // activations always retrigger (Chromium won't replay a
     // running animation on a class that just stays present).
-    document.addEventListener("click", (e) => {
-      const target = (e.target as HTMLElement | null)?.closest(
-        ".menu-item, .sound-settings-summary, .imprint-close, .play-again-btn, .score-card-hint",
-      ) as HTMLElement | null;
-      if (!target) return;
-      pulseTapFeedback(target);
-    });
+    document.addEventListener(
+      "click",
+      (e) => {
+        const target = (e.target as HTMLElement | null)?.closest(
+          ".menu-item, .sound-settings-summary, .imprint-close, .play-again-btn, .score-card-hint",
+        ) as HTMLElement | null;
+        if (!target) return;
+        pulseTapFeedback(target);
+      },
+      { capture: true },
+    );
 
     function pulseTapFeedback(el: HTMLElement): void {
       audio.playMenuTap();

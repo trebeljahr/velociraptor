@@ -1746,20 +1746,22 @@
           showScoreDisplay();
         }
 
-        // Start button wrapper — plays the shared UI click cue, runs
-        // a one-shot wiggle, then actually starts the game. Gated on
-        // the settings menu being closed so a stray Space-fired click
-        // on Start never bypasses an open modal.
+        // Start button wrapper. Uses the shared click-feedback system
+        // (same tap sound + scale-down wiggle as every menu button and
+        // the play-again button) rather than a bespoke playClick +
+        // start-btn-wiggle pair. Keeps the entire UI consistent.
+        // Gated on the settings menu being closed so a stray Space-
+        // fired click on Start never bypasses an open modal.
         function triggerStart() {
           if (overlay.classList.contains("open")) return;
           if (!assetsReady || window.Game.isStarted()) return;
-          if (window.Game && window.Game.playClick) window.Game.playClick();
-          startBtn.classList.add("wiggling");
-          startBtn.addEventListener(
-            "animationend",
-            () => startBtn.classList.remove("wiggling"),
-            { once: true },
-          );
+          if (window.Game && window.Game.playMenuTap) window.Game.playMenuTap();
+          // Retrigger-safe: remove + force reflow + re-add so rapid
+          // keyboard repeats still replay the animation cleanly.
+          startBtn.classList.remove("tapped");
+          void startBtn.offsetWidth;
+          startBtn.classList.add("tapped");
+          window.setTimeout(() => startBtn.classList.remove("tapped"), 200);
           startGame();
         }
         startBtn.addEventListener("click", triggerStart);
