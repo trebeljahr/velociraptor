@@ -130,6 +130,13 @@ export class Cactus {
 
 export class Cactuses {
   cacti: Cactus[] = [];
+  /** Gap (in px) that the next cactus must cover before it can
+   *  spawn. Rolled exactly once per spawn — see _rollSpawnGap. A
+   *  getter that re-rolls every frame (as this used to be) means a
+   *  long breather roll on one frame gets silently replaced by a
+   *  short roll on the next and cacti end up spawning through the
+   *  empty stretch that was supposed to be scenery-only. */
+  private _nextSpawnDistance: number = 0;
 
   constructor(
     private raptor: Raptor,
@@ -137,7 +144,12 @@ export class Cactuses {
     private onCosmeticBurst: CactusCosmeticBurstCallback,
   ) {}
 
-  get minSpawnDistance(): number {
+  /**
+   * Pick the next spawn-gap distance + any side effects (flower
+   * patches during breathers). Called exactly once per cactus
+   * spawn so the chosen gap is the one that's actually enforced.
+   */
+  private _rollSpawnGap(): number {
     // Breather roll: every so often return a long empty gap so the
     // player gets 5-10 seconds of scenery-only before the next
     // cactus. Measured in seconds-of-travel at the *current*
@@ -158,7 +170,10 @@ export class Cactuses {
       const gap = seconds * pxPerSec;
       // Drop a flower patch somewhere in the middle of the empty
       // stretch — positioned at screen-space x so the patch scrolls
-      // in naturally with the rest of the foreground.
+      // in naturally with the rest of the foreground. Only fires
+      // because this breather is the one that will be enforced
+      // (cached in _nextSpawnDistance below), so the patch is
+      // guaranteed not to overlap a cactus.
       (state as any).flowerPatches = (state as any).flowerPatches || [];
       const patchX = state.width + gap * (0.3 + Math.random() * 0.4);
       (state as any).flowerPatches.push(makeFlowerPatch(patchX));
@@ -208,13 +223,16 @@ export class Cactuses {
     const variant =
       CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
     this.cacti.push(new Cactus(variant, this.raptor));
+    // Immediately decide how far the next cactus has to travel
+    // before it can enter. Locked until the next spawn fires.
+    this._nextSpawnDistance = this._rollSpawnGap();
   }
 
   update(frameScale = 1): void {
     const last = this.cacti[this.cacti.length - 1];
     if (!last) {
       this.spawn();
-    } else if (state.width - last.x >= this.minSpawnDistance) {
+    } else if (state.width - last.x >= this._nextSpawnDistance) {
       this.spawn();
       state.bgVelocity = Math.min(
         state.bgVelocity + SPEED_INCREMENT,
