@@ -232,6 +232,16 @@ export const audio = {
     }
   },
 
+  /** True while the game code has explicitly asked music to be
+   *  playing (setMuted(false), setMusicMuted(false), or
+   *  resumeMusicOnRunStart). Flipped false by every path that
+   *  explicitly pauses music (setMuted(true), setMusicMuted(true),
+   *  pauseMusicForGameOver). The watchdog in ensureLiveSession
+   *  uses this to distinguish "music is paused because we want it
+   *  paused" from "music is paused because play() rejected or the
+   *  browser auto-paused us" — only the latter should be retried. */
+  _musicShouldBePlaying: false as boolean,
+
   setMuted(muted: boolean, persist = true) {
     this.muted = !!muted;
     // If the player unmutes during a live run, they broke the "muted
@@ -245,9 +255,11 @@ export const audio = {
     }
     if (!this.music) return;
     if (this.muted || this.musicMuted) {
+      this._musicShouldBePlaying = false;
       rampDownAndPause(this.music);
       if (this.rain && this._isRainPlaying) rampDownAndPause(this.rain);
     } else {
+      this._musicShouldBePlaying = true;
       // Resume the Web Audio context on the first unmute — mobile
       // browsers suspend it until a user gesture unblocks it.
       this._ensureAudioCtx();
@@ -288,6 +300,7 @@ export const audio = {
     if (!this.music) return;
     if (this.muted || this.musicMuted) return;
     if (this.music.paused) return;
+    this._musicShouldBePlaying = false;
     rampVolume(this.music, 0, 250).then(() => {
       if (this.music && this.music.volume < 0.01) this.music.pause();
     });
@@ -299,6 +312,7 @@ export const audio = {
   resumeMusicOnRunStart() {
     if (!this.music) return;
     if (this.muted || this.musicMuted) return;
+    this._musicShouldBePlaying = true;
     if (!this.music.paused && this.music.volume > 0.49) return;
     this.music.volume = 0;
     const p = this.music.play();
@@ -567,9 +581,11 @@ export const audio = {
     saveBoolFlag(MUSIC_MUTED_KEY, this.musicMuted);
     if (!this.music || this.muted) return;
     if (this.musicMuted) {
+      this._musicShouldBePlaying = false;
       rampDownAndPause(this.music);
       if (this.rain && this._isRainPlaying) rampDownAndPause(this.rain);
     } else {
+      this._musicShouldBePlaying = true;
       rampUpAndPlay(this.music, 0.5);
       if (this.rain && this._isRainPlaying) {
         rampUpAndPlay(this.rain, RAIN_AUDIO_MAX_VOLUME);
@@ -1284,6 +1300,38 @@ export const audio = {
       !this.rainMuted
     ) {
       rampUpAndPlay(this.rain, RAIN_AUDIO_MAX_VOLUME);
+    }
+    // ── Music watchdog ──────────────────────────────────────
+    // If the game code has asked music to be playing but the
+    // element is paused (play() rejected due to autoplay policy,
+    // a browser tab-hidden auto-pause, an OS audio-focus steal,
+    // …) or stuck at volume 0 (a rampVolume that got superseded
+    // mid-ramp by our own fade logic), retry the play + ramp.
+    // The `_musicShouldBePlaying` flag is the intent tracker —
+    // only paths that explicitly pause music clear it, so this
+    // watchdog never fights pauseMusicForGameOver or the
+    // rampDownAndPause that setMuted(true) / setMusicMuted(true)
+    // triggers.
+    if (
+      this._musicShouldBePlaying &&
+      this.music &&
+      !this.muted &&
+      !this.musicMuted
+    ) {
+      if (this.music.paused) {
+        this.music.volume = 0;
+        const p = this.music.play();
+        const fade = () => rampVolume(this.music!, 0.5, 400);
+        if (p && typeof p.then === "function") {
+          p.then(fade).catch(() => {});
+        } else {
+          fade();
+        }
+      } else if (this.music.volume < 0.05) {
+        // Playing but silent — a prior rampVolume got superseded
+        // before reaching the target. Nudge it back up.
+        rampVolume(this.music, 0.5, 300);
+      }
     }
   },
 };

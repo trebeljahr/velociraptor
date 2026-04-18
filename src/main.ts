@@ -2832,9 +2832,27 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       }
     }
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden) onFocusLost();
+      if (document.hidden) {
+        onFocusLost();
+      } else {
+        // Tab became visible again. Browsers sometimes auto-pause
+        // <audio> elements while hidden / throttled, and the
+        // rampVolume rAF chain stops firing — both can leave music
+        // silently paused or stuck at volume 0. ensureLiveSession
+        // checks that intent and retries play/ramp if the watchdog
+        // flag says music should be on. Also covers the Web Audio
+        // ctx in case the browser suspended it for idle reasons.
+        if (!state.paused) audio.ensureLiveSession();
+      }
     });
     window.addEventListener("blur", onFocusLost);
+    // Regaining window focus is a second reliable recovery hook.
+    // Same guard as visibilitychange — skip while the game is
+    // paused, so un-focusing into the menu and tabbing back doesn't
+    // wake SFX that should stay silent until the menu closes.
+    window.addEventListener("focus", () => {
+      if (!state.paused) audio.ensureLiveSession();
+    });
 
     // Start the rAF loop. The game stays paused (state.paused = true)
     // until Game.start() is called by the Start button click handler.
