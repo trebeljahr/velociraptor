@@ -10,14 +10,20 @@
  * game runs without offline support, which is fine for a desktop app.
  *
  * Steam integration:
- *   steamworks.js is initialized once before window creation. If Steam
- *   isn't running / the user isn't logged in / the SDK fails to load,
- *   steamClient stays null and every bridge call short-circuits — the
- *   game still runs and unlocks land in localStorage.
- *   STEAM_APP_ID defaults to 480 (Spacewar) for dev; override via env.
+ *   steamworks.js is initialized once before window creation ONLY when
+ *   a real Steam app ID is resolvable. Checks, in order:
+ *     1. process.env.STEAM_APP_ID — explicit override (dev, Steam CI)
+ *     2. steam_appid.txt — file next to the binary (Steam build)
+ *   If neither yields a positive integer, steamworks is never touched.
+ *   That keeps itch.io / DRM-free builds from attaching to Spacewar
+ *   (app id 480) on machines where Steam happens to be running.
+ *
+ *   If Steam isn't running / the user isn't logged in / the SDK fails
+ *   to load, steamClient stays null and every bridge call short-
+ *   circuits — the game still runs and unlocks land in localStorage.
  */
 
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, shell } from "electron";
 import path from "path";
 import fs from "fs";
 import steamworks from "steamworks.js";
@@ -31,18 +37,50 @@ const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 // no-op in production.
 app.setName("Raptor Runner");
 
-const STEAM_APP_ID = Number(process.env.STEAM_APP_ID ?? 480);
+/**
+ * Resolve the Steam app ID from env var first, then a sibling
+ * steam_appid.txt file. Returns null if neither yields a valid
+ * positive integer — in which case we skip Steam init entirely,
+ * so itch.io / DRM-free distributions don't attach to Spacewar
+ * (app id 480) on machines where Steam is running.
+ */
+function resolveSteamAppId(): number | null {
+  const fromEnv = process.env.STEAM_APP_ID;
+  if (fromEnv) {
+    const n = Number(fromEnv);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const candidates = [
+    path.join(__dirname, "..", "steam_appid.txt"),
+    path.join(process.resourcesPath ?? "", "..", "steam_appid.txt"),
+  ];
+  for (const p of candidates) {
+    try {
+      const raw = fs.readFileSync(p, "utf8").trim();
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > 0) return n;
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
 
 type SteamClient = ReturnType<typeof steamworks.init>;
 let steamClient: SteamClient | null = null;
 
-try {
-  steamClient = steamworks.init(STEAM_APP_ID);
-  steamworks.electronEnableSteamOverlay();
-  console.log(`[steam] init ok, appid ${STEAM_APP_ID}`);
-} catch (err) {
-  console.warn("[steam] init failed, running without Steam:", err);
-  steamClient = null;
+const resolvedAppId = resolveSteamAppId();
+if (resolvedAppId !== null) {
+  try {
+    steamClient = steamworks.init(resolvedAppId);
+    steamworks.electronEnableSteamOverlay();
+    console.log(`[steam] init ok, appid ${resolvedAppId}`);
+  } catch (err) {
+    console.warn("[steam] init failed, running without Steam:", err);
+    steamClient = null;
+  }
+} else {
+  console.log("[steam] no app id configured, skipping Steam init");
 }
 
 // IPC: renderer asks whether Steam is usable this session.
@@ -251,6 +289,10 @@ function createWindow(): void {
     fullscreen: wantFullscreen,
     simpleFullscreen: isMac,
     titleBarStyle: isMac ? "hiddenInset" : "default",
+    // Windows/Linux: keep the menu bar out of the frame even if the
+    // player hits Alt. installApplicationMenu() also nulls the menu
+    // entirely on non-mac below, so this is belt-and-suspenders.
+    autoHideMenuBar: !isMac,
     backgroundColor: "#50b4cd", // sky-blue matches splash + game sky
     show: false, // wait for first paint so the splash is what appears
   });
@@ -383,7 +425,58 @@ function createWindow(): void {
   });
 }
 
+/**
+ * Install the application menu.
+ *
+ * - Windows/Linux: no menu. The in-game settings overlay already
+ *   exposes everything the player needs (mute, fullscreen, quit), so
+ *   the default File/Edit/View/Help bar is just visual noise.
+ * - macOS: can't be fully hidden (the system draws the app menu even
+ *   if setApplicationMenu(null) is called), so we install a minimal
+ *   menu that preserves the standard keyboard shortcuts — Cmd+Q,
+ *   Cmd+W, Cmd+C/V/X, Cmd+H — and nothing else.
+ */
+function installApplicationMenu(): void {
+  if (process.platform !== "darwin") {
+    Menu.setApplicationMenu(null);
+    return;
+  }
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: app.name,
+      submenu: [
+        { role: "about" },
+        { type: "separator" },
+        { role: "hide" },
+        { role: "hideOthers" },
+        { role: "unhide" },
+        { type: "separator" },
+        { role: "quit" },
+      ],
+    },
+    {
+      label: "Edit",
+      submenu: [
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        { role: "selectAll" },
+      ],
+    },
+    {
+      label: "Window",
+      submenu: [{ role: "minimize" }, { role: "close" }],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 app.whenReady().then(() => {
+  installApplicationMenu();
+
   // macOS dock icon. In packaged builds this comes from the .icns
   // baked into the app bundle (build.mac.icon), but in dev mode
   // Electron shows its own icon unless we override it here. Windows
