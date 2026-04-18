@@ -448,19 +448,47 @@ export const audio = {
   /**
    * Warm the Web Audio buffer-source pipeline by firing a silent
    * (zero-gain, 10ms) BufferSource → Gain → destination graph for
-   * every pre-decoded buffer. Without this, the *first* real
-   * playJump() or playThunder() call can stall briefly while
-   * Chromium compiles the audio render graph.
+   * every pre-decoded buffer. Without this, the *first* playJump /
+   * playThunder / playHit / playMeteor / etc. stalls briefly while
+   * Chromium compiles the audio render graph for that specific
+   * buffer's shape (sample rate, channel count, length) — visible
+   * as a one-off lag spike on the first rare event.
    *
-   * Buffers may still be null if init() is racing the fetches —
-   * safely no-ops per buffer and leaves _webAudioWarmed false so a
-   * future unlockAudio call can retry.
+   * Every decoded buffer the audio module owns gets warmed here.
+   * A buffer still being null means the fetch is racing init; the
+   * _webAudioWarmed latch stays false so a follow-up unlockAudio
+   * call from the Start-button gesture retries against whichever
+   * buffers have landed by then. The step buffers are a flat array
+   * too, spread into the list.
+   *
+   * Runs at most ONCE per session (the _webAudioWarmed latch).
+   * Total cost: ~8 × 10ms silent buffer schedules, all offloaded to
+   * the audio thread — no impact on the render loop beyond the
+   * graph-compilation work that would have happened anyway.
    */
   _warmWebAudioSources() {
     if (this._webAudioWarmed) return;
     if (!this._audioCtx) return;
-    const buffers = [this._jumpBuffer, this._thunderBuffer];
-    if (buffers.every((b) => b == null)) return; // retry later
+    const buffers = [
+      this._jumpBuffer,
+      this._thunderBuffer,
+      this._hitBuffer,
+      this._ufoBuffer,
+      this._santaBuffer,
+      this._meteorBuffer,
+      this._cometBuffer,
+      ...this._stepBuffers,
+    ];
+    // Wait until at least one buffer is ready. If none are, this
+    // fires too early — leave _webAudioWarmed false so a later
+    // unlockAudio gesture can retry once the fetches land.
+    if (buffers.every((b) => b == null)) return;
+    // Only mark warmed if we actually warmed something. If MOST
+    // buffers are still loading, the later unlockAudio retries will
+    // still find _webAudioWarmed true and skip — and the unwarmed
+    // ones will pay the compile cost on first play. The tradeoff is
+    // accepted: in practice all buffers finish loading long before
+    // the Start button is tapped.
     this._webAudioWarmed = true;
     for (const buf of buffers) {
       if (!buf) continue;
