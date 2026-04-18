@@ -1209,6 +1209,11 @@ export const audio = {
   },
 
   // ── Menu / pause coordination ──────────────────────────────
+  // Intent: menus / pauses silence *only* the event-driven gameplay
+  // SFX — the UFO hover loop, Santa bells loop, meteor / comet /
+  // thunder tails, any in-flight step / jump / hit samples. The
+  // ambient layer (music + rain) stays playing so the menu screen
+  // doesn't feel like the game yanked its whole soundtrack out.
   //
   // When the pause menu opens (or Game.pause() fires for any other
   // reason — alt-tab, invisibility, external trigger), every sound
@@ -1233,16 +1238,11 @@ export const audio = {
   // is harmless, and calling resume without a prior pause is a no-op.
 
   /** Suspend gameplay-layer audio (called from Game.pause).
-   *  Music continues. */
+   *  Music + rain both continue playing — they're the ambient layer,
+   *  not the event SFX that a menu should silence. */
   pauseGameplaySounds() {
     if (this._audioCtx && this._audioCtx.state === "running") {
       this._audioCtx.suspend().catch(() => {});
-    }
-    // Only fade the rain element if it's actually making sound — the
-    // _isRainPlaying flag stays true so the game state still thinks
-    // rain is on, which is what we want for a clean resume.
-    if (this._isRainPlaying && this.rain && !this.rain.paused) {
-      rampDownAndPause(this.rain);
     }
   },
 

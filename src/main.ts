@@ -1437,9 +1437,12 @@ import { generateScoreCardBlob } from "./render/scoreCard";
 
   function onPointerDown(e: PointerEvent) {
     // Any user gesture is a cheap, valid opportunity to un-suspend
-    // the audio context if the browser policy or a prior pause-menu
-    // cycle orphaned it. No-op if audio is already live.
-    audio.ensureLiveSession();
+    // the audio context if the browser policy orphaned it. SKIPPED
+    // while the game is paused — pauseGameplaySounds() suspended the
+    // context on purpose so the UFO loop, Santa bells, comet tail
+    // etc. fall silent during the menu. Resuming here would
+    // immediately un-suspend on the first click inside the menu.
+    if (!state.paused) audio.ensureLiveSession();
     if (!state.started || state.paused) return;
     // If the touch started on an overlay control (cog, sound, menu),
     // let the browser handle it — those elements live above the canvas
@@ -1456,8 +1459,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   }
 
   function onKeyDown(e: KeyboardEvent) {
-    // Nudge audio back to life on every keypress — see onPointerDown.
-    audio.ensureLiveSession();
+    // Nudge audio back to life on every keypress — see onPointerDown
+    // for the "skip while paused" rationale (menu keys would
+    // otherwise immediately un-suspend the context we just told to
+    // suspend).
+    if (!state.paused) audio.ensureLiveSession();
     // ESC is reserved for the menu overlay — let it through.
     if (e.key === "Escape") return;
 
