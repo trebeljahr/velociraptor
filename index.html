@@ -2119,9 +2119,12 @@
               panel.classList.add("pre-game");
             }
           }
-          // Move focus into the menu for keyboard/screen-reader users.
-          const menuTitle = document.getElementById("menu-title");
-          if (menuTitle) menuTitle.focus();
+          // Focus goes to the first navigable menu item — the gamepad
+          // wrapper below re-runs focusMenuIndex(0) on the next rAF,
+          // which does both the tabindex focus AND the scroll-into-view.
+          // Focusing the <h2> title here (as we used to) jumped focus to
+          // a non-interactive element that couldn't be activated, so the
+          // next Tab / gamepad button felt "stuck" for one keystroke.
           // Only pause an already-running game. Before the player
           // has hit Start Game, there's nothing to pause.
           if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
@@ -2169,8 +2172,16 @@
         // links. Uses computed display + offsetParent to skip items
         // hidden by .pre-game / .in-game-only / .debug-only gates, so
         // navigation wraps around only the currently-visible set.
+        //
+        // Include .sound-settings-summary too — it's a <summary>, not
+        // a .menu-item, but functionally it IS a navigable button (it
+        // toggles the collapsible). Without it, gamepad up/down
+        // skipped right past the "Sound Settings" row and the player
+        // couldn't fold it open or closed with a controller.
         function getNavigableMenuItems() {
-          const all = overlay.querySelectorAll(".menu-item");
+          const all = overlay.querySelectorAll(
+            ".menu-item, .sound-settings-summary",
+          );
           const list = [];
           for (const el of all) {
             if (el.disabled) continue;

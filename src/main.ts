@@ -2465,6 +2465,37 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       console.log("Gamepad disconnected");
     });
 
+    // Menu-item click polish: a brief scale wiggle + synthesized
+    // tap sound on every activation. Delegated on the overlay so
+    // it catches every trigger path — mouse click, keyboard Enter
+    // on a focused button, and the gamepad .click() driven by
+    // __rrMenuSelect.
+    //
+    // The `.tapped` class runs the CSS animation once (@keyframes
+    // menu-item-tap). We remove it after 200 ms so the next
+    // activation re-triggers cleanly. `audio.playMenuTap()` is
+    // idempotent and self-gates on mute / missing AudioContext.
+    const menuOverlayEl = document.getElementById("menu-overlay");
+    if (menuOverlayEl) {
+      menuOverlayEl.addEventListener("click", (e) => {
+        const target = (e.target as HTMLElement | null)?.closest(
+          ".menu-item, .sound-settings-summary",
+        ) as HTMLElement | null;
+        if (!target) return;
+        audio.playMenuTap();
+        // Retrigger-safe: remove + force reflow + add. Chromium
+        // won't replay a running animation if the class just
+        // stayed on the element.
+        target.classList.remove("tapped");
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        void target.offsetWidth;
+        target.classList.add("tapped");
+        window.setTimeout(() => {
+          target.classList.remove("tapped");
+        }, 200);
+      });
+    }
+
     // Pause the game when the tab/window loses focus. Without this
     // the raptor runs blind in the background, the player comes
     // back, and finds the run already dead to a cactus they never

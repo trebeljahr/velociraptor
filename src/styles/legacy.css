@@ -1227,6 +1227,28 @@ html,
         height: 18px;
         flex-shrink: 0;
       }
+
+      /* Click / tap feedback — a quick scale-down with a tiny
+         overshoot on the way back, ~180ms total. Added as a
+         transient class by the click delegate so the animation
+         runs regardless of activation mode (mouse click, keyboard
+         Enter, or gamepad button via .click()). The `will-change:
+         transform` hint opts each tappable row into a compositor
+         layer so the scale doesn't repaint the whole panel. */
+      @keyframes menu-item-tap {
+        0%   { transform: scale(1); }
+        40%  { transform: scale(0.955); }
+        70%  { transform: scale(1.015); }
+        100% { transform: scale(1); }
+      }
+      .menu-panel .menu-item,
+      .menu-panel .sound-settings-summary {
+        will-change: transform;
+      }
+      .menu-panel .menu-item.tapped,
+      .menu-panel .sound-settings-summary.tapped {
+        animation: menu-item-tap 180ms ease-out;
+      }
       /* Debug-only menu rows are hidden unless the page is in debug
          mode (body[data-debug="true"] is set by game.js when the URL
          has ?debug=true). */

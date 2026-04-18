@@ -1085,6 +1085,70 @@ export const audio = {
     this._cometGain = null;
   },
 
+  // ── UI click feedback (synthesized, no asset) ─────────────
+  //
+  // Plays a short "tap" whenever the player activates a menu
+  // button. Synthesized via Web Audio so it requires no MP3
+  // download and can be retuned in one place.
+  //
+  // Construction: two overlaid sines — a short mid-band body
+  // (~900 Hz) gives the click its perceived pitch, and a quick
+  // high-band tick (~2 kHz, 10 ms) provides the attack
+  // brightness. Both envelope through an exponential decay so
+  // the whole sound is < 60 ms and never overlaps with itself
+  // even on rapid taps. Routed at a modest gain (0.08 × 2)
+  // so it sits under music and rain without dominating.
+  //
+  // Muted / jump-muted respected (jumpMuted covers the "SFX"
+  // channel conceptually, same as playHit / playStep). The
+  // audio context is resumed if suspended because UI clicks
+  // are a guaranteed user gesture.
+  playMenuTap() {
+    if (this.muted || this.jumpMuted) return;
+    this._ensureAudioCtx();
+    if (!this._audioCtx) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    try {
+      const ctx = this._audioCtx;
+      const t0 = ctx.currentTime;
+      // Body — mid sine with a quick exponential decay.
+      const body = ctx.createOscillator();
+      body.type = "sine";
+      body.frequency.setValueAtTime(900, t0);
+      body.frequency.exponentialRampToValueAtTime(620, t0 + 0.05);
+      const bodyGain = ctx.createGain();
+      bodyGain.gain.setValueAtTime(0, t0);
+      bodyGain.gain.linearRampToValueAtTime(0.08, t0 + 0.004);
+      bodyGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05);
+      body.connect(bodyGain);
+      bodyGain.connect(ctx.destination);
+      body.onended = () => {
+        try { body.disconnect(); bodyGain.disconnect(); } catch {}
+      };
+      body.start(t0);
+      body.stop(t0 + 0.06);
+      // Tick — short bright top for the initial attack.
+      const tick = ctx.createOscillator();
+      tick.type = "triangle";
+      tick.frequency.setValueAtTime(2100, t0);
+      const tickGain = ctx.createGain();
+      tickGain.gain.setValueAtTime(0, t0);
+      tickGain.gain.linearRampToValueAtTime(0.05, t0 + 0.002);
+      tickGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.018);
+      tick.connect(tickGain);
+      tickGain.connect(ctx.destination);
+      tick.onended = () => {
+        try { tick.disconnect(); tickGain.disconnect(); } catch {}
+      };
+      tick.start(t0);
+      tick.stop(t0 + 0.02);
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
+
   // ── Menu / pause coordination ──────────────────────────────
   //
   // When the pause menu opens (or Game.pause() fires for any other
