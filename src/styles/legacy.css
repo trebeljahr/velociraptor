@@ -740,6 +740,19 @@ html,
         font: inherit;
         font-size: 0.8rem;
       }
+      /* Device-adaptive restart hint. Default (no gamepad): show
+         keyboard copy. Gamepad attached: swap to the controller-
+         neutral glyph used in the pause-menu footer. Mirrors the
+         body.gamepad-connected gating used by .menu-gamepad-hint. */
+      .score-card-hint .pad-hint {
+        display: none;
+      }
+      body.gamepad-connected .score-card-hint .kbd-hint {
+        display: none;
+      }
+      body.gamepad-connected .score-card-hint .pad-hint {
+        display: inline;
+      }
 
       /* Shiny share-your-score button: a thin animated blue→green
          gradient RING wrapping a solid black interior. The outer
@@ -1241,12 +1254,20 @@ html,
         70%  { transform: scale(1.015); }
         100% { transform: scale(1); }
       }
+      /* Any interactive UI element the player can activate —
+         menu items, the dropdown summary, the × close button on
+         sub-overlays, the play-again button on the game-over
+         panel. A single delegate in main.ts adds the .tapped
+         class; this rule animates it, regardless of which
+         overlay it's in. */
       .menu-panel .menu-item,
-      .menu-panel .sound-settings-summary {
+      .menu-panel .sound-settings-summary,
+      .imprint-close,
+      .play-again-btn,
+      .score-card-hint {
         will-change: transform;
       }
-      .menu-panel .menu-item.tapped,
-      .menu-panel .sound-settings-summary.tapped {
+      .tapped {
         animation: menu-item-tap 180ms ease-out;
       }
       /* Debug-only menu rows are hidden unless the page is in debug
@@ -1413,7 +1434,21 @@ html,
         margin: 0 0 0.75rem;
         border-radius: 8px;
         background: #f4f6f8;
-        overflow: hidden;
+        /* NO overflow: hidden here. Was clipping the summary's
+           :focus-visible outline ring (it sits 2px outside the
+           summary box via outline-offset, and anything past the
+           parent's padding box gets chopped off when overflow
+           is hidden). The summary has its own border-radius to
+           handle the closed-state rounding; when open, the
+           [open] > summary rule below trims to top corners only
+           so the body's bottom corners inherit the parent's
+           radius cleanly. */
+      }
+      .sound-settings[open] > .sound-settings-summary {
+        /* When the dropdown is folded open, square off the bottom
+           of the summary so it butts flush against the body below
+           without a visible seam. */
+        border-radius: 8px 8px 0 0;
       }
       .sound-settings-summary {
         display: flex;
@@ -1887,6 +1922,15 @@ html,
       .imprint-close:hover {
         background: #f4f6f8;
         color: #222;
+      }
+      /* Match the cyan focus ring used everywhere else in the
+         menu system. Without this, keyboard/gamepad focus on
+         the × close button painted the browser-default orange
+         which looks out of place. */
+      .imprint-close:focus-visible {
+        outline: 3px solid #50b4cd;
+        outline-offset: 2px;
+        background: #f4f6f8;
       }
 
       /* ───────── Game canvas ───────── */

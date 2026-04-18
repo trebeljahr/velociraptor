@@ -152,6 +152,7 @@ import {
   GAMEPAD_JUMP_BUTTONS,
   GAMEPAD_MENU_TOGGLE_BUTTONS,
   GAMEPAD_MENU_SELECT_BUTTONS,
+  GAMEPAD_MENU_BACK_BUTTONS,
   GAMEPAD_MENU_UP_BUTTONS,
   GAMEPAD_MENU_DOWN_BUTTONS,
   GAMEPAD_STICK_PRESS_THRESHOLD,
@@ -1311,7 +1312,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   }
 
   function maybeResetAfterGameOver() {
-    if (state.gameOver && state.frame - state.gameOverFrame > 30) {
+    if (!state.gameOver) return;
+    // Visual + audio feedback on every restart attempt, before the
+    // cooldown check — so even a too-early press still gives the
+    // player confirmation that their input registered.
+    (
+      window as unknown as { __rrPulsePlayAgain?: () => void }
+    ).__rrPulsePlayAgain?.();
+    if (state.frame - state.gameOverFrame > 30) {
       resetGame();
     }
   }
@@ -2225,14 +2233,16 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         if (upHeld) scrollable.scrollBy(0, -scrollPx);
         if (downHeld) scrollable.scrollBy(0, scrollPx);
       }
-      // Close: any system button OR the cancel face button.
-      // GAMEPAD_JUMP_BUTTONS includes [0, 1, 12]; here we only want
-      // index 1 (B / Circle) as a cancel, not 0 (A / Cross) which
-      // is universally "confirm". Not worth making a new constant
-      // array for one number — hard-coded here with a comment.
+      // Close triggers. Universally "back" across vendors:
+      //   • Any system / menu button (Start / Back / Select / ±).
+      //   • Button 1 — the right face button (Xbox B, PS Circle,
+      //     Switch A-but-opposite-layout). Ubiquitously "cancel".
+      //   • Button 14 — D-pad left. Common convention for "go
+      //     back a page" in console menu systems.
       if (
         anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS) ||
-        justPressed(1)
+        justPressed(1) ||
+        justPressed(14)
       ) {
         w.__rrCloseActiveSubOverlay?.();
       }
@@ -2254,7 +2264,15 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       if (anyJustPressed(GAMEPAD_MENU_SELECT_BUTTONS)) {
         w.__rrMenuSelect?.();
       }
-      if (anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS)) {
+      // B (index 1) + D-pad left close the menu. Separate from the
+      // system-button close path so the two intents — "I want to
+      // leave this screen" (B) and "I want to unpause by dismissing
+      // the pause menu" (Start/Back) — both land on the same action
+      // but the UI can label them distinctly in the gamepad hint.
+      if (
+        anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS) ||
+        anyJustPressed(GAMEPAD_MENU_BACK_BUTTONS)
+      ) {
         w.__rrCloseMenu?.();
       }
     } else {
@@ -2515,36 +2533,47 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       console.log("Gamepad disconnected");
     });
 
-    // Menu-item click polish: a brief scale wiggle + synthesized
-    // tap sound on every activation. Delegated on the overlay so
-    // it catches every trigger path — mouse click, keyboard Enter
-    // on a focused button, and the gamepad .click() driven by
-    // __rrMenuSelect.
+    // Click-feedback delegate: any interactive UI element the
+    // player can activate gets a brief scale wiggle + synthesized
+    // tap sound. Listens on document so the feedback fires
+    // everywhere the same way — main pause menu, sub-overlays
+    // (credits / achievements / imprint / about), the × close
+    // buttons on those overlays, the play-again button on the
+    // game-over panel, and the "Press Enter / ● to restart" hint.
     //
     // The `.tapped` class runs the CSS animation once (@keyframes
-    // menu-item-tap). We remove it after 200 ms so the next
-    // activation re-triggers cleanly. `audio.playMenuTap()` is
-    // idempotent and self-gates on mute / missing AudioContext.
-    const menuOverlayEl = document.getElementById("menu-overlay");
-    if (menuOverlayEl) {
-      menuOverlayEl.addEventListener("click", (e) => {
-        const target = (e.target as HTMLElement | null)?.closest(
-          ".menu-item, .sound-settings-summary",
-        ) as HTMLElement | null;
-        if (!target) return;
-        audio.playMenuTap();
-        // Retrigger-safe: remove + force reflow + add. Chromium
-        // won't replay a running animation if the class just
-        // stayed on the element.
-        target.classList.remove("tapped");
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        void target.offsetWidth;
-        target.classList.add("tapped");
-        window.setTimeout(() => {
-          target.classList.remove("tapped");
-        }, 200);
-      });
+    // menu-item-tap). Remove + reflow + re-add so consecutive
+    // activations always retrigger (Chromium won't replay a
+    // running animation on a class that just stays present).
+    document.addEventListener("click", (e) => {
+      const target = (e.target as HTMLElement | null)?.closest(
+        ".menu-item, .sound-settings-summary, .imprint-close, .play-again-btn, .score-card-hint",
+      ) as HTMLElement | null;
+      if (!target) return;
+      pulseTapFeedback(target);
+    });
+
+    function pulseTapFeedback(el: HTMLElement): void {
+      audio.playMenuTap();
+      el.classList.remove("tapped");
+      // Force a reflow so the animation restart picks up.
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      void el.offsetWidth;
+      el.classList.add("tapped");
+      window.setTimeout(() => el.classList.remove("tapped"), 200);
     }
+
+    // Expose a window helper so the game-over reset path (which
+    // doesn't fire a DOM click event on the play-again button
+    // when the trigger comes from keyboard Enter, Space/Jump, or
+    // gamepad A) can still visually pulse the button. Called from
+    // maybeResetAfterGameOver.
+    (window as unknown as {
+      __rrPulsePlayAgain?: () => void;
+    }).__rrPulsePlayAgain = () => {
+      const btn = document.getElementById("play-again-btn");
+      if (btn) pulseTapFeedback(btn);
+    };
 
     // Pause the game when the tab/window loses focus. Without this
     // the raptor runs blind in the background, the player comes

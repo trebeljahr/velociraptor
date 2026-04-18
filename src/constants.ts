@@ -152,9 +152,21 @@ export const GAMEPAD_MENU_TOGGLE_BUTTONS = [8, 9, 16, 17];
 export const GAMEPAD_MENU_BUTTON = 9;
 export const GAMEPAD_HOME_BUTTON = 16;
 
-/** Buttons that activate the focused menu item. All four face
- *  buttons — see the rationale at the top of this section. */
-export const GAMEPAD_MENU_SELECT_BUTTONS = [0, 1, 2, 3];
+/** Buttons that activate the focused menu item. Face buttons A / X
+ *  / Y (indices 0, 2, 3) — deliberately excluding B (1) because B
+ *  is reserved for "back" across virtually every console convention.
+ *  Players who instinctively hit B expecting to back out of a
+ *  sub-screen shouldn't accidentally toggle whatever happens to be
+ *  focused at that moment. */
+export const GAMEPAD_MENU_SELECT_BUTTONS = [0, 2, 3];
+/** Buttons that mean "go back" — close the current menu / sub-
+ *  overlay. Button 1 is Xbox B / PlayStation Circle / Switch Pro A
+ *  (at the right face position): universally the "cancel" face
+ *  button on every vendor except Japan-region PlayStation (where
+ *  circle confirms), which is niche enough that we accept the
+ *  tradeoff. Index 14 is D-pad left, the traditional console
+ *  "previous page" direction. */
+export const GAMEPAD_MENU_BACK_BUTTONS = [1, 14];
 
 /** D-pad buttons for menu navigation. Left stick Y axis is also
  *  checked separately via `axes[1]` so players without a usable
