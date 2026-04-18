@@ -1546,6 +1546,19 @@
                 !fullscreenState,
               ));
               syncFullscreenLabel();
+              // The fullscreen transition churns the window and on
+              // some Electron versions silently drops focus to
+              // <body>. That stranded the gamepad / keyboard user
+              // outside the menu until they clicked back in.
+              // Explicitly refocus the button after the awaited
+              // IPC round-trip settles. requestAnimationFrame
+              // ensures the window-resize layout pass has finished
+              // so the button is visible + focusable.
+              requestAnimationFrame(() => {
+                if (document.activeElement !== fullscreenToggle) {
+                  fullscreenToggle.focus();
+                }
+              });
             } catch (_) {}
           });
           refreshFullscreenState();
@@ -1760,12 +1773,23 @@
             imprintLoaded = true;
           }
           imprintOverlay.classList.add("open");
+          // Focus the × button, not the iframe heading — gives the
+          // gamepad / keyboard user an immediately actionable target
+          // (Activate = close) and keeps the focus ring INSIDE the
+          // overlay even when the iframe hasn't loaded yet.
+          if (imprintCloseBtn) imprintCloseBtn.focus();
           window.Game.pause();
         }
 
         function closeImprint() {
           imprintOverlay.classList.remove("open");
-          window.Game.resume();
+          // Every path into the imprint overlay goes through the
+          // settings menu (cog → Imprint). When the player hits
+          // "back" (× / Esc / B-button) they expect to land back on
+          // the menu — not be dumped into the live game with no way
+          // to retrace their steps. openMenu() handles the Game.pause
+          // side-effect, so no explicit resume is needed here.
+          openMenu();
         }
 
         imprintCloseBtn.addEventListener("click", (e) => {
@@ -1787,15 +1811,18 @@
             aboutLoaded = true;
           }
           aboutOverlay.classList.add("open");
+          // Focus the × button so gamepad / keyboard immediately
+          // target the canonical "back" action. See openImprint.
+          if (aboutCloseBtn) aboutCloseBtn.focus();
           if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
             window.Game.pause();
           }
         }
         function closeAbout() {
           aboutOverlay.classList.remove("open");
-          if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
-            window.Game.resume();
-          }
+          // Back to the menu we came from. openMenu handles its own
+          // pause gating (no-op when the game isn't started).
+          openMenu();
         }
         if (aboutCloseBtn) {
           aboutCloseBtn.addEventListener("click", (e) => {
@@ -1819,8 +1846,14 @@
         function openCredits() {
           if (!creditsOverlay) return;
           creditsOverlay.classList.add("open");
-          const heading = creditsOverlay.querySelector(".credits-heading");
-          if (heading) heading.focus();
+          // Focus the × button instead of the heading. The heading
+          // is a non-interactive h1 — focusing it trapped the
+          // gamepad user on an element whose Activate did nothing,
+          // and keyboard Tab then had to cycle past it to reach the
+          // actual content. The close button is the universal
+          // "back" affordance; focus lands on something you can
+          // act on.
+          if (creditsCloseBtn) creditsCloseBtn.focus();
           if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
             window.Game.pause();
           }
@@ -1828,9 +1861,10 @@
         function closeCredits() {
           if (!creditsOverlay) return;
           creditsOverlay.classList.remove("open");
-          if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
-            window.Game.resume();
-          }
+          // Credits is only reachable via the menu — re-open it so
+          // the "back" affordance (× / Esc / gamepad B) lands the
+          // player on the menu they came from, not the live game.
+          openMenu();
         }
         if (creditsBtn) {
           creditsBtn.addEventListener("click", (e) => {
@@ -1909,23 +1943,21 @@
           _achievementsPriorFocus = document.activeElement;
           renderAchievementsList();
           if (achievementsOverlay) achievementsOverlay.classList.add("open");
-          // Move focus into the achievements panel.
-          const heading = achievementsOverlay &&
-            achievementsOverlay.querySelector(".achievements-heading");
-          if (heading) heading.focus();
+          // Focus the × button (same rationale as openCredits /
+          // openAbout / openImprint). The previous heading-focus
+          // target was a non-interactive h1 that broke gamepad nav.
+          if (achievementsCloseBtn) achievementsCloseBtn.focus();
           if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
             window.Game.pause();
           }
         }
         function closeAchievements() {
           if (achievementsOverlay) achievementsOverlay.classList.remove("open");
-          if (_achievementsPriorFocus && typeof _achievementsPriorFocus.focus === "function") {
-            _achievementsPriorFocus.focus();
-            _achievementsPriorFocus = null;
-          }
-          if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
-            window.Game.resume();
-          }
+          _achievementsPriorFocus = null;
+          // Always route back to the menu — that's where every
+          // entry into this overlay originates, and the "back"
+          // affordance is expected to retrace steps.
+          openMenu();
         }
         if (achievementsCloseBtn) {
           achievementsCloseBtn.addEventListener("click", (e) => {

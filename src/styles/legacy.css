@@ -1448,6 +1448,14 @@ html,
       .sound-settings-summary:hover {
         background: #e8ecf0;
       }
+      /* Match the same 3px cyan focus ring .menu-item:focus-visible
+         uses so the summary doesn't paint a browser-default orange
+         ring that looks out of place against the cool blue accents. */
+      .sound-settings-summary:focus-visible {
+        outline: 3px solid #50b4cd;
+        outline-offset: 2px;
+        background: #e8ecf0;
+      }
       .sound-settings-summary svg {
         width: 18px;
         height: 18px;
