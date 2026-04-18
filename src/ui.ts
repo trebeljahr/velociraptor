@@ -28,10 +28,16 @@
 // @ts-nocheck
 /* eslint-disable */
 
-// The Steam store URL is sourced from a Vite env var. Falls back to
-// the web URL when running web or when the env var is absent.
+// Desktop "challenge a friend" store-link. Sourced from a Vite env
+// var; falls back to the web URL when not set. The env name is
+// store-neutral now — use VITE_DESKTOP_STORE_URL pointing at whichever
+// store channel ships the build (itch.io, Steam, App Store once
+// released). The legacy VITE_STEAM_STORE_URL is still honoured as a
+// fallback so existing .env.local overrides keep working.
 const STEAM_STORE_URL: string =
-  import.meta.env.VITE_STEAM_STORE_URL || "https://raptor.trebeljahr.com";
+  import.meta.env.VITE_DESKTOP_STORE_URL ||
+  import.meta.env.VITE_STEAM_STORE_URL ||
+  "https://raptor.trebeljahr.com";
 
 const cog = document.getElementById("settings-cog");
 const overlay = document.getElementById("menu-overlay");
@@ -87,10 +93,32 @@ const quitBtn = document.getElementById("menu-quit");
 // Wire Quit (desktop only). Safe no-op in browser since the
 // <li class="desktop-only"> is display:none and the element
 // is still in the DOM.
+//
+// stopPropagation so the click doesn't bubble to the overlay
+// backdrop handler (that one only fires on e.target === overlay,
+// but defensive anyway). Then fire the IPC, and if it rejects —
+// or if electronAPI is absent for some reason — fall through to
+// window.close() which the window-all-closed handler in
+// electron/main.ts catches on Linux/Windows (macOS quits via
+// app.quit() from the main-process side).
 if (quitBtn) {
-  quitBtn.addEventListener("click", () => {
+  quitBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
     if (window.electronAPI && typeof window.electronAPI.quit === "function") {
-      window.electronAPI.quit();
+      window.electronAPI.quit().catch((err: unknown) => {
+        console.warn("Quit IPC failed:", err);
+        try {
+          window.close();
+        } catch {
+          /* noop */
+        }
+      });
+      return;
+    }
+    try {
+      window.close();
+    } catch {
+      /* noop */
     }
   });
 }

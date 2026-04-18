@@ -50,7 +50,23 @@ ipcMain.handle("steam:isAvailable", () => steamClient !== null);
 
 // IPC: quit the app. Called from the desktop-only Quit button in
 // the settings menu.
+//
+// Force-close every window before calling app.quit(). On macOS
+// app.quit() alone sometimes gets deferred by the platform (any
+// open transition / animation / "should close?" check can hold it),
+// and the player sees a button that does nothing. win.destroy()
+// skips the usual close-event path so there's no prevention hook
+// the renderer could have silently installed. After the windows
+// are gone, window-all-closed handles Linux/Windows and app.quit()
+// finishes macOS.
 ipcMain.handle("app:quit", () => {
+  for (const w of BrowserWindow.getAllWindows()) {
+    try {
+      w.destroy();
+    } catch {
+      /* already destroyed — ignore */
+    }
+  }
   app.quit();
 });
 
