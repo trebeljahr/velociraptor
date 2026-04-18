@@ -275,64 +275,127 @@ export function _generateBoltPath() {
   return { path: points, struckDuneCactus };
 }
 
+// Drop shadowBlur from 15 to 10. Blur cost scales ~quadratically with
+// radius (each pixel's shadow sums over an (2r+1)² kernel), so 10 vs
+// 15 is roughly (10/15)² ≈ 44% of the work per stroke. The visual
+// difference at ~0.3s flash duration is imperceptible.
+const BOLT_SHADOW_BLUR = 10;
+
 export function _drawBolt(ctx: CanvasRenderingContext2D, points: any[], lineWidth: number, alpha: number) {
   ctx.save();
   ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
-  ctx.lineWidth = lineWidth;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.shadowColor = `rgba(180, 200, 255, ${alpha * 0.8})`;
-  ctx.shadowBlur = 15;
+  ctx.shadowBlur = BOLT_SHADOW_BLUR;
+
+  // Main bolt — one stroke, one shadow pass.
+  ctx.lineWidth = lineWidth;
   ctx.beginPath();
   ctx.moveTo(points[0].x, points[0].y);
   for (let i = 1; i < points.length; i++) {
     ctx.lineTo(points[i].x, points[i].y);
   }
   ctx.stroke();
-  // Draw branches
+
+  // All branches folded into a SINGLE path with moveTo/lineTo pairs
+  // so the shadow pass fires once for the whole branch network
+  // instead of once per branch. Previously each branch was its own
+  // beginPath + stroke() which triggered a separate shadowBlur
+  // computation — a typical 5-branch bolt paid 6 shadow passes per
+  // _drawBolt call. Folded into one, the per-call shadow cost
+  // drops to 2 regardless of branch count.
+  let hasBranches = false;
+  ctx.beginPath();
+  ctx.lineWidth = lineWidth * 0.5;
   for (const p of points) {
     if (p.branch) {
-      ctx.beginPath();
-      ctx.lineWidth = lineWidth * 0.5;
+      hasBranches = true;
       ctx.moveTo(p.x, p.y);
       for (const bp of p.branch) ctx.lineTo(bp.x, bp.y);
-      ctx.stroke();
     }
   }
+  if (hasBranches) ctx.stroke();
+
   ctx.restore();
 }
 
 // Offscreen canvas that caches the rendered bolt so drawLightning
 // can composite via drawImage instead of redrawing the shadow-
-// blurred strokes every frame. Resized lazily when the viewport
-// size changes.
+// blurred strokes every frame. Sized to the bolt's bounding box
+// (plus a shadow-radius pad) per strike — much smaller than the
+// viewport, so clear + shadowBlur both touch far fewer pixels.
 let _boltCache: HTMLCanvasElement | null = null;
 let _boltCacheCtx: CanvasRenderingContext2D | null = null;
+// dx / dy = where on the MAIN canvas to blit the cache. The cache's
+// internal coordinates are shifted by -dx / -dy so the bolt's
+// world-space endpoints (which are in state.width-scaled pixels)
+// land at the correct offsets inside the cache.
+let _boltCacheDx = 0;
+let _boltCacheDy = 0;
 
-function _ensureBoltCache(): CanvasRenderingContext2D | null {
-  const w = state.width;
-  const h = state.height;
-  if (w <= 0 || h <= 0) return null;
+function _getBoltBBox(points: any[]): {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+} {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const include = (x: number, y: number) => {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  };
+  for (const p of points) {
+    include(p.x, p.y);
+    if (p.branch) for (const bp of p.branch) include(bp.x, bp.y);
+  }
+  // Pad by 2× the shadow-blur radius so the glow has room to fade
+  // out within the cache — +line half-width for the thicker strokes.
+  const pad = BOLT_SHADOW_BLUR * 2 + 4;
+  const x = Math.floor(minX - pad);
+  const y = Math.floor(minY - pad);
+  const w = Math.ceil(maxX - minX + pad * 2);
+  const h = Math.ceil(maxY - minY + pad * 2);
+  return { x, y, w, h };
+}
+
+/** Bake the main bolt + bright core (with their shadow blur) into
+ *  the offscreen cache at full alpha. Cache is sized to the bolt's
+ *  bounding box — a typical bolt spans maybe ⅓ the viewport width
+ *  and full height, so ~⅓ the clear + shadow work a full-viewport
+ *  cache would do. Per-frame fade is handled by drawLightning's
+ *  globalAlpha. Called once when a new strike fires. */
+function _renderBoltToCache(points: any[]): void {
+  if (!points.length) return;
+  const bbox = _getBoltBBox(points);
+  if (bbox.w <= 0 || bbox.h <= 0) return;
   if (!_boltCache) {
     _boltCache = document.createElement("canvas");
     _boltCacheCtx = _boltCache.getContext("2d");
   }
-  if (_boltCache.width !== w || _boltCache.height !== h) {
-    _boltCache.width = w;
-    _boltCache.height = h;
+  if (!_boltCacheCtx) return;
+  if (_boltCache.width !== bbox.w || _boltCache.height !== bbox.h) {
+    _boltCache.width = bbox.w;
+    _boltCache.height = bbox.h;
   }
-  return _boltCacheCtx;
-}
-
-/** Bake the main bolt + bright core (with their shadow blur) into
- *  the offscreen cache at full alpha. Per-frame fade is handled by
- *  drawLightning's globalAlpha. Called once when a new strike fires. */
-function _renderBoltToCache(points: any[]): void {
-  const c = _ensureBoltCache();
-  if (!c || !_boltCache) return;
-  c.clearRect(0, 0, _boltCache.width, _boltCache.height);
+  _boltCacheDx = bbox.x;
+  _boltCacheDy = bbox.y;
+  const c = _boltCacheCtx;
+  // Resizing a canvas already clears it; clearRect is only needed
+  // when we REUSE an existing cache at the same size. Cheap either way.
+  c.clearRect(0, 0, bbox.w, bbox.h);
+  // Translate so the bolt's world-space coords land inside the
+  // bounding-box-sized cache.
+  c.save();
+  c.translate(-bbox.x, -bbox.y);
   _drawBolt(c, points, 3, 1);
   _drawBolt(c, points, 1.2, 1);
+  c.restore();
 }
 
 export function drawLightning(ctx: CanvasRenderingContext2D) {
@@ -344,13 +407,14 @@ export function drawLightning(ctx: CanvasRenderingContext2D) {
     ctx.fillRect(0, 0, state.width, state.height);
   }
   // Blit the pre-baked bolt with the current alpha as a single
-  // drawImage call. Falls back to the live renderer if the cache
+  // drawImage call. dx/dy are the bolt's bounding-box origin on the
+  // main canvas. Falls back to the live renderer if the cache
   // isn't ready yet (first frame of a strike, or pre-init).
   if (state.lightning.bolt) {
     if (_boltCache) {
       ctx.save();
       ctx.globalAlpha = state.lightning.alpha;
-      ctx.drawImage(_boltCache, 0, 0);
+      ctx.drawImage(_boltCache, _boltCacheDx, _boltCacheDy);
       ctx.restore();
     } else {
       _drawBolt(ctx, state.lightning.bolt, 3, state.lightning.alpha);
