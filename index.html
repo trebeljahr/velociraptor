@@ -2,6 +2,30 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      Content-Security-Policy. Present for three reasons:
+        1. Electron logs a "no CSP or unsafe-eval" warning in dev when
+           the renderer has no policy at all — packaged builds suppress
+           the warning but the runtime exposure is the same. A sane
+           policy silences the warning AND hardens production.
+        2. The web deploy (raptor.trebeljahr.com) gets the same policy
+           for free without needing server headers.
+        3. Capacitor WebViews respect the meta tag too.
+
+      Unsafe-inline for script/style is required because this file
+      ships a large inline <script> block and inline <style> in the
+      legacy CSS migration. Removing those would be a bigger refactor;
+      the warning Electron fires about is specifically unsafe-EVAL
+      (which we don't use), not unsafe-inline.
+
+      connect-src allows ws/wss/http://localhost for Vite dev HMR +
+      live-reload from Capacitor; harmless at rest. media-src + img-src
+      allow blob: for the generated score-card PNG.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws: wss: http://localhost:* https://localhost:* http://127.0.0.1:* http://10.0.2.2:*; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src 'self';"
+    />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
