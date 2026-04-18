@@ -256,10 +256,24 @@ export class Cactuses {
     this._nextGap = floorGap + Math.random() * randSpan;
   }
 
+  /** Distance in px the world has scrolled since the last cactus
+   *  was pushed to the array. Only reset by spawn() / clear().
+   *
+   *  Why this instead of "state.width - last.x"? During a breather
+   *  the last cactus scrolls fully off-screen-left and gets
+   *  filtered out of the array. Once the array is empty, the old
+   *  `if (!last) this.spawn()` fallback immediately spawned a new
+   *  cactus at state.width — right into the middle of the on-
+   *  screen flower field. Tracking scroll here keeps the "wait
+   *  _nextGap pixels" check alive even when the reference cactus
+   *  no longer exists. */
+  private _scrollSinceLastSpawn = 0;
+
   spawn(): void {
     const variant =
       CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
     this.cacti.push(new Cactus(variant, this.raptor));
+    this._scrollSinceLastSpawn = 0;
     // Counts toward the next breather.
     state._cactiSinceBreather = (state._cactiSinceBreather ?? 0) + 1;
     // Decide the gap to the cactus after this one. Has to happen AFTER
@@ -268,15 +282,23 @@ export class Cactuses {
   }
 
   update(frameScale = 1): void {
-    const last = this.cacti[this.cacti.length - 1];
-    if (!last) {
+    // Accumulate this frame's scroll BEFORE the spawn check. Must
+    // match the per-frame scroll that Cactus.update applies to each
+    // cactus (and that updateFlowerPatches applies to flower patches)
+    // so the gap check here and the visible motion stay in lockstep.
+    const dx =
+      state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * frameScale;
+    this._scrollSinceLastSpawn += dx;
+
+    if (this._scrollSinceLastSpawn >= this._nextGap) {
+      const isFirstSpawn = this.cacti.length === 0 && this._nextGap === 0;
       this.spawn();
-    } else if (state.width - last.x >= this._nextGap) {
-      this.spawn();
-      state.bgVelocity = Math.min(
-        state.bgVelocity + SPEED_INCREMENT,
-        MAX_BG_VELOCITY,
-      );
+      if (!isFirstSpawn) {
+        state.bgVelocity = Math.min(
+          state.bgVelocity + SPEED_INCREMENT,
+          MAX_BG_VELOCITY,
+        );
+      }
     }
 
     for (const c of this.cacti) c.update(frameScale);
@@ -344,5 +366,12 @@ export class Cactuses {
 
   clear(): void {
     this.cacti = [];
+    this._scrollSinceLastSpawn = 0;
+    // Reset the gap too so the first cactus of the next run
+    // spawns immediately (matches the pre-fix "!last → spawn"
+    // behaviour at run-start, just without the bug where that
+    // path also fired mid-breather after the last cactus
+    // scrolled off-screen).
+    this._nextGap = 0;
   }
 }
