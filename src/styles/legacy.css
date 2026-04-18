@@ -270,6 +270,29 @@ html,
         transform: translateY(-2px);
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
       }
+      /* Click feedback — paired with audio.playClick() on the same
+         event. Self-removing via animationend in the click handler so
+         rapid re-clicks can re-trigger cleanly. */
+      .start-btn.wiggling {
+        animation: start-btn-wiggle 0.35s ease-in-out;
+      }
+      @keyframes start-btn-wiggle {
+        0%,
+        100% {
+          transform: scale(1) rotate(0deg);
+        }
+        30% {
+          transform: scale(0.94) rotate(-2.5deg);
+        }
+        65% {
+          transform: scale(1.06) rotate(2.5deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .start-btn.wiggling {
+          animation: none;
+        }
+      }
       .start-btn:disabled {
         opacity: 0.75;
         cursor: wait;
