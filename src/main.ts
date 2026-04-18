@@ -1236,6 +1236,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // Bring music back up after the game-over fade — respects the
     // current mute flags, so a muted player stays silent.
     audio.resumeMusicOnRunStart();
+    // Nudge the audio layer in case a prior pause-menu cycle left
+    // the Web Audio context suspended or the rain element paused.
+    // Without this, music/rain/SFX could stay silent across runs
+    // until the player toggled mute off and back on.
+    audio.ensureLiveSession();
     // Ephemeral per-frame particle pools: always cleared (the death
     // animation snapshot burned them out visually, starting fresh is
     // correct regardless of hard/soft).
@@ -1366,6 +1371,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   // ══════════════════════════════════════════════════════════════════
 
   function onPointerDown(e: PointerEvent) {
+    // Any user gesture is a cheap, valid opportunity to un-suspend
+    // the audio context if the browser policy or a prior pause-menu
+    // cycle orphaned it. No-op if audio is already live.
+    audio.ensureLiveSession();
     if (!state.started || state.paused) return;
     // If the touch started on an overlay control (cog, sound, menu),
     // let the browser handle it — those elements live above the canvas
@@ -1382,6 +1391,8 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   }
 
   function onKeyDown(e: KeyboardEvent) {
+    // Nudge audio back to life on every keypress — see onPointerDown.
+    audio.ensureLiveSession();
     // ESC is reserved for the menu overlay — let it through.
     if (e.key === "Escape") return;
 
@@ -2453,6 +2464,41 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       document.body.classList.remove("gamepad-connected");
       console.log("Gamepad disconnected");
     });
+
+    // Pause the game when the tab/window loses focus. Without this
+    // the raptor runs blind in the background, the player comes
+    // back, and finds the run already dead to a cactus they never
+    // saw. Common practice in platformers: freeze on background,
+    // require an explicit user action to resume.
+    //
+    // Strategy: on hidden, Game.pause() and open the settings menu
+    // so the player returns to a visible "paused" affordance instead
+    // of a silently-frozen canvas. On visible, do NOTHING — leave
+    // the game paused with the menu up. Same pattern the Capacitor
+    // native lifecycle uses for mobile background/foreground.
+    //
+    // visibilitychange covers tab-switch, window minimise, and
+    // screen-lock on most platforms; the window-blur fallback
+    // catches the case where another window on top has focus but
+    // the tab itself is still "visible" (e.g. a docked DevTools
+    // getting focus). Both route through the same handler.
+    function onFocusLost(): void {
+      if (!state.started) return;
+      if (state.gameOver) return; // already in a stopped state
+      if (state.paused) return; // already paused, don't stomp the menu
+      GameAPI.pause();
+      const w = window as unknown as {
+        __rrIsMenuOpen?: () => boolean;
+        __rrToggleMenu?: () => void;
+      };
+      if (w.__rrIsMenuOpen && !w.__rrIsMenuOpen()) {
+        w.__rrToggleMenu?.();
+      }
+    }
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) onFocusLost();
+    });
+    window.addEventListener("blur", onFocusLost);
 
     // Start the rAF loop. The game stays paused (state.paused = true)
     // until Game.start() is called by the Start button click handler.

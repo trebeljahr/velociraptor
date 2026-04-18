@@ -1125,14 +1125,33 @@ export const audio = {
 
   /** Resume gameplay-layer audio (called from Game.resume). */
   resumeGameplaySounds() {
+    this.ensureLiveSession();
+  },
+
+  /** Nudge the audio layer back into a live state. Covers the
+   *  two ways audio can orphan itself without a matching mute
+   *  toggle to recover:
+   *
+   *    (a) Web Audio context got suspended — either by our own
+   *        pauseGameplaySounds that didn't get a matching resume
+   *        (e.g. game-over happened mid-menu-open, or restart
+   *        skipped the normal resume path), or by the browser's
+   *        own inactivity / tab-hidden throttle.
+   *    (b) Rain <audio> got paused while _isRainPlaying is still
+   *        true — same orphan-state root cause. The game-loop's
+   *        rain-management sees "already playing" and never
+   *        rehydrates the element, so rain stays silent until
+   *        the player toggles the sound off and back on.
+   *
+   *  Safe to call frequently — no-ops when audio is already
+   *  live. Hooked into resetGame(), every pointerdown / keydown
+   *  / gamepad button-press so any user gesture also wakes
+   *  audio back up without the toggle workaround.
+   */
+  ensureLiveSession() {
     if (this._audioCtx && this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
     }
-    // Restart rain only if it's still logically active AND no mute
-    // has been toggled while the menu was open. If the player muted
-    // rain or music during the pause, _isRainPlaying will already
-    // be false (stopRain was called), or the top-level mute guards
-    // will correctly bail.
     if (
       this._isRainPlaying &&
       this.rain &&
