@@ -161,6 +161,35 @@ export class Cactuses {
    *  patches, marking the grass-field span) fire from here — and
    *  fire exactly once per breather, never per frame.
    */
+  /** Roll a single "normal" spawn gap — the floor+random pacing
+   *  used between every pair of non-breather cacti. Factored out
+   *  so the breather branch can tack one onto the end of its
+   *  gap (the post-breather buffer) without duplicating math. */
+  private _rollNormalGap(): number {
+    // Progress through the speed ramp: 0 at a fresh run, 1 once
+    // bgVelocity has reached MAX. Clamped so debug commands that
+    // push velocity beyond MAX don't produce negative random spans.
+    const t = Math.min(
+      1,
+      Math.max(
+        0,
+        (state.bgVelocity - INITIAL_BG_VELOCITY) /
+          (MAX_BG_VELOCITY - INITIAL_BG_VELOCITY),
+      ),
+    );
+    // Minimum safe gap. 1.2w → 1.5w across the ramp.
+    const floorGap =
+      this.raptor.w *
+      (CACTUS_SPAWN_GAP_BASE + t * CACTUS_SPAWN_GAP_SPEED_FACTOR);
+    // Random top-up. Starts wide (≈3.6w), collapses at terminal
+    // velocity so late-game reads as a tighter rhythm.
+    const randSpan =
+      this.raptor.w *
+      CACTUS_SPAWN_GAP_RANDOM_MAX *
+      Math.max(0, 1 - t * CACTUS_SPAWN_GAP_RANDOM_SHRINK);
+    return floorGap + Math.random() * randSpan;
+  }
+
   private _rollNextGap(): void {
     if (state._cactiSinceBreather >= state._nextBreatherAt) {
       // ── BREATHER ──
@@ -222,38 +251,20 @@ export class Cactuses {
         state.flowerPatches.push(makeFlowerPatch(x));
         x += patchSpacingPx * (0.7 + Math.random() * 0.6);
       }
-      this._nextGap = gap;
+
+      // Post-breather buffer: one normal spawn-gap of distance
+      // AFTER the flower field scrolls off before the next cactus
+      // appears. Without this the first post-breather cactus
+      // spawns flush with the field's trailing edge — reads as
+      // abrupt, like the flowers were interrupting the game
+      // rather than being a scenic rest. Buffer scales with speed
+      // for the same reason normal gaps do.
+      this._nextGap = gap + this._rollNormalGap();
       return;
     }
 
     // ── NORMAL GAP ──
-    // Progress through the speed ramp: 0 at a fresh run, 1 once
-    // bgVelocity has reached MAX. Clamped so debug commands that
-    // push velocity beyond MAX don't produce negative random spans.
-    const t = Math.min(
-      1,
-      Math.max(
-        0,
-        (state.bgVelocity - INITIAL_BG_VELOCITY) /
-          (MAX_BG_VELOCITY - INITIAL_BG_VELOCITY),
-      ),
-    );
-    // Minimum safe gap. Grows slightly with speed so impossible
-    // back-to-back doubles don't spawn at terminal velocity.
-    // 1.2w → 1.5w across the ramp.
-    const floorGap =
-      this.raptor.w *
-      (CACTUS_SPAWN_GAP_BASE + t * CACTUS_SPAWN_GAP_SPEED_FACTOR);
-    // Random top-up. Span starts wide (≈3.6w) so early game has
-    // varied pacing, collapses to ≈1.5w at terminal velocity so
-    // the late game reads as a tight relentless rhythm. Long rest
-    // periods are the breather's job, not this span's.
-    const randSpan =
-      this.raptor.w *
-      CACTUS_SPAWN_GAP_RANDOM_MAX *
-      Math.max(0, 1 - t * CACTUS_SPAWN_GAP_RANDOM_SHRINK);
-
-    this._nextGap = floorGap + Math.random() * randSpan;
+    this._nextGap = this._rollNormalGap();
   }
 
   /** Distance in px the world has scrolled since the last cactus
