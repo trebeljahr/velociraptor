@@ -29,15 +29,22 @@ import { state } from "../state";
 import { audio } from "../audio";
 import { duneHeight } from "../render/world";
 import { hapticThunder } from "../haptic";
+import { compactInPlace } from "../helpers";
 
 /**
- * Deterministic rain check: within each block of 10 cycles, exactly
- * 1 cycle is rainy. Every 50th is guaranteed rainy.
+ * Deterministic rain check: within each block of 10 cycles, a single
+ * "rain slot" is picked via a simple hash so rain lands on exactly
+ * one cycle per block. Additionally, every 50th cycle (after 0) is
+ * guaranteed rainy — so every 5th block has 2 rainy cycles (the block
+ * slot + the 50-multiple override), and every other block has 1.
+ * Averaged over 1000 cycles the rain rate is ~12%.
  *
  * The "block" derivation means the pattern is stable across reloads
  * once a given cycle index is reached — no RNG fork, no save-file
  * fiddling to force rain, just predictable weather as a function of
  * the total day-night cycle counter.
+ *
+ * Verified by src/effects/weather.test.ts.
  */
 export function shouldRainForCycle(cycleIndex: number): boolean {
   if (cycleIndex % 50 === 0 && cycleIndex > 0) return true;
@@ -118,7 +125,7 @@ export function updateRain(dtSec: number): void {
     }
   }
   if (expired > 0) {
-    state.rainParticles = state.rainParticles.filter((p: any) => !p.dead);
+    compactInPlace(state.rainParticles, (p: any) => !p.dead);
   }
 }
 

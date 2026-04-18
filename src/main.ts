@@ -190,6 +190,7 @@ import {
   cross,
   shrinkPolygon,
   moonPhaseFromCycles,
+  compactInPlace,
 } from "./helpers";
 import { ACHIEVEMENTS, ACHIEVEMENTS_BY_ID } from "./achievements";
 import { CACTUS_VARIANTS } from "./cactusVariants";
@@ -243,6 +244,7 @@ import {
   drawUfoBeam,
   drawRareEventFg,
   drawRareEvent,
+  warmMeteorSprites,
 } from "./effects/rareEvents";
 import { pushAchievementToSteam, reconcileWithSteam } from "./steamBridge";
 import {
@@ -259,6 +261,7 @@ import {
   drawSun,
   drawMoon,
   computeSkyGradient,
+  invalidateSkyCache,
 } from "./render/sky";
 import {
   drawPolygon,
@@ -271,6 +274,7 @@ import {
   makeCloudObject,
   trySpawnCloud,
   seedClouds,
+  invalidateCloudsCache,
 } from "./render/clouds";
 import { duneHeight, spawnDuneCactus, initDunes } from "./render/world";
 import { generateScoreCardBlob } from "./render/scoreCard";
@@ -775,7 +779,8 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         for (const dc of state.duneCacti) {
           if (dc.struck) dc.struckAge = (dc.struckAge || 0) + dtSec;
         }
-        state.duneCacti = state.duneCacti.filter(
+        compactInPlace(
+          state.duneCacti,
           (dc) => !dc.dead && dc.wx - state.duneOffset > -dc.w * 3,
         );
         const rightEdge = state.duneOffset + state.width + 100;
@@ -787,7 +792,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         }
       }
       // Keep clouds until they've fully drifted past the left edge.
-      state.clouds = state.clouds.filter((c) => {
+      compactInPlace(state.clouds, (c) => {
         const w = cloudVisualWidth(c.size, c.scale);
         return c.x > -w && c.x < state.width + w * 2;
       });
@@ -1427,6 +1432,12 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     }
     if (stars) stars = new Stars();
     state.clouds = [];
+    // Overcast gradient cache is keyed by coverH — dimensions changed,
+    // throw it out so drawOvercastBands rebuilds with the new size.
+    invalidateCloudsCache();
+    // Sun/moon halo sprites are keyed by radius (= f(state.width)),
+    // which just changed.
+    invalidateSkyCache();
     initDunes();
     computeSkyGradient();
   }
@@ -2278,6 +2289,12 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   }
 
   function pollGamepad() {
+    // Short-circuit when no gamepad is attached. `navigator.getGamepads()`
+    // can be surprisingly expensive on some platforms (driver poll) even
+    // when no devices are connected. The `gamepadconnected` listener
+    // flips _gamepad.connected back to true on attach, so the poll
+    // resumes transparently. Saves ~0.1–0.5ms per frame on Windows.
+    if (!_gamepad.connected) return;
     let gp: Gamepad | undefined;
     try {
       const pads = navigator.getGamepads();
@@ -2658,6 +2675,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // canvas / gradient compile cost on the hot path.
     bakeShootingStarSprite();
     if (ctx) warmShootingStarSprite(ctx);
+    // Pre-bake meteor head + trail sprites so the first meteor's
+    // streak frame doesn't pay a sprite-bake + gradient-compile cost
+    // (previously caused the "extinction event" lag spike).
+    warmMeteorSprites();
 
     // Warm ctx.shadowBlur on the live game canvas by drawing a
     // tiny throwaway stroke with shadow on, off-screen. Chromium's

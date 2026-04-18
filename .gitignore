@@ -2,6 +2,7 @@ node_modules/
 dist/
 dev-dist/
 release/
+coverage/
 *.log
 .DS_Store
 .vite/

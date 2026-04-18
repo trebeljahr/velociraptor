@@ -23,6 +23,53 @@ import { state } from "../state";
 import { contexts } from "../canvas";
 import { rgb, rgba, lerpColor } from "../helpers";
 
+/*
+ * Sprite caches for sun + moon halos. createRadialGradient bakes in
+ * absolute (cx, cy) coordinates — reusing a gradient at a different
+ * screen position is a no-op. The fix is to rasterize the halo once
+ * to an offscreen canvas keyed by radius, then drawImage it each
+ * frame at the celestial arc position. Radius only changes on
+ * window resize, so cache miss is rare.
+ */
+let _sunHaloSprite: HTMLCanvasElement | null = null;
+let _sunHaloRadius = -1;
+
+// Note: no moon halo sprite cache here. The moon halo alpha scales
+// with `illum` (0..1, smooth over the synodic cycle), so caching by
+// radius alone would paint the wrong brightness. drawMoon builds its
+// gradient fresh each frame — cheap since it only runs when the moon
+// is visible, and the alpha changes make baking unhelpful anyway.
+
+function bakeSunHaloSprite(r: number): HTMLCanvasElement {
+  const haloR = r * 3;
+  const size = Math.ceil(haloR * 2);
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const cx = c.getContext("2d");
+  if (!cx) return c;
+  const mid = size / 2;
+  // Baked at alpha = 1.0; caller multiplies via globalAlpha.
+  const g = cx.createRadialGradient(mid, mid, r * 0.5, mid, mid, haloR);
+  g.addColorStop(0, "rgba(255, 240, 200, 1)");
+  g.addColorStop(0.5, "rgba(255, 230, 180, 0.45)");
+  g.addColorStop(1, "rgba(255, 220, 160, 0)");
+  cx.fillStyle = g;
+  cx.beginPath();
+  cx.arc(mid, mid, haloR, 0, Math.PI * 2);
+  cx.fill();
+  return c;
+}
+
+/**
+ * Invalidate the sun + moon halo sprite caches. Called on resize so
+ * the next frame rebakes at the new radius.
+ */
+export function invalidateSkyCache(): void {
+  _sunHaloSprite = null;
+  _sunHaloRadius = -1;
+}
+
 // ── Night detection (derived from SKY_COLORS) ───────────────
 
 export const _isNightBand = SKY_COLORS.map(
@@ -124,14 +171,21 @@ export function drawSun(ctx: CanvasRenderingContext2D) {
   if (ri > 0.05) {
     const haloR = r * 3;
     const ha = 0.18 * ri;
-    const glow = ctx.createRadialGradient(arc.x, arc.y, r * 0.5, arc.x, arc.y, haloR);
-    glow.addColorStop(0, `rgba(255, 240, 200, ${ha})`);
-    glow.addColorStop(0.5, `rgba(255, 230, 180, ${ha * 0.45})`);
-    glow.addColorStop(1, `rgba(255, 220, 160, 0)`);
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(arc.x, arc.y, haloR, 0, Math.PI * 2);
-    ctx.fill();
+    if (_sunHaloSprite == null || _sunHaloRadius !== r) {
+      _sunHaloSprite = bakeSunHaloSprite(r);
+      _sunHaloRadius = r;
+    }
+    // drawImage the baked halo, modulated by per-frame alpha ha.
+    ctx.save();
+    ctx.globalAlpha = ha;
+    ctx.drawImage(
+      _sunHaloSprite,
+      arc.x - haloR,
+      arc.y - haloR,
+      haloR * 2,
+      haloR * 2,
+    );
+    ctx.restore();
     ctx.globalAlpha = 0.2 + 0.8 * (1 - ri);
     ctx.fillStyle = rgb(core);
     ctx.beginPath();
@@ -168,6 +222,11 @@ export function drawMoon(ctx: CanvasRenderingContext2D) {
   // and the full moon blooms. Previously the halo was a constant
   // radial gradient, which meant an "empty" moon still painted a
   // bright aura onto the sky.
+  //
+  // We keep the per-frame createRadialGradient here (not the baked
+  // sprite used for the sun) because the alpha depends on `illum`,
+  // which varies smoothly over the 29.5-day lunar cycle — caching
+  // by radius alone would paint the wrong brightness.
   if (illum > 0.01) {
     const glow = ctx.createRadialGradient(
       arc.x, arc.y, r * 0.3,

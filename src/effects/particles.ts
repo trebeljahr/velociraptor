@@ -45,7 +45,7 @@ import {
   SHOOTING_STAR_RAIN_THRESHOLD,
 } from "../constants";
 import { state } from "../state";
-import { randRange } from "../helpers";
+import { compactInPlace, randRange } from "../helpers";
 
 // ══════════════════════════════════════════════════════════════════
 // Achievement bridge
@@ -200,7 +200,7 @@ export function updateShootingStars(dtSec: number): void {
     }
   }
   if (expired > 0) {
-    state.shootingStars = state.shootingStars.filter((s: any) => !s.dead);
+    compactInPlace(state.shootingStars, (s: any) => !s.dead);
   }
 }
 
@@ -286,7 +286,7 @@ export function updateConfetti(dtSec: number): void {
     }
   }
   if (expired > 0) {
-    state.confetti = state.confetti.filter((p: any) => !p.dead);
+    compactInPlace(state.confetti, (p: any) => !p.dead);
   }
 }
 
@@ -355,7 +355,7 @@ export function updateDust(dtSec: number): void {
     }
   }
   if (expired > 0) {
-    state.dust = state.dust.filter((p: any) => !p.dead);
+    compactInPlace(state.dust, (p: any) => !p.dead);
   }
 }
 
@@ -413,7 +413,7 @@ export function updateAsh(dtSec: number): void {
       expired++;
     }
   }
-  if (expired > 0) state.ash = state.ash.filter((p: any) => !p.dead);
+  if (expired > 0) compactInPlace(state.ash, (p: any) => !p.dead);
 }
 
 export function drawAsh(ctx: CanvasRenderingContext2D): void {

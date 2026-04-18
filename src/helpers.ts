@@ -60,6 +60,32 @@ export const randRange = (min: number, max: number): number =>
 export const clamp = (v: number, lo: number, hi: number): number =>
   Math.max(lo, Math.min(hi, v));
 
+/**
+ * In-place array compaction. Mutates `arr` to contain only elements
+ * for which `keep` returns true, preserving order. Returns the same
+ * array reference with its `.length` adjusted.
+ *
+ * This is the zero-allocation replacement for `arr = arr.filter(keep)`
+ * which we use in per-frame hot paths (particles, clouds, dune cacti).
+ * `filter` always allocates a new array even when nothing is removed —
+ * this helper walks with read/write indices and reassigns the length
+ * at the end. No new array ever gets created.
+ *
+ * Returns the array so call sites can chain or pretend it's functional.
+ */
+export function compactInPlace<T>(arr: T[], keep: (t: T) => boolean): T[] {
+  let write = 0;
+  for (let read = 0; read < arr.length; read++) {
+    const item = arr[read]!;
+    if (keep(item)) {
+      if (write !== read) arr[write] = item;
+      write++;
+    }
+  }
+  arr.length = write;
+  return arr;
+}
+
 // ── 2D collision geometry ──────────────────────────────────
 
 export type Point2D = { x: number; y: number };
