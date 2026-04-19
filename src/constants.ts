@@ -126,12 +126,13 @@ export const COIN_COUNT_PER_FIELD = 10;
 /** Distance between neighbouring coins in raptor-widths. Coins are
  *  a tight cluster centred inside the field — NOT spread across
  *  the whole field — so the pitch chain plays out as a quick run
- *  rather than a slow drip. At 0.75 × raptor.w the coins almost
- *  kiss (coin width ≈ 0.28 × raptor.h, so visible gap ≈ 0.1 ×
- *  raptor.w), and the full 10-coin ribbon fits inside the middle
- *  ~15% of a typical 5 s breather. Clamped down to fit if the
- *  ribbon ever exceeds the breather width. */
-export const COIN_SPACING_RATIO = 0.75;
+ *  rather than a slow drip. At 0.5 × raptor.w the coin sprites
+ *  overlap by about a third of their width (coin.w ≈ 0.28 ×
+ *  raptor.h), reading as a stacked ribbon. The full 10-coin
+ *  cluster fits inside the middle ~10% of a typical 5 s breather
+ *  — unmistakably centred, not end-to-end. Clamped down to fit
+ *  if the ribbon ever exceeds the breather width. */
+export const COIN_SPACING_RATIO = 0.5;
 /** Coin sprite height as a fraction of raptor height — keeps the
  *  coin readable against the raptor at any viewport scale. */
 export const COIN_SIZE_RATIO = 0.28;
