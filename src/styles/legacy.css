@@ -25,7 +25,8 @@ html,
       }
       body {
         font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+          "Anonymous Pro", ui-monospace, SFMono-Regular, Menlo, Consolas,
+          monospace;
       }
       @keyframes spin {
         from {
@@ -1626,7 +1627,8 @@ html,
         padding: 2.25rem 1.75rem 2rem;
         box-sizing: border-box;
         font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+          "Anonymous Pro", ui-monospace, SFMono-Regular, Menlo, Consolas,
+          monospace;
         color: #333;
       }
       .achievements-heading {
@@ -1732,7 +1734,8 @@ html,
         padding: 2rem 1.75rem 1.75rem;
         box-sizing: border-box;
         font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+          "Anonymous Pro", ui-monospace, SFMono-Regular, Menlo, Consolas,
+          monospace;
         color: #333;
       }
 

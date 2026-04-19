@@ -174,7 +174,7 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
       '<path d="M8 13l-3 9 4-2 4 2-3-9z" fill="#3498db" stroke="#1e6aa8" stroke-width="0.8" stroke-linejoin="round"/>' +
       '<path d="M16 13l3 9-4-2-4 2 3-9z" fill="#50b4cd" stroke="#1e6aa8" stroke-width="0.8" stroke-linejoin="round"/>' +
       '<circle cx="12" cy="10" r="9" fill="#f7d148" stroke="#c78a12" stroke-width="1"/>' +
-      '<text x="12" y="12.8" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="5.5" font-weight="900" fill="#7a4a00">100</text>',
+      '<text x="12" y="12.8" text-anchor="middle" font-family="Anonymous Pro,ui-monospace,SFMono-Regular,monospace" font-size="5.5" font-weight="900" fill="#7a4a00">100</text>',
   },
   {
     id: "sound-of-silence",
