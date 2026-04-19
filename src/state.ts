@@ -126,6 +126,7 @@ export interface GameState {
     head: string | null;
     eyes: string | null;
     neck: string | null;
+    back: string | null;
   };
 
   // ── Particle / effect arrays ───────────────────────
@@ -235,7 +236,7 @@ export const state: GameState = {
   wearBowTie: true,
   coinsBalance: 0,
   ownedCosmetics: {},
-  equippedCosmetics: { head: null, eyes: null, neck: null },
+  equippedCosmetics: { head: null, eyes: null, neck: null, back: null },
   shootingStars: [],
   confetti: [],
   dust: [],

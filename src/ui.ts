@@ -1306,12 +1306,13 @@ function refreshStartRaptorCosmetics() {
 // Slot data used to render the per-slot sections in the cosmetics
 // menu. Order here is the order the sections stack top-to-bottom.
 const COSMETIC_SLOT_UI: Array<{
-  slot: "head" | "eyes" | "neck";
+  slot: "head" | "eyes" | "neck" | "back";
   label: string;
 }> = [
   { slot: "head", label: "Head" },
   { slot: "eyes", label: "Eyes" },
   { slot: "neck", label: "Neck" },
+  { slot: "back", label: "Back" },
 ];
 
 function refreshEasterEggUI() {
@@ -1458,11 +1459,13 @@ function renderShop() {
     head: "#d97706",
     eyes: "#1f2937",
     neck: "#b91c1c",
+    back: "#7c3aed",
   };
   const slotLabel: Record<string, string> = {
     head: "Head",
     eyes: "Eyes",
     neck: "Neck",
+    back: "Back",
   };
   for (const def of inventory) {
     const card = document.createElement("div");

@@ -18,12 +18,13 @@
  * array — add a new entry here and it shows up in all three.
  */
 
-export type CosmeticSlot = "head" | "eyes" | "neck";
+export type CosmeticSlot = "head" | "eyes" | "neck" | "back";
 
 export const COSMETIC_SLOTS: ReadonlyArray<CosmeticSlot> = [
   "head",
   "eyes",
   "neck",
+  "back",
 ];
 
 /** Human-readable slot name used in the equip menu subheadings. */
@@ -31,6 +32,7 @@ export const COSMETIC_SLOT_LABELS: Record<CosmeticSlot, string> = {
   head: "Head",
   eyes: "Eyes",
   neck: "Neck",
+  back: "Back",
 };
 
 export interface CosmeticDef {
@@ -92,6 +94,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     name: "Cowboy Hat",
     slot: "head",
     price: 50,
+    spriteKey: "cowboyHat",
     description: "Yeehaw. Fits the desert.",
   },
   {
@@ -99,6 +102,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     name: "Top Hat",
     slot: "head",
     price: 150,
+    spriteKey: "topHat",
     description: "Fancy. Pairs with the bow tie.",
   },
   {
@@ -106,14 +110,24 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     name: "Wizard Hat",
     slot: "head",
     price: 200,
+    spriteKey: "wizardHat",
     description: "Pointy and arcane.",
   },
   {
+    id: "pirate-tricorn",
+    name: "Pirate Tricorn",
+    slot: "head",
+    price: 175,
+    spriteKey: "pirateTricorn",
+    description: "Skull and crossbones, plumed. Pairs with the eye patch.",
+  },
+  {
     id: "crown",
-    name: "Crown",
+    name: "Tiara",
     slot: "head",
     price: 500,
-    description: "Royal velvet — the premium head piece.",
+    spriteKey: "tiara",
+    description: "Silver with a sapphire centrepiece — premium royalty.",
   },
   {
     id: "sombrero",
@@ -136,6 +150,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     name: "Monocle",
     slot: "eyes",
     price: 100,
+    spriteKey: "monocle",
     description: "Distinguished and a little silly.",
   },
   {
@@ -143,6 +158,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     name: "Eye Patch",
     slot: "eyes",
     price: 50,
+    spriteKey: "eyePatch",
     description: "Arrr.",
   },
 
@@ -159,7 +175,8 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     name: "Gold Chain",
     slot: "neck",
     price: 200,
-    description: "Bling to match the coin hoard.",
+    spriteKey: "goldChain",
+    description: "Bejewelled bling to match the coin hoard.",
   },
   {
     id: "scarf",
@@ -167,6 +184,51 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     slot: "neck",
     price: 100,
     description: "Streamlined even while running.",
+  },
+
+  // ── Shop: back ────────────────────────────────────────
+  // Wings render behind the raptor body — the back-slot draw
+  // pass in raptor.ts runs before the body blit so the near wing
+  // peeks out around the body rather than overlaying it.
+  {
+    id: "angel-wings",
+    name: "Angel Wings",
+    slot: "back",
+    price: 600,
+    spriteKey: "angelWings",
+    description: "Feathered, luminous. Halo not included.",
+  },
+  {
+    id: "demon-wings",
+    name: "Demon Wings",
+    slot: "back",
+    price: 600,
+    spriteKey: "demonWings",
+    description: "Boned and membraned. Runic markings optional.",
+  },
+  {
+    id: "butterfly-wings-orange",
+    name: "Monarch Wings",
+    slot: "back",
+    price: 300,
+    spriteKey: "butterflyWingsOrange",
+    description: "Orange monarch — moons and flowers pattern.",
+  },
+  {
+    id: "butterfly-wings-blue",
+    name: "Morpho Wings",
+    slot: "back",
+    price: 300,
+    spriteKey: "butterflyWingsBlue",
+    description: "Deep-blue morpho — speckled and eyespotted.",
+  },
+  {
+    id: "butterfly-wings-purple",
+    name: "Twilight Wings",
+    slot: "back",
+    price: 300,
+    spriteKey: "butterflyWingsPurple",
+    description: "Magenta with celestial banding.",
   },
 ];
 
@@ -190,12 +252,13 @@ export function shopInventory(): CosmeticDef[] {
 }
 
 /** Placeholder fill colour per slot. Rendered in raptor.ts when a
- *  cosmetic has no sprite yet — distinct hues so the three slots
+ *  cosmetic has no sprite yet — distinct hues so the four slots
  *  stay visually separable while we're testing the equip flow. */
 export const PLACEHOLDER_COLORS: Record<CosmeticSlot, string> = {
   head: "#d97706", // amber
   eyes: "#1f2937", // slate
   neck: "#b91c1c", // red
+  back: "#7c3aed", // violet
 };
 
 // ═════════════════════════════════════════════════════════════

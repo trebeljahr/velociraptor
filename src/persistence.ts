@@ -294,7 +294,12 @@ export function saveOwnedCosmetics(set: { [id: string]: true }): void {
 export type EquippedMap = Record<CosmeticSlot, string | null>;
 
 export function loadEquippedCosmetics(): EquippedMap {
-  const fallback: EquippedMap = { head: null, eyes: null, neck: null };
+  const fallback: EquippedMap = {
+    head: null,
+    eyes: null,
+    neck: null,
+    back: null,
+  };
   try {
     const raw = window.localStorage.getItem(EQUIPPED_COSMETICS_KEY);
     if (!raw) return fallback;
@@ -304,6 +309,7 @@ export function loadEquippedCosmetics(): EquippedMap {
       head: typeof obj.head === "string" ? obj.head : null,
       eyes: typeof obj.eyes === "string" ? obj.eyes : null,
       neck: typeof obj.neck === "string" ? obj.neck : null,
+      back: typeof obj.back === "string" ? obj.back : null,
     };
   } catch {
     return fallback;

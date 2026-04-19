@@ -25,6 +25,22 @@ export const IMAGE_SRCS: { [key: string]: string } = {
   reindeer: "assets/reindeer.png",
   tumbleweed: "assets/tumbleweed.png",
   coin: "assets/coin.png",
+  // Shop cosmetics — each sprite is background-keyed + trimmed +
+  // resized in public/assets/cosmetics/. Keys here must match the
+  // `spriteKey` on the matching CosmeticDef in src/cosmetics.ts.
+  cowboyHat: "assets/cosmetics/cowboy-hat.png",
+  topHat: "assets/cosmetics/top-hat.png",
+  wizardHat: "assets/cosmetics/wizard-hat.png",
+  pirateTricorn: "assets/cosmetics/pirate-tricorn.png",
+  tiara: "assets/cosmetics/tiara.png",
+  monocle: "assets/cosmetics/monocle.png",
+  eyePatch: "assets/cosmetics/eye-patch.png",
+  goldChain: "assets/cosmetics/gold-chain.png",
+  angelWings: "assets/cosmetics/angel-wings.png",
+  demonWings: "assets/cosmetics/demon-wings.png",
+  butterflyWingsOrange: "assets/cosmetics/butterfly-wings-orange.png",
+  butterflyWingsBlue: "assets/cosmetics/butterfly-wings-blue.png",
+  butterflyWingsPurple: "assets/cosmetics/butterfly-wings-purple.png",
 };
 
 // Cactus variants are registered here so any code that iterates

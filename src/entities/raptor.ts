@@ -219,6 +219,11 @@ export class Raptor {
 
   draw(ctx: CanvasRenderingContext2D): void {
     if (!this.sheet) return;
+    // Back-slot cosmetics (wings) render BEFORE the body blit so
+    // the body covers the wing's near edge — reads as the far
+    // wing peeking out around the raptor, not a sticker slapped
+    // on top. All other slots render after the body.
+    this._drawEquippedSlot(ctx, "back");
     const srcY = this.frame * RAPTOR_NATIVE_H;
     ctx.drawImage(
       this.sheet,
@@ -243,6 +248,26 @@ export class Raptor {
     this._drawEquippedSlot(ctx, "eyes");
     this._drawEquippedSlot(ctx, "head");
     this._drawEquippedSlot(ctx, "neck");
+  }
+
+  /**
+   * Back anchor: where the wing's root attaches to the raptor's
+   * body. Derived from the crown point so the wing bobs with the
+   * head/run cycle instead of locking to the static x/y. Offset
+   * back and down from the crown into the upper-back region
+   * (~38% from the front of the raptor, shoulder-height).
+   */
+  currentBackPoint(): { x: number; y: number } {
+    const crown = this.currentCrownPoint();
+    // crown is roughly at the top-front of the head; the back
+    // attachment lives behind it and slightly below, at the
+    // raptor's shoulder / upper-back region. Fractions are tuned
+    // by eye against the flipped wing art so the wing-root sits
+    // on the shoulder instead of floating in the belly area.
+    return {
+      x: crown.x - this.w * 0.08,
+      y: crown.y + this.h * 0.2,
+    };
   }
 
   private _drawEquippedSlot(
@@ -289,7 +314,7 @@ export class Raptor {
       const crown = this.currentCrownPoint();
       cx = crown.x - this.w * 0.01;
       cy = crown.y + this.h * 0.04;
-      h = this.h * 0.25;
+      h = this.h * 0.3;
       w = h * (sprite ? sprite.width / sprite.height : 0.9);
       rot = -0.35;
       bottomAnchored = true;
@@ -298,22 +323,50 @@ export class Raptor {
       const snout = this.currentSnoutPoint();
       cx = crown.x + (snout.x - crown.x) * 0.5 - this.w * 0.012;
       cy = crown.y + (snout.y - crown.y) * 0.5 + this.h * 0.013;
-      w = this.w * 0.07;
+      w = this.w * 0.1;
       h = w * (sprite ? sprite.height / sprite.width : 0.45);
       rot = Math.atan2(snout.y - crown.y, snout.x - crown.x) - 0.25;
-    } else {
+    } else if (slot === "neck") {
       const crown = this.currentCrownPoint();
       cx = crown.x - this.w * 0.02;
       cy = crown.y + this.h * 0.2;
-      w = this.w * 0.06;
+      w = this.w * 0.08;
       h = w * (sprite ? sprite.height / sprite.width : 0.7);
       rot = -0.15;
+    } else {
+      // back slot (wings). All wing sprites are pre-flipped
+      // horizontally so the shoulder/attachment sits in the
+      // sprite's RIGHT half; we anchor the sprite's right edge
+      // on the raptor's back point so the wing-root hugs the
+      // shoulder and the wing itself extends left (behind the
+      // raptor). Sized by raptor HEIGHT so wings scale cleanly
+      // across viewport sizes, and kept well below raptor.h so
+      // they read as feathers on the back, not a cape the
+      // raptor is drowning in.
+      const back = this.currentBackPoint();
+      cx = back.x;
+      cy = back.y;
+      w = this.h * 0.85;
+      h = w * (sprite ? sprite.height / sprite.width : 0.85);
+      // Small CCW tilt so the wing's top curves upward over the
+      // shoulder instead of sticking out flat behind.
+      rot = -0.1;
+    }
+    // Most slots centre the sprite on (cx, cy). The back slot
+    // pins the sprite's upper-RIGHT near the anchor instead so
+    // the wing-root attaches at the shoulder while the body of
+    // the wing sweeps down and back.
+    let drawXOverride: number | null = null;
+    let drawYOverride: number | null = null;
+    if (slot === "back") {
+      drawXOverride = -w * 0.9; // right edge near anchor
+      drawYOverride = -h * 0.4; // anchor on the upper third
     }
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(rot);
-    const drawX = -w / 2;
-    const drawY = bottomAnchored ? -h : -h / 2;
+    const drawX = drawXOverride ?? -w / 2;
+    const drawY = drawYOverride ?? (bottomAnchored ? -h : -h / 2);
     if (sprite) {
       ctx.drawImage(sprite, drawX, drawY, w, h);
     } else {
