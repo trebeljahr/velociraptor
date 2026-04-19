@@ -209,6 +209,7 @@ import {
   purchaseCosmetic,
   equipCosmetic,
   unequipSlot,
+  grantCosmetic as grantCosmeticDebug,
   type CosmeticSlot,
 } from "./cosmetics";
 import { contexts, initCanvas } from "./canvas";
@@ -2627,6 +2628,12 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         state.showHitboxes = false;
         state.noCollisions = true;
         perf.enabled = false;
+        // Grant every registered cosmetic in debug mode so testers
+        // can toggle between them without grinding coins or hitting
+        // the score thresholds. Idempotent — already-owned items
+        // are no-ops, and coin balance is untouched so the shop
+        // still renders buy vs. owned states correctly.
+        for (const def of COSMETICS) grantCosmeticDebug(def.id);
       }
     } catch (e) {
       /* no-op */

@@ -1616,50 +1616,80 @@ html,
         font-size: 1.05rem;
       }
 
-      /* ── Cosmetics equip menu (dynamic slot subsections) ──
-       * renderCosmeticsMenu() in ui.ts builds a `.cosmetic-slot`
-       * block per slot that contains at least one owned item.
-       * Each block has a small heading and a column of menu-item
-       * buttons — the currently-equipped one gets an "Equipped"
-       * badge pinned to the right and a persistent pressed state. */
-      .cosmetic-slot + .cosmetic-slot {
-        margin-top: 0.6rem;
+      /* ── Cosmetics equip menu (per-slot dropdowns) ──
+       * renderCosmeticsMenu() in ui.ts builds one `.cosmetic-slot-row`
+       * per slot the player owns at least one item in. Each row is
+       * a "[thumb] [Slot label] [Select]" triplet; the select lists
+       * the owned items and changing it equips/unequips instantly,
+       * with the thumbnail updating to reflect the new selection. */
+      .cosmetic-slot-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.45rem 0.6rem;
+        border-radius: 8px;
+        background: #ebeef1;
       }
-      .cosmetic-slot-heading {
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #6b7280;
-        margin: 0 0 0.25rem 0.25rem;
+      .cosmetic-slot-row + .cosmetic-slot-row {
+        margin-top: 0.35rem;
       }
-      .menu-panel .cosmetic-equip-btn[aria-pressed="true"] {
-        background: #d1e7dd; /* soft green for the chosen row */
-        box-shadow: inset 0 0 0 1px #34d399;
+      .cosmetic-slot-thumb {
+        flex: 0 0 auto;
+        width: 34px;
+        height: 34px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
       }
-      .menu-panel .cosmetic-equip-btn[aria-pressed="true"]:hover {
-        background: #bfe0cc;
+      .cosmetic-slot-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
       }
-      .cosmetic-equip-badge {
-        margin-left: auto;
-        font-size: 0.72rem;
+      .cosmetic-slot-thumb-sprite {
+        background: #ffffff;
+        box-shadow: inset 0 0 0 1px #d1d5db;
+      }
+      .cosmetic-slot-label {
+        flex: 1 1 auto;
         font-weight: 600;
-        padding: 0.1rem 0.5rem;
-        border-radius: 999px;
-        background: #10b981;
-        color: #fff;
+        font-size: 0.95rem;
+        color: #111827;
+      }
+      .cosmetic-slot-select {
+        flex: 0 0 auto;
+        min-width: 8rem;
+        padding: 0.3rem 0.6rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: #ffffff;
+        font-size: 0.9rem;
+        cursor: pointer;
+      }
+      .cosmetic-slot-select:focus-visible {
+        outline: 3px solid #50b4cd;
+        outline-offset: 2px;
       }
 
       /* ── Shop overlay ─────────────────────────────────────
        * Mirrors the achievements overlay sizing/behaviour (.open
        * toggle is handled in ui.ts). The sheet contents are a
        * scrollable column: title → balance → items grid. */
+      /* Shop sheet — the outer .imprint-sheet sets overflow: hidden
+       * plus a fixed height, so for the inner body to scroll we
+       * make the sheet a flex column and let .shop-scroll fill
+       * whatever height the parent leaves. */
       .shop-sheet {
+        display: flex;
+        flex-direction: column;
         max-width: 540px;
         width: 92vw;
-        max-height: 86vh;
       }
       .shop-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
         overflow-y: auto;
         padding: 1.2rem 1.4rem 1.6rem;
       }
@@ -1679,13 +1709,7 @@ html,
         font-weight: 600;
       }
       .shop-balance-value {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
         font-size: 1.1rem;
-      }
-      .shop-balance-coin {
-        font-size: 1.15rem;
       }
       .shop-items {
         display: flex;
@@ -1712,9 +1736,19 @@ html,
         font-weight: 700;
         color: #fff;
         letter-spacing: 0.05em;
-        /* Placeholder-only styling. When a real thumbnail image is
-           wired up, drop the text node and set background-image
-           here instead (keep the border-radius + dimensions). */
+        overflow: hidden;
+      }
+      .shop-item-thumb.shop-item-thumb-sprite {
+        /* When a sprite is injected, ditch the slot-tint placeholder
+           colour and show the art on a neutral white panel so the
+           transparent PNGs read well. */
+        background: #ffffff !important;
+        box-shadow: inset 0 0 0 1px #d1d5db;
+      }
+      .shop-item-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
       }
       .shop-item-info {
         min-width: 0; /* so flex-ellipsis truncation works */
