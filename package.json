@@ -71,6 +71,7 @@
       "output": "release",
       "buildResources": "build"
     },
+    "publish": null,
     "asarUnpack": [
       "node_modules/steamworks.js/**"
     ],

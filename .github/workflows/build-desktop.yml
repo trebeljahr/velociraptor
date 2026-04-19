@@ -56,15 +56,14 @@ jobs:
         run: npm ci
 
       - name: Build desktop package
-        # GH_TOKEN is for electron-builder's auto-publish path; we're
-        # NOT publishing to GH Releases automatically, so pass an empty
-        # string to prevent electron-builder from trying.
-        env:
-          GH_TOKEN: ""
-          # No STEAM_APP_ID — itch builds must not init steamworks.
-          # For Steam builds, trigger this workflow with STEAM_APP_ID
-          # set in the environment (via a separate workflow_dispatch
-          # input) or switch to the steam-publish workflow.
+        # Auto-publish is disabled via "publish": null in package.json
+        # build config — we push to itch via butler in a later job, not
+        # via electron-builder's GH Releases path.
+        #
+        # No STEAM_APP_ID is set — itch builds must not init steamworks.
+        # For Steam builds, trigger this workflow with STEAM_APP_ID set
+        # in the environment (via a separate workflow_dispatch input)
+        # or switch to the steam-publish workflow.
         run: npm run electron:build
 
       - name: Upload release artifacts
