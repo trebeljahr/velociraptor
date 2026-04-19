@@ -12,8 +12,14 @@ import {
 // navigateFallback conflicts with the capacitor:// scheme) and only the
 // main HTML entry is emitted (about/imprint become in-app overlays on
 // mobile, not separate navigable pages).
+// `VITE_TARGET=electron` produces the desktop bundle: relative asset
+// paths (because the packaged app loads via file://, where a vite-
+// injected `/assets/...` resolves to the filesystem root and 404s) and
+// no PWA (service workers don't register under file:// anyway).
 const TARGET = process.env.VITE_TARGET ?? "web";
 const IS_CAPACITOR = TARGET === "capacitor";
+const IS_ELECTRON = TARGET === "electron";
+const USE_RELATIVE_BASE = IS_CAPACITOR || IS_ELECTRON;
 
 /**
  * Build-time injection of the shared credits/attributions into
@@ -78,10 +84,12 @@ function creditsBuildInjectPlugin(): Plugin {
 }
 
 export default defineConfig({
-  // Capacitor serves assets from a WebView-local scheme, so relative paths
-  // are required. On the web we keep absolute "/" so the service worker
-  // and the hosted site continue to work unchanged.
-  base: IS_CAPACITOR ? "./" : "/",
+  // Capacitor and Electron both load the bundle off a non-http(s)
+  // scheme (capacitor:// and file:// respectively), so vite-injected
+  // absolute paths like `/assets/main-*.js` don't resolve. On the web
+  // we keep "/" so the service worker and the hosted site continue to
+  // work unchanged.
+  base: USE_RELATIVE_BASE ? "./" : "/",
   define: {
     // Compile-time flag so gameplay code can branch on mobile without
     // pulling in any Capacitor symbols at import time.
@@ -109,10 +117,12 @@ export default defineConfig({
   plugins: [
     creditsBuildInjectPlugin(),
     tailwindcss(),
-    // The PWA service worker is desktop/web-only. Skipping it on
-    // Capacitor avoids a Workbox navigateFallback vs. capacitor://
-    // scheme conflict that otherwise serves a stale /index.html.
-    ...(IS_CAPACITOR
+    // The PWA service worker is web-only. Skipped on Capacitor to
+    // avoid a Workbox navigateFallback vs. capacitor:// scheme
+    // conflict that otherwise serves a stale /index.html, and on
+    // Electron because service workers don't register under file://
+    // (the injected registerSW.js just 404s and adds noise).
+    ...(USE_RELATIVE_BASE
       ? []
       : [VitePWA({
       registerType: "autoUpdate",
