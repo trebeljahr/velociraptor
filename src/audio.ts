@@ -23,6 +23,7 @@ import {
   COIN_STREAK_PITCH_STEP,
   COIN_STREAK_MAX_PITCH,
   COIN_STREAK_RESET_MS,
+  COIN_CHAIN_END_GAIN,
 } from "./constants";
 import { saveBoolFlag } from "./persistence";
 
@@ -181,6 +182,7 @@ export const audio = {
     this._preloadThunderBuffer();
     this._preloadHitBuffer();
     this._preloadCoinBuffer();
+    this._preloadCoinChainEndBuffer();
     this._preloadUfoBuffer();
     this._preloadSantaBuffer();
     this._preloadMeteorBuffer();
@@ -878,6 +880,59 @@ export const audio = {
   resetCoinStreak() {
     this._coinStreak = 0;
     this._coinStreakLastMs = 0;
+  },
+
+  // ── Coin chain-end chord (liecio "diamond found") ──────────
+  // Plays on top of the last-coin pickup as a resolution cue —
+  // "ding ding ding … diiing ✨". Sample credit: Liecio on Pixabay
+  // (track 190255); see credits overlay / imprint.html.
+  _coinChainEndBuffer: null as AudioBuffer | null,
+
+  _preloadCoinChainEndBuffer() {
+    if (
+      typeof AudioContext === "undefined" &&
+      typeof window.webkitAudioContext === "undefined"
+    )
+      return;
+    fetch("assets/coin-chain-end.mp3")
+      .then((r) => r.arrayBuffer())
+      .then((buf) => {
+        this._ensureAudioCtx();
+        if (!this._audioCtx) return;
+        return this._audioCtx.decodeAudioData(buf);
+      })
+      .then((decoded) => {
+        if (decoded) this._coinChainEndBuffer = decoded;
+      })
+      .catch(() => {
+        /* chain-end cue simply won't play */
+      });
+  },
+
+  /** Chain-end chord, layered on top of the last-coin pickup.
+   *  Plays at fixed 1.0× pitch — it's the "resolution" after the
+   *  rising chain, not another step in the climb. Routed through
+   *  jumpMuted so the SFX mute toggle still covers it. */
+  playCoinChainEnd() {
+    if (this.muted || this.jumpMuted) return;
+    if (!this._audioCtx || !this._coinChainEndBuffer) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    try {
+      const src = this._audioCtx.createBufferSource();
+      src.buffer = this._coinChainEndBuffer;
+      const gain = this._audioCtx.createGain();
+      gain.gain.value = COIN_CHAIN_END_GAIN;
+      src.connect(gain);
+      gain.connect(this._audioCtx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
+      };
+      src.start(0);
+    } catch {
+      /* SFX is non-critical */
+    }
   },
 
   /** Coin pickup cue. Routed through jumpMuted so the SFX channel

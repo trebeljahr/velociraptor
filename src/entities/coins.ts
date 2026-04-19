@@ -23,7 +23,7 @@ import {
   COIN_BOB_AMPLITUDE_PX,
   COIN_BOB_FREQUENCY_HZ,
   COIN_COUNT_PER_FIELD,
-  COIN_EDGE_INSET_RATIO,
+  COIN_SPACING_RATIO,
   COIN_COLLECT_FADE_FRAMES,
   COIN_SPARKLE_FREQUENCY_HZ,
 } from "../constants";
@@ -39,6 +39,10 @@ export interface Coin {
   collected: boolean;
   /** state.frame when collected — drives the pop/fade animation. */
   collectFrame: number;
+  /** True for the right-most coin in the field — i.e. the last one
+   *  the raptor passes through on its way out. Triggers the
+   *  chain-end chord on top of the regular pickup cue. */
+  lastInField: boolean;
 }
 
 interface RaptorRef {
@@ -69,21 +73,30 @@ export function spawnCoinsInRange(
     state.ground -
     raptor.h * COIN_BASE_Y_ABOVE_GROUND_RATIO -
     coinSize / 2;
-  // Slice the field into COIN_COUNT_PER_FIELD equal segments and
-  // place one coin per segment at a fixed inset. This gives the
-  // same coin count regardless of breather duration — the pitch
-  // chain always has exactly COIN_COUNT_PER_FIELD steps to climb.
-  const segment = (endX - startX) / COIN_COUNT_PER_FIELD;
+  // Coins live in a tight ribbon centred in the field: a fixed
+  // raptor-width spacing gives a quick "ding-ding-ding…" run, and
+  // the ribbon is short enough that the player hits all COUNT
+  // coins in ~1–1.5s regardless of how long the breather itself
+  // is. If the ribbon happens to exceed the field width (tiny
+  // breather edge case), compress to fit instead of overflowing.
+  const fieldWidth = endX - startX;
+  const desiredSpacing = raptor.w * COIN_SPACING_RATIO;
+  const gaps = COIN_COUNT_PER_FIELD - 1;
+  const desiredSpanPx = desiredSpacing * gaps;
+  const spacing =
+    desiredSpanPx <= fieldWidth ? desiredSpacing : fieldWidth / gaps;
+  const spanPx = spacing * gaps;
+  const firstCoinX = startX + (fieldWidth - spanPx) / 2;
   for (let i = 0; i < COIN_COUNT_PER_FIELD; i++) {
-    const x = startX + segment * (i + COIN_EDGE_INSET_RATIO);
     state.coins.push({
-      x,
+      x: firstCoinX + spacing * i,
       baseY,
       w: coinSize,
       h: coinSize,
       phase: Math.random() * Math.PI * 2,
       collected: false,
       collectFrame: 0,
+      lastInField: i === COIN_COUNT_PER_FIELD - 1,
     });
   }
   audio.resetCoinStreak();

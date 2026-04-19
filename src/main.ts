@@ -701,7 +701,12 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // the frame the raptor dies — the pickup reads as "last coin
       // before the fall" rather than getting swallowed by the
       // game-over branch.
-      collectCoins(raptor, () => audio.playCoinCollect());
+      collectCoins(raptor, (coin) => {
+        audio.playCoinCollect();
+        // Last coin in the field layers the chain-end chord on top
+        // of the regular pickup — "ding ding ding … diiing ✨".
+        if (coin.lastInField) audio.playCoinChainEnd();
+      });
       // Grass-field spans scroll at the same rate as the foreground
       // (ground speed), then fall off the left edge once they've
       // fully passed. Each span was pushed by a breather roll; it

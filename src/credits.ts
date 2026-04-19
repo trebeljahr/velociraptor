@@ -125,8 +125,14 @@ export const ATTRIBUTION_SECTIONS: ReadonlyArray<AttributionSection> = [
         <a href="https://pixabay.com/users/alice_soundz-44907632/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=224184" target="_blank" rel="noopener">Alice_soundz</a>
         from
         <a href="https://pixabay.com/sound-effects/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=224184" target="_blank" rel="noopener">Pixabay</a>.`,
-      `Coin pickup — "Pause Piano Sound" from
+      `Coin pickup — "Pause Piano Sound" sound effect by
+        <a href="https://pixabay.com/users/freesound_community-46691455/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=40579" target="_blank" rel="noopener">freesound_community</a>
+        from
         <a href="https://pixabay.com/sound-effects/pause-piano-sound-40579/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=40579" target="_blank" rel="noopener">Pixabay</a>.`,
+      `Coin chain-end chord — "Diamond found" sound effect by
+        <a href="https://pixabay.com/users/liecio-3298866/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=190255" target="_blank" rel="noopener">Liecio</a>
+        from
+        <a href="https://pixabay.com/sound-effects/diamond-found-190255/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=190255" target="_blank" rel="noopener">Pixabay</a>.`,
     ],
   },
   {
