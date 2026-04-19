@@ -1255,10 +1255,25 @@ if (moonBtn) {
   });
 }
 
+// Debug: force a flower-field breather on the next frame so we can
+// eyeball the rest-area layout (coin density, buffer symmetry, etc.)
+// without waiting ~40 cacti for the counter to roll.
+const flowerFieldBtn = document.getElementById("menu-force-breather");
+if (flowerFieldBtn) {
+  flowerFieldBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (window.Game && window.Game._forceBreather) {
+      window.Game._forceBreather();
+      closeMenu();
+    }
+  });
+}
+
 // ───────── Accessory toggles (party hat / thug glasses) ─────────
 // Both entries are hidden in the markup by default and only
 // shown once the player actually unlocks them — or always in
 // debug mode for testing.
+const cosmeticsGroup = document.getElementById("cosmetics");
 const partyHatLi = document.getElementById("menu-partyhat-li");
 const partyHatBtn = document.getElementById("menu-partyhat-toggle");
 const partyHatLabel = document.getElementById("menu-partyhat-label");
@@ -1296,6 +1311,16 @@ function refreshEasterEggUI() {
     window.Game.isThugGlassesUnlocked();
   if (partyHatLi) partyHatLi.hidden = !hatUnlocked;
   if (thugLi) thugLi.hidden = !glassesUnlocked;
+  // The outer collapsible cosmetics group stays hidden until the
+  // player has earned at least one cosmetic — otherwise we'd show
+  // an empty "Cosmetics" header with no rows inside.
+  if (cosmeticsGroup) {
+    const anyUnlocked =
+      !!hatUnlocked ||
+      !!glassesUnlocked ||
+      !!(window.Game.isBowTieUnlocked && window.Game.isBowTieUnlocked());
+    cosmeticsGroup.hidden = !anyUnlocked;
+  }
   if (partyHatLabel) {
     partyHatLabel.textContent = window.Game.isPartyHatActive()
       ? "Party hat: on"

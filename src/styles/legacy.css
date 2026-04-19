@@ -1280,12 +1280,14 @@ html,
       }
       /* Debug-only menu rows are hidden unless the page is in debug
          mode (body[data-debug="true"] is set by game.js when the URL
-         has ?debug=true). */
-      .menu-panel li.debug-only {
+         has ?debug=true). Selector is element-agnostic so the same
+         rule covers the individual <li> rows AND the <details>
+         wrapper that groups them (both may carry .debug-only). */
+      .menu-panel .debug-only {
         display: none;
       }
-      body[data-debug="true"] .menu-panel li.debug-only {
-        display: block;
+      body[data-debug="true"] .menu-panel .debug-only {
+        display: revert;
       }
       .menu-panel .menu-hint {
         color: #888;
@@ -1514,6 +1516,83 @@ html,
         background: #ebeef1;
       }
       .sound-settings-body .menu-item:hover {
+        background: #dde1e6;
+      }
+
+      /* ── Collapsible group blocks (cosmetics, debug) ──────
+       * Shared styling for the menu's grouped disclosure sections.
+       * Sound Settings predates this helper and keeps its own
+       * .sound-settings-* rules above; cosmetics and debug reuse the
+       * same look through the .menu-group / .menu-group-summary /
+       * .menu-group-body classes. Each specific group (`.cosmetics`,
+       * `.debug-settings`) also carries a namespaced class so
+       * individual tweaks can target them without leaking across
+       * groups. */
+      .menu-panel .menu-group {
+        margin: 0 0 0.75rem;
+        border-radius: 8px;
+        background: #f4f6f8;
+      }
+      .menu-panel .menu-group[open] > .menu-group-summary {
+        /* When open, square off the bottom so the summary butts
+           flush against the body below without a visible seam. */
+        border-radius: 8px 8px 0 0;
+      }
+      .menu-panel .menu-group-summary {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        padding: 0.7rem 1rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+        border-radius: 8px;
+        transition: background 0.1s;
+      }
+      .menu-panel .menu-group-summary::-webkit-details-marker {
+        display: none;
+      }
+      .menu-panel .menu-group-summary::after {
+        content: "";
+        margin-left: auto;
+        width: 6px;
+        height: 6px;
+        border-right: 2px solid #888;
+        border-bottom: 2px solid #888;
+        transform: rotate(-45deg);
+        transition: transform 0.15s;
+        flex-shrink: 0;
+      }
+      .menu-panel .menu-group[open] > .menu-group-summary::after {
+        transform: rotate(45deg);
+      }
+      .menu-panel .menu-group-summary:hover {
+        background: #e8ecf0;
+      }
+      .menu-panel .menu-group-summary:focus-visible {
+        outline: 3px solid #50b4cd;
+        outline-offset: 2px;
+        background: #e8ecf0;
+      }
+      .menu-panel .menu-group-summary svg {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+      .menu-panel .menu-group-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        padding: 0.45rem 0.5rem 0.6rem;
+        list-style: none;
+        margin: 0;
+      }
+      .menu-panel .menu-group-body .menu-item {
+        background: #ebeef1;
+      }
+      .menu-panel .menu-group-body .menu-item:hover {
         background: #dde1e6;
       }
       .menu-panel .made-by {
