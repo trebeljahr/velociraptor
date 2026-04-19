@@ -119,6 +119,10 @@ export const FLOWER_PATCH_WIDTH_PX = 220;
  *  obstacle passed — coins give the same so a full field is
  *  equivalent to clearing 10 cacti. */
 export const COIN_SCORE_VALUE = 1;
+/** Coins added to the persistent shop balance per pickup. Separate
+ *  from COIN_SCORE_VALUE so the in-run score and the across-run
+ *  currency can be rebalanced independently. */
+export const COIN_BANK_REWARD = 1;
 /** How many coins are scattered across each flower field. Fixed
  *  count (instead of spacing-based) so the "ding-ding-diiing"
  *  pitch chain always has a predictable number of steps. */
@@ -356,6 +360,15 @@ export const CAREER_RUNS_KEY = "raptor-runner:careerRuns";
 export const ACHIEVEMENTS_KEY = "raptor-runner:achievements";
 export const TOTAL_DAY_CYCLES_KEY = "raptor-runner:totalDayCycles";
 export const RARE_EVENTS_SEEN_KEY = "raptor-runner:rareEventsSeen";
+// ── Coin economy ───────────────────────────────────────────
+/** Persistent lifetime coin balance — earned by picking up coins
+ *  during runs, spent at the cosmetics shop. */
+export const COINS_BALANCE_KEY = "raptor-runner:coinsBalance";
+/** JSON array of owned cosmetic ids (buys + score unlocks). */
+export const OWNED_COSMETICS_KEY = "raptor-runner:ownedCosmetics";
+/** JSON object {head, eyes, neck} → cosmetic id or null — the
+ *  currently-equipped piece in each slot. */
+export const EQUIPPED_COSMETICS_KEY = "raptor-runner:equippedCosmetics";
 
 // ── Cosmetic unlock thresholds (single-run scores) ─────────
 // Rebalanced from 100/200/500 → 100/150/200. The original top tier

@@ -43,20 +43,14 @@ import {
   PARTY_HAT_SCORE_THRESHOLD,
   THUG_GLASSES_SCORE_THRESHOLD,
   BOW_TIE_SCORE_THRESHOLD,
-  UNLOCKED_PARTY_HAT_KEY,
-  UNLOCKED_THUG_GLASSES_KEY,
-  UNLOCKED_BOW_TIE_KEY,
-  WEAR_PARTY_HAT_KEY,
-  WEAR_THUG_GLASSES_KEY,
-  WEAR_BOW_TIE_KEY,
 } from "../constants";
 import { state } from "../state";
 import { IMAGES } from "../images";
-import { saveBoolFlag } from "../persistence";
 import { CACTUS_VARIANTS, CactusVariant } from "../cactusVariants";
 import { Polygon } from "../helpers";
 import { makeFlowerPatch } from "./flowers";
 import { spawnCoinsInRange } from "./coins";
+import { grantCosmetic } from "../cosmetics";
 import { Raptor } from "./raptor";
 
 export type CactusAchievementCallback = (id: string) => void;
@@ -357,36 +351,34 @@ export class Cactuses {
         // score-threshold block above (not here) so they trigger on
         // every qualifying run, even if the cosmetic was already
         // earned.
+        // Cosmetic unlocks via score. grantCosmetic handles the
+        // owned/equipped maps AND bridges the legacy unlock/wear
+        // flags, so old Game API shims stay correct. It auto-
+        // equips when the slot is empty — on first unlock that's
+        // always the case, so the cosmetic pops onto the raptor
+        // immediately. Idempotent, so re-crossing the threshold
+        // in a later run is a no-op.
         if (
-          !state.unlockedPartyHat &&
+          !state.ownedCosmetics["party-hat"] &&
           state.score >= PARTY_HAT_SCORE_THRESHOLD
         ) {
-          state.unlockedPartyHat = true;
-          state.wearPartyHat = true;
-          saveBoolFlag(UNLOCKED_PARTY_HAT_KEY, true);
-          saveBoolFlag(WEAR_PARTY_HAT_KEY, true);
+          grantCosmetic("party-hat");
           const crown = this.raptor.currentCrownPoint();
           this.onCosmeticBurst(crown.x, crown.y);
         }
         if (
-          !state.unlockedThugGlasses &&
+          !state.ownedCosmetics["thug-glasses"] &&
           state.score >= THUG_GLASSES_SCORE_THRESHOLD
         ) {
-          state.unlockedThugGlasses = true;
-          state.wearThugGlasses = true;
-          saveBoolFlag(UNLOCKED_THUG_GLASSES_KEY, true);
-          saveBoolFlag(WEAR_THUG_GLASSES_KEY, true);
+          grantCosmetic("thug-glasses");
           const crown = this.raptor.currentCrownPoint();
           this.onCosmeticBurst(crown.x, crown.y);
         }
         if (
-          !state.unlockedBowTie &&
+          !state.ownedCosmetics["bow-tie"] &&
           state.score >= BOW_TIE_SCORE_THRESHOLD
         ) {
-          state.unlockedBowTie = true;
-          state.wearBowTie = true;
-          saveBoolFlag(UNLOCKED_BOW_TIE_KEY, true);
-          saveBoolFlag(WEAR_BOW_TIE_KEY, true);
+          grantCosmetic("bow-tie");
           const crown = this.raptor.currentCrownPoint();
           this.onCosmeticBurst(crown.x, crown.y);
         }

@@ -100,12 +100,33 @@ export interface GameState {
   _runSawRainStart: boolean;
 
   // ── Cosmetic unlocks (sticky) and wear prefs ───────
+  // NOTE: these are the legacy per-item flags for the three
+  // score-unlock classics. Source of truth for the new coin-shop
+  // system is `ownedCosmetics` / `equippedCosmetics` below; the
+  // legacy flags are kept updated in lockstep so existing Game
+  // API shims (isPartyHatActive etc.) stay honest without
+  // reading from the new maps.
   unlockedPartyHat: boolean;
   wearPartyHat: boolean;
   unlockedThugGlasses: boolean;
   wearThugGlasses: boolean;
   unlockedBowTie: boolean;
   wearBowTie: boolean;
+
+  // ── Coin economy (persistent, shop-driven) ─────────
+  /** Persistent lifetime coin balance — earned by coin pickups,
+   *  spent at the cosmetics shop. */
+  coinsBalance: number;
+  /** Set of owned cosmetic ids. Includes score-unlocked classics
+   *  (party-hat, thug-glasses, bow-tie) once earned and everything
+   *  the player has purchased. */
+  ownedCosmetics: { [id: string]: true };
+  /** Currently-equipped cosmetic per slot, or null for "nothing". */
+  equippedCosmetics: {
+    head: string | null;
+    eyes: string | null;
+    neck: string | null;
+  };
 
   // ── Particle / effect arrays ───────────────────────
   /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -212,6 +233,9 @@ export const state: GameState = {
   wearThugGlasses: true,
   unlockedBowTie: false,
   wearBowTie: true,
+  coinsBalance: 0,
+  ownedCosmetics: {},
+  equippedCosmetics: { head: null, eyes: null, neck: null },
   shootingStars: [],
   confetti: [],
   dust: [],

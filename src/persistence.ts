@@ -30,7 +30,11 @@ import {
   WEAR_THUG_GLASSES_KEY,
   UNLOCKED_BOW_TIE_KEY,
   WEAR_BOW_TIE_KEY,
+  COINS_BALANCE_KEY,
+  OWNED_COSMETICS_KEY,
+  EQUIPPED_COSMETICS_KEY,
 } from "./constants";
+import type { CosmeticSlot } from "./cosmetics";
 
 export type UnlockedAchievementSet = { [id: string]: true };
 export type RareEventsSeen = { [id: string]: number };
@@ -105,6 +109,9 @@ const DURABLE_KEYS: string[] = [
   WEAR_THUG_GLASSES_KEY,
   UNLOCKED_BOW_TIE_KEY,
   WEAR_BOW_TIE_KEY,
+  COINS_BALANCE_KEY,
+  OWNED_COSMETICS_KEY,
+  EQUIPPED_COSMETICS_KEY,
 ];
 
 /** Call once at boot, BEFORE any load*() function reads localStorage.
@@ -242,4 +249,67 @@ export function loadBoolFlag(key: string, fallback: boolean): boolean {
 
 export function saveBoolFlag(key: string, value: boolean): void {
   _persistSet(key, value ? "1" : "0");
+}
+
+// ── Coin balance ────────────────────────────────────────────
+
+export function loadCoinsBalance(): number {
+  try {
+    const raw = window.localStorage.getItem(COINS_BALANCE_KEY);
+    if (raw == null) return 0;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function saveCoinsBalance(value: number): void {
+  _persistSet(COINS_BALANCE_KEY, String(value));
+}
+
+// ── Owned cosmetics (set of ids) ────────────────────────────
+
+export function loadOwnedCosmetics(): { [id: string]: true } {
+  const set: { [id: string]: true } = Object.create(null);
+  try {
+    const raw = window.localStorage.getItem(OWNED_COSMETICS_KEY);
+    if (!raw) return set;
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)) {
+      for (const id of arr) if (typeof id === "string") set[id] = true;
+    }
+  } catch {
+    /* ignore corrupt value */
+  }
+  return set;
+}
+
+export function saveOwnedCosmetics(set: { [id: string]: true }): void {
+  _persistSet(OWNED_COSMETICS_KEY, JSON.stringify(Object.keys(set)));
+}
+
+// ── Equipped cosmetics (per-slot id or null) ────────────────
+
+export type EquippedMap = Record<CosmeticSlot, string | null>;
+
+export function loadEquippedCosmetics(): EquippedMap {
+  const fallback: EquippedMap = { head: null, eyes: null, neck: null };
+  try {
+    const raw = window.localStorage.getItem(EQUIPPED_COSMETICS_KEY);
+    if (!raw) return fallback;
+    const obj = JSON.parse(raw);
+    if (!obj || typeof obj !== "object") return fallback;
+    return {
+      head: typeof obj.head === "string" ? obj.head : null,
+      eyes: typeof obj.eyes === "string" ? obj.eyes : null,
+      neck: typeof obj.neck === "string" ? obj.neck : null,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+export function saveEquippedCosmetics(map: EquippedMap): void {
+  _persistSet(EQUIPPED_COSMETICS_KEY, JSON.stringify(map));
 }

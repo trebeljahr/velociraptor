@@ -15,9 +15,11 @@
 import { state } from "../state";
 import { IMAGES } from "../images";
 import { audio } from "../audio";
+import { saveCoinsBalance } from "../persistence";
 import {
   VELOCITY_SCALE_DIVISOR,
   COIN_SCORE_VALUE,
+  COIN_BANK_REWARD,
   COIN_SIZE_RATIO,
   COIN_BASE_Y_ABOVE_GROUND_RATIO,
   COIN_BOB_AMPLITUDE_PX,
@@ -151,6 +153,11 @@ export function collectCoins(
     c.collected = true;
     c.collectFrame = state.frame;
     state.score += COIN_SCORE_VALUE;
+    // Bank the coin into the persistent shop balance immediately —
+    // if the player dies mid-field they still keep what they've
+    // already grabbed, which matches the "picked up = yours" feel.
+    state.coinsBalance += COIN_BANK_REWARD;
+    saveCoinsBalance(state.coinsBalance);
     onCollect(c);
   }
 }

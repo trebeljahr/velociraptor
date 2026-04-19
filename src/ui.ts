@@ -1274,15 +1274,16 @@ if (flowerFieldBtn) {
 // shown once the player actually unlocks them — or always in
 // debug mode for testing.
 const cosmeticsGroup = document.getElementById("cosmetics");
-const partyHatLi = document.getElementById("menu-partyhat-li");
-const partyHatBtn = document.getElementById("menu-partyhat-toggle");
-const partyHatLabel = document.getElementById("menu-partyhat-label");
-const thugLi = document.getElementById("menu-thug-li");
-const thugBtn = document.getElementById("menu-thug-toggle");
-const thugLabel = document.getElementById("menu-thug-label");
-const bowTieLi = document.getElementById("menu-bowtie-li");
-const bowTieBtn = document.getElementById("menu-bowtie-toggle");
-const bowTieLabel = document.getElementById("menu-bowtie-label");
+const cosmeticsList = document.getElementById("cosmetics-list");
+const menuShopBtn = document.getElementById("menu-shop");
+const menuShopBalanceValue = document.getElementById(
+  "menu-shop-balance-value",
+);
+const shopOverlay = document.getElementById("shop-overlay");
+const shopCloseBtn = document.getElementById("shop-close");
+const shopItemsEl = document.getElementById("shop-items");
+const shopBalanceValue = document.getElementById("shop-balance-value");
+const shopEmptyHint = document.getElementById("shop-empty-hint");
 const jumpsResetBtn = document.getElementById("menu-jumpsreset-toggle");
 
 // Start-screen raptor stage — we flip classes on it to
@@ -1302,70 +1303,273 @@ function refreshStartRaptorCosmetics() {
   startRaptorStage.classList.toggle("has-bowtie", !!bowtie);
 }
 
+// Slot data used to render the per-slot sections in the cosmetics
+// menu. Order here is the order the sections stack top-to-bottom.
+const COSMETIC_SLOT_UI: Array<{
+  slot: "head" | "eyes" | "neck";
+  label: string;
+}> = [
+  { slot: "head", label: "Head" },
+  { slot: "eyes", label: "Eyes" },
+  { slot: "neck", label: "Neck" },
+];
+
 function refreshEasterEggUI() {
   if (!window.Game) return;
-  const hatUnlocked =
-    window.Game.isPartyHatUnlocked && window.Game.isPartyHatUnlocked();
-  const glassesUnlocked =
-    window.Game.isThugGlassesUnlocked &&
-    window.Game.isThugGlassesUnlocked();
-  if (partyHatLi) partyHatLi.hidden = !hatUnlocked;
-  if (thugLi) thugLi.hidden = !glassesUnlocked;
-  // The outer collapsible cosmetics group stays hidden until the
-  // player has earned at least one cosmetic — otherwise we'd show
-  // an empty "Cosmetics" header with no rows inside.
-  if (cosmeticsGroup) {
-    const anyUnlocked =
-      !!hatUnlocked ||
-      !!glassesUnlocked ||
-      !!(window.Game.isBowTieUnlocked && window.Game.isBowTieUnlocked());
-    cosmeticsGroup.hidden = !anyUnlocked;
-  }
-  if (partyHatLabel) {
-    partyHatLabel.textContent = window.Game.isPartyHatActive()
-      ? "Party hat: on"
-      : "Party hat: off";
-  }
-  if (thugLabel) {
-    thugLabel.textContent = window.Game.isThugGlassesActive()
-      ? "Thug glasses: on"
-      : "Thug glasses: off";
-  }
-  const bowTieUnlocked =
-    window.Game.isBowTieUnlocked && window.Game.isBowTieUnlocked();
-  if (bowTieLi) bowTieLi.hidden = !bowTieUnlocked;
-  if (bowTieLabel) {
-    bowTieLabel.textContent =
-      window.Game.isBowTieActive && window.Game.isBowTieActive()
-        ? "Bow tie: on"
-        : "Bow tie: off";
-  }
-  // Keep the start-screen raptor in sync so toggles update
-  // live even if the panel is under a transparent menu.
+  renderCosmeticsMenu();
+  refreshShopBalance();
   refreshStartRaptorCosmetics();
 }
 
-if (partyHatBtn) {
-  partyHatBtn.addEventListener("click", (e) => {
+/**
+ * Rebuild the cosmetics section of the menu from scratch. Called
+ * on every menu-open and after equip clicks so the "Equipped"
+ * badge follows the latest state without caching issues.
+ *
+ * Only slots that contain at least one OWNED cosmetic get a
+ * subsection — so a fresh player with nothing earned sees the
+ * group collapsed to nothing and the outer <details> stays hidden
+ * entirely. Once any cosmetic is owned, its slot section appears
+ * with a "None" row plus one row per owned item; clicking either
+ * swaps the equipped state.
+ */
+function renderCosmeticsMenu() {
+  if (!cosmeticsList || !cosmeticsGroup || !window.Game) return;
+  const all = window.Game.getAllCosmetics?.() ?? [];
+  const owned = all.filter((c: { id: string }) =>
+    window.Game.ownsCosmetic?.(c.id),
+  );
+  if (owned.length === 0) {
+    cosmeticsGroup.hidden = true;
+    cosmeticsList.innerHTML = "";
+    return;
+  }
+  cosmeticsGroup.hidden = false;
+  const frag = document.createDocumentFragment();
+  for (const { slot, label } of COSMETIC_SLOT_UI) {
+    const ownedInSlot = owned.filter(
+      (c: { slot: string }) => c.slot === slot,
+    );
+    if (ownedInSlot.length === 0) continue;
+    const section = document.createElement("div");
+    section.className = "cosmetic-slot";
+    section.dataset.slot = slot;
+    const heading = document.createElement("h4");
+    heading.className = "cosmetic-slot-heading";
+    heading.textContent = label;
+    section.appendChild(heading);
+    const equippedId = window.Game.getEquippedCosmetic?.(slot) ?? null;
+    // "None" row — click to unequip whatever is in this slot.
+    section.appendChild(
+      _buildCosmeticRow({
+        label: "None",
+        equipped: equippedId == null,
+        onClick: () => {
+          window.Game.unequipSlot?.(slot);
+          renderCosmeticsMenu();
+          refreshStartRaptorCosmetics();
+        },
+      }),
+    );
+    for (const def of ownedInSlot) {
+      section.appendChild(
+        _buildCosmeticRow({
+          label: def.name,
+          equipped: equippedId === def.id,
+          onClick: () => {
+            if (equippedId === def.id) {
+              window.Game.unequipSlot?.(slot);
+            } else {
+              window.Game.equipCosmetic?.(def.id);
+            }
+            renderCosmeticsMenu();
+            refreshStartRaptorCosmetics();
+          },
+        }),
+      );
+    }
+    frag.appendChild(section);
+  }
+  cosmeticsList.innerHTML = "";
+  cosmeticsList.appendChild(frag);
+}
+
+function _buildCosmeticRow(opts: {
+  label: string;
+  equipped: boolean;
+  onClick: () => void;
+}): HTMLElement {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "menu-item cosmetic-equip-btn";
+  btn.setAttribute("aria-pressed", opts.equipped ? "true" : "false");
+  const inner = document.createElement("span");
+  inner.className = "inner";
+  const nameSpan = document.createElement("span");
+  nameSpan.textContent = opts.label;
+  inner.appendChild(nameSpan);
+  if (opts.equipped) {
+    const badge = document.createElement("span");
+    badge.className = "cosmetic-equip-badge";
+    badge.textContent = "Equipped";
+    inner.appendChild(badge);
+  }
+  btn.appendChild(inner);
+  btn.addEventListener("click", (e) => {
     e.stopPropagation();
-    window.Game.togglePartyHat();
-    refreshEasterEggUI();
+    opts.onClick();
+  });
+  return btn;
+}
+
+// ───────── Shop ─────────
+/** Update the "💰 N" chip on the Shop menu button AND the balance
+ *  line inside the shop overlay. Called after any purchase and on
+ *  every menu-open. */
+function refreshShopBalance() {
+  if (!window.Game) return;
+  const n = window.Game.getCoinsBalance?.() ?? 0;
+  if (menuShopBalanceValue) menuShopBalanceValue.textContent = String(n);
+  if (shopBalanceValue) shopBalanceValue.textContent = String(n);
+}
+
+/** Build the shop grid from the current inventory. Each card shows
+ *  the name, price, and a state-aware action button:
+ *    • "Buy"      — not owned, can afford (click purchases + refreshes)
+ *    • "Costs N"  — not owned, can't afford (disabled)
+ *    • "Equip"    — owned but another item in its slot is equipped
+ *    • "Equipped" — currently worn (disabled)
+ *
+ *  Thumbnail is a slot-coloured rectangle with the item's initials
+ *  — same pattern as the raptor's placeholder rendering, so the
+ *  shop preview and the in-game preview match until final art
+ *  lands. */
+function renderShop() {
+  if (!shopItemsEl || !window.Game) return;
+  const inventory = window.Game.getShopInventory?.() ?? [];
+  shopItemsEl.innerHTML = "";
+  if (inventory.length === 0) {
+    if (shopEmptyHint) shopEmptyHint.hidden = false;
+    return;
+  }
+  if (shopEmptyHint) shopEmptyHint.hidden = true;
+  const balance = window.Game.getCoinsBalance?.() ?? 0;
+  const slotColor: Record<string, string> = {
+    head: "#d97706",
+    eyes: "#1f2937",
+    neck: "#b91c1c",
+  };
+  const slotLabel: Record<string, string> = {
+    head: "Head",
+    eyes: "Eyes",
+    neck: "Neck",
+  };
+  for (const def of inventory) {
+    const card = document.createElement("div");
+    card.className = "shop-item";
+    card.dataset.id = def.id;
+
+    const thumb = document.createElement("div");
+    thumb.className = "shop-item-thumb";
+    thumb.style.background = slotColor[def.slot] ?? "#555";
+    thumb.textContent = def.name.slice(0, 2).toUpperCase();
+    card.appendChild(thumb);
+
+    const info = document.createElement("div");
+    info.className = "shop-item-info";
+    const name = document.createElement("div");
+    name.className = "shop-item-name";
+    name.textContent = def.name;
+    info.appendChild(name);
+    const slotTag = document.createElement("div");
+    slotTag.className = "shop-item-slot";
+    slotTag.textContent = slotLabel[def.slot] ?? def.slot;
+    info.appendChild(slotTag);
+    if (def.description) {
+      const desc = document.createElement("div");
+      desc.className = "shop-item-description";
+      desc.textContent = def.description;
+      info.appendChild(desc);
+    }
+    card.appendChild(info);
+
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = "shop-item-action";
+    const owned = window.Game.ownsCosmetic?.(def.id) === true;
+    const equipped = window.Game.isCosmeticEquipped?.(def.id) === true;
+    if (equipped) {
+      action.textContent = "Equipped";
+      action.disabled = true;
+      action.classList.add("shop-item-action-equipped");
+    } else if (owned) {
+      action.textContent = "Equip";
+      action.addEventListener("click", (e) => {
+        e.stopPropagation();
+        window.Game.equipCosmetic?.(def.id);
+        renderShop();
+        refreshStartRaptorCosmetics();
+      });
+    } else if (balance >= def.price) {
+      action.textContent = `Buy · 💰 ${def.price}`;
+      action.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const res = window.Game.buyCosmetic?.(def.id);
+        if (res === "ok") {
+          refreshShopBalance();
+          renderShop();
+          refreshStartRaptorCosmetics();
+        }
+      });
+    } else {
+      action.textContent = `💰 ${def.price}`;
+      action.disabled = true;
+      action.classList.add("shop-item-action-poor");
+    }
+    card.appendChild(action);
+
+    shopItemsEl.appendChild(card);
+  }
+}
+
+function openShop() {
+  if (!shopOverlay) return;
+  refreshShopBalance();
+  renderShop();
+  shopOverlay.classList.add("open");
+}
+function closeShop() {
+  if (!shopOverlay) return;
+  shopOverlay.classList.remove("open");
+}
+
+if (menuShopBtn) {
+  menuShopBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    closeMenu();
+    openShop();
   });
 }
-if (thugBtn) {
-  thugBtn.addEventListener("click", (e) => {
+if (shopCloseBtn) {
+  shopCloseBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    window.Game.toggleThugGlasses();
-    refreshEasterEggUI();
+    closeShop();
   });
 }
-if (bowTieBtn) {
-  bowTieBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.Game.toggleBowTie) window.Game.toggleBowTie();
-    refreshEasterEggUI();
+if (shopOverlay) {
+  shopOverlay.addEventListener("click", (e) => {
+    // Click on the backdrop (the overlay itself, not the sheet)
+    // closes the shop, matching other full-screen overlays.
+    if (e.target === shopOverlay) closeShop();
   });
 }
+// ESC closes the shop if it's open.
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && shopOverlay?.classList.contains("open")) {
+    closeShop();
+    e.stopPropagation();
+  }
+});
 // ───────── Reset-progress confirmation ─────────
 const resetOverlay = document.getElementById("reset-confirm-overlay");
 const resetYes = document.getElementById("reset-confirm-yes");

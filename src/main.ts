@@ -160,7 +160,11 @@ import {
   CINEMATIC_PHASES,
 } from "./constants";
 import {
+  loadCoinsBalance,
+  loadOwnedCosmetics,
+  loadEquippedCosmetics,
   loadHighScore,
+  // (below: existing imports from this module continue)
   saveHighScore,
   loadCareerRuns,
   saveCareerRuns,
@@ -197,6 +201,16 @@ import { CACTUS_VARIANTS } from "./cactusVariants";
 import { IMAGE_SRCS, IMAGES } from "./images";
 import { audio } from "./audio";
 import { state } from "./state";
+import {
+  COSMETICS,
+  COSMETICS_BY_ID,
+  shopInventory,
+  migrateLegacyCosmetics,
+  purchaseCosmetic,
+  equipCosmetic,
+  unequipSlot,
+  type CosmeticSlot,
+} from "./cosmetics";
 import { contexts, initCanvas } from "./canvas";
 import { Stars } from "./entities/stars";
 import { Raptor } from "./entities/raptor";
@@ -1951,66 +1965,125 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       return state.moonPhase;
     },
 
-    // ── Accessory unlock state (persisted) ─────────────────────
+    // ── Accessory unlock state (legacy shims) ──────────────────
+    //
+    // Source of truth for all cosmetic state is the new
+    // ownedCosmetics / equippedCosmetics maps — see the shop API
+    // block below. These three pairs are back-compat shims so any
+    // code still calling isPartyHatActive() etc. keeps working.
 
-    /** True once the player has cleared PARTY_HAT_SCORE_THRESHOLD
-     *  cacti in a single run. In debug mode, always true. */
     isPartyHatUnlocked() {
-      return state.unlockedPartyHat;
+      return !!state.ownedCosmetics["party-hat"];
     },
     isThugGlassesUnlocked() {
-      return state.unlockedThugGlasses;
+      return !!state.ownedCosmetics["thug-glasses"];
+    },
+    isBowTieUnlocked() {
+      return !!state.ownedCosmetics["bow-tie"];
     },
 
-    /** True when the accessory is both unlocked and the player has
-     *  the cosmetic turned on. This is what actually gates the
-     *  sprite on the raptor. */
+    /** Active = owned AND currently equipped in the matching slot. */
     isPartyHatActive() {
-      return this.isPartyHatUnlocked() && state.wearPartyHat;
+      return state.equippedCosmetics.head === "party-hat";
     },
     isThugGlassesActive() {
-      return this.isThugGlassesUnlocked() && state.wearThugGlasses;
-    },
-
-    isBowTieUnlocked() {
-      return state.unlockedBowTie;
+      return state.equippedCosmetics.eyes === "thug-glasses";
     },
     isBowTieActive() {
-      return this.isBowTieUnlocked() && state.wearBowTie;
+      return state.equippedCosmetics.neck === "bow-tie";
     },
 
-    /** Player preference setters. Silently no-op if the accessory
-     *  isn't unlocked yet, so you can't turn something on you
-     *  don't own. Debug mode unlocks everything, so testers can
-     *  still use these. */
     setWearPartyHat(on: boolean) {
       if (!this.isPartyHatUnlocked()) return false;
-      state.wearPartyHat = !!on;
-      saveBoolFlag(WEAR_PARTY_HAT_KEY, state.wearPartyHat);
-      return state.wearPartyHat;
+      if (on) equipCosmetic("party-hat");
+      else if (state.equippedCosmetics.head === "party-hat")
+        unequipSlot("head");
+      return this.isPartyHatActive();
     },
     setWearThugGlasses(on: boolean) {
       if (!this.isThugGlassesUnlocked()) return false;
-      state.wearThugGlasses = !!on;
-      saveBoolFlag(WEAR_THUG_GLASSES_KEY, state.wearThugGlasses);
-      return state.wearThugGlasses;
+      if (on) equipCosmetic("thug-glasses");
+      else if (state.equippedCosmetics.eyes === "thug-glasses")
+        unequipSlot("eyes");
+      return this.isThugGlassesActive();
+    },
+    setWearBowTie(on: boolean) {
+      if (!this.isBowTieUnlocked()) return false;
+      if (on) equipCosmetic("bow-tie");
+      else if (state.equippedCosmetics.neck === "bow-tie")
+        unequipSlot("neck");
+      return this.isBowTieActive();
     },
 
     togglePartyHat() {
-      return this.setWearPartyHat(!state.wearPartyHat);
+      return this.setWearPartyHat(!this.isPartyHatActive());
     },
     toggleThugGlasses() {
-      return this.setWearThugGlasses(!state.wearThugGlasses);
-    },
-
-    setWearBowTie(on: boolean) {
-      if (!this.isBowTieUnlocked()) return false;
-      state.wearBowTie = !!on;
-      saveBoolFlag(WEAR_BOW_TIE_KEY, state.wearBowTie);
-      return state.wearBowTie;
+      return this.setWearThugGlasses(!this.isThugGlassesActive());
     },
     toggleBowTie() {
-      return this.setWearBowTie(!state.wearBowTie);
+      return this.setWearBowTie(!this.isBowTieActive());
+    },
+
+    // ── Shop + equip API ───────────────────────────────────────
+    //
+    // Generic path for any cosmetic (classics + shop items). The
+    // UI (src/ui.ts) calls these to drive the shop grid and the
+    // grouped equip menu.
+
+    /** Current persistent coin balance (buys come out of this). */
+    getCoinsBalance() {
+      return state.coinsBalance;
+    },
+
+    /** Every cosmetic ever declared, in registry order. UI pairs
+     *  this with ownsCosmetic / isCosmeticEquipped to render
+     *  buy / owned / equipped state per row. */
+    getAllCosmetics() {
+      return COSMETICS;
+    },
+
+    /** Shop inventory — the subset of COSMETICS that can be bought
+     *  (price > 0, not a score-unlock classic). Fresh array per
+     *  call so callers can sort freely. */
+    getShopInventory() {
+      return shopInventory();
+    },
+
+    ownsCosmetic(id: string) {
+      return !!state.ownedCosmetics[id];
+    },
+
+    /** Which cosmetic id is currently equipped in the given slot,
+     *  or null if the slot is empty. */
+    getEquippedCosmetic(slot: CosmeticSlot) {
+      return state.equippedCosmetics[slot];
+    },
+
+    isCosmeticEquipped(id: string) {
+      const def = COSMETICS_BY_ID[id];
+      if (!def) return false;
+      return state.equippedCosmetics[def.slot] === id;
+    },
+
+    /** Attempt to purchase. Returns:
+     *    "ok"       purchased, balance deducted
+     *    "owned"    already in inventory
+     *    "poor"     can't afford
+     *    "unknown"  bad id */
+    buyCosmetic(id: string) {
+      return purchaseCosmetic(id);
+    },
+
+    /** Equip a cosmetic the player owns (displacing whatever was
+     *  in that slot). No-op if not owned. */
+    equipCosmetic(id: string) {
+      equipCosmetic(id);
+    },
+
+    /** Leave the given slot empty. */
+    unequipSlot(slot: CosmeticSlot) {
+      unequipSlot(slot);
     },
 
     getTotalJumps() {
@@ -2641,6 +2714,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     state.wearThugGlasses = loadBoolFlag(WEAR_THUG_GLASSES_KEY, true);
     state.unlockedBowTie = loadBoolFlag(UNLOCKED_BOW_TIE_KEY, false);
     state.wearBowTie = loadBoolFlag(WEAR_BOW_TIE_KEY, true);
+    // Coin economy: balance, owned, equipped. Migration bridges the
+    // legacy unlock flags above into the new maps the first time a
+    // returning player loads with the shop present — idempotent on
+    // subsequent boots.
+    state.coinsBalance = loadCoinsBalance();
+    state.ownedCosmetics = loadOwnedCosmetics();
+    state.equippedCosmetics = loadEquippedCosmetics();
+    migrateLegacyCosmetics();
 
     onResize();
     window.addEventListener("resize", onResize);

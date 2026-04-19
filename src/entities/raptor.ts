@@ -52,6 +52,12 @@ import { IMAGES } from "../images";
 import { saveTotalJumps } from "../persistence";
 import { hapticJump } from "../haptic";
 import { clamp, lerp, shrinkPolygon, Polygon } from "../helpers";
+import {
+  COSMETICS,
+  COSMETICS_BY_ID,
+  PLACEHOLDER_COLORS,
+  type CosmeticSlot,
+} from "../cosmetics";
 
 export type RaptorCallback = () => void;
 export type RaptorStepCallback = (foot: "left" | "right") => void;
@@ -225,17 +231,104 @@ export class Raptor {
       this.w,
       this.h,
     );
-    // Accessories are drawn when they're unlocked AND the player has
-    // the cosmetic toggled on.
-    if (state.unlockedThugGlasses && state.wearThugGlasses) {
-      this.drawThugGlasses(ctx);
+    // Cosmetics: iterate the slots and draw whatever id is equipped
+    // there. The three score-unlock classics get their bespoke draw
+    // functions (hand-tuned anchors + rotations); any other equipped
+    // cosmetic falls back to a slot-default placeholder rectangle
+    // so we can wire the full shop/equip flow end-to-end before the
+    // final art lands.
+    //
+    // Order: eyes first so the snout draws clean, then head, then
+    // neck. Matches the z-ordering the old hand-coded block used.
+    this._drawEquippedSlot(ctx, "eyes");
+    this._drawEquippedSlot(ctx, "head");
+    this._drawEquippedSlot(ctx, "neck");
+  }
+
+  private _drawEquippedSlot(
+    ctx: CanvasRenderingContext2D,
+    slot: CosmeticSlot,
+  ): void {
+    const id = state.equippedCosmetics[slot];
+    if (!id) return;
+    const def = COSMETICS_BY_ID[id];
+    if (!def) return;
+    // Bespoke draw path for the three hand-tuned classics — keeps
+    // their existing anchors and rotations exactly as before.
+    if (id === "party-hat") return this.drawPartyHat(ctx);
+    if (id === "thug-glasses") return this.drawThugGlasses(ctx);
+    if (id === "bow-tie") return this.drawBowTie(ctx);
+    // Everything else: slot placeholder. When the sprite lands,
+    // the def will include spriteKey and we can either keep the
+    // default-placement path here or move the cosmetic into the
+    // bespoke branch above.
+    this._drawCosmeticPlaceholder(ctx, slot, def);
+  }
+
+  /**
+   * Placeholder render for a cosmetic that doesn't yet have a
+   * hand-tuned draw routine. Uses slot-default anchors that match
+   * the classics (crown for head, snout-crown midpoint for eyes,
+   * neck for bow tie) so the placeholder sits roughly where the
+   * final art will. If a spriteKey is defined and the image has
+   * loaded, draws that instead of the coloured rectangle.
+   */
+  private _drawCosmeticPlaceholder(
+    ctx: CanvasRenderingContext2D,
+    slot: CosmeticSlot,
+    def: (typeof COSMETICS)[number],
+  ): void {
+    const sprite = def.spriteKey ? IMAGES[def.spriteKey] : undefined;
+    let cx = 0;
+    let cy = 0;
+    let w = 0;
+    let h = 0;
+    let rot = 0;
+    let bottomAnchored = false;
+    if (slot === "head") {
+      const crown = this.currentCrownPoint();
+      cx = crown.x - this.w * 0.01;
+      cy = crown.y + this.h * 0.04;
+      h = this.h * 0.25;
+      w = h * (sprite ? sprite.width / sprite.height : 0.9);
+      rot = -0.35;
+      bottomAnchored = true;
+    } else if (slot === "eyes") {
+      const crown = this.currentCrownPoint();
+      const snout = this.currentSnoutPoint();
+      cx = crown.x + (snout.x - crown.x) * 0.5 - this.w * 0.012;
+      cy = crown.y + (snout.y - crown.y) * 0.5 + this.h * 0.013;
+      w = this.w * 0.07;
+      h = w * (sprite ? sprite.height / sprite.width : 0.45);
+      rot = Math.atan2(snout.y - crown.y, snout.x - crown.x) - 0.25;
+    } else {
+      const crown = this.currentCrownPoint();
+      cx = crown.x - this.w * 0.02;
+      cy = crown.y + this.h * 0.2;
+      w = this.w * 0.06;
+      h = w * (sprite ? sprite.height / sprite.width : 0.7);
+      rot = -0.15;
     }
-    if (state.unlockedPartyHat && state.wearPartyHat) {
-      this.drawPartyHat(ctx);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    const drawX = -w / 2;
+    const drawY = bottomAnchored ? -h : -h / 2;
+    if (sprite) {
+      ctx.drawImage(sprite, drawX, drawY, w, h);
+    } else {
+      // Placeholder: flat-coloured rectangle with a two-letter
+      // tag so separate items in the same slot stay distinguishable
+      // at a glance while we're iterating on art.
+      ctx.fillStyle = PLACEHOLDER_COLORS[slot];
+      ctx.fillRect(drawX, drawY, w, h);
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.font = `${Math.max(6, h * 0.35)}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(def.name.slice(0, 2).toUpperCase(), 0, drawY + h / 2);
     }
-    if (state.unlockedBowTie && state.wearBowTie) {
-      this.drawBowTie(ctx);
-    }
+    ctx.restore();
   }
 
   /**
