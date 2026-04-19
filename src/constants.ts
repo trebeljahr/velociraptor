@@ -121,11 +121,13 @@ export const FLOWER_PATCH_WIDTH_PX = 220;
 export const COIN_SCORE_VALUE = 1;
 /** How many coins are scattered across each flower field. Fixed
  *  count (instead of spacing-based) so the "ding-ding-diiing"
- *  pitch chain always has a predictable number of steps. */
-export const COIN_COUNT_PER_FIELD = 10;
+ *  pitch chain always has a predictable number of steps. 20
+ *  keeps them visually dense across the field without overlapping
+ *  once COIN_SIZE_RATIO drops below ~0.3. */
+export const COIN_COUNT_PER_FIELD = 20;
 /** Coin sprite height as a fraction of raptor height — keeps the
  *  coin readable against the raptor at any viewport scale. */
-export const COIN_SIZE_RATIO = 0.38;
+export const COIN_SIZE_RATIO = 0.28;
 /** Center of the coin hover above ground as a fraction of raptor
  *  height. 0.55 puts the coin roughly at running-torso height so
  *  the raptor intersects it during normal run, without jumping. */
@@ -146,10 +148,11 @@ export const COIN_COLLECT_FADE_FRAMES = 10;
 export const COIN_SPARKLE_FREQUENCY_HZ = 0.7;
 /** Pitch step per coin in a streak. The first coin plays at 1.0×
  *  playbackRate; each subsequent pickup within COIN_STREAK_RESET_MS
- *  adds this much, up to COIN_STREAK_MAX_PITCH. With 10 coins per
- *  field and step 0.07 the chain lands cleanly at 1.63 on the
- *  tenth pickup — a confident rising "ding-diiing" cadence. */
-export const COIN_STREAK_PITCH_STEP = 0.07;
+ *  adds this much, up to COIN_STREAK_MAX_PITCH. With 20 coins per
+ *  field and step 0.035 the chain lands exactly at the 1.7× cap
+ *  on the twentieth pickup — a long, confident rising cadence that
+ *  uses the full pitch range. */
+export const COIN_STREAK_PITCH_STEP = 0.035;
 /** Ceiling for the streak pitch so the top of a long chain doesn't
  *  disappear into chipmunk territory. */
 export const COIN_STREAK_MAX_PITCH = 1.7;
