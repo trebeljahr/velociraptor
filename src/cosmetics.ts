@@ -56,6 +56,24 @@ export interface CosmeticDef {
    *  milestones (party hat, thug glasses, bow tie). Filtered out
    *  of the shop grid since you can't "buy" them. */
   scoreUnlock?: boolean;
+  /** Optional per-item draw tweaks applied on top of the slot
+   *  defaults in raptor.ts. Each field is optional — anything
+   *  left undefined falls back to the slot default. Use this to
+   *  hand-tune specific cosmetics that look off at the defaults
+   *  (a wide cowboy hat doesn't want the party hat's rotation,
+   *  wings pre-flipped for a right-running raptor want a nudge
+   *  up-and-back from the default back anchor, etc.). */
+  draw?: {
+    /** Scale override. For head/back this is a fraction of raptor
+     *  height; for eyes/neck a fraction of raptor width. */
+    scale?: number;
+    /** Rotation in radians. Positive = clockwise. */
+    rotation?: number;
+    /** Extra offset added to the slot's default anchor, as a
+     *  fraction of raptor width / height. Positive x nudges
+     *  toward the snout, positive y nudges down. */
+    offset?: { x?: number; y?: number };
+  };
 }
 
 export const COSMETICS: ReadonlyArray<CosmeticDef> = [
@@ -96,6 +114,9 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 50,
     spriteKey: "cowboyHat",
     description: "Yeehaw. Fits the desert.",
+    // Wide brim, sits flat on the head — doesn't want the
+    // party hat's ~20° backwards tilt.
+    draw: { scale: 0.22, rotation: -0.05 },
   },
   {
     id: "top-hat",
@@ -104,6 +125,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 150,
     spriteKey: "topHat",
     description: "Fancy. Pairs with the bow tie.",
+    draw: { scale: 0.3, rotation: -0.1 },
   },
   {
     id: "wizard-hat",
@@ -112,6 +134,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 200,
     spriteKey: "wizardHat",
     description: "Pointy and arcane.",
+    draw: { scale: 0.32, rotation: -0.15 },
   },
   {
     id: "pirate-tricorn",
@@ -120,6 +143,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 175,
     spriteKey: "pirateTricorn",
     description: "Skull and crossbones, plumed. Pairs with the eye patch.",
+    draw: { scale: 0.26, rotation: 0.02 },
   },
   {
     id: "crown",
@@ -128,6 +152,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 500,
     spriteKey: "tiara",
     description: "Silver with a sapphire centrepiece — premium royalty.",
+    draw: { scale: 0.22, rotation: -0.05 },
   },
   {
     id: "sombrero",
@@ -152,6 +177,10 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 100,
     spriteKey: "monocle",
     description: "Distinguished and a little silly.",
+    // Round lens + hanging chain — wants to sit flat at eye level,
+    // not follow the snout angle the slot default uses, and smaller
+    // than the thug glasses' 10% width.
+    draw: { scale: 0.07, rotation: 0 },
   },
   {
     id: "eye-patch",
@@ -177,6 +206,11 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 200,
     spriteKey: "goldChain",
     description: "Bejewelled bling to match the coin hoard.",
+    // Cropped to just the pendants + flipped so the back of the
+    // chain doesn't show in front of the neck. Slot default is
+    // 8% of raptor width; the pendant group is wider relative
+    // to the bow tie so we size it down further.
+    draw: { scale: 0.07, rotation: -0.1 },
   },
   {
     id: "scarf",
@@ -190,6 +224,12 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
   // Wings render behind the raptor body — the back-slot draw
   // pass in raptor.ts runs before the body blit so the near wing
   // peeks out around the body rather than overlaying it.
+  // Wings: all pre-flipped so shoulder sits in sprite's right
+  // half. Default back anchor lives at crown-offset (-0.08w, 0.2h);
+  // these per-wing offsets nudge each set up-and-back until the
+  // shoulder lines up with the raptor's actual shoulder. Scales
+  // trimmed down from the earlier sweep so the wings read as
+  // feathered equipment, not a cape swallowing the body.
   {
     id: "angel-wings",
     name: "Angel Wings",
@@ -197,6 +237,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 600,
     spriteKey: "angelWings",
     description: "Feathered, luminous. Halo not included.",
+    draw: { scale: 0.65, rotation: -0.2, offset: { x: -0.1, y: -0.2 } },
   },
   {
     id: "demon-wings",
@@ -205,6 +246,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 600,
     spriteKey: "demonWings",
     description: "Boned and membraned. Runic markings optional.",
+    draw: { scale: 0.7, rotation: -0.2, offset: { x: -0.1, y: -0.2 } },
   },
   {
     id: "butterfly-wings-orange",
@@ -213,6 +255,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsOrange",
     description: "Orange monarch — moons and flowers pattern.",
+    draw: { scale: 0.55, rotation: -0.15, offset: { x: -0.08, y: -0.15 } },
   },
   {
     id: "butterfly-wings-blue",
@@ -221,6 +264,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsBlue",
     description: "Deep-blue morpho — speckled and eyespotted.",
+    draw: { scale: 0.55, rotation: -0.15, offset: { x: -0.08, y: -0.15 } },
   },
   {
     id: "butterfly-wings-purple",
@@ -229,6 +273,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsPurple",
     description: "Magenta with celestial banding.",
+    draw: { scale: 0.55, rotation: -0.15, offset: { x: -0.08, y: -0.15 } },
   },
 ];
 

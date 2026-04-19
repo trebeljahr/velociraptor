@@ -1286,21 +1286,66 @@ const shopBalanceValue = document.getElementById("shop-balance-value");
 const shopEmptyHint = document.getElementById("shop-empty-hint");
 const jumpsResetBtn = document.getElementById("menu-jumpsreset-toggle");
 
-// Start-screen raptor stage — we flip classes on it to
-// match the player's unlocked + toggled cosmetics.
+// Start-screen raptor stage. Each <img class="start-raptor-cosmetic">
+// has a data-slot attribute; refreshStartRaptorCosmetics() reads
+// the Game API for the currently-equipped cosmetic in that slot
+// and sets the img's src + hidden state accordingly. Called after
+// every equip/unequip so the preview matches the live game.
 const startRaptorStage = document.getElementById("start-raptor-stage");
+
 function refreshStartRaptorCosmetics() {
   if (!startRaptorStage || !window.Game) return;
-  const hat =
-    window.Game.isPartyHatActive && window.Game.isPartyHatActive();
-  const glasses =
-    window.Game.isThugGlassesActive &&
-    window.Game.isThugGlassesActive();
-  const bowtie =
-    window.Game.isBowTieActive && window.Game.isBowTieActive();
-  startRaptorStage.classList.toggle("has-hat", !!hat);
-  startRaptorStage.classList.toggle("has-glasses", !!glasses);
-  startRaptorStage.classList.toggle("has-bowtie", !!bowtie);
+  const slots: Array<"head" | "eyes" | "neck" | "back"> = [
+    "head",
+    "eyes",
+    "neck",
+    "back",
+  ];
+  for (const slot of slots) {
+    const img = startRaptorStage.querySelector(
+      `.start-raptor-cosmetic[data-slot="${slot}"]`,
+    ) as HTMLImageElement | null;
+    if (!img) continue;
+    const id = window.Game.getEquippedCosmetic?.(slot);
+    const url = id ? _spriteUrlForId(id) : null;
+    if (url) {
+      if (img.getAttribute("src") !== url) img.src = url;
+      img.hidden = false;
+    } else {
+      // Nothing equipped, or equipped item has no sprite yet.
+      img.hidden = true;
+    }
+  }
+}
+
+/** id → sprite URL. Kept in module scope so both the shop grid
+ *  and the start-raptor-stage can use it. Null for unknown ids or
+ *  cosmetics whose sprite hasn't been registered yet (placeholder
+ *  path kicks in). */
+function _spriteUrlForId(id: string): string | null {
+  const def = window.Game?.getAllCosmetics?.().find(
+    (c: { id: string }) => c.id === id,
+  );
+  if (!def?.spriteKey) return null;
+  const map: Record<string, string> = {
+    partyHat: "assets/party-hat.png",
+    thugGlasses: "assets/thug-glasses.png",
+    bowTie: "assets/bow-tie.png",
+    cowboyHat: "assets/cosmetics/cowboy-hat.png",
+    topHat: "assets/cosmetics/top-hat.png",
+    wizardHat: "assets/cosmetics/wizard-hat.png",
+    pirateTricorn: "assets/cosmetics/pirate-tricorn.png",
+    tiara: "assets/cosmetics/tiara.png",
+    monocle: "assets/cosmetics/monocle.png",
+    eyePatch: "assets/cosmetics/eye-patch.png",
+    goldChain: "assets/cosmetics/gold-chain.png",
+    angelWings: "assets/cosmetics/angel-wings.png",
+    demonWings: "assets/cosmetics/demon-wings.png",
+    butterflyWingsOrange: "assets/cosmetics/butterfly-wings-orange.png",
+    butterflyWingsBlue: "assets/cosmetics/butterfly-wings-blue.png",
+    butterflyWingsPurple: "assets/cosmetics/butterfly-wings-purple.png",
+  };
+  return map[def.spriteKey] ?? null;
 }
 
 // Slot data used to render the per-slot sections in the cosmetics
@@ -1376,58 +1421,81 @@ function _buildCosmeticSlotRow(opts: {
   equippedId: string | null;
   options: Array<{ id: string; name: string; spriteKey?: string }>;
 }): HTMLElement {
-  const row = document.createElement("div");
-  row.className = "cosmetic-slot-row";
-  row.dataset.slot = opts.slot;
+  // One collapsible <details> per slot — matches the Sound
+  // Settings / Debug visual style via the shared .menu-group
+  // classes. Summary: [thumb] Slot: CurrentItem  [chevron]
+  // Body: menu-item button per option, each with its own thumb,
+  // the currently-equipped one has aria-pressed="true" so the
+  // green-tinted state reads at a glance.
+  const details = document.createElement("details");
+  details.className = "menu-group cosmetic-slot";
+  details.dataset.slot = opts.slot;
 
-  // Preview thumbnail for the currently-equipped item — updates
-  // when the select changes. If nothing is equipped (or the item
-  // has no sprite yet), the thumb is a slot-tinted placeholder so
-  // the row stays visually consistent across states.
+  const summary = document.createElement("summary");
+  summary.className = "menu-group-summary cosmetic-slot-summary";
+
   const thumb = document.createElement("div");
   thumb.className = "cosmetic-slot-thumb";
   _setThumbForId(thumb, opts.equippedId, opts.slot);
-  row.appendChild(thumb);
+  summary.appendChild(thumb);
 
-  const labelEl = document.createElement("label");
-  labelEl.className = "cosmetic-slot-label";
-  labelEl.textContent = opts.label;
-  const selectId = `cosmetic-select-${opts.slot}`;
-  labelEl.htmlFor = selectId;
-  row.appendChild(labelEl);
+  const summaryText = document.createElement("span");
+  summaryText.className = "cosmetic-slot-summary-text";
+  const equipped = opts.options.find((o) => o.id === opts.equippedId);
+  summaryText.innerHTML =
+    `<span class="cosmetic-slot-summary-slot">${opts.label}</span>` +
+    `<span class="cosmetic-slot-summary-sep"> · </span>` +
+    `<span class="cosmetic-slot-summary-current">${equipped?.name ?? "None"}</span>`;
+  summary.appendChild(summaryText);
+  details.appendChild(summary);
 
-  const select = document.createElement("select");
-  select.className = "cosmetic-slot-select";
-  select.id = selectId;
-  // Leading "None" option unequips the slot.
-  const none = document.createElement("option");
-  none.value = "";
-  none.textContent = "None";
-  if (opts.equippedId == null) none.selected = true;
-  select.appendChild(none);
-  for (const def of opts.options) {
-    const option = document.createElement("option");
-    option.value = def.id;
-    option.textContent = def.name;
-    if (def.id === opts.equippedId) option.selected = true;
-    select.appendChild(option);
-  }
-  select.addEventListener("change", (e) => {
-    e.stopPropagation();
-    const id = select.value;
-    if (id === "") {
-      window.Game.unequipSlot?.(opts.slot);
-    } else {
-      window.Game.equipCosmetic?.(id);
+  const body = document.createElement("ul");
+  body.className = "menu-group-body cosmetic-slot-body";
+
+  const addOption = (id: string | "", name: string) => {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "menu-item cosmetic-equip-btn";
+    const isEquipped =
+      (id === "" && opts.equippedId == null) || id === opts.equippedId;
+    btn.setAttribute("aria-pressed", isEquipped ? "true" : "false");
+    const inner = document.createElement("span");
+    inner.className = "inner";
+    const optThumb = document.createElement("div");
+    optThumb.className = "cosmetic-option-thumb";
+    _setThumbForId(optThumb, id === "" ? null : id, opts.slot);
+    inner.appendChild(optThumb);
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "cosmetic-option-name";
+    nameSpan.textContent = name;
+    inner.appendChild(nameSpan);
+    if (isEquipped) {
+      const badge = document.createElement("span");
+      badge.className = "cosmetic-equip-badge";
+      badge.textContent = "Equipped";
+      inner.appendChild(badge);
     }
-    // Update the preview thumb + the live raptor immediately.
-    _setThumbForId(thumb, id === "" ? null : id, opts.slot);
-    refreshStartRaptorCosmetics();
-  });
-  select.addEventListener("click", (e) => e.stopPropagation());
-  row.appendChild(select);
+    btn.appendChild(inner);
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (id === "") {
+        window.Game.unequipSlot?.(opts.slot);
+      } else {
+        window.Game.equipCosmetic?.(id);
+      }
+      renderCosmeticsMenu();
+      refreshStartRaptorCosmetics();
+    });
+    li.appendChild(btn);
+    body.appendChild(li);
+  };
 
-  return row;
+  addOption("", "None");
+  for (const opt of opts.options) addOption(opt.id, opt.name);
+
+  details.appendChild(body);
+  return details;
 }
 
 /** Paint the given thumbnail div either as a sprite preview
@@ -1444,33 +1512,7 @@ function _setThumbForId(
     neck: "#b91c1c",
     back: "#7c3aed",
   };
-  const spriteUrl = id
-    ? (() => {
-        const def = window.Game?.getAllCosmetics?.().find(
-          (c: { id: string }) => c.id === id,
-        );
-        if (!def?.spriteKey) return null;
-        const map: Record<string, string> = {
-          partyHat: "assets/party-hat.png",
-          thugGlasses: "assets/thug-glasses.png",
-          bowTie: "assets/bow-tie.png",
-          cowboyHat: "assets/cosmetics/cowboy-hat.png",
-          topHat: "assets/cosmetics/top-hat.png",
-          wizardHat: "assets/cosmetics/wizard-hat.png",
-          pirateTricorn: "assets/cosmetics/pirate-tricorn.png",
-          tiara: "assets/cosmetics/tiara.png",
-          monocle: "assets/cosmetics/monocle.png",
-          eyePatch: "assets/cosmetics/eye-patch.png",
-          goldChain: "assets/cosmetics/gold-chain.png",
-          angelWings: "assets/cosmetics/angel-wings.png",
-          demonWings: "assets/cosmetics/demon-wings.png",
-          butterflyWingsOrange: "assets/cosmetics/butterfly-wings-orange.png",
-          butterflyWingsBlue: "assets/cosmetics/butterfly-wings-blue.png",
-          butterflyWingsPurple: "assets/cosmetics/butterfly-wings-purple.png",
-        };
-        return map[def.spriteKey] ?? null;
-      })()
-    : null;
+  const spriteUrl = id ? _spriteUrlForId(id) : null;
   el.innerHTML = "";
   el.classList.toggle("cosmetic-slot-thumb-sprite", spriteUrl != null);
   if (spriteUrl) {
@@ -1528,38 +1570,9 @@ function renderShop() {
     neck: "Neck",
     back: "Back",
   };
-  // Map cosmetic id → sprite URL so the shop thumbnails can show
-  // the real art when the cosmetic has one. Items without a
-  // spriteKey (sombrero / aviators / bandana / scarf at time of
-  // writing) fall through to the colour + initials placeholder
-  // so the grid stays complete while art is in-flight.
-  const spriteUrlForId = (id: string): string | null => {
-    const def = window.Game?.getAllCosmetics?.().find(
-      (c: { id: string }) => c.id === id,
-    );
-    if (!def?.spriteKey) return null;
-    // Image paths live relative to the served root — matches
-    // IMAGE_SRCS in src/images.ts.
-    const map: Record<string, string> = {
-      partyHat: "assets/party-hat.png",
-      thugGlasses: "assets/thug-glasses.png",
-      bowTie: "assets/bow-tie.png",
-      cowboyHat: "assets/cosmetics/cowboy-hat.png",
-      topHat: "assets/cosmetics/top-hat.png",
-      wizardHat: "assets/cosmetics/wizard-hat.png",
-      pirateTricorn: "assets/cosmetics/pirate-tricorn.png",
-      tiara: "assets/cosmetics/tiara.png",
-      monocle: "assets/cosmetics/monocle.png",
-      eyePatch: "assets/cosmetics/eye-patch.png",
-      goldChain: "assets/cosmetics/gold-chain.png",
-      angelWings: "assets/cosmetics/angel-wings.png",
-      demonWings: "assets/cosmetics/demon-wings.png",
-      butterflyWingsOrange: "assets/cosmetics/butterfly-wings-orange.png",
-      butterflyWingsBlue: "assets/cosmetics/butterfly-wings-blue.png",
-      butterflyWingsPurple: "assets/cosmetics/butterfly-wings-purple.png",
-    };
-    return map[def.spriteKey] ?? null;
-  };
+  // Uses the module-level _spriteUrlForId helper so the shop
+  // grid, the equip menu, and the start-raptor-stage all agree
+  // on which sprite URL to load for a given cosmetic id.
   for (const def of inventory) {
     const card = document.createElement("div");
     card.className = "shop-item";
@@ -1567,7 +1580,7 @@ function renderShop() {
 
     const thumb = document.createElement("div");
     thumb.className = "shop-item-thumb";
-    const thumbUrl = spriteUrlForId(def.id);
+    const thumbUrl = _spriteUrlForId(def.id);
     if (thumbUrl) {
       // Real sprite — transparent PNG on a neutral panel so the
       // art reads well regardless of slot colour.

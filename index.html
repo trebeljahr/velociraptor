@@ -452,6 +452,18 @@
         </svg>
       </div>
       <div class="start-raptor-stage" id="start-raptor-stage">
+        <!-- Per-slot cosmetic overlays. ui.ts refreshStartRaptorCosmetics()
+             sets each img.src based on the equipped cosmetic for that
+             slot and toggles the hidden attribute. Back is painted
+             first so wings sit behind the body; the body then covers,
+             and neck / eyes / head layer on top. -->
+        <img
+          class="start-raptor-cosmetic"
+          data-slot="back"
+          alt=""
+          aria-hidden="true"
+          hidden
+        />
         <img
           class="start-raptor"
           src="assets/raptor-idle.png"
@@ -459,22 +471,25 @@
           aria-hidden="true"
         />
         <img
-          class="start-raptor-glasses"
-          src="assets/thug-glasses.png"
+          class="start-raptor-cosmetic"
+          data-slot="neck"
           alt=""
           aria-hidden="true"
+          hidden
         />
         <img
-          class="start-raptor-hat"
-          src="assets/party-hat.png"
+          class="start-raptor-cosmetic"
+          data-slot="eyes"
           alt=""
           aria-hidden="true"
+          hidden
         />
         <img
-          class="start-raptor-bowtie"
-          src="assets/bow-tie.png"
+          class="start-raptor-cosmetic"
+          data-slot="head"
           alt=""
           aria-hidden="true"
+          hidden
         />
       </div>
       <img

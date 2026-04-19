@@ -101,59 +101,64 @@ html,
         width: 100%;
         height: 100%;
       }
-      /* Party hat: bottom-center at (85.85%, 19.57%) — crown +
-         drawPartyHat's (-0.01 w, +0.04 h) nudges baked in. Height
-         is 25% of the raptor's height, and because the stage has
-         the raptor's aspect ratio (2.726:1), 25% of the stage
-         HEIGHT is ~9.17% of the stage WIDTH. We size via height
-         so the width follows via aspect-ratio. */
-      .start-raptor-hat {
+      /* Start-screen cosmetic overlays. One generic <img> per slot,
+       * positioned to match the slot's draw anchor in raptor.ts.
+       * ui.ts sets img.src from the equipped cosmetic and toggles
+       * the `hidden` attribute; these rules handle layout only so
+       * new art drops in without CSS changes. Per-cosmetic size or
+       * position tweaks can be added via explicit rules keyed on
+       * [data-cosmetic-id=<id>] later if needed. */
+      .start-raptor-cosmetic {
         position: absolute;
+        pointer-events: none;
+        /* Default: the sprite's natural aspect wins. */
+      }
+      .start-raptor-cosmetic[hidden] {
         display: none;
+      }
+      /* Head slot: anchor at (85.85%, 19.57%) — crown + drawPartyHat's
+         (-0.01 w, +0.04 h) nudges baked in. Size scales by height
+         so wide-brimmed hats and pointy hats both read correctly at
+         the same rule; wing-follows-aspect. */
+      .start-raptor-cosmetic[data-slot="head"] {
         left: 85.85%;
         top: 19.57%;
         height: 25%;
         width: auto;
-        aspect-ratio: 237 / 400;
-        transform: translate(-50%, -100%) rotate(-0.35rad);
+        transform: translate(-50%, -100%) rotate(-0.2rad);
         transform-origin: 50% 100%;
-        pointer-events: none;
       }
-      .start-raptor-stage.has-hat .start-raptor-hat {
-        display: block;
-      }
-      /* Glasses: centered at (91.53%, 21.82%) — mid-point between
-         crown and snout, minus drawThugGlasses's (-0.012 w, +0.013 h)
-         nudges. Rotated by the world-space angle of the crown→
-         snout vector minus 0.25 rad (~ +2.9° on a native-aspect
-         raptor). */
-      .start-raptor-glasses {
-        position: absolute;
-        display: none;
+      /* Eyes slot: mid-point between crown and snout. */
+      .start-raptor-cosmetic[data-slot="eyes"] {
         left: 91.53%;
         top: 21.82%;
-        width: 7%;
-        aspect-ratio: 400 / 79;
+        width: 9%;
+        height: auto;
         transform: translate(-50%, -50%) rotate(2.9deg);
         transform-origin: 50% 50%;
-        pointer-events: none;
       }
-      .start-raptor-stage.has-glasses .start-raptor-glasses {
-        display: block;
-      }
-      .start-raptor-bowtie {
-        position: absolute;
-        display: none;
+      /* Neck slot: anchor at the base of the throat. */
+      .start-raptor-cosmetic[data-slot="neck"] {
         left: 84.5%;
         top: 33%;
-        width: 6%;
-        aspect-ratio: 400 / 206;
+        width: 7%;
+        height: auto;
         transform: translate(-50%, -50%) rotate(-8deg);
         transform-origin: 50% 50%;
-        pointer-events: none;
       }
-      .start-raptor-stage.has-bowtie .start-raptor-bowtie {
-        display: block;
+      /* Back slot (wings): anchor near the shoulder. Width sized
+         generously so the wing fans out behind the body; the
+         per-cosmetic draw-offsets in raptor.ts for in-game are
+         not mirrored here — this is a static preview, and tuning
+         these rules per-cosmetic can come later if the defaults
+         ever look off on a specific wing variant. */
+      .start-raptor-cosmetic[data-slot="back"] {
+        left: 78%;
+        top: 24%;
+        width: 30%;
+        height: auto;
+        transform: translate(-90%, -20%) rotate(-0.15rad);
+        transform-origin: 90% 20%;
       }
       .start-cactus {
         position: absolute;
@@ -1616,27 +1621,27 @@ html,
         font-size: 1.05rem;
       }
 
-      /* ── Cosmetics equip menu (per-slot dropdowns) ──
-       * renderCosmeticsMenu() in ui.ts builds one `.cosmetic-slot-row`
-       * per slot the player owns at least one item in. Each row is
-       * a "[thumb] [Slot label] [Select]" triplet; the select lists
-       * the owned items and changing it equips/unequips instantly,
-       * with the thumbnail updating to reflect the new selection. */
-      .cosmetic-slot-row {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        padding: 0.45rem 0.6rem;
-        border-radius: 8px;
-        background: #ebeef1;
-      }
-      .cosmetic-slot-row + .cosmetic-slot-row {
+      /* ── Cosmetics equip menu (per-slot <details>) ──────────
+       * Each slot renders as a .menu-group <details> — same
+       * visual language as Sound Settings / Debug. The summary
+       * shows a thumb + "Slot · CurrentItem"; the body is a list
+       * of menu-item buttons, one per owned option plus a "None"
+       * row. Clicking a button equips or unequips and rebuilds
+       * the section so the thumb + "Equipped" badge stay in
+       * lockstep. */
+      .menu-panel .cosmetic-slot + .cosmetic-slot {
         margin-top: 0.35rem;
+      }
+      .cosmetic-slot-summary {
+        /* Base .menu-group-summary already gives the font / padding /
+           chevron styling. We just widen the gap so the thumb +
+           label + current-value line breathe inside the row. */
+        gap: 0.6rem;
       }
       .cosmetic-slot-thumb {
         flex: 0 0 auto;
-        width: 34px;
-        height: 34px;
+        width: 32px;
+        height: 32px;
         border-radius: 6px;
         display: flex;
         align-items: center;
@@ -1652,25 +1657,75 @@ html,
         background: #ffffff;
         box-shadow: inset 0 0 0 1px #d1d5db;
       }
-      .cosmetic-slot-label {
+      .cosmetic-slot-summary-text {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0;
         flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .cosmetic-slot-summary-slot {
         font-weight: 600;
-        font-size: 0.95rem;
-        color: #111827;
       }
-      .cosmetic-slot-select {
+      .cosmetic-slot-summary-sep {
+        color: #9ca3af;
+      }
+      .cosmetic-slot-summary-current {
+        color: #4b5563;
+        font-weight: 500;
+      }
+      /* Option rows inside a slot's body. Each row has a small
+         thumbnail + item name; currently-equipped row gets the
+         green-tinted pressed state + an "Equipped" badge. */
+      .menu-panel .cosmetic-slot-body {
+        padding: 0.4rem 0.45rem 0.55rem;
+      }
+      .menu-panel .cosmetic-slot-body li {
+        list-style: none;
+      }
+      .menu-panel .cosmetic-equip-btn .inner {
+        gap: 0.6rem;
+      }
+      .cosmetic-option-thumb {
         flex: 0 0 auto;
-        min-width: 8rem;
-        padding: 0.3rem 0.6rem;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        background: #ffffff;
-        font-size: 0.9rem;
-        cursor: pointer;
+        width: 28px;
+        height: 28px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
       }
-      .cosmetic-slot-select:focus-visible {
-        outline: 3px solid #50b4cd;
-        outline-offset: 2px;
+      .cosmetic-option-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .cosmetic-option-thumb.cosmetic-slot-thumb-sprite {
+        background: #ffffff;
+        box-shadow: inset 0 0 0 1px #d1d5db;
+      }
+      .cosmetic-option-name {
+        flex: 1 1 auto;
+      }
+      .menu-panel .cosmetic-equip-btn[aria-pressed="true"] {
+        background: #d1e7dd;
+        box-shadow: inset 0 0 0 1px #34d399;
+      }
+      .menu-panel .cosmetic-equip-btn[aria-pressed="true"]:hover {
+        background: #bfe0cc;
+      }
+      .cosmetic-equip-badge {
+        margin-left: auto;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.1rem 0.5rem;
+        border-radius: 999px;
+        background: #10b981;
+        color: #fff;
       }
 
       /* ── Shop overlay ─────────────────────────────────────

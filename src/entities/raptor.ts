@@ -310,29 +310,34 @@ export class Raptor {
     let h = 0;
     let rot = 0;
     let bottomAnchored = false;
+    const drawOverride = def.draw;
     if (slot === "head") {
       const crown = this.currentCrownPoint();
       cx = crown.x - this.w * 0.01;
       cy = crown.y + this.h * 0.04;
-      h = this.h * 0.3;
+      const scale = drawOverride?.scale ?? 0.3;
+      h = this.h * scale;
       w = h * (sprite ? sprite.width / sprite.height : 0.9);
-      rot = -0.35;
+      rot = drawOverride?.rotation ?? -0.35;
       bottomAnchored = true;
     } else if (slot === "eyes") {
       const crown = this.currentCrownPoint();
       const snout = this.currentSnoutPoint();
       cx = crown.x + (snout.x - crown.x) * 0.5 - this.w * 0.012;
       cy = crown.y + (snout.y - crown.y) * 0.5 + this.h * 0.013;
-      w = this.w * 0.1;
+      const scale = drawOverride?.scale ?? 0.1;
+      w = this.w * scale;
       h = w * (sprite ? sprite.height / sprite.width : 0.45);
-      rot = Math.atan2(snout.y - crown.y, snout.x - crown.x) - 0.25;
+      const rideAngle = Math.atan2(snout.y - crown.y, snout.x - crown.x);
+      rot = drawOverride?.rotation ?? rideAngle - 0.25;
     } else if (slot === "neck") {
       const crown = this.currentCrownPoint();
       cx = crown.x - this.w * 0.02;
       cy = crown.y + this.h * 0.2;
-      w = this.w * 0.08;
+      const scale = drawOverride?.scale ?? 0.08;
+      w = this.w * scale;
       h = w * (sprite ? sprite.height / sprite.width : 0.7);
-      rot = -0.15;
+      rot = drawOverride?.rotation ?? -0.15;
     } else {
       // back slot (wings). All wing sprites are pre-flipped
       // horizontally so the shoulder/attachment sits in the
@@ -340,17 +345,21 @@ export class Raptor {
       // on the raptor's back point so the wing-root hugs the
       // shoulder and the wing itself extends left (behind the
       // raptor). Sized by raptor HEIGHT so wings scale cleanly
-      // across viewport sizes, and kept well below raptor.h so
-      // they read as feathers on the back, not a cape the
-      // raptor is drowning in.
+      // across viewport sizes.
       const back = this.currentBackPoint();
       cx = back.x;
       cy = back.y;
-      w = this.h * 0.85;
+      const scale = drawOverride?.scale ?? 0.85;
+      w = this.h * scale;
       h = w * (sprite ? sprite.height / sprite.width : 0.85);
-      // Small CCW tilt so the wing's top curves upward over the
-      // shoulder instead of sticking out flat behind.
-      rot = -0.1;
+      rot = drawOverride?.rotation ?? -0.1;
+    }
+    // Apply optional per-cosmetic offset after slot defaults so
+    // hand-tuned nudges (wings "more up and left", etc.) can
+    // push the anchor without rewriting the slot math.
+    if (drawOverride?.offset) {
+      if (drawOverride.offset.x != null) cx += this.w * drawOverride.offset.x;
+      if (drawOverride.offset.y != null) cy += this.h * drawOverride.offset.y;
     }
     // Most slots centre the sprite on (cx, cy). The back slot
     // pins the sprite's upper-RIGHT near the anchor instead so
