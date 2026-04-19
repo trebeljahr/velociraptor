@@ -74,7 +74,6 @@
     "asarUnpack": [
       "node_modules/steamworks.js/**"
     ],
-    "_comment_files": "steam_appid.txt is intentionally NOT in this files list. Shipping the Spacewar id (480) in a non-Steam distribution would cause steamworks.js to attach to Spacewar on machines where Steam is running. For a Steam build, override this config via a Steam-specific electron-builder profile that adds `extraFiles: [\"steam_appid.txt\"]` (extraFiles places the file next to the executable, not inside resources/).",
     "files": [
       "dist/**/*",
       "electron/main.js",
