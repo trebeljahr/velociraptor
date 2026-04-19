@@ -56,6 +56,7 @@ import { saveBoolFlag } from "../persistence";
 import { CACTUS_VARIANTS, CactusVariant } from "../cactusVariants";
 import { Polygon } from "../helpers";
 import { makeFlowerPatch } from "./flowers";
+import { spawnCoinsInRange } from "./coins";
 import { Raptor } from "./raptor";
 
 export type CactusAchievementCallback = (id: string) => void;
@@ -251,6 +252,15 @@ export class Cactuses {
         state.flowerPatches.push(makeFlowerPatch(x));
         x += patchSpacingPx * (0.7 + Math.random() * 0.6);
       }
+
+      // Scatter coins across the same rest area so they feel like
+      // part of the scenic break, not a separate event. Collision,
+      // pickup, and the SFX trigger are wired in main.ts.
+      spawnCoinsInRange(
+        state.width + exitMargin,
+        state.width + gap,
+        this.raptor,
+      );
 
       // Post-breather buffer: one normal spawn-gap of distance
       // AFTER the flower field scrolls off before the next cactus

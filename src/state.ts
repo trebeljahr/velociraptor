@@ -126,6 +126,9 @@ export interface GameState {
   // ── Flower patches (front-foreground decoration) ───
   flowerPatches: any[];
 
+  // ── Collectible coins (spawned inside flower breathers) ──
+  coins: any[];
+
   // ── Grass-field spans (the rest-area top-band overlay) ────
   /** Screen-space x-ranges where the top ground band should render
    *  green grass instead of desert-yellow. Pushed once per breather
@@ -221,6 +224,7 @@ export const state: GameState = {
   duneCacti: [],
   _nextDuneCactusX: 0,
   flowerPatches: [],
+  coins: [],
   grassFields: [],
   _cactiSinceBreather: 0,
   // Initial value picked on first run. resetGame rerolls this each

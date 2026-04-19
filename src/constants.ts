@@ -110,6 +110,36 @@ export const FLOWER_MAX_HEIGHT_PX = 58;
 // distributed across this span with random offsets.
 export const FLOWER_PATCH_WIDTH_PX = 220;
 
+// ── Collectible coins (breather rest-area pickups) ────────
+// Coins scatter across each flower-field breather at chest-height
+// on the running raptor. Running through one adds COIN_SCORE_VALUE
+// to the score. Spawn is driven from Cactuses._rollNextGap so
+// coins always land inside the same x-range as the flower patches.
+/** Score awarded per collected coin. Cactus survival is +1 per
+ *  obstacle passed, so +5 per coin makes a full breather a
+ *  meaningful burst of points without trivialising obstacle
+ *  runs. */
+export const COIN_SCORE_VALUE = 5;
+/** Coin sprite height as a fraction of raptor height — keeps the
+ *  coin readable against the raptor at any viewport scale. */
+export const COIN_SIZE_RATIO = 0.5;
+/** Center of the coin hover above ground as a fraction of raptor
+ *  height. 0.55 puts the coin roughly at running-torso height so
+ *  the raptor intersects it during normal run, without jumping. */
+export const COIN_BASE_Y_ABOVE_GROUND_RATIO = 0.55;
+/** Bob amplitude in absolute px. Kept small so the coin stays
+ *  within the raptor's AABB and is always collectible on contact. */
+export const COIN_BOB_AMPLITUDE_PX = 6;
+/** Bob frequency in Hz — one full up-down cycle per (1/freq)s. */
+export const COIN_BOB_FREQUENCY_HZ = 1.2;
+/** Distance between neighbouring coins in raptor-widths. */
+export const COIN_SPACING_RATIO = 1.35;
+/** Pop-fade duration for a collected coin, in frames (60 Hz). */
+export const COIN_COLLECT_FADE_FRAMES = 10;
+/** Sparkle glint frequency — slower than bob so the two visual
+ *  rhythms don't beat against each other. */
+export const COIN_SPARKLE_FREQUENCY_HZ = 0.7;
+
 // ── Celestial Bodies (Sun & Moon) ──────────────────────────
 export const SUN_PHASE_CENTER = 1 / 6;
 export const MOON_PHASE_CENTER = 2 / 3;

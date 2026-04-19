@@ -207,6 +207,12 @@ import {
   raptorCrossingPatch,
 } from "./entities/flowers";
 import {
+  updateCoins,
+  drawCoins,
+  collectCoins,
+  clearCoins,
+} from "./entities/coins";
+import {
   setParticlesAchievementHandler,
   bakeShootingStarSprite,
   maybeSpawnShootingStar,
@@ -689,6 +695,13 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // inside Cactuses' breather roll so empty stretches read as
       // a scenic break, not dead grass.
       updateFlowerPatches(frameScale);
+      updateCoins(frameScale);
+      // Coin pickups happen BEFORE the cactus-collision check so a
+      // coin that overlaps an incoming cactus is still grabbable on
+      // the frame the raptor dies — the pickup reads as "last coin
+      // before the fall" rather than getting swallowed by the
+      // game-over branch.
+      collectCoins(raptor, () => audio.playCoinCollect());
       // Grass-field spans scroll at the same rate as the foreground
       // (ground speed), then fall off the left edge once they've
       // fully passed. Each span was pushed by a breather roll; it
@@ -989,6 +1002,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // Flowers also pick up the final sky-light tint at the end of
     // this pass so they read as part of the foreground atmosphere.
     drawFlowerPatches(fgCtx);
+    drawCoins(fgCtx);
 
     // Ground bands. Default top band is desert-yellow; grass-field
     // rest-area spans overlay the top band in green afterwards.
@@ -1315,6 +1329,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     state.rainParticles = [];
     state.lightning = { alpha: 0, nextAt: 0 };
     state.flowerPatches = [];
+    clearCoins();
     state.grassFields = [];
     // Reset the breather counter so each new run starts a fresh
     // cadence. Pick a new random target within the configured

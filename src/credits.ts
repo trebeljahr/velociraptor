@@ -64,6 +64,10 @@ export const ATTRIBUTION_SECTIONS: ReadonlyArray<AttributionSection> = [
       `Flower sprites (<code>flower-01.png</code> – <code>flower-12.png</code>) cropped from
         <a href="https://www.freepik.com/free-vector/organic-flat-flower-collection_13398452.htm" target="_blank" rel="noopener">"Organic flat flower collection"</a>
         by <a href="https://www.freepik.com" target="_blank" rel="noopener">Freepik</a>, used under the Freepik Free License. Backgrounds keyed to transparent and each flower trimmed to a standalone sprite locally.`,
+      `Coin collectible (<code>coin.png</code>) from
+        <a href="https://www.freepik.com/free-vector/golden-cryptocurrency-coin-vector-illustration_414135258.htm" target="_blank" rel="noopener">"Golden cryptocurrency coin vector illustration"</a>
+        by <a href="https://www.freepik.com/author/brgfx" target="_blank" rel="noopener">brgfx</a>
+        on <a href="https://www.freepik.com" target="_blank" rel="noopener">Freepik</a>, used under the Freepik Free License. Converted from EPS to a transparent PNG and resized locally.`,
     ],
   },
   {
@@ -121,6 +125,10 @@ export const ATTRIBUTION_SECTIONS: ReadonlyArray<AttributionSection> = [
         <a href="https://pixabay.com/users/alice_soundz-44907632/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=224184" target="_blank" rel="noopener">Alice_soundz</a>
         from
         <a href="https://pixabay.com/sound-effects/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=224184" target="_blank" rel="noopener">Pixabay</a>.`,
+      `Coin pickup — "Diamond found" by
+        <a href="https://pixabay.com/users/liecio-3298866/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=190255" target="_blank" rel="noopener">Liecio</a>
+        from
+        <a href="https://pixabay.com/sound-effects/diamond-found-190255/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=190255" target="_blank" rel="noopener">Pixabay</a>.`,
     ],
   },
   {

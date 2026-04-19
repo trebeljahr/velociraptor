@@ -177,6 +177,7 @@ export const audio = {
     this._preloadJumpBuffer();
     this._preloadThunderBuffer();
     this._preloadHitBuffer();
+    this._preloadCoinBuffer();
     this._preloadUfoBuffer();
     this._preloadSantaBuffer();
     this._preloadMeteorBuffer();
@@ -827,6 +828,59 @@ export const audio = {
         try { src.disconnect(); gain.disconnect(); } catch {}
       };
       src.start(0, 0.055);
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
+
+  // ── Coin pickup SFX (liecio "diamond found") ──────────────
+  // Sample credit: Liecio on Pixabay (track 190255) — see the
+  // credits overlay in index.html / imprint.html for the full
+  // attribution block.
+  _coinBuffer: null as AudioBuffer | null,
+
+  _preloadCoinBuffer() {
+    if (
+      typeof AudioContext === "undefined" &&
+      typeof window.webkitAudioContext === "undefined"
+    )
+      return;
+    fetch("assets/coin-collect.mp3")
+      .then((r) => r.arrayBuffer())
+      .then((buf) => {
+        this._ensureAudioCtx();
+        if (!this._audioCtx) return;
+        return this._audioCtx.decodeAudioData(buf);
+      })
+      .then((decoded) => {
+        if (decoded) this._coinBuffer = decoded;
+      })
+      .catch(() => {
+        /* coin SFX simply won't play */
+      });
+  },
+
+  /** Coin pickup cue. Routed through jumpMuted so the SFX channel
+   *  toggle covers it. Lower gain than playHit because coins can
+   *  fire several times per breather — a 0.6 level would pile up
+   *  into a loud chord when the raptor runs a full row. */
+  playCoinCollect() {
+    if (this.muted || this.jumpMuted) return;
+    if (!this._audioCtx || !this._coinBuffer) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    try {
+      const src = this._audioCtx.createBufferSource();
+      src.buffer = this._coinBuffer;
+      const gain = this._audioCtx.createGain();
+      gain.gain.value = 0.35;
+      src.connect(gain);
+      gain.connect(this._audioCtx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
+      };
+      src.start(0);
     } catch {
       /* SFX is non-critical */
     }

@@ -24,6 +24,7 @@ export const IMAGE_SRCS: { [key: string]: string } = {
   santaSleigh: "assets/santa-sleigh.png",
   reindeer: "assets/reindeer.png",
   tumbleweed: "assets/tumbleweed.png",
+  coin: "assets/coin.png",
 };
 
 // Cactus variants are registered here so any code that iterates
