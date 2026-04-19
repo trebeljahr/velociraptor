@@ -75,8 +75,8 @@ export const CACTUS_BREATHER_MAX_COUNT = 55;
 // than pre-breather-fix because the rest was such a big chunk of
 // total playtime. 4–6 lands closer to "a few seconds to breathe"
 // without the player feeling the game has paused.
-export const CACTUS_BREATHER_MIN_SECONDS = 4;
-export const CACTUS_BREATHER_MAX_SECONDS = 6;
+export const CACTUS_BREATHER_MIN_SECONDS = 6;
+export const CACTUS_BREATHER_MAX_SECONDS = 9;
 export const JUMP_BUFFER_MS = 100;
 export const JUMP_VIBRATION_MS = 15;
 export const FRAME_DELAY_SPEED_RANGE = 15;
@@ -122,7 +122,7 @@ export const FLOWER_PATCH_WIDTH_PX = 220;
 export const COIN_SCORE_VALUE = 5;
 /** Coin sprite height as a fraction of raptor height — keeps the
  *  coin readable against the raptor at any viewport scale. */
-export const COIN_SIZE_RATIO = 0.5;
+export const COIN_SIZE_RATIO = 0.38;
 /** Center of the coin hover above ground as a fraction of raptor
  *  height. 0.55 puts the coin roughly at running-torso height so
  *  the raptor intersects it during normal run, without jumping. */
@@ -133,12 +133,23 @@ export const COIN_BOB_AMPLITUDE_PX = 6;
 /** Bob frequency in Hz — one full up-down cycle per (1/freq)s. */
 export const COIN_BOB_FREQUENCY_HZ = 1.2;
 /** Distance between neighbouring coins in raptor-widths. */
-export const COIN_SPACING_RATIO = 1.35;
+export const COIN_SPACING_RATIO = 0.8;
 /** Pop-fade duration for a collected coin, in frames (60 Hz). */
 export const COIN_COLLECT_FADE_FRAMES = 10;
 /** Sparkle glint frequency — slower than bob so the two visual
  *  rhythms don't beat against each other. */
 export const COIN_SPARKLE_FREQUENCY_HZ = 0.7;
+/** Pitch step per coin in a streak. The first coin plays at 1.0×
+ *  playbackRate; each subsequent pickup within COIN_STREAK_RESET_MS
+ *  adds this much, up to COIN_STREAK_MAX_PITCH. Reads as a rising
+ *  Mario-style "1-up" chain. */
+export const COIN_STREAK_PITCH_STEP = 0.08;
+/** Ceiling for the streak pitch so the top of a long chain doesn't
+ *  disappear into chipmunk territory. */
+export const COIN_STREAK_MAX_PITCH = 1.6;
+/** If no coin is picked up for this many ms, the streak resets and
+ *  the next pickup plays at base pitch again. */
+export const COIN_STREAK_RESET_MS = 450;
 
 // ── Celestial Bodies (Sun & Moon) ──────────────────────────
 export const SUN_PHASE_CENTER = 1 / 6;

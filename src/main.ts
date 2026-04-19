@@ -1330,6 +1330,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     state.lightning = { alpha: 0, nextAt: 0 };
     state.flowerPatches = [];
     clearCoins();
+    audio.resetCoinStreak();
     state.grassFields = [];
     // Reset the breather counter so each new run starts a fresh
     // cadence. Pick a new random target within the configured
@@ -1802,6 +1803,15 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       state.wearThugGlasses = !!glasses;
       state.unlockedBowTie = !!bow;
       state.wearBowTie = !!bow;
+    },
+
+    /** Debug helper: kick off a flower-field breather on the next
+     *  frame instead of waiting for the cactus counter to reach
+     *  the randomised threshold. Makes it easy to eyeball the
+     *  rest-area layout (coin spacing, buffer symmetry, etc.)
+     *  without running through ~40 cacti first. */
+    _forceBreather() {
+      if (cactuses) cactuses.forceBreather();
     },
 
     /** Debug helper: force a game-over immediately without needing

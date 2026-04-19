@@ -20,6 +20,9 @@ import {
   JUMP_MUTED_KEY,
   RAIN_MUTED_KEY,
   RAIN_AUDIO_MAX_VOLUME,
+  COIN_STREAK_PITCH_STEP,
+  COIN_STREAK_MAX_PITCH,
+  COIN_STREAK_RESET_MS,
 } from "./constants";
 import { saveBoolFlag } from "./persistence";
 
@@ -838,6 +841,14 @@ export const audio = {
   // credits overlay in index.html / imprint.html for the full
   // attribution block.
   _coinBuffer: null as AudioBuffer | null,
+  /** Length of the current pickup chain. Each pickup within
+   *  COIN_STREAK_RESET_MS of the previous one bumps this; after
+   *  the reset window passes, the next pickup starts a fresh
+   *  streak at 0. Drives the Mario-style pitch-rise on playback. */
+  _coinStreak: 0 as number,
+  /** performance.now() of the most recent coin pickup — used to
+   *  decide whether to continue or reset the streak. */
+  _coinStreakLastMs: 0 as number,
 
   _preloadCoinBuffer() {
     if (
@@ -860,19 +871,43 @@ export const audio = {
       });
   },
 
+  /** Forget any in-progress coin streak. Called from resetGame so
+   *  a new run doesn't inherit the pitch from the previous one
+   *  (rare, since the reset-ms would usually have elapsed, but
+   *  free to handle deterministically). */
+  resetCoinStreak() {
+    this._coinStreak = 0;
+    this._coinStreakLastMs = 0;
+  },
+
   /** Coin pickup cue. Routed through jumpMuted so the SFX channel
    *  toggle covers it. Lower gain than playHit because coins can
    *  fire several times per breather — a 0.6 level would pile up
-   *  into a loud chord when the raptor runs a full row. */
+   *  into a loud chord when the raptor runs a full row.
+   *
+   *  Each pickup within COIN_STREAK_RESET_MS of the previous one
+   *  bumps the playbackRate by COIN_STREAK_PITCH_STEP, capped at
+   *  COIN_STREAK_MAX_PITCH. Reads as a rising "1-up" chain. */
   playCoinCollect() {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || !this._coinBuffer) return;
     if (this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
     }
+    const now = performance.now();
+    if (now - this._coinStreakLastMs > COIN_STREAK_RESET_MS) {
+      this._coinStreak = 0;
+    }
+    const pitch = Math.min(
+      COIN_STREAK_MAX_PITCH,
+      1 + this._coinStreak * COIN_STREAK_PITCH_STEP,
+    );
+    this._coinStreak++;
+    this._coinStreakLastMs = now;
     try {
       const src = this._audioCtx.createBufferSource();
       src.buffer = this._coinBuffer;
+      src.playbackRate.value = pitch;
       const gain = this._audioCtx.createGain();
       gain.gain.value = 0.35;
       src.connect(gain);

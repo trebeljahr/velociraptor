@@ -203,78 +203,93 @@ export class Cactuses {
             (CACTUS_BREATHER_MAX_COUNT - CACTUS_BREATHER_MIN_COUNT + 1),
         );
 
-      const seconds =
-        CACTUS_BREATHER_MIN_SECONDS +
-        Math.random() *
-          (CACTUS_BREATHER_MAX_SECONDS - CACTUS_BREATHER_MIN_SECONDS);
-      // bgVelocity is a per-frame multiplier; ×60 → approx px/sec.
-      const pxPerSec =
-        state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * 60;
-      const gap = seconds * pxPerSec;
-
-      // The last cactus JUST spawned at x = state.width. It has to
-      // travel the full state.width (plus its own width) before
-      // scrolling fully off the left edge. Pushing the flower-field
-      // start one viewport width past the cactus makes the first
-      // patch enter the right edge right as the cactus exits the
-      // left edge — but "enters exactly as cactus exits" still
-      // reads as abrupt. Adding a normal spawn-gap of pre-field
-      // buffer on top gives the player visible empty ground between
-      // the last cactus and the start of the flowers, same feel as
-      // the post-field buffer on the trailing edge.
-      const exitMargin = state.width + this._rollNormalGap();
-
-      // Mark the grass-field span so the renderer knows where to
-      // paint the top ground band green instead of desert-yellow.
-      // Scrolls with the ground — see updateGrassFields in main.ts.
-      state.grassFields = state.grassFields || [];
-      state.grassFields.push({
-        startX: state.width + exitMargin,
-        endX: state.width + gap,
-      });
-
-      // Tile flower patches densely across the whole rest area so
-      // it reads as a continuous *field*, not a few lonely clusters.
-      // Spacing at ≈40% of the patch width → neighbouring patches
-      // overlap by ~60%, erasing the visible gaps that the previous
-      // spacing (1.2 seconds × pxPerSec) left behind. Jittered ±30%
-      // so the patches don't tile. Leading and trailing patches
-      // sit one full patch-width inside the usable zone so the field
-      // doesn't start or end flush against a cactus. If the gap is
-      // so short that no patches fit (happens at low bgVelocity with
-      // the short 4–6s breather), that's fine — the while() loop
-      // just doesn't enter.
-      state.flowerPatches = state.flowerPatches || [];
-      const patchSpacingPx = FLOWER_PATCH_WIDTH_PX * 0.4;
-      let x = state.width + exitMargin + FLOWER_PATCH_WIDTH_PX;
-      const endX = state.width + gap - FLOWER_PATCH_WIDTH_PX;
-      while (x < endX) {
-        state.flowerPatches.push(makeFlowerPatch(x));
-        x += patchSpacingPx * (0.7 + Math.random() * 0.6);
-      }
-
-      // Scatter coins across the same rest area so they feel like
-      // part of the scenic break, not a separate event. Collision,
-      // pickup, and the SFX trigger are wired in main.ts.
-      spawnCoinsInRange(
-        state.width + exitMargin,
-        state.width + gap,
-        this.raptor,
-      );
-
-      // Post-breather buffer: one normal spawn-gap of distance
-      // AFTER the flower field scrolls off before the next cactus
-      // appears. Without this the first post-breather cactus
-      // spawns flush with the field's trailing edge — reads as
-      // abrupt, like the flowers were interrupting the game
-      // rather than being a scenic rest. Buffer scales with speed
-      // for the same reason normal gaps do.
-      this._nextGap = gap + this._rollNormalGap();
+      this._queueBreather();
       return;
     }
 
     // ── NORMAL GAP ──
     this._nextGap = this._rollNormalGap();
+  }
+
+  /**
+   * Build and schedule one breather rest-area: push the grass-field
+   * span, tile flower patches, scatter coins, and set _nextGap so
+   * the next cactus only spawns after the full field — plus a
+   * symmetric empty-ground buffer — has scrolled past.
+   *
+   * Geometry (world-space, relative to last cactus spawn at x=state.width):
+   *
+   *   state.width          ← last cactus spawns here
+   *   + state.width        ← time for last cactus to cross the viewport
+   *   + bufferPx           ← empty run-up ground before the field
+   *   = fieldStartX        ← first flower enters the right edge
+   *
+   *   fieldStartX + fieldPx = fieldEndX  ← last flower exits the left edge
+   *   fieldEndX + bufferPx              ← next cactus spawns (right edge)
+   *
+   * Run-up and run-out empty-ground both equal bufferPx, so the
+   * rest area is visually symmetric. The previous version used
+   * `_nextGap = gap + normalGap`, which made post-field buffer
+   * negative — the next cactus was appearing *while* flowers were
+   * still on screen.
+   */
+  private _queueBreather(): void {
+    const seconds =
+      CACTUS_BREATHER_MIN_SECONDS +
+      Math.random() *
+        (CACTUS_BREATHER_MAX_SECONDS - CACTUS_BREATHER_MIN_SECONDS);
+    // bgVelocity is a per-frame multiplier; ×60 → approx px/sec.
+    const pxPerSec =
+      state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * 60;
+    const fieldPx = seconds * pxPerSec;
+    const bufferPx = this._rollNormalGap();
+
+    const fieldStartX = 2 * state.width + bufferPx;
+    const fieldEndX = fieldStartX + fieldPx;
+
+    // Mark the grass-field span so the renderer knows where to
+    // paint the top ground band green instead of desert-yellow.
+    // Scrolls with the ground — see updateGrassFields in main.ts.
+    state.grassFields = state.grassFields || [];
+    state.grassFields.push({ startX: fieldStartX, endX: fieldEndX });
+
+    // Tile flower patches across the field. Spacing at ≈40% of the
+    // patch width → neighbouring patches overlap by ~60%, which
+    // reads as a continuous carpet rather than a few clusters.
+    // Jittered ±30% so the patches don't tile. Patches are packed
+    // so their right edge doesn't poke past fieldEndX.
+    state.flowerPatches = state.flowerPatches || [];
+    const patchSpacingPx = FLOWER_PATCH_WIDTH_PX * 0.4;
+    let x = fieldStartX;
+    while (x + FLOWER_PATCH_WIDTH_PX <= fieldEndX) {
+      state.flowerPatches.push(makeFlowerPatch(x));
+      x += patchSpacingPx * (0.7 + Math.random() * 0.6);
+    }
+
+    // Scatter coins across the full field — collision + SFX
+    // trigger are wired in main.ts.
+    spawnCoinsInRange(fieldStartX, fieldEndX, this.raptor);
+
+    // Next cactus spawns when total scroll (since the last cactus
+    // spawn at x=state.width) reaches fieldEndX + bufferPx: last
+    // flower has exited the left edge, the player sees bufferPx of
+    // empty ground, then the next cactus enters the right edge.
+    this._nextGap = fieldEndX + bufferPx;
+  }
+
+  /** Debug helper: arm the breather counter and force an immediate
+   *  spawn so the next frame kicks off a flower-field rest area.
+   *  Wired via Game._forceBreather() — useful for eyeballing the
+   *  field layout without waiting ~40 cacti. */
+  forceBreather(): void {
+    state._cactiSinceBreather = state._nextBreatherAt;
+    // Make the current gap "already elapsed" so update() fires a
+    // spawn on the very next frame. spawn() → _rollNextGap() sees
+    // the maxed counter and takes the breather branch.
+    this._scrollSinceLastSpawn = Math.max(
+      this._scrollSinceLastSpawn,
+      this._nextGap,
+    );
   }
 
   /** Distance in px the world has scrolled since the last cactus
