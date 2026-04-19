@@ -116,10 +116,13 @@ export const FLOWER_PATCH_WIDTH_PX = 220;
 // to the score. Spawn is driven from Cactuses._rollNextGap so
 // coins always land inside the same x-range as the flower patches.
 /** Score awarded per collected coin. Cactus survival is +1 per
- *  obstacle passed, so +5 per coin makes a full breather a
- *  meaningful burst of points without trivialising obstacle
- *  runs. */
-export const COIN_SCORE_VALUE = 5;
+ *  obstacle passed — coins give the same so a full field is
+ *  equivalent to clearing 10 cacti. */
+export const COIN_SCORE_VALUE = 1;
+/** How many coins are scattered across each flower field. Fixed
+ *  count (instead of spacing-based) so the "ding-ding-diiing"
+ *  pitch chain always has a predictable number of steps. */
+export const COIN_COUNT_PER_FIELD = 10;
 /** Coin sprite height as a fraction of raptor height — keeps the
  *  coin readable against the raptor at any viewport scale. */
 export const COIN_SIZE_RATIO = 0.38;
@@ -132,8 +135,10 @@ export const COIN_BASE_Y_ABOVE_GROUND_RATIO = 0.55;
 export const COIN_BOB_AMPLITUDE_PX = 6;
 /** Bob frequency in Hz — one full up-down cycle per (1/freq)s. */
 export const COIN_BOB_FREQUENCY_HZ = 1.2;
-/** Distance between neighbouring coins in raptor-widths. */
-export const COIN_SPACING_RATIO = 0.8;
+/** Edge inset for the first/last coin, as a fraction of the
+ *  per-coin segment width. 0.5 centres coins in their
+ *  segment — field cleanly mirrors around its centre. */
+export const COIN_EDGE_INSET_RATIO = 0.5;
 /** Pop-fade duration for a collected coin, in frames (60 Hz). */
 export const COIN_COLLECT_FADE_FRAMES = 10;
 /** Sparkle glint frequency — slower than bob so the two visual
@@ -141,15 +146,20 @@ export const COIN_COLLECT_FADE_FRAMES = 10;
 export const COIN_SPARKLE_FREQUENCY_HZ = 0.7;
 /** Pitch step per coin in a streak. The first coin plays at 1.0×
  *  playbackRate; each subsequent pickup within COIN_STREAK_RESET_MS
- *  adds this much, up to COIN_STREAK_MAX_PITCH. Reads as a rising
- *  Mario-style "1-up" chain. */
-export const COIN_STREAK_PITCH_STEP = 0.08;
+ *  adds this much, up to COIN_STREAK_MAX_PITCH. With 10 coins per
+ *  field and step 0.07 the chain lands cleanly at 1.63 on the
+ *  tenth pickup — a confident rising "ding-diiing" cadence. */
+export const COIN_STREAK_PITCH_STEP = 0.07;
 /** Ceiling for the streak pitch so the top of a long chain doesn't
  *  disappear into chipmunk territory. */
-export const COIN_STREAK_MAX_PITCH = 1.6;
+export const COIN_STREAK_MAX_PITCH = 1.7;
 /** If no coin is picked up for this many ms, the streak resets and
- *  the next pickup plays at base pitch again. */
-export const COIN_STREAK_RESET_MS = 450;
+ *  the next pickup plays at base pitch again. 1500 ms comfortably
+ *  covers the ~600 ms between coins in a field at any bgVelocity,
+ *  while still resetting between fields if the player walks an
+ *  empty stretch. Explicit per-field resets in spawnCoinsInRange
+ *  are the real source of truth — this is just the safety net. */
+export const COIN_STREAK_RESET_MS = 1500;
 
 // ── Celestial Bodies (Sun & Moon) ──────────────────────────
 export const SUN_PHASE_CENTER = 1 / 6;

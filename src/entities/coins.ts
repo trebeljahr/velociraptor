@@ -14,6 +14,7 @@
 
 import { state } from "../state";
 import { IMAGES } from "../images";
+import { audio } from "../audio";
 import {
   VELOCITY_SCALE_DIVISOR,
   COIN_SCORE_VALUE,
@@ -21,7 +22,8 @@ import {
   COIN_BASE_Y_ABOVE_GROUND_RATIO,
   COIN_BOB_AMPLITUDE_PX,
   COIN_BOB_FREQUENCY_HZ,
-  COIN_SPACING_RATIO,
+  COIN_COUNT_PER_FIELD,
+  COIN_EDGE_INSET_RATIO,
   COIN_COLLECT_FADE_FRAMES,
   COIN_SPARKLE_FREQUENCY_HZ,
 } from "../constants";
@@ -46,10 +48,14 @@ interface RaptorRef {
   h: number;
 }
 
-/** Scatter coins across [startX, endX] at chest-height on the
- *  running raptor. Intended to be called once per breather, from
- *  inside the Cactuses spawn roll. No-op if the range is empty or
- *  the raptor isn't sized yet (startup). */
+/** Scatter COIN_COUNT_PER_FIELD coins evenly across [startX, endX]
+ *  at chest-height on the running raptor. Intended to be called
+ *  once per breather, from inside the Cactuses spawn roll.
+ *
+ *  Also resets the audio coin streak so the first pickup in the new
+ *  field plays at base pitch — the rising-pitch chain is a
+ *  PER-FIELD cue ("ding ding ding … diiing"), not an endless climb
+ *  across the whole run. */
 export function spawnCoinsInRange(
   startX: number,
   endX: number,
@@ -58,16 +64,18 @@ export function spawnCoinsInRange(
   if (!raptor || raptor.h <= 0 || raptor.w <= 0) return;
   if (endX <= startX) return;
   const coinSize = raptor.h * COIN_SIZE_RATIO;
-  const spacing = raptor.w * COIN_SPACING_RATIO;
-  // Inset half a spacing so the first/last coin doesn't hug the
-  // flower field's edges.
-  let x = startX + spacing * 0.5;
   state.coins = state.coins || [];
   const baseY =
     state.ground -
     raptor.h * COIN_BASE_Y_ABOVE_GROUND_RATIO -
     coinSize / 2;
-  while (x < endX - spacing * 0.5) {
+  // Slice the field into COIN_COUNT_PER_FIELD equal segments and
+  // place one coin per segment at a fixed inset. This gives the
+  // same coin count regardless of breather duration — the pitch
+  // chain always has exactly COIN_COUNT_PER_FIELD steps to climb.
+  const segment = (endX - startX) / COIN_COUNT_PER_FIELD;
+  for (let i = 0; i < COIN_COUNT_PER_FIELD; i++) {
+    const x = startX + segment * (i + COIN_EDGE_INSET_RATIO);
     state.coins.push({
       x,
       baseY,
@@ -77,9 +85,8 @@ export function spawnCoinsInRange(
       collected: false,
       collectFrame: 0,
     });
-    // Slight jitter so the coin rhythm doesn't feel metronomic.
-    x += spacing * (0.85 + Math.random() * 0.3);
   }
+  audio.resetCoinStreak();
 }
 
 /** Phase used for the bob sin() — shared between draw and collision
