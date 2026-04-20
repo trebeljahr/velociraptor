@@ -602,29 +602,50 @@ const menuJumpToggle = document.getElementById("menu-jump-toggle");
 const menuJumpLabel = document.getElementById("menu-jump-label");
 const menuRainSoundToggle = document.getElementById("menu-rain-sound-toggle");
 const menuRainSoundLabel = document.getElementById("menu-rain-sound-label");
+const menuThunderToggle = document.getElementById("menu-thunder-toggle");
+const menuThunderLabel = document.getElementById("menu-thunder-label");
+const menuFootstepsToggle = document.getElementById("menu-footsteps-toggle");
+const menuFootstepsLabel = document.getElementById("menu-footsteps-label");
+const menuCoinsSoundToggle = document.getElementById("menu-coins-sound-toggle");
+const menuCoinsSoundLabel = document.getElementById("menu-coins-sound-label");
+const menuUiSoundToggle = document.getElementById("menu-ui-sound-toggle");
+const menuUiSoundLabel = document.getElementById("menu-ui-sound-label");
+const menuEventsSoundToggle = document.getElementById("menu-events-sound-toggle");
+const menuEventsSoundLabel = document.getElementById("menu-events-sound-label");
+
+/**
+ * Small helper so every channel label follows the same
+ * "<name>: on|off" pattern. Falls through quietly when the label
+ * element doesn't exist (e.g. a view where the sound settings
+ * block is stripped out).
+ */
+function _setChannelLabel(
+  el: HTMLElement | null,
+  name: string,
+  muted: boolean | undefined,
+) {
+  if (!el) return;
+  el.textContent = `${name}: ${muted ? "off" : "on"}`;
+}
 
 function refreshSoundUI() {
   const muted = window.Game ? window.Game.isMuted() : true;
   topSoundBtn.classList.toggle("muted", muted);
   topSoundBtn.setAttribute("aria-pressed", String(!muted));
   topSoundBtn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
-  // Master sound label in the menu
   if (menuSoundLabel) {
     menuSoundLabel.textContent = "Sound: " + (muted ? "off" : "on");
   }
-  // Per-channel labels in the menu
-  if (menuMusicLabel) {
-    const musicOff = window.Game && window.Game.isMusicMuted && window.Game.isMusicMuted();
-    menuMusicLabel.textContent = "Music: " + (musicOff ? "off" : "on");
-  }
-  if (menuJumpLabel) {
-    const jumpOff = window.Game && window.Game.isJumpMuted && window.Game.isJumpMuted();
-    menuJumpLabel.textContent = "Jump sound: " + (jumpOff ? "off" : "on");
-  }
-  if (menuRainSoundLabel) {
-    const rainOff = window.Game && window.Game.isRainMuted && window.Game.isRainMuted();
-    menuRainSoundLabel.textContent = "Rain sound: " + (rainOff ? "off" : "on");
-  }
+  // Per-channel labels. Each getter is optional-chained because
+  // the Game API shim may not be fully wired yet on first paint.
+  _setChannelLabel(menuMusicLabel, "Music", window.Game?.isMusicMuted?.());
+  _setChannelLabel(menuJumpLabel, "Jump sound", window.Game?.isJumpMuted?.());
+  _setChannelLabel(menuRainSoundLabel, "Rain sound", window.Game?.isRainMuted?.());
+  _setChannelLabel(menuThunderLabel, "Thunder", window.Game?.isThunderMuted?.());
+  _setChannelLabel(menuFootstepsLabel, "Footsteps", window.Game?.isFootstepsMuted?.());
+  _setChannelLabel(menuCoinsSoundLabel, "Coins", window.Game?.isCoinsMuted?.());
+  _setChannelLabel(menuUiSoundLabel, "UI clicks", window.Game?.isUiMuted?.());
+  _setChannelLabel(menuEventsSoundLabel, "Rare events", window.Game?.isEventsMuted?.());
 }
 
 function toggleSound() {
@@ -663,6 +684,47 @@ if (menuRainSoundToggle) {
     refreshSoundUI();
   });
 }
+// The finer SFX channels each follow the same
+// "toggle + refresh" pattern. One tiny helper below keeps the
+// wiring code proportional to the number of channels rather
+// than repeating the same 5-line block for each.
+function _wireChannelToggle(
+  btn: HTMLElement | null,
+  getter: () => boolean | undefined,
+  setter: (m: boolean) => void,
+) {
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    if (!window.Game) return;
+    setter(!getter());
+    refreshSoundUI();
+  });
+}
+_wireChannelToggle(
+  menuThunderToggle,
+  () => window.Game?.isThunderMuted?.(),
+  (m) => window.Game?.setThunderMuted?.(m),
+);
+_wireChannelToggle(
+  menuFootstepsToggle,
+  () => window.Game?.isFootstepsMuted?.(),
+  (m) => window.Game?.setFootstepsMuted?.(m),
+);
+_wireChannelToggle(
+  menuCoinsSoundToggle,
+  () => window.Game?.isCoinsMuted?.(),
+  (m) => window.Game?.setCoinsMuted?.(m),
+);
+_wireChannelToggle(
+  menuUiSoundToggle,
+  () => window.Game?.isUiMuted?.(),
+  (m) => window.Game?.setUiMuted?.(m),
+);
+_wireChannelToggle(
+  menuEventsSoundToggle,
+  () => window.Game?.isEventsMuted?.(),
+  (m) => window.Game?.setEventsMuted?.(m),
+);
 
 // ───────── Fullscreen button ─────────
 function isFullscreen() {
