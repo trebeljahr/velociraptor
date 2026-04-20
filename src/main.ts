@@ -327,7 +327,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   // CACTUS_VARIANTS (sprite + collision catalog) lives in
   // src/cactusVariants.ts.
 
-  // The 12-band day/night palette (SKY_COLORS) and NIGHT_COLOR live in
+  // The 14-band day/night palette (SKY_COLORS) and NIGHT_COLOR live in
   // _isNightBand / _isDayBand / isNightPhase / tintStrength /
   // tintFactor / celestialArc / drawSun / drawMoon /
   // computeSkyGradient all live in src/render/sky.ts.
@@ -726,14 +726,57 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       collectCoins(raptor, (coin, cx, cy) => {
         // Pass the flower-field flag so the rising-pitch chain only
         // plays when the raptor is visibly on the patch; coins
-        // grabbed on bare ground (field edges, debug spawns) fall
-        // back to the default pitch.
+        // grabbed on bare ground (field edges, debug spawns,
+        // cactus-top coins) fall back to the default pitch.
         const onFlowerField = raptorCrossingPatch(raptor.x, raptor.w) != null;
         audio.playCoinCollect(onFlowerField);
         // Last coin in the field layers the chain-end chord on top
         // of the regular pickup — "ding ding ding … diiing ✨".
         if (coin.lastInField) audio.playCoinChainEnd();
         spawnCoinCollectBurst(cx, cy);
+        // Score progression lives here now — coins are the sole
+        // score source in the coins-only model. Exact-equality
+        // checks (`score === N`) are safe because
+        // COIN_SCORE_VALUE === 1 and pickups are processed one at
+        // a time. Mirrors the cactus.ts block that used to fire
+        // these at the same cadence when cactus-pass bumped score.
+        if (state.score === 1) unlockAchievement("first-jump");
+        if (state.score === 25) unlockAchievement("score-25");
+        if (state.score === 100) unlockAchievement("party-time");
+        if (state.score === BOW_TIE_SCORE_THRESHOLD)
+          unlockAchievement("dinosaurs-forever");
+        if (state.score === THUG_GLASSES_SCORE_THRESHOLD)
+          unlockAchievement("score-250");
+        // Cosmetic unlocks — party hat at 100, thug glasses and
+        // bow tie at their thresholds. grantCosmetic is idempotent
+        // and auto-equips when the slot is free, so the cosmetic
+        // pops onto the raptor on first unlock and is a no-op on
+        // later runs. Confetti bursts off the raptor's head so
+        // the player actually notices.
+        if (
+          !state.ownedCosmetics["party-hat"] &&
+          state.score >= PARTY_HAT_SCORE_THRESHOLD
+        ) {
+          grantCosmetic("party-hat");
+          const crown = raptor.currentCrownPoint();
+          spawnConfettiBurst(crown.x, crown.y);
+        }
+        if (
+          !state.ownedCosmetics["thug-glasses"] &&
+          state.score >= THUG_GLASSES_SCORE_THRESHOLD
+        ) {
+          grantCosmetic("thug-glasses");
+          const crown = raptor.currentCrownPoint();
+          spawnConfettiBurst(crown.x, crown.y);
+        }
+        if (
+          !state.ownedCosmetics["bow-tie"] &&
+          state.score >= BOW_TIE_SCORE_THRESHOLD
+        ) {
+          grantCosmetic("bow-tie");
+          const crown = raptor.currentCrownPoint();
+          spawnConfettiBurst(crown.x, crown.y);
+        }
       });
       // Grass-field spans scroll at the same rate as the foreground
       // (ground speed), then fall off the left edge once they've
@@ -1768,6 +1811,42 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       return audio.rainMuted;
     },
 
+    // ── Finer SFX channel toggles ───────────────────────────
+    // Each pair mirrors the music/jump/rain shape: setter +
+    // getter, persisted via audio.ts. The menu UI wires one
+    // toggle per pair so the player can silence, say, just the
+    // coin-collect chain without losing the jump or rain audio.
+    setFootstepsMuted(muted: boolean) {
+      audio.setFootstepsMuted(muted);
+    },
+    isFootstepsMuted() {
+      return audio.footstepsMuted;
+    },
+    setCoinsMuted(muted: boolean) {
+      audio.setCoinsMuted(muted);
+    },
+    isCoinsMuted() {
+      return audio.coinsMuted;
+    },
+    setUiMuted(muted: boolean) {
+      audio.setUiMuted(muted);
+    },
+    isUiMuted() {
+      return audio.uiMuted;
+    },
+    setEventsMuted(muted: boolean) {
+      audio.setEventsMuted(muted);
+    },
+    isEventsMuted() {
+      return audio.eventsMuted;
+    },
+    setThunderMuted(muted: boolean) {
+      audio.setThunderMuted(muted);
+    },
+    isThunderMuted() {
+      return audio.thunderMuted;
+    },
+
     isDebug() {
       return state.debug;
     },
@@ -2129,6 +2208,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         return "ok" as const;
       }
       return purchaseCosmetic(id);
+    },
+
+    /** Play the shop-purchase chime. Exposed as a Game API method
+     *  so ui.ts doesn't have to import audio directly — matches the
+     *  "UI talks to the game layer through window.Game only" rule
+     *  documented at the top of src/ui.ts. */
+    playShopPurchase() {
+      audio.playShopPurchase();
     },
 
     /** Equip a cosmetic the player owns (displacing whatever was
@@ -2841,11 +2928,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         spawnDust(raptor.x + raptor.w * offset, state.ground, 0.55);
       },
     );
-    cactuses = new Cactuses(
-      raptor,
-      (id) => unlockAchievement(id),
-      (x, y) => spawnConfettiBurst(x, y),
-    );
+    cactuses = new Cactuses(raptor);
     stars = new Stars();
     computeSkyGradient();
 

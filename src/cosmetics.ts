@@ -140,7 +140,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 200,
     spriteKey: "wizardHat",
     description: "Pointy and arcane.",
-    draw: { scale: 0.32, rotation: -0.15, offset: { x: -0.02, y: 0.02 } },
+    draw: { scale: 0.32, rotation: -0.12, offset: { x: 0.0, y: 0.04 } },
   },
   {
     id: "pirate-tricorn",
@@ -232,7 +232,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     // Pendant group sits on the neck/chest — scaled down again
     // after the last pass felt too chunky, nudged a touch down
     // and forward so the pendants rest on the throat.
-    draw: { scale: 0.063, rotation: -0.3, offset: { x: -0.03, y: 0.05 } },
+    draw: { scale: 0.063, rotation: -0.3, offset: { x: -0.025, y: 0.05 } },
   },
 
   // ── Shop: back ────────────────────────────────────────
@@ -269,7 +269,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     draw: {
       scale: 0.7,
       rotation: 0.3,
-      offset: { x: 0.16, y: -0.21 },
+      offset: { x: 0.15, y: -0.19 },
       attachmentPoint: { x: 0.68, y: 0.12 },
     },
   },

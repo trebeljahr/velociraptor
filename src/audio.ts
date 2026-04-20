@@ -19,6 +19,11 @@ import {
   MUSIC_MUTED_KEY,
   JUMP_MUTED_KEY,
   RAIN_MUTED_KEY,
+  FOOTSTEPS_MUTED_KEY,
+  COINS_MUTED_KEY,
+  UI_MUTED_KEY,
+  EVENTS_MUTED_KEY,
+  THUNDER_MUTED_KEY,
   RAIN_AUDIO_MAX_VOLUME,
   COIN_STREAK_PITCH_STEP,
   COIN_STREAK_MAX_PITCH,
@@ -154,6 +159,16 @@ export const audio = {
   musicMuted: false as boolean,
   jumpMuted: false as boolean,
   rainMuted: false as boolean,
+  // Finer SFX channels. Each defaults to OFF (not muted) so a fresh
+  // install still hears everything; individual toggles let players
+  // silence just the channel they find noisy. `jumpMuted` now
+  // covers ONLY the player-action cues (jump + hit); the rest moved
+  // to these dedicated flags.
+  footstepsMuted: false as boolean,
+  coinsMuted: false as boolean,
+  uiMuted: false as boolean,
+  eventsMuted: false as boolean,
+  thunderMuted: false as boolean,
   _audioCtx: null as AudioContext | null,
   _jumpBuffer: null as AudioBuffer | null,
   _jumpVolume: 0.67,
@@ -183,6 +198,7 @@ export const audio = {
     this._preloadHitBuffer();
     this._preloadCoinBuffer();
     this._preloadCoinChainEndBuffer();
+    this._preloadShopPurchaseBuffer();
     this._preloadUfoBuffer();
     this._preloadSantaBuffer();
     this._preloadMeteorBuffer();
@@ -199,6 +215,16 @@ export const audio = {
       if (j != null) this.jumpMuted = j === "1";
       const r = window.localStorage.getItem(RAIN_MUTED_KEY);
       if (r != null) this.rainMuted = r === "1";
+      const fs = window.localStorage.getItem(FOOTSTEPS_MUTED_KEY);
+      if (fs != null) this.footstepsMuted = fs === "1";
+      const c = window.localStorage.getItem(COINS_MUTED_KEY);
+      if (c != null) this.coinsMuted = c === "1";
+      const u = window.localStorage.getItem(UI_MUTED_KEY);
+      if (u != null) this.uiMuted = u === "1";
+      const e = window.localStorage.getItem(EVENTS_MUTED_KEY);
+      if (e != null) this.eventsMuted = e === "1";
+      const th = window.localStorage.getItem(THUNDER_MUTED_KEY);
+      if (th != null) this.thunderMuted = th === "1";
     } catch (e) {
       /* ignored */
     }
@@ -336,7 +362,7 @@ export const audio = {
    *  than a gameplay jump — keeps the 8-bit vibe consistent
    *  across the UI without shipping another sample. */
   playClick() {
-    if (this.muted || this.jumpMuted) return;
+    if (this.muted || this.uiMuted) return;
     if (!this._audioCtx || !this._jumpBuffer) return;
     if (this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
@@ -612,6 +638,39 @@ export const audio = {
     }
   },
 
+  // ── Fine-grained SFX channel setters ──────────────────────
+  // Each one mirrors setJumpMuted's minimal shape: update the
+  // flag, persist it, and trust the per-play gating to drop any
+  // sounds currently in flight. Thunder is the only one with
+  // side effects — nothing is "running" for footsteps/coins/UI
+  // the way music or rain have a loop to pause.
+
+  setFootstepsMuted(muted: boolean) {
+    this.footstepsMuted = !!muted;
+    saveBoolFlag(FOOTSTEPS_MUTED_KEY, this.footstepsMuted);
+    if (this.footstepsMuted) this._silenceSteps();
+  },
+
+  setCoinsMuted(muted: boolean) {
+    this.coinsMuted = !!muted;
+    saveBoolFlag(COINS_MUTED_KEY, this.coinsMuted);
+  },
+
+  setUiMuted(muted: boolean) {
+    this.uiMuted = !!muted;
+    saveBoolFlag(UI_MUTED_KEY, this.uiMuted);
+  },
+
+  setEventsMuted(muted: boolean) {
+    this.eventsMuted = !!muted;
+    saveBoolFlag(EVENTS_MUTED_KEY, this.eventsMuted);
+  },
+
+  setThunderMuted(muted: boolean) {
+    this.thunderMuted = !!muted;
+    saveBoolFlag(THUNDER_MUTED_KEY, this.thunderMuted);
+  },
+
   // ── Rain ambience (file-based <audio> element) ──────────────
   rain: null as HTMLAudioElement | null,
   _isRainPlaying: false,
@@ -664,7 +723,7 @@ export const audio = {
   },
 
   playThunder() {
-    if (this.muted || this.musicMuted) return;
+    if (this.muted || this.thunderMuted) return;
     if (!this._audioCtx || !this._thunderBuffer) return;
     if (this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
@@ -728,7 +787,7 @@ export const audio = {
    *  sample choice is round-robin across all loaded buffers,
    *  which is what actually breaks the monotony. */
   playStep(_foot: "left" | "right" = "left") {
-    if (this.muted || this.jumpMuted) return;
+    if (this.muted || this.footstepsMuted) return;
     if (!this._audioCtx || this._audioCtx.state !== "running") return;
     // Pick a buffer other than the last one played — avoids the
     // same waveform back-to-back. Falls back to random on very
@@ -914,7 +973,7 @@ export const audio = {
    *  rising chain, not another step in the climb. Routed through
    *  jumpMuted so the SFX mute toggle still covers it. */
   playCoinChainEnd() {
-    if (this.muted || this.jumpMuted) return;
+    if (this.muted || this.coinsMuted) return;
     if (!this._audioCtx || !this._coinChainEndBuffer) return;
     if (this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
@@ -935,20 +994,75 @@ export const audio = {
     }
   },
 
-  /** Coin pickup cue. Routed through jumpMuted so the SFX channel
-   *  toggle covers it. Lower gain than playHit because coins can
-   *  fire several times per breather — a 0.6 level would pile up
-   *  into a loud chord when the raptor runs a full row.
+  // ── Shop purchase cue (rhodesmas "Level Up 01") ─────────────
+  // Short "leveling up" chime played when a cosmetic is bought in
+  // the shop. Sample credit: rhodesmas on Freesound.org
+  // (sound 320655) — see credits overlay / imprint.html.
+  _shopPurchaseBuffer: null as AudioBuffer | null,
+
+  _preloadShopPurchaseBuffer() {
+    if (
+      typeof AudioContext === "undefined" &&
+      typeof window.webkitAudioContext === "undefined"
+    )
+      return;
+    fetch("assets/shop-purchase.mp3")
+      .then((r) => r.arrayBuffer())
+      .then((buf) => {
+        this._ensureAudioCtx();
+        if (!this._audioCtx) return;
+        return this._audioCtx.decodeAudioData(buf);
+      })
+      .then((decoded) => {
+        if (decoded) this._shopPurchaseBuffer = decoded;
+      })
+      .catch(() => {
+        /* purchase cue simply won't play */
+      });
+  },
+
+  /** Shop-purchase chime. Celebratory and louder than the pickup
+   *  cue — a purchase is a deliberate, infrequent action so the
+   *  feedback can be bigger. Routed through jumpMuted so the SFX
+   *  mute toggle still covers it, but NOT gated on muted-for-the-
+   *  run achievement checks since the shop is outside active play. */
+  playShopPurchase() {
+    if (this.muted || this.jumpMuted) return;
+    if (!this._audioCtx || !this._shopPurchaseBuffer) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    try {
+      const src = this._audioCtx.createBufferSource();
+      src.buffer = this._shopPurchaseBuffer;
+      const gain = this._audioCtx.createGain();
+      gain.gain.value = 0.55;
+      src.connect(gain);
+      gain.connect(this._audioCtx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
+      };
+      src.start(0);
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
+
+  /** Coin pickup cue. Routed through the coins SFX channel so the
+   *  per-channel mute toggle covers it. Lower gain than playHit
+   *  because coins can fire several times per breather — a 0.6
+   *  level would pile up into a loud chord when the raptor runs a
+   *  full row.
    *
    *  The rising "1-up" chain (each pickup within COIN_STREAK_RESET_MS
    *  bumps playbackRate by COIN_STREAK_PITCH_STEP) is gated on
    *  `onFlowerField`: it's the flower-patch ribbon's musical cue.
    *  Any coin grabbed off the patch — one-off pickups, debug spawns,
-   *  coins trailing out of a compressed field — plays at the base
-   *  pitch and leaves the streak reset so re-entering the field
-   *  starts the climb fresh. */
+   *  coins trailing out of a compressed field, cactus-top coins —
+   *  plays at the base pitch and leaves the streak reset so
+   *  re-entering the field starts the climb fresh. */
   playCoinCollect(onFlowerField: boolean = true) {
-    if (this.muted || this.jumpMuted) return;
+    if (this.muted || this.coinsMuted) return;
     if (!this._audioCtx || !this._coinBuffer) return;
     if (this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
@@ -1019,7 +1133,7 @@ export const audio = {
   /** Start the UFO hover/beam sample. Stored as a handle so stopUfo
    *  can cut it short when the event ends (or the player dies). */
   playUfo() {
-    if (this.muted || this.jumpMuted) return;
+    if (this.muted || this.eventsMuted) return;
     if (!this._audioCtx || !this._ufoBuffer) return;
     if (this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
@@ -1105,7 +1219,7 @@ export const audio = {
    *  stopSanta is responsible for the fade-out when the santa
    *  event reaches the far side of the screen. */
   playSanta() {
-    if (this.muted || this.jumpMuted) return;
+    if (this.muted || this.eventsMuted) return;
     if (!this._audioCtx || !this._santaBuffer) return;
     if (this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
@@ -1188,7 +1302,7 @@ export const audio = {
    *  lag: the flash hits the retina instantly but the boom takes
    *  time to travel across the desert. */
   playMeteor() {
-    if (this.muted || this.jumpMuted) return;
+    if (this.muted || this.eventsMuted) return;
     if (!this._audioCtx || !this._meteorBuffer) return;
     if (this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
@@ -1251,7 +1365,7 @@ export const audio = {
    *  Cancellable by stopComet whether or not the delayed start
    *  has fired yet. */
   playComet() {
-    if (this.muted || this.jumpMuted) return;
+    if (this.muted || this.eventsMuted) return;
     if (!this._audioCtx || !this._cometBuffer) return;
     if (this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
@@ -1337,7 +1451,7 @@ export const audio = {
   // audio context is resumed if suspended because UI clicks
   // are a guaranteed user gesture.
   playMenuTap() {
-    if (this.muted || this.jumpMuted) return;
+    if (this.muted || this.uiMuted) return;
     this._ensureAudioCtx();
     if (!this._audioCtx) return;
     if (this._audioCtx.state === "suspended") {

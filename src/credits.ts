@@ -133,6 +133,12 @@ export const ATTRIBUTION_SECTIONS: ReadonlyArray<AttributionSection> = [
         <a href="https://pixabay.com/users/liecio-3298866/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=190255" target="_blank" rel="noopener">Liecio</a>
         from
         <a href="https://pixabay.com/sound-effects/diamond-found-190255/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=190255" target="_blank" rel="noopener">Pixabay</a>.`,
+      `Shop purchase chime — "Level Up 01" (sound 320655) by
+        <a href="https://freesound.org/people/rhodesmas/" target="_blank" rel="noopener">rhodesmas</a>
+        on
+        <a href="https://freesound.org/s/320655/" target="_blank" rel="noopener">Freesound</a>,
+        licensed under
+        <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>.`,
     ],
   },
   {
