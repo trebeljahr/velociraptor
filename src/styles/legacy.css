@@ -1641,9 +1641,6 @@ html,
       .menu-panel .cosmetic-slot[data-slot="neck"] {
         border-left-color: #b91c1c;
       }
-      .menu-panel .cosmetic-slot[data-slot="back"] {
-        border-left-color: #7c3aed;
-      }
       .menu-panel .cosmetic-slot-label {
         /* Tiny, uppercase-y slot heading. Non-interactive — it's
          * just a label so the per-slot groupings are named. The

@@ -273,17 +273,15 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
     id: "fully-equipped",
     title: "Jurassic Runway",
     desc: "Equip a cosmetic in every slot at the same time",
-    // Four tiny coloured squares arranged like a 2×2 outfit grid,
-    // each hinting at one of the four slots' tint colours.
+    // Three tiny coloured squares in a row, each hinting at one
+    // slot's tint colour. Checkmark inside each square.
     iconHTML:
-      '<rect x="3" y="3" width="8" height="8" rx="1.6" fill="#d97706"/>' + // head
-      '<rect x="13" y="3" width="8" height="8" rx="1.6" fill="#1f2937"/>' + // eyes
-      '<rect x="3" y="13" width="8" height="8" rx="1.6" fill="#b91c1c"/>' + // neck
-      '<rect x="13" y="13" width="8" height="8" rx="1.6" fill="#7c3aed"/>' + // back
-      '<path d="M5.5 7l1.2 1.2 2.2-2.2" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<path d="M15.5 7l1.2 1.2 2.2-2.2" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<path d="M5.5 17l1.2 1.2 2.2-2.2" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<path d="M15.5 17l1.2 1.2 2.2-2.2" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
+      '<rect x="2" y="8" width="6" height="8" rx="1.2" fill="#d97706"/>' + // head
+      '<rect x="9" y="8" width="6" height="8" rx="1.2" fill="#1f2937"/>' + // eyes
+      '<rect x="16" y="8" width="6" height="8" rx="1.2" fill="#b91c1c"/>' + // neck
+      '<path d="M3.5 12l1.2 1.2 2.1-2.2" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M10.5 12l1.2 1.2 2.1-2.2" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M17.5 12l1.2 1.2 2.1-2.2" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>',
   },
   {
     id: "coin-hoarder",

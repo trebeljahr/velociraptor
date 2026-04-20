@@ -453,16 +453,8 @@
       <div class="start-raptor-stage" id="start-raptor-stage">
         <!-- Per-slot cosmetic overlays. ui.ts refreshStartRaptorCosmetics()
              sets each img.src based on the equipped cosmetic for that
-             slot and toggles the hidden attribute. Back is painted
-             first so wings sit behind the body; the body then covers,
-             and neck / eyes / head layer on top. -->
-        <img
-          class="start-raptor-cosmetic"
-          data-slot="back"
-          alt=""
-          aria-hidden="true"
-          hidden
-        />
+             slot and toggles the hidden attribute. Body paints first;
+             neck / eyes / head cosmetics layer on top. -->
         <img
           class="start-raptor"
           src="assets/raptor-idle.png"

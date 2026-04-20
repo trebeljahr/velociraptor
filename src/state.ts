@@ -108,7 +108,6 @@ export interface GameState {
     head: string | null;
     eyes: string | null;
     neck: string | null;
-    back: string | null;
   };
 
   // ── Particle / effect arrays ───────────────────────
@@ -214,7 +213,7 @@ export const state: GameState = {
   coinsBalance: 0,
   coinsCollected: 0,
   ownedCosmetics: {},
-  equippedCosmetics: { head: null, eyes: null, neck: null, back: null },
+  equippedCosmetics: { head: null, eyes: null, neck: null },
   shootingStars: [],
   confetti: [],
   dust: [],

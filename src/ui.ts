@@ -1370,8 +1370,6 @@ const startRaptorStage = document.getElementById("start-raptor-stage");
 const _IDLE_CROWN = { x: 0.86851, y: 0.15566 };
 const _IDLE_SNOUT = { x: 0.98616, y: 0.25472 };
 const _IDLE_NECK_CORRECTION = { x: 0.00187, y: -0.00078 };
-const _IDLE_BACK_CORRECTION = { x: 0.00332, y: 0.00354 };
-const _RAPTOR_ASPECT = 212 / 578;
 
 // The three score-unlock classics bypass the generic placeholder
 // draw path in raptor.ts and use slightly smaller scales. Mirror
@@ -1388,12 +1386,7 @@ const _CLASSIC_DRAW: Record<
 
 function refreshStartRaptorCosmetics() {
   if (!startRaptorStage || !window.Game) return;
-  const slots: Array<"head" | "eyes" | "neck" | "back"> = [
-    "head",
-    "eyes",
-    "neck",
-    "back",
-  ];
+  const slots: Array<"head" | "eyes" | "neck"> = ["head", "eyes", "neck"];
   for (const slot of slots) {
     const img = startRaptorStage.querySelector(
       `.start-raptor-cosmetic[data-slot="${slot}"]`,
@@ -1420,7 +1413,7 @@ function refreshStartRaptorCosmetics() {
 // the canvas draw path — keep them in sync if that logic changes.
 function _applyStartCosmeticTransform(
   img: HTMLImageElement,
-  slot: "head" | "eyes" | "neck" | "back",
+  slot: "head" | "eyes" | "neck",
   id: string,
 ) {
   const def = window.Game?.getAllCosmetics?.().find(
@@ -1446,29 +1439,19 @@ function _applyStartCosmeticTransform(
     cx = _IDLE_CROWN.x + (_IDLE_SNOUT.x - _IDLE_CROWN.x) * 0.5 - 0.012;
     cy = _IDLE_CROWN.y + (_IDLE_SNOUT.y - _IDLE_CROWN.y) * 0.5 + 0.013;
     widthFrac = draw.scale ?? 0.1;
-    // atan2 must use pixel deltas, so scale dy by the raptor aspect
-    // before taking the angle.
+    // atan2 must use pixel deltas, so scale dy by the raptor aspect.
+    const RAPTOR_ASPECT = 212 / 578;
     const rideAngle = Math.atan2(
-      (_IDLE_SNOUT.y - _IDLE_CROWN.y) * _RAPTOR_ASPECT,
+      (_IDLE_SNOUT.y - _IDLE_CROWN.y) * RAPTOR_ASPECT,
       _IDLE_SNOUT.x - _IDLE_CROWN.x,
     );
     rot = draw.rotation ?? rideAngle - 0.25;
-  } else if (slot === "neck") {
+  } else {
+    // neck
     cx = _IDLE_CROWN.x - 0.02 + _IDLE_NECK_CORRECTION.x;
     cy = _IDLE_CROWN.y + 0.2 + _IDLE_NECK_CORRECTION.y;
     widthFrac = draw.scale ?? 0.08;
     rot = draw.rotation ?? -0.15;
-  } else {
-    // back (wings). Canvas sizes wings by raptor HEIGHT; we express
-    // that as a fraction of stage WIDTH via RAPTOR_ASPECT so the
-    // CSS width percentage lines up with the canvas pixel count.
-    cx = _IDLE_CROWN.x - 0.32 + _IDLE_BACK_CORRECTION.x;
-    cy = _IDLE_CROWN.y - 0.05 + _IDLE_BACK_CORRECTION.y;
-    widthFrac = (draw.scale ?? 0.85) * _RAPTOR_ASPECT;
-    rot = draw.rotation ?? -0.1;
-    const ap = draw.attachmentPoint ?? { x: 0.9, y: 0.2 };
-    apX = ap.x;
-    apY = ap.y;
   }
   if (draw.offset?.x != null) cx += draw.offset.x;
   if (draw.offset?.y != null) cy += draw.offset.y;
@@ -1509,11 +1492,6 @@ function _spriteUrlForId(id: string): string | null {
     monocle: "assets/cosmetics/monocle.png",
     eyePatch: "assets/cosmetics/eye-patch.png",
     goldChain: "assets/cosmetics/gold-chain.png",
-    angelWings: "assets/cosmetics/angel-wings.png",
-    demonWings: "assets/cosmetics/demon-wings.png",
-    butterflyWingsOrange: "assets/cosmetics/butterfly-wings-orange.png",
-    butterflyWingsBlue: "assets/cosmetics/butterfly-wings-blue.png",
-    butterflyWingsPurple: "assets/cosmetics/butterfly-wings-purple.png",
     sombrero: "assets/cosmetics/sombrero.png",
     bandana: "assets/cosmetics/bandana.png",
     crown: "assets/cosmetics/crown.png",
@@ -1524,13 +1502,12 @@ function _spriteUrlForId(id: string): string | null {
 // Slot data used to render the per-slot sections in the cosmetics
 // menu. Order here is the order the sections stack top-to-bottom.
 const COSMETIC_SLOT_UI: Array<{
-  slot: "head" | "eyes" | "neck" | "back";
+  slot: "head" | "eyes" | "neck";
   label: string;
 }> = [
   { slot: "head", label: "Head" },
   { slot: "eyes", label: "Eyes" },
   { slot: "neck", label: "Neck" },
-  { slot: "back", label: "Back" },
 ];
 
 function refreshEasterEggUI() {
@@ -1600,7 +1577,7 @@ function renderCosmeticsMenu() {
 }
 
 function _buildCosmeticSlotRow(opts: {
-  slot: "head" | "eyes" | "neck" | "back";
+  slot: "head" | "eyes" | "neck";
   label: string;
   equippedId: string | null;
   options: Array<{ id: string; name: string; spriteKey?: string }>;
@@ -1608,7 +1585,7 @@ function _buildCosmeticSlotRow(opts: {
   // Flat per-slot section — no <details>, no collapse. Every
   // option is always visible so the player can scan+pick in one
   // motion instead of fold→expand→click. The slot-tinted left
-  // border (CSS [data-slot]) keeps Head/Eyes/Neck/Back visually
+  // border (CSS [data-slot]) keeps Head/Eyes/Neck visually
   // distinct without needing a clickable header to separate them.
   const section = document.createElement("div");
   section.className = "cosmetic-slot";
@@ -1675,13 +1652,12 @@ function _buildCosmeticSlotRow(opts: {
 function _setThumbForId(
   el: HTMLDivElement,
   id: string | null,
-  slot: "head" | "eyes" | "neck" | "back",
+  slot: "head" | "eyes" | "neck",
 ): void {
   const slotColor: Record<string, string> = {
     head: "#d97706",
     eyes: "#1f2937",
     neck: "#b91c1c",
-    back: "#7c3aed",
   };
   const spriteUrl = id ? _spriteUrlForId(id) : null;
   el.innerHTML = "";

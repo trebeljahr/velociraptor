@@ -2313,7 +2313,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       state.coinsBalance = 0;
       state.coinsCollected = 0;
       state.ownedCosmetics = {};
-      state.equippedCosmetics = { head: null, eyes: null, neck: null, back: null };
+      state.equippedCosmetics = { head: null, eyes: null, neck: null };
       saveCoinsBalance(0);
       saveCoinsCollected(0);
       saveOwnedCosmetics({});

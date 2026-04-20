@@ -4,13 +4,12 @@
  * Add an entry and it shows up in all three.
  */
 
-export type CosmeticSlot = "head" | "eyes" | "neck" | "back";
+export type CosmeticSlot = "head" | "eyes" | "neck";
 
 export const COSMETIC_SLOTS: ReadonlyArray<CosmeticSlot> = [
   "head",
   "eyes",
   "neck",
-  "back",
 ];
 
 /** Human-readable slot name used in the equip menu subheadings. */
@@ -18,7 +17,6 @@ export const COSMETIC_SLOT_LABELS: Record<CosmeticSlot, string> = {
   head: "Head",
   eyes: "Eyes",
   neck: "Neck",
-  back: "Back",
 };
 
 export interface CosmeticDef {
@@ -37,19 +35,14 @@ export interface CosmeticDef {
   /** Per-item overrides applied on top of the slot defaults in
    *  raptor.ts. Anything undefined falls back to the slot default. */
   draw?: {
-    /** Head/back: fraction of raptor height. Eyes/neck: fraction
-     *  of raptor width. */
+    /** Head: fraction of raptor height. Eyes/neck: fraction of
+     *  raptor width. */
     scale?: number;
     /** Radians. Positive = clockwise. */
     rotation?: number;
     /** Extra anchor offset as a fraction of raptor width/height.
      *  +x nudges toward the snout, +y nudges down. */
     offset?: { x?: number; y?: number };
-    /** Normalised (0..1) sprite point that lands on the slot anchor.
-     *  Defaults: centre for eyes/neck, bottom-centre for head. Back-
-     *  slot wings set this per-item to pin the shoulder/thorax to
-     *  the back ridge — every wing art has its attachment elsewhere. */
-    attachmentPoint?: { x: number; y: number };
   };
 }
 
@@ -204,89 +197,6 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     draw: { scale: 0.063, rotation: -0.3, offset: { x: -0.025, y: 0.05 } },
   },
 
-  // ── Shop: back ────────────────────────────────────────
-  // Wings render on top of the raptor body — the back-slot
-  // draw pass in raptor.ts runs last so the wings overlay the
-  // sprite rather than peeking around it. All wings are
-  // pre-flipped so the shoulder/body sits in the sprite's right
-  // half; per-wing attachmentPoints pin that actual shoulder
-  // pixel to the back anchor.
-  {
-    id: "angel-wings",
-    name: "Angel Wings",
-    slot: "back",
-    price: 600,
-    spriteKey: "angelWings",
-    description: "Feathered, luminous. Halo not included.",
-    // Shoulder joint where the feathers fan out — centre-right of
-    // the (pre-flipped) sprite.
-    draw: {
-      scale: 0.6,
-      rotation: 0.5,
-      offset: { x: 0.2, y: 0.09 },
-      attachmentPoint: { x: 0.82, y: 0.45 },
-    },
-  },
-  {
-    id: "demon-wings",
-    name: "Demon Wings",
-    slot: "back",
-    price: 600,
-    spriteKey: "demonWings",
-    description: "Boned and membraned. Runic markings optional.",
-    // Horned shoulder bones converge at top-right of the sprite.
-    draw: {
-      scale: 0.7,
-      rotation: 0.3,
-      offset: { x: 0.15, y: -0.19 },
-      attachmentPoint: { x: 0.68, y: 0.12 },
-    },
-  },
-  {
-    id: "butterfly-wings-orange",
-    name: "Monarch Wings",
-    slot: "back",
-    price: 300,
-    spriteKey: "butterflyWingsOrange",
-    description: "Orange monarch — moons and flowers pattern.",
-    // Thorax where upper and lower wings meet — middle-right of
-    // the sprite.
-    draw: {
-      scale: 0.55,
-      rotation: 0.4,
-      offset: { x: 0.14, y: -0.02 },
-      attachmentPoint: { x: 0.58, y: 0.45 },
-    },
-  },
-  {
-    id: "butterfly-wings-blue",
-    name: "Morpho Wings",
-    slot: "back",
-    price: 300,
-    spriteKey: "butterflyWingsBlue",
-    description: "Deep-blue morpho — speckled and eyespotted.",
-    draw: {
-      scale: 0.55,
-      rotation: -0.0,
-      offset: { x: 0.1, y: 0.09 },
-      attachmentPoint: { x: 0.5, y: 0.55 },
-    },
-  },
-  {
-    id: "butterfly-wings-purple",
-    name: "Twilight Wings",
-    slot: "back",
-    price: 300,
-    spriteKey: "butterflyWingsPurple",
-    description: "Magenta with celestial banding.",
-    // Twilight has the vertical body band on the LEFT edge.
-    draw: {
-      scale: 0.55,
-      rotation: 0.3,
-      offset: { x: 0.13, y: -0.08 },
-      attachmentPoint: { x: 0.5, y: 0.35 },
-    },
-  },
 ];
 
 /** O(1) id → def lookup, populated once at module load. */
@@ -313,7 +223,6 @@ export const PLACEHOLDER_COLORS: Record<CosmeticSlot, string> = {
   head: "#d97706", // amber
   eyes: "#1f2937", // slate
   neck: "#b91c1c", // red
-  back: "#7c3aed", // violet
 };
 
 // ── Mutation helpers (grant / buy / equip / unequip) ─────────
@@ -391,7 +300,7 @@ function _ownsEntireShop(): boolean {
 
 function _allSlotsEquipped(): boolean {
   const e = state.equippedCosmetics;
-  return e.head != null && e.eyes != null && e.neck != null && e.back != null;
+  return e.head != null && e.eyes != null && e.neck != null;
 }
 
 /** Add to inventory and auto-equip if the slot is empty. No-op if

@@ -352,27 +352,12 @@ export const RAPTOR_SNOUT: ReadonlyArray<readonly [number, number]> = [
   [0.98616, 0.25472], // frame 11
 ];
 
-// Per-frame corrections for the NECK and BACK anchors. Cosmetic
-// draws derive cx/cy from the crown plus a fixed offset — right on
-// average but wrong per-frame because the back barely bobs while
-// the crown dips and the throat bends on a slightly delayed cycle.
-// These are zero-mean deltas (measured back/neck motion minus crown
-// motion) that pin wings to a near-rigid shoulder and the bandana
-// to the throat instead of the head bob.
-export const RAPTOR_BACK_CORRECTION: ReadonlyArray<readonly [number, number]> = [
-  [+0.00678, -0.00118], // frame 0
-  [+0.00332, +0.00354], // frame 1
-  [-0.01225, -0.00119], // frame 2
-  [-0.0036, -0.0059], // frame 3
-  [+0.00159, +0.00353], // frame 4
-  [+0.00332, +0.00354], // frame 5
-  [+0.00505, -0.00118], // frame 6
-  [+0.00159, -0.00118], // frame 7
-  [-0.00187, -0.00119], // frame 8
-  [-0.00533, -0.00118], // frame 9
-  [-0.00187, -0.00118], // frame 10
-  [+0.00332, +0.00354], // frame 11
-];
+// Per-frame correction for the NECK anchor. Cosmetic draws derive
+// cx/cy from the crown plus a fixed offset — right on average but
+// wrong per-frame because the throat bends on a slightly delayed
+// cycle from the head bob. These are zero-mean deltas (measured
+// neck motion minus crown motion) that pin the bandana to the
+// throat instead of following the head.
 export const RAPTOR_NECK_CORRECTION: ReadonlyArray<readonly [number, number]> = [
   [+0.0036, -0.00079], // frame 0
   [+0.00187, -0.00078], // frame 1

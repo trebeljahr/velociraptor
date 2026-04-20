@@ -414,7 +414,6 @@ export function loadEquippedCosmetics(): EquippedMap {
     head: null,
     eyes: null,
     neck: null,
-    back: null,
   };
   try {
     const raw = _persistGet(EQUIPPED_COSMETICS_KEY);
@@ -425,7 +424,6 @@ export function loadEquippedCosmetics(): EquippedMap {
       head: typeof obj.head === "string" ? obj.head : null,
       eyes: typeof obj.eyes === "string" ? obj.eyes : null,
       neck: typeof obj.neck === "string" ? obj.neck : null,
-      back: typeof obj.back === "string" ? obj.back : null,
     };
   } catch {
     return fallback;

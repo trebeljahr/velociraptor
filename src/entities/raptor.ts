@@ -28,7 +28,6 @@ import {
   RAPTOR_NATIVE_H,
   RAPTOR_CROWN,
   RAPTOR_SNOUT,
-  RAPTOR_BACK_CORRECTION,
   RAPTOR_NECK_CORRECTION,
   RAPTOR_COLLISION_INSET,
 } from "../constants";
@@ -194,10 +193,6 @@ export class Raptor {
   draw(ctx: CanvasRenderingContext2D): void {
     if (!this.sheet) return;
     const srcY = this.frame * RAPTOR_NATIVE_H;
-    // Back-slot wings draw FIRST so the body sprite covers their
-    // inner edge; only the outer spread hangs behind the raptor.
-    // Matches the start-screen preview, which layers the same way.
-    this._drawEquippedSlot(ctx, "back");
     ctx.drawImage(
       this.sheet,
       0,
@@ -214,17 +209,6 @@ export class Raptor {
     this._drawEquippedSlot(ctx, "eyes");
     this._drawEquippedSlot(ctx, "head");
     this._drawEquippedSlot(ctx, "neck");
-  }
-
-  /** Back anchor — upper-back ridge, derived from the crown so the
-   *  wing bobs with the run cycle. Pulled back from the crown onto
-   *  the spine and lifted so wings sit on top of the back. */
-  currentBackPoint(): { x: number; y: number } {
-    const crown = this.currentCrownPoint();
-    return {
-      x: crown.x - this.w * 0.32,
-      y: crown.y - this.h * 0.05,
-    };
   }
 
   private _drawEquippedSlot(
@@ -294,42 +278,16 @@ export class Raptor {
       w = this.w * scale;
       h = w * (sprite ? sprite.height / sprite.width : 0.7);
       rot = drawOverride?.rotation ?? -0.15;
-    } else {
-      // Back slot (wings). Sized by raptor HEIGHT so wings scale
-      // cleanly across viewports. Per-frame correction keeps the
-      // wing-root glued to the near-rigid shoulder instead of
-      // sloshing with the head bob.
-      const back = this.currentBackPoint();
-      cx = back.x;
-      cy = back.y;
-      const f = this.y === this.ground ? this.frame : RAPTOR_IDLE_FRAME;
-      const [bcx, bcy] = RAPTOR_BACK_CORRECTION[f];
-      cx += this.w * bcx;
-      cy += this.h * bcy;
-      const scale = drawOverride?.scale ?? 0.85;
-      w = this.h * scale;
-      h = w * (sprite ? sprite.height / sprite.width : 0.85);
-      rot = drawOverride?.rotation ?? -0.1;
     }
     if (drawOverride?.offset) {
       if (drawOverride.offset.x != null) cx += this.w * drawOverride.offset.x;
       if (drawOverride.offset.y != null) cy += this.h * drawOverride.offset.y;
     }
-    // Back slot pins a per-cosmetic attachment point (shoulder /
-    // butterfly thorax) to the anchor — each wing art has its
-    // attachment in a different spot. Other slots centre on (cx, cy).
-    let drawXOverride: number | null = null;
-    let drawYOverride: number | null = null;
-    if (slot === "back") {
-      const ap = drawOverride?.attachmentPoint ?? { x: 0.9, y: 0.2 };
-      drawXOverride = -w * ap.x;
-      drawYOverride = -h * ap.y;
-    }
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(rot);
-    const drawX = drawXOverride ?? -w / 2;
-    const drawY = drawYOverride ?? (bottomAnchored ? -h : -h / 2);
+    const drawX = -w / 2;
+    const drawY = bottomAnchored ? -h : -h / 2;
     if (sprite) {
       ctx.drawImage(sprite, drawX, drawY, w, h);
     } else {
