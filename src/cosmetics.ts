@@ -122,9 +122,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 50,
     spriteKey: "cowboyHat",
     description: "Yeehaw. Fits the desert.",
-    // Wide brim, sits flat on the head — doesn't want the
-    // party hat's ~20° backwards tilt.
-    draw: { scale: 0.22, rotation: -0.05 },
+    draw: { scale: 0.22, rotation: -0.2, offset: { y: 0.05 } },
   },
   {
     id: "top-hat",
@@ -133,7 +131,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 150,
     spriteKey: "topHat",
     description: "Fancy. Pairs with the bow tie.",
-    draw: { scale: 0.3, rotation: -0.1 },
+    draw: { scale: 0.3, rotation: -0.18, offset: { y: 0.05 } },
   },
   {
     id: "wizard-hat",
@@ -142,7 +140,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 200,
     spriteKey: "wizardHat",
     description: "Pointy and arcane.",
-    draw: { scale: 0.32, rotation: -0.15 },
+    draw: { scale: 0.32, rotation: -0.15, offset: { y: 0.04 } },
   },
   {
     id: "pirate-tricorn",
@@ -151,7 +149,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 175,
     spriteKey: "pirateTricorn",
     description: "Skull and crossbones, plumed. Pairs with the eye patch.",
-    draw: { scale: 0.26, rotation: 0.02 },
+    draw: { scale: 0.26, rotation: 0.02, offset: { x: -0.04, y: 0.06 } },
   },
   {
     id: "crown",
@@ -160,7 +158,9 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 500,
     spriteKey: "tiara",
     description: "Silver with a sapphire centrepiece — premium royalty.",
-    draw: { scale: 0.22, rotation: -0.05 },
+    // Tiara sprite has had its right leg cropped so the far band
+    // doesn't appear in front of the raptor's face.
+    draw: { scale: 0.22, rotation: -0.05, offset: { y: 0.08 } },
   },
   {
     id: "sombrero",
@@ -186,10 +186,10 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     spriteKey: "monocle",
     description: "Distinguished and a little silly.",
     // Round lens + hanging chain — wants to sit flat at eye level,
-    // not follow the snout angle the slot default uses. Smaller
-    // than the thug glasses and nudged back toward the eye so the
-    // chain doesn't hang off the snout tip.
-    draw: { scale: 0.05, rotation: 0, offset: { x: -0.03 } },
+    // not follow the snout angle the slot default uses. Much
+    // smaller than the thug glasses and nudged well back toward
+    // the eye so the chain doesn't dangle past the snout tip.
+    draw: { scale: 0.035, rotation: 0, offset: { x: -0.07 } },
   },
   {
     id: "eye-patch",
@@ -202,7 +202,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     // squarely over the eye. Rotation omitted so the slot-default
     // snout-ridge angle kicks in — makes the small leading strap
     // drape over the snout rather than sticking out flat.
-    draw: { scale: 0.13, offset: { x: -0.05 } },
+    draw: { scale: 0.13, offset: { x: -0.08 } },
   },
 
   // ── Shop: neck ────────────────────────────────────────
@@ -223,10 +223,10 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     // Cropped to just the pendants + flipped so the back of the
     // chain doesn't show in front of the neck. Slot default is
     // 8% of raptor width; the pendant group is wider relative
-    // to the bow tie so we size it down further. Nudged lower +
-    // right so the pendants hang on the front of the neck rather
-    // than sliding up toward the chin.
-    draw: { scale: 0.07, rotation: -0.1, offset: { x: 0.02, y: 0.03 } },
+    // to the bow tie so we size it down further. Nudged well
+    // down from the neck anchor so the pendants hang on the
+    // chest instead of sliding up toward the chin.
+    draw: { scale: 0.07, rotation: -0.1, offset: { x: 0.02, y: 0.09 } },
   },
   {
     id: "scarf",
@@ -254,11 +254,12 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     spriteKey: "angelWings",
     description: "Feathered, luminous. Halo not included.",
     // Shoulder joint where the feathers fan out — upper-right of
-    // the (pre-flipped) sprite.
+    // the (pre-flipped) sprite. Pulled inward (x=0.68) because
+    // the extreme right edge is feather tips, not the bony root.
     draw: {
-      scale: 0.7,
-      rotation: -0.2,
-      attachmentPoint: { x: 0.78, y: 0.2 },
+      scale: 0.6,
+      rotation: -0.15,
+      attachmentPoint: { x: 0.68, y: 0.3 },
     },
   },
   {
@@ -268,13 +269,11 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 600,
     spriteKey: "demonWings",
     description: "Boned and membraned. Runic markings optional.",
-    // Horned shoulder bones — upper-left of the sprite as drawn
-    // (demon art wasn't flipped; its natural attachment already
-    // faces the raptor's body direction).
+    // Horned shoulder bones — upper-left of the sprite as drawn.
     draw: {
-      scale: 0.85,
+      scale: 0.7,
       rotation: -0.15,
-      attachmentPoint: { x: 0.22, y: 0.1 },
+      attachmentPoint: { x: 0.28, y: 0.2 },
     },
   },
   {
@@ -284,12 +283,12 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsOrange",
     description: "Orange monarch — moons and flowers pattern.",
-    // Thorax where upper + lower wings meet — near the top of
-    // the sprite, slightly right of centre.
+    // Thorax where the upper and lower wings meet — around the
+    // middle of the sprite vertically, a touch left of centre.
     draw: {
-      scale: 0.6,
+      scale: 0.55,
       rotation: -0.15,
-      attachmentPoint: { x: 0.55, y: 0.18 },
+      attachmentPoint: { x: 0.45, y: 0.4 },
     },
   },
   {
@@ -300,9 +299,9 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     spriteKey: "butterflyWingsBlue",
     description: "Deep-blue morpho — speckled and eyespotted.",
     draw: {
-      scale: 0.6,
+      scale: 0.55,
       rotation: -0.15,
-      attachmentPoint: { x: 0.55, y: 0.4 },
+      attachmentPoint: { x: 0.4, y: 0.45 },
     },
   },
   {
@@ -314,9 +313,9 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     description: "Magenta with celestial banding.",
     // Twilight has the vertical body band on the LEFT edge.
     draw: {
-      scale: 0.6,
+      scale: 0.55,
       rotation: -0.15,
-      attachmentPoint: { x: 0.12, y: 0.45 },
+      attachmentPoint: { x: 0.17, y: 0.5 },
     },
   },
 ];
