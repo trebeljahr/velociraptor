@@ -244,7 +244,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 600,
     spriteKey: "angelWings",
     description: "Feathered, luminous. Halo not included.",
-    draw: { scale: 0.65, rotation: -0.2, offset: { x: -0.18, y: -0.32 } },
+    draw: { scale: 0.65, rotation: -0.2, offset: { y: -0.05 } },
   },
   {
     id: "demon-wings",
@@ -253,7 +253,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 600,
     spriteKey: "demonWings",
     description: "Boned and membraned. Runic markings optional.",
-    draw: { scale: 0.7, rotation: -0.2, offset: { x: -0.18, y: -0.32 } },
+    draw: { scale: 0.7, rotation: -0.2, offset: { y: -0.05 } },
   },
   {
     id: "butterfly-wings-orange",
@@ -262,7 +262,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsOrange",
     description: "Orange monarch — moons and flowers pattern.",
-    draw: { scale: 0.55, rotation: -0.15, offset: { x: -0.15, y: -0.28 } },
+    draw: { scale: 0.55, rotation: -0.15, offset: { y: -0.03 } },
   },
   {
     id: "butterfly-wings-blue",
@@ -271,7 +271,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsBlue",
     description: "Deep-blue morpho — speckled and eyespotted.",
-    draw: { scale: 0.55, rotation: -0.15, offset: { x: -0.15, y: -0.28 } },
+    draw: { scale: 0.55, rotation: -0.15, offset: { y: -0.03 } },
   },
   {
     id: "butterfly-wings-purple",
@@ -280,7 +280,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsPurple",
     description: "Magenta with celestial banding.",
-    draw: { scale: 0.55, rotation: -0.15, offset: { x: -0.15, y: -0.28 } },
+    draw: { scale: 0.55, rotation: -0.15, offset: { y: -0.03 } },
   },
 ];
 

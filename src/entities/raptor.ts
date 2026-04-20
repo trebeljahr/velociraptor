@@ -259,14 +259,15 @@ export class Raptor {
    */
   currentBackPoint(): { x: number; y: number } {
     const crown = this.currentCrownPoint();
-    // crown is roughly at the top-front of the head; the back
-    // attachment lives behind it and slightly below, at the
-    // raptor's shoulder / upper-back region. Fractions are tuned
-    // by eye against the flipped wing art so the wing-root sits
-    // on the shoulder instead of floating in the belly area.
+    // Target the upper-back ridge — the line of spots running
+    // along the raptor's dorsal side above the shoulders. Pulled
+    // back from the crown toward mid-body (so the wing-root lands
+    // over the spine, not the neck) and only a sliver below the
+    // crown y (so wings extend up-and-back from the top of the
+    // back, instead of hanging off the belly).
     return {
-      x: crown.x - this.w * 0.08,
-      y: crown.y + this.h * 0.2,
+      x: crown.x - this.w * 0.2,
+      y: crown.y + this.h * 0.08,
     };
   }
 
