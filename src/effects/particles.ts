@@ -298,18 +298,64 @@ export function updateConfetti(dtSec: number): void {
 
 export function drawConfetti(ctx: CanvasRenderingContext2D): void {
   if (state.confetti.length === 0) return;
+  // Perf: a 70-piece burst + any stacked bursts was paying 140+
+  // save()/restore() pairs per frame in the old loop, and each
+  // save() snapshots every context field (transform, alpha,
+  // fillStyle, shadow, composite op, etc.). On lower-end hardware
+  // that was the dominant cost of the whole effect at spawn time.
+  //
+  // The new loop snapshots the base transform once via
+  // getTransform() (captures the DPR scale + any parent transform
+  // without needing to hardcode DPR here) and composes each
+  // particle's translate + rotate into a single setTransform per
+  // piece. globalAlpha + fillStyle are tracked inline so we only
+  // issue a setter when the value actually changes; confetti are
+  // spawned batched by color in random order, so this nets a
+  // small but real reduction in state-change traffic too.
+  const base = ctx.getTransform();
+  const ba = base.a,
+    bb = base.b,
+    bc = base.c,
+    bd = base.d,
+    be = base.e,
+    bf = base.f;
+  let lastAlpha = -1;
+  let lastColor = "";
   for (const p of state.confetti) {
     const t = p.age / p.life;
     const alpha = t < 0.85 ? 1 : Math.max(0, 1 - (t - 0.85) / 0.15);
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = p.color;
-    ctx.translate(p.x, p.y);
-    ctx.rotate(p.rot);
-    // Rectangular confetti piece, slightly taller than wide.
-    ctx.fillRect(-p.size / 2, -p.size / 3, p.size, (p.size * 2) / 3);
-    ctx.restore();
+    if (alpha !== lastAlpha) {
+      ctx.globalAlpha = alpha;
+      lastAlpha = alpha;
+    }
+    if (p.color !== lastColor) {
+      ctx.fillStyle = p.color;
+      lastColor = p.color;
+    }
+    // Inlined 2D-affine multiply:  base * translate(p.x,p.y) * rotate(p.rot).
+    // The per-particle matrix (cos, sin, -sin, cos, px, py) lives in
+    // canvas-user-space; composing with `base` keeps the DPR scale
+    // (ctx.scale(dpr, dpr) applied in the canvas setup path) intact
+    // across the setTransform call.
+    const cos = Math.cos(p.rot);
+    const sin = Math.sin(p.rot);
+    ctx.setTransform(
+      ba * cos + bc * sin,
+      bb * cos + bd * sin,
+      ba * -sin + bc * cos,
+      bb * -sin + bd * cos,
+      ba * p.x + bc * p.y + be,
+      bb * p.x + bd * p.y + bf,
+    );
+    // Rectangular confetti piece, 3:2 aspect (wider than tall).
+    const h = (p.size * 2) / 3;
+    ctx.fillRect(-p.size / 2, -h / 2, p.size, h);
   }
+  // Restore the base transform and default alpha so nothing
+  // downstream (post-render overlays, game-over scrim, etc.) inherits
+  // the last particle's state.
+  ctx.setTransform(ba, bb, bc, bd, be, bf);
+  ctx.globalAlpha = 1;
 }
 
 // ══════════════════════════════════════════════════════════════════

@@ -11,7 +11,7 @@ export const JUMP_CLEARANCE_MULTIPLIER = 1.65;
 // Score points per full day/night cycle. Sized so pure-day and
 // pure-night bands each stay at 5 points per band regardless of how
 // many transition bands sit between them.
-export const SKY_CYCLE_SCORE = 70;
+export const SKY_CYCLE_SCORE = 80;
 export const SKY_UPDATE_INTERVAL_FRAMES = 10;
 
 // ── Gameplay & Physics ──────────────────────────────────────
@@ -128,8 +128,8 @@ export const COIN_STREAK_RESET_MS = 1500;
 // ── Celestial Bodies (Sun & Moon) ──────────────────────────
 // Phases expressed as band-index / SKY_COLORS.length so anchors
 // stay in lockstep with the palette.
-export const SUN_PHASE_CENTER = 2 / 14;
-export const MOON_PHASE_CENTER = 9 / 14;
+export const SUN_PHASE_CENTER = 2 / 16;
+export const MOON_PHASE_CENTER = 10 / 16;
 export const CELESTIAL_ARC_HALF_WIDTH = 0.25;
 export const CELESTIAL_ARC_EXTENSION = 0.18;
 export const CELESTIAL_ARC_HEIGHT_RATIO = 0.7;
@@ -183,18 +183,19 @@ export const GAMEPAD_STICK_PRESS_THRESHOLD = 0.6;
 export const GAMEPAD_STICK_DEADZONE = 0.25;
 
 // ── Cinematic / filming mode (F9) ────────────────────────
-// Phases are (band_index + offset) / SKY_COLORS.length.
+// Phases are (band_index + offset) / SKY_COLORS.length. Keys 1–9+0
+// cover every named moment in the 16-band cycle.
 export const CINEMATIC_PHASES = [
-  { key: "1", phase: 0.02, label: "Early morning" },
-  { key: "2", phase: 2 / 14, label: "Midday (sun zenith)" },
-  { key: "3", phase: 3.5 / 14, label: "Afternoon" },
-  { key: "4", phase: 5.5 / 14, label: "Sunset" },
-  { key: "5", phase: 6.5 / 14, label: "Blue hour" },
-  { key: "6", phase: 7.5 / 14, label: "Early night" },
-  { key: "7", phase: 9 / 14, label: "Midnight (moon zenith)" },
-  { key: "8", phase: 10.5 / 14, label: "Late night" },
-  { key: "9", phase: 12.5 / 14, label: "Pre-dawn blue hour" },
-  { key: "0", phase: 13.5 / 14, label: "Sunrise" },
+  { key: "1", phase: 2 / 16, label: "Midday (sun zenith)" },
+  { key: "2", phase: 4 / 16, label: "Afternoon" },
+  { key: "3", phase: 5.5 / 16, label: "Golden hour" },
+  { key: "4", phase: 6.5 / 16, label: "Sunset" },
+  { key: "5", phase: 7.5 / 16, label: "Blue hour" },
+  { key: "6", phase: 10 / 16, label: "Midnight (moon zenith)" },
+  { key: "7", phase: 12 / 16, label: "Late night" },
+  { key: "8", phase: 13.5 / 16, label: "Pre-dawn blue hour" },
+  { key: "9", phase: 14.5 / 16, label: "Sunrise" },
+  { key: "0", phase: 15.5 / 16, label: "Early morning gold" },
 ] as const;
 
 // ── Dunes & Parallax ──────────────────────────────────────
@@ -289,6 +290,10 @@ export const TOTAL_DAY_CYCLES_KEY = "raptor-runner:totalDayCycles";
 export const RARE_EVENTS_SEEN_KEY = "raptor-runner:rareEventsSeen";
 // ── Coin economy ───────────────────────────────────────────
 export const COINS_BALANCE_KEY = "raptor-runner:coinsBalance";
+/** Persistent lifetime total of coins PICKED UP — never decremented
+ *  by spending. Drives the "coin hoarder" achievement and could
+ *  back stats displays later. */
+export const COINS_COLLECTED_KEY = "raptor-runner:coinsCollected";
 /** JSON array of owned cosmetic ids (buys + score unlocks). */
 export const OWNED_COSMETICS_KEY = "raptor-runner:ownedCosmetics";
 /** JSON object {head, eyes, neck, back} → cosmetic id or null. */
@@ -383,26 +388,28 @@ export const RAPTOR_NECK_CORRECTION: ReadonlyArray<readonly [number, number]> = 
   [+0.00187, -0.00078], // frame 11
 ];
 
-// ── 14-band day/night sky palette ──────────────────────────
-// 5 day + sunset + blue-hour + 5 night + blue-hour + sunrise.
-// Twilight spans two bands (magenta → blue hour) on each side so
-// each lerp step is short and the ugly mid-grey between day blue
-// and magenta is only briefly visible in transit.
+// ── 16-band day/night sky palette ──────────────────────────
+// 5 day + golden + sunset + blue-hour + 5 night + blue-hour +
+// sunrise + golden. Golden bridges the luminance gap between
+// day-blue and magenta so no step in the chain lands on the
+// desaturated grey axis.
 export const SKY_COLORS: ReadonlyArray<readonly [number, number, number]> = [
   [80, 180, 205], // 0  blue (day)
   [80, 180, 205], // 1  blue (day)
   [80, 180, 205], // 2  blue (day)
   [80, 180, 205], // 3  blue (day)
   [80, 180, 205], // 4  blue (day)
-  [220, 90, 120], // 5  magenta-pink (sunset)
-  [40, 65, 130], // 6  blue hour (post-sunset)
-  [21, 34, 56], // 7  night
+  [240, 170, 70], // 5  golden hour (pre-sunset)
+  [220, 90, 120], // 6  magenta-pink (sunset)
+  [40, 65, 130], // 7  blue hour (post-sunset)
   [21, 34, 56], // 8  night
   [21, 34, 56], // 9  night
   [21, 34, 56], // 10 night
   [21, 34, 56], // 11 night
-  [40, 65, 130], // 12 blue hour (pre-sunrise)
-  [220, 90, 120], // 13 magenta-pink (sunrise)
+  [21, 34, 56], // 12 night
+  [40, 65, 130], // 13 blue hour (pre-sunrise)
+  [220, 90, 120], // 14 magenta-pink (sunrise)
+  [240, 170, 70], // 15 golden hour (post-sunrise)
 ];
 
 export const NIGHT_COLOR: readonly [number, number, number] = [21, 34, 56];

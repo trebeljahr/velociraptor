@@ -139,6 +139,10 @@ export const ATTRIBUTION_SECTIONS: ReadonlyArray<AttributionSection> = [
         <a href="https://freesound.org/s/320655/" target="_blank" rel="noopener">Freesound</a>,
         licensed under
         <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>.`,
+      `Achievement unlock stinger — "Short Success Sound Glockenspiel Treasure Video Game" (sound 6346) by
+        <a href="https://pixabay.com/users/freesound_community-46691455/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=6346" target="_blank" rel="noopener">freesound_community</a>
+        from
+        <a href="https://pixabay.com/sound-effects/?utm_source=link-attribution&amp;utm_medium=referral&amp;utm_campaign=music&amp;utm_content=6346" target="_blank" rel="noopener">Pixabay</a>.`,
     ],
   },
   {

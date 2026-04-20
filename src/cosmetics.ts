@@ -361,9 +361,47 @@ const LEGACY_WEAR_STATE: Record<string, keyof typeof state> = {
   "bow-tie": "wearBowTie",
 };
 
+// ── Achievement bridge ─────────────────────────────────────────
+// cosmetics.ts can't import from main.ts (unlockAchievement lives in
+// an init closure, not exported). main.ts registers the callback at
+// boot — same pattern particles.ts uses.
+
+type AchievementCallback = (id: string) => void;
+let onAchievementUnlock: AchievementCallback | null = null;
+
+export function setCosmeticsAchievementHandler(
+  cb: AchievementCallback | null,
+): void {
+  onAchievementUnlock = cb;
+}
+
+/** Purchasable-inventory size (excludes scoreUnlock classics). */
+const SHOP_INVENTORY_SIZE = COSMETICS.filter((c) => !c.scoreUnlock).length;
+
+/** True once every purchasable cosmetic is owned. Classics excluded
+ *  so earning them doesn't partially satisfy a shop-completion goal. */
+function _ownsEntireShop(): boolean {
+  let owned = 0;
+  for (const def of COSMETICS) {
+    if (def.scoreUnlock) continue;
+    if (state.ownedCosmetics[def.id]) owned += 1;
+  }
+  return owned >= SHOP_INVENTORY_SIZE;
+}
+
+function _allSlotsEquipped(): boolean {
+  const e = state.equippedCosmetics;
+  return e.head != null && e.eyes != null && e.neck != null && e.back != null;
+}
+
 /** Add to inventory and auto-equip if the slot is empty. No-op if
- *  already owned. Persists both the new map and the legacy flags. */
-export function grantCosmetic(id: string): void {
+ *  already owned. `forceEquip` overrides the empty-slot guard — used
+ *  for score-milestone classics where the item IS the reward, so
+ *  showing it on the raptor immediately is the celebratory moment. */
+export function grantCosmetic(
+  id: string,
+  { forceEquip = false }: { forceEquip?: boolean } = {},
+): void {
   const def = COSMETICS_BY_ID[id];
   if (!def) return;
   if (!state.ownedCosmetics[id]) {
@@ -376,7 +414,7 @@ export function grantCosmetic(id: string): void {
       saveBoolFlag(storageKey, true);
     }
   }
-  if (state.equippedCosmetics[def.slot] == null) {
+  if (forceEquip || state.equippedCosmetics[def.slot] == null) {
     equipCosmetic(id);
   }
 }
@@ -395,6 +433,15 @@ export function purchaseCosmetic(id: string): PurchaseResult {
   state.coinsBalance -= def.price;
   saveCoinsBalance(state.coinsBalance);
   grantCosmetic(id);
+  // Achievement bridge. Fire after grantCosmetic so the
+  // ownedCosmetics entry is set before the completionist check
+  // looks at the inventory. unlockAchievement is idempotent on
+  // the main.ts side, so re-firing "first-purchase" on every
+  // subsequent buy is a no-op after the first.
+  if (onAchievementUnlock) {
+    onAchievementUnlock("first-purchase");
+    if (_ownsEntireShop()) onAchievementUnlock("shop-cleaned-out");
+  }
   return "ok";
 }
 
@@ -410,6 +457,13 @@ export function equipCosmetic(id: string): void {
   state.equippedCosmetics[def.slot] = id;
   saveEquippedCosmetics(state.equippedCosmetics);
   _setLegacyWear(id, true);
+  // "Jurassic Runway": all four slots occupied at the same time.
+  // equipCosmetic is the only function that ADDS to equippedCosmetics,
+  // so this is the right place to check — unequip/empty-slot never
+  // satisfies the condition.
+  if (onAchievementUnlock && _allSlotsEquipped()) {
+    onAchievementUnlock("fully-equipped");
+  }
 }
 
 /** Remove whatever is equipped in the given slot; slot becomes empty. */

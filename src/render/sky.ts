@@ -34,11 +34,15 @@ import { rgb, rgba, lerpColor } from "../helpers";
 let _sunHaloSprite: HTMLCanvasElement | null = null;
 let _sunHaloRadius = -1;
 
-// Note: no moon halo sprite cache here. The moon halo alpha scales
-// with `illum` (0..1, smooth over the synodic cycle), so caching by
-// radius alone would paint the wrong brightness. drawMoon builds its
-// gradient fresh each frame — cheap since it only runs when the moon
-// is visible, and the alpha changes make baking unhelpful anyway.
+// Moon halo sprite cache. Baked at illum=1 (the inner/mid gradient
+// stops 0.45 and 0.14 go into the canvas unmodulated); drawMoon
+// blits it with `globalAlpha *= illum` so the full-moon bloom is
+// bright and the new moon is invisible for free, without rebuilding
+// the radial gradient every frame. The halo *colour* is a hard-coded
+// constant [220, 230, 250] (not time-of-sky like the sun's), so one
+// sprite per radius is enough.
+let _moonHaloSprite: HTMLCanvasElement | null = null;
+let _moonHaloRadius = -1;
 
 function bakeSunHaloSprite(r: number): HTMLCanvasElement {
   const haloR = r * 3;
@@ -68,6 +72,42 @@ function bakeSunHaloSprite(r: number): HTMLCanvasElement {
 export function invalidateSkyCache(): void {
   _sunHaloSprite = null;
   _sunHaloRadius = -1;
+  _moonHaloSprite = null;
+  _moonHaloRadius = -1;
+  // Force the next computeSkyGradient to rebake — the viewport or
+  // sky palette just changed under us.
+  _skyCacheR = -1;
+  _skyCacheG = -1;
+  _skyCacheB = -1;
+  _skyCacheW = -1;
+  _skyCacheH = -1;
+}
+
+/**
+ * Bake the moon halo radial gradient into an offscreen canvas sized
+ * to the full halo reach (2.6 × moon radius). The gradient stops
+ * match the live-draw values at illum=1 — callers modulate with
+ * globalAlpha = illum so every phase gets the correct brightness
+ * without rebuilding the gradient.
+ */
+function bakeMoonHaloSprite(r: number): HTMLCanvasElement {
+  const haloR = r * 2.6;
+  const size = Math.ceil(haloR * 2);
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const cx = c.getContext("2d");
+  if (!cx) return c;
+  const mid = size / 2;
+  const g = cx.createRadialGradient(mid, mid, r * 0.3, mid, mid, haloR);
+  g.addColorStop(0, "rgba(220, 230, 250, 0.45)");
+  g.addColorStop(0.5, "rgba(220, 230, 250, 0.14)");
+  g.addColorStop(1, "rgba(220, 230, 250, 0)");
+  cx.fillStyle = g;
+  cx.beginPath();
+  cx.arc(mid, mid, haloR, 0, Math.PI * 2);
+  cx.fill();
+  return c;
 }
 
 // ── Night detection (derived from SKY_COLORS) ───────────────
@@ -207,7 +247,8 @@ export function drawMoon(ctx: CanvasRenderingContext2D) {
   if (!arc.visible) return;
   const r = Math.max(MOON_MIN_RADIUS_PX, state.width * MOON_RADIUS_SCALE);
   const core: [number, number, number] = [250, 250, 252];
-  const halo: [number, number, number] = [220, 230, 250];
+  // Halo colour [220, 230, 250] is baked into the cached
+  // _moonHaloSprite — no local constant needed here.
 
   const ph = state.moonPhase;
   const illum = (1 - Math.cos(ph * Math.PI * 2)) / 2;
@@ -219,26 +260,26 @@ export function drawMoon(ctx: CanvasRenderingContext2D) {
   ctx.globalAlpha = arc.alpha * (0.2 + 0.8 * (1 - state.rainIntensity));
 
   // Halo — scales with illumination so the new moon has no glow
-  // and the full moon blooms. Previously the halo was a constant
-  // radial gradient, which meant an "empty" moon still painted a
-  // bright aura onto the sky.
-  //
-  // We keep the per-frame createRadialGradient here (not the baked
-  // sprite used for the sun) because the alpha depends on `illum`,
-  // which varies smoothly over the 29.5-day lunar cycle — caching
-  // by radius alone would paint the wrong brightness.
+  // and the full moon blooms. The baked sprite carries the
+  // radial-gradient shape and colour at illum=1; we modulate the
+  // brightness per frame via globalAlpha so the lunar-cycle bloom
+  // doesn't pay a createRadialGradient on every frame.
   if (illum > 0.01) {
-    const glow = ctx.createRadialGradient(
-      arc.x, arc.y, r * 0.3,
-      arc.x, arc.y, r * 2.6,
+    if (_moonHaloSprite == null || _moonHaloRadius !== r) {
+      _moonHaloSprite = bakeMoonHaloSprite(r);
+      _moonHaloRadius = r;
+    }
+    const haloR = r * 2.6;
+    const prev = ctx.globalAlpha;
+    ctx.globalAlpha = prev * illum;
+    ctx.drawImage(
+      _moonHaloSprite,
+      arc.x - haloR,
+      arc.y - haloR,
+      haloR * 2,
+      haloR * 2,
     );
-    glow.addColorStop(0, rgba(halo, 0.45 * illum));
-    glow.addColorStop(0.5, rgba(halo, 0.14 * illum));
-    glow.addColorStop(1, rgba(halo, 0));
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(arc.x, arc.y, r * 2.6, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.globalAlpha = prev;
   }
 
   // Build the lit-region path once. Used both to fill the moon
@@ -305,21 +346,61 @@ export function drawMoon(ctx: CanvasRenderingContext2D) {
 
 // ── Sky gradient ────────────────────────────────────────────
 
+// Cache key for the current baked sky gradient. If the sky colour
+// (rounded to integer RGB, since that's what the fillStyle ends
+// up with anyway) and viewport dimensions haven't changed, the
+// offscreen canvas already holds the exact fill we'd recompute —
+// skip the createLinearGradient + fullscreen fillRect.
+//
+// This matters because main.ts calls computeSkyGradient() on every
+// score change in addition to the 10-frame throttled tick, so a
+// 10-coin pickup field triggers ~10 redundant rebuilds in a second
+// on top of the ~6 throttled ones. With this cache, the throttled
+// tick only pays the gradient cost when currentSky has actually
+// drifted since the last compile — every redundant call becomes a
+// cheap RGB compare.
+let _skyCacheR = -1;
+let _skyCacheG = -1;
+let _skyCacheB = -1;
+let _skyCacheW = -1;
+let _skyCacheH = -1;
+
 export function computeSkyGradient() {
   const skyCanvas = contexts.skyCanvas;
   const skyCtx = contexts.sky;
   if (!skyCanvas || !skyCtx) return;
   const w = state.width;
   const h = state.height;
+  const sky = state.currentSky;
+  const r = Math.round(sky[0]);
+  const g = Math.round(sky[1]);
+  const b = Math.round(sky[2]);
+  if (
+    r === _skyCacheR &&
+    g === _skyCacheG &&
+    b === _skyCacheB &&
+    w === _skyCacheW &&
+    h === _skyCacheH &&
+    skyCanvas.width === w &&
+    skyCanvas.height === h
+  ) {
+    // Cache hit — baked sky already matches state. Skip the
+    // createLinearGradient + fullscreen fillRect.
+    return;
+  }
   if (skyCanvas.width !== w) skyCanvas.width = w;
   if (skyCanvas.height !== h) skyCanvas.height = h;
-  const sky = state.currentSky;
-  const horizonR = Math.round(sky[0] + (255 - sky[0]) * 0.45);
-  const horizonG = Math.round(sky[1] + (255 - sky[1]) * 0.45);
-  const horizonB = Math.round(sky[2] + (255 - sky[2]) * 0.45);
+  const horizonR = Math.round(r + (255 - r) * 0.45);
+  const horizonG = Math.round(g + (255 - g) * 0.45);
+  const horizonB = Math.round(b + (255 - b) * 0.45);
   const grad = skyCtx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, rgb(sky as [number,number,number]));
+  grad.addColorStop(0, `rgb(${r}, ${g}, ${b})`);
   grad.addColorStop(1, `rgb(${horizonR}, ${horizonG}, ${horizonB})`);
   skyCtx.fillStyle = grad;
   skyCtx.fillRect(0, 0, w, h);
+  _skyCacheR = r;
+  _skyCacheG = g;
+  _skyCacheB = b;
+  _skyCacheW = w;
+  _skyCacheH = h;
 }

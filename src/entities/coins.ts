@@ -45,6 +45,12 @@ export interface Coin {
    *  the raptor passes through on its way out. Triggers the
    *  chain-end chord on top of the regular pickup cue. */
   lastInField: boolean;
+  /** True for coins spawned inside a flower-field breather (the
+   *  10-coin ribbon). These coins feed the rising-pitch chain cue.
+   *  Coins spawned above cacti set this to false and play the flat
+   *  base-pitch chime — the chain is specifically a "full field"
+   *  reward, not a metric for every pickup in a run. */
+  fieldCoin: boolean;
 }
 
 interface RaptorRef {
@@ -105,27 +111,29 @@ export function spawnCoinsInRange(
       collected: false,
       collectFrame: 0,
       lastInField: i === COIN_COUNT_PER_FIELD - 1,
+      fieldCoin: true,
     });
   }
   audio.resetCoinStreak();
 }
 
-/** Spawn a single coin above a cactus: clearing the cactus IS the
- *  pickup. Coin sits where the raptor's torso arcs at the peak of
- *  a just-clearing jump — forgiving to grab but never trivially
- *  low. Source of score in the coins-only scoring model. */
+/** Spawn a single coin above a cactus: clearing IS the pickup. Coin
+ *  sits at the peak of a just-clearing arc. `isLarge` doubles the
+ *  gap (0.7 → 1.4 × coinSize) so tall cacti aren't trivially clipped
+ *  by a shallow hop. Sole score source in the coins-only model. */
 export function spawnCoinAboveCactus(
   cactusX: number,
   cactusY: number,
   cactusW: number,
   raptor: RaptorRef,
+  isLarge: boolean = false,
 ): void {
   if (!raptor || raptor.h <= 0 || raptor.w <= 0) return;
   const coinSize = raptor.h * COIN_SIZE_RATIO;
   state.coins = state.coins || [];
   const cx = cactusX + cactusW / 2 - coinSize / 2;
-  // Bottom of the coin sits ~70% of a coin above the cactus top.
-  const baseY = cactusY - coinSize - coinSize * 0.7;
+  const gapMultiplier = isLarge ? 1.4 : 0.7;
+  const baseY = cactusY - coinSize - coinSize * gapMultiplier;
   state.coins.push({
     x: cx,
     baseY,
@@ -136,6 +144,10 @@ export function spawnCoinAboveCactus(
     collectFrame: 0,
     // Not part of a field — no chain-end chord.
     lastInField: false,
+    // Per-cactus coins are NOT part of the pitched chain cue. The
+    // rising "ding-ding-diiing" is specifically the 10-coin field
+    // reward; per-cactus pickups play the flat base-pitch chime.
+    fieldCoin: false,
   });
 }
 
@@ -296,9 +308,25 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
   }
 }
 
-/** Shared 4-point white sparkle — used for the main glint, ambient
- *  twinkles, and collect-burst particles so they share one visual
- *  language. */
+// Unit-radius 4-point star baked once as a Path2D — translate+scale
+// per draw instead of rebuilding the 8-segment path (~60 star draws
+// per frame across live coins' glints + twinkles).
+const UNIT_STAR_PATH: Path2D = (() => {
+  const p = new Path2D();
+  p.moveTo(0, -1);
+  p.lineTo(0.3, -0.3);
+  p.lineTo(1, 0);
+  p.lineTo(0.3, 0.3);
+  p.lineTo(0, 1);
+  p.lineTo(-0.3, 0.3);
+  p.lineTo(-1, 0);
+  p.lineTo(-0.3, -0.3);
+  p.closePath();
+  return p;
+})();
+
+/** Shared 4-point white sparkle — main glint, ambient twinkles, and
+ *  collect-burst particles all use this one primitive. */
 function drawFourPointStar(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -310,17 +338,9 @@ function drawFourPointStar(
   ctx.save();
   ctx.globalAlpha = Math.min(1, alpha) * ctx.globalAlpha;
   ctx.fillStyle = "#fff";
-  ctx.beginPath();
-  ctx.moveTo(x, y - r);
-  ctx.lineTo(x + r * 0.3, y - r * 0.3);
-  ctx.lineTo(x + r, y);
-  ctx.lineTo(x + r * 0.3, y + r * 0.3);
-  ctx.lineTo(x, y + r);
-  ctx.lineTo(x - r * 0.3, y + r * 0.3);
-  ctx.lineTo(x - r, y);
-  ctx.lineTo(x - r * 0.3, y - r * 0.3);
-  ctx.closePath();
-  ctx.fill();
+  ctx.translate(x, y);
+  ctx.scale(r, r);
+  ctx.fill(UNIT_STAR_PATH);
   ctx.restore();
 }
 

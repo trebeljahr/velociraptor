@@ -161,6 +161,7 @@ import {
 } from "./constants";
 import {
   loadCoinsBalance,
+  loadCoinsCollected,
   loadOwnedCosmetics,
   loadEquippedCosmetics,
   loadHighScore,
@@ -177,6 +178,7 @@ import {
   loadRareEventsSeen,
   saveRareEventsSeen,
   saveCoinsBalance,
+  saveCoinsCollected,
   saveOwnedCosmetics,
   saveEquippedCosmetics,
   loadBoolFlag,
@@ -213,6 +215,7 @@ import {
   equipCosmetic,
   unequipSlot,
   grantCosmetic,
+  setCosmeticsAchievementHandler,
   type CosmeticSlot,
 } from "./cosmetics";
 import { contexts, initCanvas } from "./canvas";
@@ -327,7 +330,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   // CACTUS_VARIANTS (sprite + collision catalog) lives in
   // src/cactusVariants.ts.
 
-  // The 14-band day/night palette (SKY_COLORS) and NIGHT_COLOR live in
+  // The 16-band day/night palette (SKY_COLORS) and NIGHT_COLOR live in
   // _isNightBand / _isDayBand / isNightPhase / tintStrength /
   // tintFactor / celestialArc / drawSun / drawMoon /
   // computeSkyGradient all live in src/render/sky.ts.
@@ -724,16 +727,25 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // before the fall" rather than getting swallowed by the
       // game-over branch.
       collectCoins(raptor, (coin, cx, cy) => {
-        // Pass the flower-field flag so the rising-pitch chain only
-        // plays when the raptor is visibly on the patch; coins
-        // grabbed on bare ground (field edges, debug spawns,
-        // cactus-top coins) fall back to the default pitch.
-        const onFlowerField = raptorCrossingPatch(raptor.x, raptor.w) != null;
-        audio.playCoinCollect(onFlowerField);
+        // The rising-pitch chain is specifically the 10-coin field
+        // ribbon's cue — not "any coin while the raptor happens to
+        // be over grass". A cactus-top coin that lines up with a
+        // flower-field's x-range would otherwise slot into the chain
+        // and break the per-field count. Keying off the coin's own
+        // `fieldCoin` flag makes the chain cue strictly a field
+        // reward: every other coin (cactus tops, debug spawns, any
+        // future one-offs) plays the flat base-pitch chime.
+        audio.playCoinCollect(coin.fieldCoin);
         // Last coin in the field layers the chain-end chord on top
         // of the regular pickup — "ding ding ding … diiing ✨".
         if (coin.lastInField) audio.playCoinChainEnd();
         spawnCoinCollectBurst(cx, cy);
+        // Lifetime counter. Grows monotonically across runs; drives
+        // the "Scrooge McRaptor" achievement at 1,000. Saved every
+        // pickup because a crash mid-run shouldn't lose the grind.
+        state.coinsCollected = (state.coinsCollected ?? 0) + 1;
+        saveCoinsCollected(state.coinsCollected);
+        if (state.coinsCollected >= 1000) unlockAchievement("coin-hoarder");
         // Score progression lives here now — coins are the sole
         // score source in the coins-only model. Exact-equality
         // checks (`score === N`) are safe because
@@ -748,16 +760,19 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         if (state.score === THUG_GLASSES_SCORE_THRESHOLD)
           unlockAchievement("score-250");
         // Cosmetic unlocks — party hat at 100, thug glasses and
-        // bow tie at their thresholds. grantCosmetic is idempotent
-        // and auto-equips when the slot is free, so the cosmetic
-        // pops onto the raptor on first unlock and is a no-op on
-        // later runs. Confetti bursts off the raptor's head so
+        // bow tie at their thresholds. grantCosmetic is idempotent;
+        // forceEquip: true swaps the new item onto the raptor even
+        // if the slot is already occupied so the player sees the
+        // reward at the moment they earn it (the displaced item
+        // stays owned and can be re-equipped from the shop). No-op
+        // on later runs because the ownership guard above skips
+        // the whole block. Confetti bursts off the raptor's head so
         // the player actually notices.
         if (
           !state.ownedCosmetics["party-hat"] &&
           state.score >= PARTY_HAT_SCORE_THRESHOLD
         ) {
-          grantCosmetic("party-hat");
+          grantCosmetic("party-hat", { forceEquip: true });
           const crown = raptor.currentCrownPoint();
           spawnConfettiBurst(crown.x, crown.y);
         }
@@ -765,7 +780,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
           !state.ownedCosmetics["thug-glasses"] &&
           state.score >= THUG_GLASSES_SCORE_THRESHOLD
         ) {
-          grantCosmetic("thug-glasses");
+          grantCosmetic("thug-glasses", { forceEquip: true });
           const crown = raptor.currentCrownPoint();
           spawnConfettiBurst(crown.x, crown.y);
         }
@@ -773,7 +788,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
           !state.ownedCosmetics["bow-tie"] &&
           state.score >= BOW_TIE_SCORE_THRESHOLD
         ) {
-          grantCosmetic("bow-tie");
+          grantCosmetic("bow-tie", { forceEquip: true });
           const crown = raptor.currentCrownPoint();
           spawnConfettiBurst(crown.x, crown.y);
         }
@@ -1336,6 +1351,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     if (state.unlockedAchievements[id]) return;
     state.unlockedAchievements[id] = true;
     saveUnlockedAchievements(state.unlockedAchievements);
+    // Celebratory stinger paired with the toast. Fires exactly once
+    // per achievement — the idempotency guard above ensures repeat
+    // calls during the same run don't retrigger the chime.
+    audio.playAchievement();
     // Mirror to Steam. Fire-and-forget: no-op in the browser build,
     // silent when Steam isn't running. Next successful init reconcile
     // will recover anything that fails here.
@@ -2218,6 +2237,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       audio.playShopPurchase();
     },
 
+    /** Play the achievement-unlock stinger. The unlock flow fires
+     *  this directly from unlockAchievement() below, but we expose
+     *  it on the API too so tests / scripted toasts can trigger
+     *  the cue without having to re-derive the trigger conditions. */
+    playAchievement() {
+      audio.playAchievement();
+    },
+
     /** Equip a cosmetic the player owns (displacing whatever was
      *  in that slot). No-op if not owned. */
     equipCosmetic(id: string) {
@@ -2270,9 +2297,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // "reset" raptor still wearing a full outfit with a full
       // wallet on the next page load.
       state.coinsBalance = 0;
+      state.coinsCollected = 0;
       state.ownedCosmetics = {};
       state.equippedCosmetics = { head: null, eyes: null, neck: null, back: null };
       saveCoinsBalance(0);
+      saveCoinsCollected(0);
       saveOwnedCosmetics({});
       saveEquippedCosmetics(state.equippedCosmetics);
     },
@@ -2815,6 +2844,9 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // maybeSpawnShootingStar to fire the `first-shooting-star`
     // unlock). unlockAchievement itself still lives in this file.
     setParticlesAchievementHandler((id) => unlockAchievement(id));
+    // Cosmetics layer fires first-purchase / fully-equipped /
+    // shop-cleaned-out through this same bridge.
+    setCosmeticsAchievementHandler((id) => unlockAchievement(id));
     // Wire the rare-events module: achievement callback for
     // "ufo-sighting"/"santa-spotted"/etc, plus the dune-height
     // provider for tumbleweed / UFO abduction / meteor impact
@@ -2874,6 +2906,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // returning player loads with the shop present — idempotent on
     // subsequent boots.
     state.coinsBalance = loadCoinsBalance();
+    state.coinsCollected = loadCoinsCollected();
     state.ownedCosmetics = loadOwnedCosmetics();
     state.equippedCosmetics = loadEquippedCosmetics();
     migrateLegacyCosmetics();
