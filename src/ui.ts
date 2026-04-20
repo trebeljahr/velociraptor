@@ -1649,6 +1649,7 @@ function _buildCosmeticSlotRow(opts: {
     btn.appendChild(inner);
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
+      window.Game?.playMenuTap?.();
       if (id === "") {
         window.Game.unequipSlot?.(opts.slot);
       } else {
@@ -1832,6 +1833,7 @@ function renderShop() {
       action.textContent = "Equip";
       action.addEventListener("click", (e) => {
         e.stopPropagation();
+        window.Game?.playMenuTap?.();
         window.Game.equipCosmetic?.(def.id);
         renderShop();
         refreshStartRaptorCosmetics();
