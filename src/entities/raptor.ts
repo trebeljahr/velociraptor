@@ -363,14 +363,16 @@ export class Raptor {
       if (drawOverride.offset.y != null) cy += this.h * drawOverride.offset.y;
     }
     // Most slots centre the sprite on (cx, cy). The back slot
-    // pins the sprite's upper-RIGHT near the anchor instead so
-    // the wing-root attaches at the shoulder while the body of
-    // the wing sweeps down and back.
+    // pins a per-cosmetic attachment point (the wing's
+    // shoulder / butterfly body) to the anchor — each wing art
+    // has its attachment in a different place so there's no one
+    // default that works.
     let drawXOverride: number | null = null;
     let drawYOverride: number | null = null;
     if (slot === "back") {
-      drawXOverride = -w * 0.9; // right edge near anchor
-      drawYOverride = -h * 0.4; // anchor on the upper third
+      const ap = drawOverride?.attachmentPoint ?? { x: 0.9, y: 0.2 };
+      drawXOverride = -w * ap.x;
+      drawYOverride = -h * ap.y;
     }
     ctx.save();
     ctx.translate(cx, cy);

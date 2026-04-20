@@ -73,6 +73,14 @@ export interface CosmeticDef {
      *  fraction of raptor width / height. Positive x nudges
      *  toward the snout, positive y nudges down. */
     offset?: { x?: number; y?: number };
+    /** Normalised sprite coordinates (0–1 each axis) of the point
+     *  on the sprite that should land on the slot anchor. Defaults
+     *  to (0.5, 0.5) for centred draw (eyes / neck) and (0.5, 1)
+     *  for head (bottom-centre). Back-slot wings use this to pin
+     *  the shoulder / body of the butterfly to the raptor's back
+     *  ridge — each wing art has its attachment point in a
+     *  different spot so there's no one-size-fits-all default. */
+    attachmentPoint?: { x: number; y: number };
   };
 }
 
@@ -245,7 +253,13 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 600,
     spriteKey: "angelWings",
     description: "Feathered, luminous. Halo not included.",
-    draw: { scale: 0.65, rotation: -0.2, offset: { y: -0.05 } },
+    // Shoulder joint where the feathers fan out — upper-right of
+    // the (pre-flipped) sprite.
+    draw: {
+      scale: 0.7,
+      rotation: -0.2,
+      attachmentPoint: { x: 0.78, y: 0.2 },
+    },
   },
   {
     id: "demon-wings",
@@ -254,7 +268,14 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 600,
     spriteKey: "demonWings",
     description: "Boned and membraned. Runic markings optional.",
-    draw: { scale: 0.7, rotation: -0.2, offset: { y: -0.05 } },
+    // Horned shoulder bones — upper-left of the sprite as drawn
+    // (demon art wasn't flipped; its natural attachment already
+    // faces the raptor's body direction).
+    draw: {
+      scale: 0.85,
+      rotation: -0.15,
+      attachmentPoint: { x: 0.22, y: 0.1 },
+    },
   },
   {
     id: "butterfly-wings-orange",
@@ -263,7 +284,13 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsOrange",
     description: "Orange monarch — moons and flowers pattern.",
-    draw: { scale: 0.55, rotation: -0.15, offset: { y: -0.03 } },
+    // Thorax where upper + lower wings meet — near the top of
+    // the sprite, slightly right of centre.
+    draw: {
+      scale: 0.6,
+      rotation: -0.15,
+      attachmentPoint: { x: 0.55, y: 0.18 },
+    },
   },
   {
     id: "butterfly-wings-blue",
@@ -272,7 +299,11 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsBlue",
     description: "Deep-blue morpho — speckled and eyespotted.",
-    draw: { scale: 0.55, rotation: -0.15, offset: { y: -0.03 } },
+    draw: {
+      scale: 0.6,
+      rotation: -0.15,
+      attachmentPoint: { x: 0.55, y: 0.4 },
+    },
   },
   {
     id: "butterfly-wings-purple",
@@ -281,7 +312,12 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsPurple",
     description: "Magenta with celestial banding.",
-    draw: { scale: 0.55, rotation: -0.15, offset: { y: -0.03 } },
+    // Twilight has the vertical body band on the LEFT edge.
+    draw: {
+      scale: 0.6,
+      rotation: -0.15,
+      attachmentPoint: { x: 0.12, y: 0.45 },
+    },
   },
 ];
 
