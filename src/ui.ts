@@ -1087,6 +1087,12 @@ window.__rrMenuSelect = function () {
 // fullscreen transition below) would snap focus back to
 // the top of the menu instead of the row the player was
 // actually interacting with.
+//
+// Doubles as the centralised tap-sound trigger for every menu
+// button: cosmetic equip, debug toggles, per-channel sound
+// mutes, the Shop entry, sub-panel summaries. Each button's own
+// click handler stays focused on behaviour; the audio feedback
+// lives here so it's uniform and can't drift per-item.
 overlay.addEventListener("click", (e) => {
   const t = e.target && e.target.closest
     ? e.target.closest(".menu-item, .sound-settings-summary")
@@ -1095,6 +1101,7 @@ overlay.addEventListener("click", (e) => {
   const items = getNavigableMenuItems();
   const idx = items.indexOf(t);
   if (idx !== -1) _menuFocusIdx = idx;
+  window.Game?.playMenuTap?.();
 });
 
 // Focus watchdog: if the window regains focus while the
@@ -1598,33 +1605,19 @@ function _buildCosmeticSlotRow(opts: {
   equippedId: string | null;
   options: Array<{ id: string; name: string; spriteKey?: string }>;
 }): HTMLElement {
-  // One collapsible <details> per slot — matches the Sound
-  // Settings / Debug visual style via the shared .menu-group
-  // classes. Summary: [thumb] Slot: CurrentItem  [chevron]
-  // Body: menu-item button per option, each with its own thumb,
-  // the currently-equipped one has aria-pressed="true" so the
-  // green-tinted state reads at a glance.
-  const details = document.createElement("details");
-  details.className = "menu-group cosmetic-slot";
-  details.dataset.slot = opts.slot;
+  // Flat per-slot section — no <details>, no collapse. Every
+  // option is always visible so the player can scan+pick in one
+  // motion instead of fold→expand→click. The slot-tinted left
+  // border (CSS [data-slot]) keeps Head/Eyes/Neck/Back visually
+  // distinct without needing a clickable header to separate them.
+  const section = document.createElement("div");
+  section.className = "cosmetic-slot";
+  section.dataset.slot = opts.slot;
 
-  const summary = document.createElement("summary");
-  summary.className = "menu-group-summary cosmetic-slot-summary";
-
-  const thumb = document.createElement("div");
-  thumb.className = "cosmetic-slot-thumb";
-  _setThumbForId(thumb, opts.equippedId, opts.slot);
-  summary.appendChild(thumb);
-
-  const summaryText = document.createElement("span");
-  summaryText.className = "cosmetic-slot-summary-text";
-  const equipped = opts.options.find((o) => o.id === opts.equippedId);
-  summaryText.innerHTML =
-    `<span class="cosmetic-slot-summary-slot">${opts.label}</span>` +
-    `<span class="cosmetic-slot-summary-sep"> · </span>` +
-    `<span class="cosmetic-slot-summary-current">${equipped?.name ?? "None"}</span>`;
-  summary.appendChild(summaryText);
-  details.appendChild(summary);
+  const header = document.createElement("h3");
+  header.className = "cosmetic-slot-label";
+  header.textContent = opts.label;
+  section.appendChild(header);
 
   const body = document.createElement("ul");
   body.className = "menu-group-body cosmetic-slot-body";
@@ -1671,8 +1664,8 @@ function _buildCosmeticSlotRow(opts: {
   addOption("", "None");
   for (const opt of opts.options) addOption(opt.id, opt.name);
 
-  details.appendChild(body);
-  return details;
+  section.appendChild(body);
+  return section;
 }
 
 /** Paint the given thumbnail div either as a sprite preview
@@ -1855,6 +1848,14 @@ function renderShop() {
         : `Buy · ${def.price}`;
       action.addEventListener("click", (e) => {
         e.stopPropagation();
+        // Capture the button's screen position BEFORE buyCosmetic
+        // → renderShop() rebuilds every card and detaches the
+        // clicked button. getBoundingClientRect on a detached
+        // element returns all zeros, which previously threw the
+        // confetti burst into the top-left corner of the viewport.
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
         const res = window.Game.buyCosmetic?.(def.id);
         if (res === "ok") {
           refreshShopBalance();
@@ -1866,8 +1867,7 @@ function renderShop() {
           // hidden under the shop overlay (canvas-based confetti
           // would draw behind the dim backdrop).
           window.Game.playShopPurchase?.();
-          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          spawnShopConfetti(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          spawnShopConfetti(cx, cy);
         }
       });
     } else {
