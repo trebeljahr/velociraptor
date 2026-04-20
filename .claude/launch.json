@@ -1,17 +1,24 @@
 {
   "version": "0.0.1",
+  "_notes": [
+    "Claude preview servers run on 5273/5274 instead of vite's default",
+    "5173 so they don't clobber the dev server you started manually. Vite's",
+    "default strictPort=false lets it auto-increment when the port is taken,",
+    "so multiple Claude agents spun up in parallel find their own free slots",
+    "rather than killing each other's servers."
+  ],
   "configurations": [
     {
       "name": "dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5173"],
-      "port": 5173
+      "runtimeArgs": ["run", "dev", "--", "--port", "5273"],
+      "port": 5273
     },
     {
       "name": "web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev:web", "--", "--port", "5174"],
-      "port": 5174
+      "runtimeArgs": ["run", "dev:web", "--", "--port", "5274"],
+      "port": 5274
     }
   ]
 }
