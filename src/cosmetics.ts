@@ -411,8 +411,19 @@ const LEGACY_WEAR_STATE: Record<string, keyof typeof state> = {
  * slot if that slot is currently empty — nice first-impression for
  * score unlocks and shop buys alike. No-op if already owned.
  * Persists both the new map and the legacy flag bridge.
+ *
+ * `forceEquip` overrides the "only if slot is empty" guard and
+ * displaces whatever is currently equipped. Used for score / jump
+ * achievement unlocks (party hat, thug glasses, bow tie) where the
+ * newly-earned item IS the reward — showing it on the raptor
+ * immediately is the celebratory moment. Purchases stay on the
+ * default behaviour so buying a second hat doesn't silently swap
+ * out the one the player is wearing.
  */
-export function grantCosmetic(id: string): void {
+export function grantCosmetic(
+  id: string,
+  { forceEquip = false }: { forceEquip?: boolean } = {},
+): void {
   const def = COSMETICS_BY_ID[id];
   if (!def) return;
   if (!state.ownedCosmetics[id]) {
@@ -425,7 +436,7 @@ export function grantCosmetic(id: string): void {
       saveBoolFlag(storageKey, true);
     }
   }
-  if (state.equippedCosmetics[def.slot] == null) {
+  if (forceEquip || state.equippedCosmetics[def.slot] == null) {
     equipCosmetic(id);
   }
 }

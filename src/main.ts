@@ -751,16 +751,19 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         if (state.score === THUG_GLASSES_SCORE_THRESHOLD)
           unlockAchievement("score-250");
         // Cosmetic unlocks — party hat at 100, thug glasses and
-        // bow tie at their thresholds. grantCosmetic is idempotent
-        // and auto-equips when the slot is free, so the cosmetic
-        // pops onto the raptor on first unlock and is a no-op on
-        // later runs. Confetti bursts off the raptor's head so
+        // bow tie at their thresholds. grantCosmetic is idempotent;
+        // forceEquip: true swaps the new item onto the raptor even
+        // if the slot is already occupied so the player sees the
+        // reward at the moment they earn it (the displaced item
+        // stays owned and can be re-equipped from the shop). No-op
+        // on later runs because the ownership guard above skips
+        // the whole block. Confetti bursts off the raptor's head so
         // the player actually notices.
         if (
           !state.ownedCosmetics["party-hat"] &&
           state.score >= PARTY_HAT_SCORE_THRESHOLD
         ) {
-          grantCosmetic("party-hat");
+          grantCosmetic("party-hat", { forceEquip: true });
           const crown = raptor.currentCrownPoint();
           spawnConfettiBurst(crown.x, crown.y);
         }
@@ -768,7 +771,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
           !state.ownedCosmetics["thug-glasses"] &&
           state.score >= THUG_GLASSES_SCORE_THRESHOLD
         ) {
-          grantCosmetic("thug-glasses");
+          grantCosmetic("thug-glasses", { forceEquip: true });
           const crown = raptor.currentCrownPoint();
           spawnConfettiBurst(crown.x, crown.y);
         }
@@ -776,7 +779,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
           !state.ownedCosmetics["bow-tie"] &&
           state.score >= BOW_TIE_SCORE_THRESHOLD
         ) {
-          grantCosmetic("bow-tie");
+          grantCosmetic("bow-tie", { forceEquip: true });
           const crown = raptor.currentCrownPoint();
           spawnConfettiBurst(crown.x, crown.y);
         }
