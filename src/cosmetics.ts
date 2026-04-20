@@ -122,7 +122,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 50,
     spriteKey: "cowboyHat",
     description: "Yeehaw. Fits the desert.",
-    draw: { scale: 0.22, rotation: -0.2, offset: { y: 0.05 } },
+    draw: { scale: 0.22, rotation: -0.35, offset: { y: 0.05 } },
   },
   {
     id: "top-hat",
@@ -131,7 +131,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 150,
     spriteKey: "topHat",
     description: "Fancy. Pairs with the bow tie.",
-    draw: { scale: 0.3, rotation: -0.18, offset: { y: 0.05 } },
+    draw: { scale: 0.3, rotation: -0.3, offset: { y: 0.05 } },
   },
   {
     id: "wizard-hat",
@@ -199,10 +199,10 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     spriteKey: "monocle",
     description: "Distinguished and a little silly.",
     // Round lens + hanging chain — wants to sit flat at eye level,
-    // not follow the snout angle the slot default uses. Much
-    // smaller than the thug glasses and nudged well back toward
-    // the eye so the chain doesn't dangle past the snout tip.
-    draw: { scale: 0.035, rotation: 0, offset: { x: -0.07 } },
+    // not follow the snout angle the slot default uses. Tiny
+    // scale (0.025) and pulled way back toward the eye so the
+    // chain doesn't dangle past the snout tip.
+    draw: { scale: 0.025, rotation: 0, offset: { x: -0.11 } },
   },
   {
     id: "eye-patch",
@@ -242,10 +242,10 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     // Cropped to just the pendants + flipped so the back of the
     // chain doesn't show in front of the neck. Slot default is
     // 8% of raptor width; the pendant group is wider relative
-    // to the bow tie so we size it down further. Nudged well
-    // down from the neck anchor so the pendants hang on the
-    // chest instead of sliding up toward the chin.
-    draw: { scale: 0.07, rotation: -0.1, offset: { x: 0.02, y: 0.09 } },
+    // to the bow tie so we size it down further. Pulled well
+    // down and forward from the neck anchor so the pendants sit
+    // on the upper chest instead of creeping toward the chin.
+    draw: { scale: 0.07, rotation: -0.1, offset: { x: 0.05, y: 0.15 } },
   },
   {
     id: "scarf",
