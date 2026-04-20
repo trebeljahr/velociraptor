@@ -1,19 +1,9 @@
 /*
- * Raptor Runner — game state singleton.
- *
- * A single mutable object that holds everything the game loop reads
- * and writes during a run: viewport dimensions, physics scalars, the
- * day/night cycle, particle arrays, rain weather state, cosmetic
- * unlocks, and the persisted career counters loaded at init.
- *
- * This module is a leaf of the dependency graph — it imports only
- * from src/constants.ts. Every subsystem (entities, effects, render,
- * physics, gameplay, api) imports `state` from here.
- *
- * Types are deliberately loose for the initial port: particle arrays
- * are `any[]`, optional fields use `any | null`. They'll be tightened
- * in follow-up work once the consumer modules are split out and have
- * their own type definitions to hand back here.
+ * Raptor Runner — game state singleton. Mutable object every
+ * subsystem reads/writes: viewport, physics, day/night cycle,
+ * particles, rain, cosmetics, career counters. Dep-graph leaf —
+ * imports only from constants.ts. Particle arrays are typed `any[]`
+ * for the initial port; to be tightened as consumers are split out.
  */
 
 import { INITIAL_BG_VELOCITY, SKY_COLORS } from "./constants";
@@ -70,42 +60,30 @@ export interface GameState {
   /** Total jumps the player has ever performed. Persists across
    *  sessions via localStorage (TOTAL_JUMPS_KEY). */
   totalJumps: number;
-  /** Jumps performed within the current run only. Resets on every
-   *  resetGame(). Drives the per-run cosmetic unlocks (party hat at
-   *  100, thug glasses at 200) so the player has to earn them in a
-   *  single go. */
+  /** Jumps in the current run only. Resets on resetGame(). */
   runJumps: number;
-  /** Nights fully survived within the current run. Incremented when
-   *  state.isNight goes from true → false (i.e. dawn arrives while
-   *  the raptor is still alive). */
+  /** Nights fully survived in the current run — incremented on
+   *  night → day transitions while the raptor is still alive. */
   runNightsSurvived: number;
-  /** Was the raptor in the night portion of the cycle on the previous
-   *  frame? Tracked so we can detect the night → day transition
-   *  without double-counting. */
+  /** Previous-frame night flag used to detect night → day edges. */
   _wasInNight: boolean;
-  /** Shooting stars seen during the current run. */
   runShootingStars: number;
 
   careerRuns: number;
-  /** Set of unlocked achievement IDs. Serialized as a JSON array in
-   *  localStorage so the player keeps their trophies across visits. */
+  /** Unlocked achievement IDs, persisted as JSON in localStorage. */
   unlockedAchievements: { [id: string]: true };
-  /** Was the player muted for the entire current run? Flipped to
-   *  false the instant the player touches the mute toggle mid-run. */
+  /** Was the player muted for the ENTIRE current run? Flipped false
+   *  the instant the mute toggle is touched mid-run. */
   _runMutedThroughout: boolean;
-  /** Did a rain cycle START during the current run? Gates the
-   *  "rainy-day" achievement so a player who dies mid-storm and
-   *  continues into the next run (which inherits the still-falling
-   *  rain via soft-reset) doesn't get credit for surviving it. */
+  /** Did a rain cycle start during the current run? Gates the
+   *  rainy-day achievement so a soft-reset mid-storm doesn't credit
+   *  the player with the next run's survival. */
   _runSawRainStart: boolean;
 
-  // ── Cosmetic unlocks (sticky) and wear prefs ───────
-  // NOTE: these are the legacy per-item flags for the three
-  // score-unlock classics. Source of truth for the new coin-shop
-  // system is `ownedCosmetics` / `equippedCosmetics` below; the
-  // legacy flags are kept updated in lockstep so existing Game
-  // API shims (isPartyHatActive etc.) stay honest without
-  // reading from the new maps.
+  // ── Legacy cosmetic flags for the three score-unlock classics.
+  // Source of truth for the shop system is ownedCosmetics /
+  // equippedCosmetics below; these are kept in lockstep so existing
+  // Game API shims (isPartyHatActive etc.) stay honest.
   unlockedPartyHat: boolean;
   wearPartyHat: boolean;
   unlockedThugGlasses: boolean;
@@ -154,25 +132,17 @@ export interface GameState {
    *  Radiate outward from the coin center and fade out in <1s. */
   coinSparks: any[];
 
-  // ── Grass-field spans (the rest-area top-band overlay) ────
-  /** Screen-space x-ranges where the top ground band should render
-   *  green grass instead of desert-yellow. Pushed once per breather
-   *  in Cactuses._rollNextGap; scrolled left each frame by the same
-   *  pxPerFrame as the cacti; dropped once they exit the left edge.
-   *  Without this the whole map was grass because GROUND_BAND_COLORS
-   *  had been flipped globally — see main.ts draw pass for the
-   *  overlay logic. */
+  // ── Grass-field spans (rest-area top-band overlay) ────────
+  /** X-ranges where the top ground band renders green instead of
+   *  desert-yellow. Pushed per breather, scrolled with the cacti,
+   *  dropped on left-edge exit. */
   grassFields: { startX: number; endX: number }[];
 
   // ── Breather / rest-area pacing ────────────────────
-  /** How many cacti have spawned since the last breather rest area.
-   *  Reset when a breather fires, so the next breather is
-   *  predictably _nextBreatherAt cacti away. */
+  /** Cacti spawned since the last breather. Reset when one fires. */
   _cactiSinceBreather: number;
-  /** Target cactus count at which the next breather will fire. Set
-   *  to a fresh random value inside [MIN_COUNT, MAX_COUNT] each
-   *  time a breather triggers, so the cadence isn't perfectly
-   *  metronomic. */
+  /** Target cactus count for the next breather, rerolled inside
+   *  [MIN_COUNT, MAX_COUNT] each trigger. */
   _nextBreatherAt: number;
 
   // ── Rain weather ───────────────────────────────────
@@ -256,9 +226,7 @@ export const state: GameState = {
   coinSparks: [],
   grassFields: [],
   _cactiSinceBreather: 0,
-  // Initial value picked on first run. resetGame rerolls this each
-  // time a run ends so the first breather of a new run is a fresh
-  // random pick from the CACTUS_BREATHER_MIN/MAX_COUNT window.
+  // Seed value — rerolled on every resetGame from the breather window.
   _nextBreatherAt: 40,
   totalDayCycles: 0,
   lastCycleIndex: -1,

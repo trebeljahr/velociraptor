@@ -1,21 +1,7 @@
 /*
- * Raptor Runner — cosmetic registry.
- *
- * Single source of truth for every cosmetic the player can own,
- * buy, and equip. Each CosmeticDef describes:
- *
- *   • Which "slot" on the raptor it occupies (head / eyes / neck).
- *   • How it's obtained — `scoreUnlock` items are granted by the
- *     score-threshold logic in cactus.ts and never appear in the
- *     shop; everything else is for sale at `price` coins.
- *   • Which sprite to draw. spriteKey is optional: the rendering
- *     path in raptor.ts falls back to a coloured placeholder
- *     rectangle when the referenced image hasn't been added yet,
- *     so we can wire the shop and equip menu end-to-end before
- *     the final art lands.
- *
- * Shop UI, equip menu, and raptor rendering all read from this
- * array — add a new entry here and it shows up in all three.
+ * Raptor Runner — cosmetic registry. Single source of truth: shop
+ * UI, equip menu, and raptor rendering all read from COSMETICS.
+ * Add an entry and it shows up in all three.
  */
 
 export type CosmeticSlot = "head" | "eyes" | "neck" | "back";
@@ -36,50 +22,33 @@ export const COSMETIC_SLOT_LABELS: Record<CosmeticSlot, string> = {
 };
 
 export interface CosmeticDef {
-  /** Stable id — persisted in localStorage, referenced from the
-   *  shop/equip UI. Changing this breaks save compatibility. */
+  /** Stable id — persisted in localStorage. Don't rename. */
   id: string;
-  /** Display name shown in the shop and equip menu. */
   name: string;
-  /** Which raptor slot this item occupies. One equipped per slot. */
   slot: CosmeticSlot;
-  /** Coin cost to purchase. Score-unlocked items use `price: 0` and
-   *  `scoreUnlock: true`; they're granted automatically and don't
-   *  appear in the shop. */
+  /** Coin cost. Score-unlocked items use 0 with scoreUnlock: true. */
   price: number;
-  /** Short description shown on the shop card (optional). */
   description?: string;
-  /** Key into IMAGES{} for the sprite. Optional — if missing or
-   *  the image hasn't loaded, raptor.ts draws a placeholder. */
+  /** Key into IMAGES{}. Missing / unloaded → placeholder rect. */
   spriteKey?: string;
-  /** True for the three classic cosmetics that unlock at score
-   *  milestones (party hat, thug glasses, bow tie). Filtered out
-   *  of the shop grid since you can't "buy" them. */
+  /** True for the three score-milestone classics (party hat, thug
+   *  glasses, bow tie). Filtered out of the shop grid. */
   scoreUnlock?: boolean;
-  /** Optional per-item draw tweaks applied on top of the slot
-   *  defaults in raptor.ts. Each field is optional — anything
-   *  left undefined falls back to the slot default. Use this to
-   *  hand-tune specific cosmetics that look off at the defaults
-   *  (a wide cowboy hat doesn't want the party hat's rotation,
-   *  wings pre-flipped for a right-running raptor want a nudge
-   *  up-and-back from the default back anchor, etc.). */
+  /** Per-item overrides applied on top of the slot defaults in
+   *  raptor.ts. Anything undefined falls back to the slot default. */
   draw?: {
-    /** Scale override. For head/back this is a fraction of raptor
-     *  height; for eyes/neck a fraction of raptor width. */
+    /** Head/back: fraction of raptor height. Eyes/neck: fraction
+     *  of raptor width. */
     scale?: number;
-    /** Rotation in radians. Positive = clockwise. */
+    /** Radians. Positive = clockwise. */
     rotation?: number;
-    /** Extra offset added to the slot's default anchor, as a
-     *  fraction of raptor width / height. Positive x nudges
-     *  toward the snout, positive y nudges down. */
+    /** Extra anchor offset as a fraction of raptor width/height.
+     *  +x nudges toward the snout, +y nudges down. */
     offset?: { x?: number; y?: number };
-    /** Normalised sprite coordinates (0–1 each axis) of the point
-     *  on the sprite that should land on the slot anchor. Defaults
-     *  to (0.5, 0.5) for centred draw (eyes / neck) and (0.5, 1)
-     *  for head (bottom-centre). Back-slot wings use this to pin
-     *  the shoulder / body of the butterfly to the raptor's back
-     *  ridge — each wing art has its attachment point in a
-     *  different spot so there's no one-size-fits-all default. */
+    /** Normalised (0..1) sprite point that lands on the slot anchor.
+     *  Defaults: centre for eyes/neck, bottom-centre for head. Back-
+     *  slot wings set this per-item to pin the shoulder/thorax to
+     *  the back ridge — every wing art has its attachment elsewhere. */
     attachmentPoint?: { x: number; y: number };
   };
 }
@@ -339,9 +308,7 @@ export function shopInventory(): CosmeticDef[] {
   return COSMETICS.filter((c) => !c.scoreUnlock);
 }
 
-/** Placeholder fill colour per slot. Rendered in raptor.ts when a
- *  cosmetic has no sprite yet — distinct hues so the four slots
- *  stay visually separable while we're testing the equip flow. */
+/** Placeholder fill per slot — drawn when a cosmetic has no sprite. */
 export const PLACEHOLDER_COLORS: Record<CosmeticSlot, string> = {
   head: "#d97706", // amber
   eyes: "#1f2937", // slate
@@ -349,15 +316,10 @@ export const PLACEHOLDER_COLORS: Record<CosmeticSlot, string> = {
   back: "#7c3aed", // violet
 };
 
-// ═════════════════════════════════════════════════════════════
-// Mutation helpers (grant, buy, equip, unequip)
-//
-// These are the ONLY path gameplay code / the shop / the menu
-// should use to change owned or equipped cosmetics. Each helper
-// persists both the new map-based source of truth and the legacy
-// per-item flags (UNLOCKED_PARTY_HAT_KEY etc.) so the existing
-// Game API shims stay correct without reading from the new maps.
-// ═════════════════════════════════════════════════════════════
+// ── Mutation helpers (grant / buy / equip / unequip) ─────────
+// Only path through which owned/equipped state changes. Each helper
+// also updates the legacy per-item flags (UNLOCKED_PARTY_HAT_KEY etc.)
+// so the Game API shims built on those stay in lockstep.
 
 import { state } from "./state";
 import {
@@ -375,26 +337,19 @@ import {
   WEAR_BOW_TIE_KEY,
 } from "./constants";
 
-/** Map cosmetic id → localStorage key for the legacy "unlocked"
- *  flag. Only the three score-unlock classics have legacy flags —
- *  new shop items live entirely in the new maps. */
+// Legacy flag bridges for the three score-unlock classics —
+// localStorage keys, mirrored state field names. New shop items
+// live entirely in the map-based source of truth.
 const LEGACY_UNLOCK_KEY: Record<string, string> = {
   "party-hat": UNLOCKED_PARTY_HAT_KEY,
   "thug-glasses": UNLOCKED_THUG_GLASSES_KEY,
   "bow-tie": UNLOCKED_BOW_TIE_KEY,
 };
-
-/** Map cosmetic id → localStorage key for the legacy "wearing"
- *  flag, parallel structure to LEGACY_UNLOCK_KEY. */
 const LEGACY_WEAR_KEY: Record<string, string> = {
   "party-hat": WEAR_PARTY_HAT_KEY,
   "thug-glasses": WEAR_THUG_GLASSES_KEY,
   "bow-tie": WEAR_BOW_TIE_KEY,
 };
-
-/** The parallel field name on the mutable `state` object for each
- *  legacy flag. Used by the bridging logic in grant/equip/unequip
- *  so state readers and the persistence layer stay in lockstep. */
 const LEGACY_UNLOCK_STATE: Record<string, keyof typeof state> = {
   "party-hat": "unlockedPartyHat",
   "thug-glasses": "unlockedThugGlasses",
@@ -406,12 +361,8 @@ const LEGACY_WEAR_STATE: Record<string, keyof typeof state> = {
   "bow-tie": "wearBowTie",
 };
 
-/**
- * Add a cosmetic to the player's inventory. Auto-equips it in its
- * slot if that slot is currently empty — nice first-impression for
- * score unlocks and shop buys alike. No-op if already owned.
- * Persists both the new map and the legacy flag bridge.
- */
+/** Add to inventory and auto-equip if the slot is empty. No-op if
+ *  already owned. Persists both the new map and the legacy flags. */
 export function grantCosmetic(id: string): void {
   const def = COSMETICS_BY_ID[id];
   if (!def) return;
@@ -431,13 +382,9 @@ export function grantCosmetic(id: string): void {
 }
 
 /**
- * Attempt to buy a cosmetic with the current coin balance. Returns
- * a status the shop UI can use to render feedback:
- *   • "ok"          — purchased, balance deducted, item granted
- *   • "owned"       — already in inventory
- *   • "poor"        — not enough coins
- *   • "unknown"     — no cosmetic with that id (shouldn't happen
- *                     for UI-generated clicks, but defensive)
+ * Buy a cosmetic with the current coin balance. Return value is
+ * used by the shop UI: "ok" purchased, "owned" already have it,
+ * "poor" can't afford it, "unknown" no such cosmetic (defensive).
  */
 export type PurchaseResult = "ok" | "owned" | "poor" | "unknown";
 export function purchaseCosmetic(id: string): PurchaseResult {
@@ -451,19 +398,14 @@ export function purchaseCosmetic(id: string): PurchaseResult {
   return "ok";
 }
 
-/**
- * Equip a cosmetic in its slot, displacing whatever was there. The
- * displaced item stays owned — the player just isn't wearing it.
- * No-op if the cosmetic isn't in inventory.
- */
+/** Equip in its slot, displacing whatever was there. The displaced
+ *  item stays owned. No-op if not in inventory. */
 export function equipCosmetic(id: string): void {
   const def = COSMETICS_BY_ID[id];
   if (!def) return;
   if (!state.ownedCosmetics[id]) return;
   const prev = state.equippedCosmetics[def.slot];
   if (prev === id) return;
-  // Clear the legacy "wear" bit for whatever was previously in
-  // this slot so the old flag doesn't outlive the swap.
   if (prev) _clearLegacyWear(prev);
   state.equippedCosmetics[def.slot] = id;
   saveEquippedCosmetics(state.equippedCosmetics);
@@ -490,13 +432,8 @@ function _clearLegacyWear(id: string): void {
   _setLegacyWear(id, false);
 }
 
-/**
- * Bridge legacy unlock/wear flags into the new maps on boot. Called
- * from init() after persistence is hydrated. Idempotent: rerunning
- * it on an already-migrated save is a no-op. Without this a player
- * who earned cosmetics before the shop landed would see an empty
- * Cosmetics section.
- */
+/** Bridge legacy unlock/wear flags into the map on boot so pre-shop
+ *  saves don't render an empty Cosmetics section. Idempotent. */
 export function migrateLegacyCosmetics(): void {
   const pairs: Array<[string, boolean, boolean]> = [
     ["party-hat", state.unlockedPartyHat, state.wearPartyHat],

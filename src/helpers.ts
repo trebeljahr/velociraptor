@@ -1,27 +1,17 @@
 /*
  * Raptor Runner — pure math, color, and collision helpers.
- *
- * Everything here is a pure function with no dependencies on game
- * state, the DOM, canvas contexts, localStorage, or anything else.
- * Safe to import from any module.
+ * No dependencies on state, DOM, canvas, or localStorage — safe to
+ * import anywhere.
  */
 
 import { MOON_SYNODIC_CYCLE, MOON_PHASE_OFFSET_DAYS } from "./constants";
 
 // ── Moon phase ─────────────────────────────────────────────
 
-/** Map a day-cycle counter onto a moon phase in [0, 1).
- *
- *   0.00  new moon (invisible)
- *   0.25  first quarter (right half lit)
- *   0.50  full moon
- *   0.75  third quarter (left half lit)
- *
- * The MOON_PHASE_OFFSET_DAYS shift lands the very first night of a
- * fresh save (totalDayCycles=0) on a small waxing crescent instead
- * of new moon, and pulls the first full moon achievement in to
- * day 13 of the save (instead of day 15). The cycle length stays 30
- * days so achievement progression still feels "monthly". */
+/** Day-cycle counter → moon phase in [0, 1):
+ *   0.00 new · 0.25 first quarter · 0.50 full · 0.75 last quarter.
+ *  MOON_PHASE_OFFSET_DAYS shifts a fresh save's first night off new
+ *  moon so something is actually visible on day 1. */
 export function moonPhaseFromCycles(totalDayCycles: number): number {
   const shifted =
     ((totalDayCycles + MOON_PHASE_OFFSET_DAYS) % MOON_SYNODIC_CYCLE +
@@ -60,19 +50,10 @@ export const randRange = (min: number, max: number): number =>
 export const clamp = (v: number, lo: number, hi: number): number =>
   Math.max(lo, Math.min(hi, v));
 
-/**
- * In-place array compaction. Mutates `arr` to contain only elements
- * for which `keep` returns true, preserving order. Returns the same
- * array reference with its `.length` adjusted.
- *
- * This is the zero-allocation replacement for `arr = arr.filter(keep)`
- * which we use in per-frame hot paths (particles, clouds, dune cacti).
- * `filter` always allocates a new array even when nothing is removed —
- * this helper walks with read/write indices and reassigns the length
- * at the end. No new array ever gets created.
- *
- * Returns the array so call sites can chain or pretend it's functional.
- */
+/** Zero-allocation in-place filter. Mutates `arr` to keep only the
+ *  elements for which `keep` returns true, preserving order, and
+ *  returns the same reference. Replaces `arr = arr.filter(keep)` in
+ *  per-frame hot paths where filter's allocation cost matters. */
 export function compactInPlace<T>(arr: T[], keep: (t: T) => boolean): T[] {
   let write = 0;
   for (let read = 0; read < arr.length; read++) {
@@ -91,13 +72,8 @@ export function compactInPlace<T>(arr: T[], keep: (t: T) => boolean): T[] {
 export type Point2D = { x: number; y: number };
 export type Polygon = Point2D[];
 
-/**
- * Polygon-vs-polygon overlap test. Handles *concave* polygons on
- * both sides without decomposition. Three checks:
- *   1. Any vertex of A inside B? (fast path for contained shapes)
- *   2. Any vertex of B inside A? (other containment direction)
- *   3. Any edge of A crossing any edge of B? (partial overlap)
- */
+/** Concave polygon overlap. Checks containment both ways, then
+ *  edge crossings for partial overlap. */
 export function polygonsOverlap(polyA: Polygon, polyB: Polygon): boolean {
   for (const p of polyA) if (pointInPolygon(p, polyB)) return true;
   for (const p of polyB) if (pointInPolygon(p, polyA)) return true;
@@ -151,12 +127,9 @@ export function segmentsIntersect(
 export const cross = (a: Point2D, b: Point2D, c: Point2D): number =>
   (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
 
-/**
- * Shrink a polygon inward by `inset` pixels, by pulling each vertex
- * toward the polygon's centroid along the line joining them. Not a
- * geometrically perfect polygon offset, but close enough for a small
- * forgiving collision buffer on an ~28-vertex silhouette.
- */
+/** Shrink a polygon inward by `inset` px, each vertex pulled toward
+ *  the centroid. Approximate (not a proper polygon offset) — good
+ *  enough for small forgiveness buffers on the raptor silhouette. */
 export function shrinkPolygon(poly: Polygon, inset: number): Polygon {
   if (inset <= 0 || poly.length === 0) return poly;
   let cx = 0;

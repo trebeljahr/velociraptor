@@ -1,22 +1,12 @@
 /*
  * Raptor Runner — cactus entities.
- *
- * Two classes live here:
- *   • Cactus     — a single obstacle instance. Holds its sprite
- *                  reference, its world x/y/w/h, and a cached
- *                  collision polygon in world coordinates.
- *   • Cactuses   — the spawn manager. Decides when to drop a new
- *                  cactus at the right edge of the screen, scrolls
- *                  existing ones leftward at state.bgVelocity, and
- *                  retires each one when it falls off the left edge.
- *                  Each spawn also drops a single coin floating
- *                  above the cactus — under the coins-only scoring
- *                  model, that coin is the only way to earn score
- *                  for clearing the obstacle.
- *
- * Score progression and cosmetic/achievement thresholds live in
- * the coin-pickup callback in src/main.ts, not here, since coins
- * are now the sole score source.
+ *   • Cactus   — single obstacle: sprite, world x/y/w/h, cached
+ *                collision polygon.
+ *   • Cactuses — spawn manager: scrolls, retires off-screen cacti,
+ *                decides the next gap, drops flower-field breathers
+ *                and one coin per cactus (sole score source).
+ * Score/achievement progression lives in the coin-pickup callback
+ * in main.ts, not here.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -65,13 +55,8 @@ export class Cactus {
     this.y = state.ground - this.h;
   }
 
-  /**
-   * Recompute this cactus's height / width / y-anchor after a
-   * viewport resize (e.g. entering or leaving fullscreen). The
-   * horizontal world position stays the same, but the bottom of the
-   * cactus has to re-bind to the NEW state.ground so it doesn't
-   * visibly jump when the viewport dimensions change.
-   */
+  /** Rebind h/w and the bottom edge to the new state.ground after a
+   *  viewport resize so the cactus doesn't visibly jump. */
   resize(): void {
     this.h = this.raptor.h * this.variant.heightScale;
     this.w = this.h * this.aspectRatio;
@@ -82,7 +67,6 @@ export class Cactus {
   update(frameScale = 1): void {
     this.x -=
       state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * frameScale;
-    // Position changed, invalidate cached polygon.
     this._polyCache = null;
   }
 
@@ -115,39 +99,22 @@ export class Cactus {
 
 export class Cactuses {
   cacti: Cactus[] = [];
-  /** Distance-from-last-cactus that has to elapse before the next
-   *  cactus spawns. Set once per spawn by _rollNextGap() and then
-   *  read (not recomputed) every frame until the next spawn. The
-   *  previous getter-based design re-rolled this on every frame,
-   *  which broke breathers completely: the first frame the getter
-   *  decided "breather time!", returned the big gap, reset the
-   *  counter, and pushed flower patches. The very next frame, the
-   *  counter was already 0 so the getter fell through to the normal
-   *  path and returned a small gap — so a cactus spawned almost
-   *  immediately after the flower patches. Caching kills that bug. */
+  /** Distance-from-last-cactus before the next spawn. Set once per
+   *  spawn by _rollNextGap() and read (not recomputed) every frame
+   *  — the old getter design re-rolled every frame and collapsed
+   *  breathers down to normal gaps on the next tick. */
   private _nextGap = 0;
 
   constructor(private raptor: Raptor) {
-    // Seed the gap for the very first spawn so update() has
-    // something to compare against.
     this._rollNextGap();
   }
 
-  /** Decide what gap to wait for before the *next* cactus spawn.
-   *  Called exactly once per spawn (from spawn() itself) plus once
-   *  at construction. All breather side-effects (resetting the
-   *  counter, picking the next breather target, pushing flower
-   *  patches, marking the grass-field span) fire from here — and
-   *  fire exactly once per breather, never per frame.
-   */
-  /** Roll a single "normal" spawn gap — the floor+random pacing
-   *  used between every pair of non-breather cacti. Factored out
-   *  so the breather branch can tack one onto the end of its
-   *  gap (the post-breather buffer) without duplicating math. */
+  /** Roll one "normal" gap (floor + random top-up). Factored out
+   *  so breathers can tack a normal gap onto their post-field
+   *  buffer without duplicating the math. */
   private _rollNormalGap(): number {
-    // Progress through the speed ramp: 0 at a fresh run, 1 once
-    // bgVelocity has reached MAX. Clamped so debug commands that
-    // push velocity beyond MAX don't produce negative random spans.
+    // 0 at a fresh run, 1 at terminal velocity. Clamped for debug
+    // speeds beyond MAX.
     const t = Math.min(
       1,
       Math.max(
@@ -156,12 +123,9 @@ export class Cactuses {
           (MAX_BG_VELOCITY - INITIAL_BG_VELOCITY),
       ),
     );
-    // Minimum safe gap. 1.2w → 1.5w across the ramp.
     const floorGap =
       this.raptor.w *
       (CACTUS_SPAWN_GAP_BASE + t * CACTUS_SPAWN_GAP_SPEED_FACTOR);
-    // Random top-up. Starts wide (≈3.6w), collapses at terminal
-    // velocity so late-game reads as a tighter rhythm.
     const randSpan =
       this.raptor.w *
       CACTUS_SPAWN_GAP_RANDOM_MAX *
@@ -189,27 +153,15 @@ export class Cactuses {
     this._nextGap = this._rollNormalGap();
   }
 
-  /**
-   * Build and schedule one breather rest-area: push the grass-field
-   * span, tile flower patches, scatter coins, and set _nextGap so
-   * the next cactus only spawns after the full field — plus a
-   * symmetric empty-ground buffer — has scrolled past.
+  /** Build one breather: push the grass-field span, tile flower
+   *  patches, scatter coins, and set _nextGap so the next cactus
+   *  only spawns after the full field + symmetric empty buffer has
+   *  scrolled past.
    *
-   * Geometry (world-space, relative to last cactus spawn at x=state.width):
-   *
-   *   state.width          ← last cactus spawns here
-   *   + state.width        ← time for last cactus to cross the viewport
-   *   + bufferPx           ← empty run-up ground before the field
-   *   = fieldStartX        ← first flower enters the right edge
-   *
-   *   fieldStartX + fieldPx = fieldEndX  ← last flower exits the left edge
-   *   fieldEndX + bufferPx              ← next cactus spawns (right edge)
-   *
-   * Run-up and run-out empty-ground both equal bufferPx, so the
-   * rest area is visually symmetric. The previous version used
-   * `_nextGap = gap + normalGap`, which made post-field buffer
-   * negative — the next cactus was appearing *while* flowers were
-   * still on screen.
+   *  Geometry (world-space, last cactus at x=state.width):
+   *    state.width + state.width + bufferPx = fieldStartX
+   *    fieldStartX + fieldPx                = fieldEndX
+   *    fieldEndX + bufferPx                 → next cactus
    */
   private _queueBreather(): void {
     const seconds =
@@ -225,17 +177,11 @@ export class Cactuses {
     const fieldStartX = 2 * state.width + bufferPx;
     const fieldEndX = fieldStartX + fieldPx;
 
-    // Mark the grass-field span so the renderer knows where to
-    // paint the top ground band green instead of desert-yellow.
-    // Scrolls with the ground — see updateGrassFields in main.ts.
     state.grassFields = state.grassFields || [];
     state.grassFields.push({ startX: fieldStartX, endX: fieldEndX });
 
-    // Tile flower patches across the field. Spacing at ≈40% of the
-    // patch width → neighbouring patches overlap by ~60%, which
-    // reads as a continuous carpet rather than a few clusters.
-    // Jittered ±30% so the patches don't tile. Patches are packed
-    // so their right edge doesn't poke past fieldEndX.
+    // Patches spaced at ≈40% of their width so neighbours overlap
+    // by ~60% (carpet, not clusters), jittered ±30% to break tiling.
     state.flowerPatches = state.flowerPatches || [];
     const patchSpacingPx = FLOWER_PATCH_WIDTH_PX * 0.4;
     let x = fieldStartX;
@@ -244,43 +190,24 @@ export class Cactuses {
       x += patchSpacingPx * (0.7 + Math.random() * 0.6);
     }
 
-    // Scatter coins across the full field — collision + SFX
-    // trigger are wired in main.ts.
     spawnCoinsInRange(fieldStartX, fieldEndX, this.raptor);
 
-    // Next cactus spawns when total scroll (since the last cactus
-    // spawn at x=state.width) reaches fieldEndX + bufferPx: last
-    // flower has exited the left edge, the player sees bufferPx of
-    // empty ground, then the next cactus enters the right edge.
     this._nextGap = fieldEndX + bufferPx;
   }
 
-  /** Debug helper: arm the breather counter and force an immediate
-   *  spawn so the next frame kicks off a flower-field rest area.
-   *  Wired via Game._forceBreather() — useful for eyeballing the
-   *  field layout without waiting ~40 cacti. */
+  /** Debug helper — arm the counter so the next spawn is a breather. */
   forceBreather(): void {
     state._cactiSinceBreather = state._nextBreatherAt;
-    // Make the current gap "already elapsed" so update() fires a
-    // spawn on the very next frame. spawn() → _rollNextGap() sees
-    // the maxed counter and takes the breather branch.
+    // Force the gap-to-next "already elapsed" so spawn fires next frame.
     this._scrollSinceLastSpawn = Math.max(
       this._scrollSinceLastSpawn,
       this._nextGap,
     );
   }
 
-  /** Distance in px the world has scrolled since the last cactus
-   *  was pushed to the array. Only reset by spawn() / clear().
-   *
-   *  Why this instead of "state.width - last.x"? During a breather
-   *  the last cactus scrolls fully off-screen-left and gets
-   *  filtered out of the array. Once the array is empty, the old
-   *  `if (!last) this.spawn()` fallback immediately spawned a new
-   *  cactus at state.width — right into the middle of the on-
-   *  screen flower field. Tracking scroll here keeps the "wait
-   *  _nextGap pixels" check alive even when the reference cactus
-   *  no longer exists. */
+  /** Distance scrolled since the last spawn. Tracked here (instead
+   *  of derived from the last cactus' x) so the spawn check survives
+   *  a breather that empties the cacti array before the next spawn. */
   private _scrollSinceLastSpawn = 0;
 
   spawn(): void {
