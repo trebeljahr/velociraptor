@@ -231,15 +231,36 @@ export function collectCoins(
 }
 
 /** Blit each coin, honouring the bob offset and the short
- *  pop-fade for coins currently in their collect animation. */
+ *  pop-fade for coins currently in their collect animation.
+ *
+ *  Perf: a full 10-coin ribbon on screen was previously paying for
+ *  ~50 save/restore pairs per frame (one outer per coin + one per
+ *  glint + one per ambient twinkle), and each save() snapshots every
+ *  context field. Loop now snapshots the base transform once via
+ *  getTransform(), reuses it across both drawImage (coin sprite) and
+ *  setTransform (per-star matrix composition), and tracks globalAlpha
+ *  + fillStyle inline so setters only fire when the value actually
+ *  changes. Same visuals, zero save/restore in the hot loop. */
 export function drawCoins(ctx: CanvasRenderingContext2D): void {
   if (!state.coins || state.coins.length === 0) return;
   const img = IMAGES.coin;
   if (!img) return;
+
+  const base = ctx.getTransform();
+  const ba = base.a,
+    bb = base.b,
+    bc = base.c,
+    bd = base.d,
+    be = base.e,
+    bf = base.f;
+
+  let lastAlpha = -1;
+  let fillStyleSet = false;
+
   for (const c of state.coins) {
     const cy = c.baseY + Math.sin(bobPhase(c)) * COIN_BOB_AMPLITUDE_PX;
     let scale = 1;
-    let alpha = 1;
+    let coinAlpha = 1;
     if (c.collected) {
       // Pop up + fade out so the grab reads, then the coin is gone.
       const t = Math.min(
@@ -247,10 +268,16 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
         (state.frame - c.collectFrame) / COIN_COLLECT_FADE_FRAMES,
       );
       scale = 1 + t * 0.6;
-      alpha = 1 - t;
+      coinAlpha = 1 - t;
     }
-    ctx.save();
-    ctx.globalAlpha = alpha;
+
+    // Coin sprite blit — runs in the base transform (no per-coin
+    // translate/scale; the x/y/w/h args already position + size it).
+    ctx.setTransform(ba, bb, bc, bd, be, bf);
+    if (coinAlpha !== lastAlpha) {
+      ctx.globalAlpha = coinAlpha;
+      lastAlpha = coinAlpha;
+    }
     const w = c.w * scale;
     const h = c.h * scale;
     const x = c.x - (w - c.w) / 2;
@@ -263,49 +290,70 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
       Math.round(h),
     );
 
-    if (!c.collected) {
-      // Main glint — a 4-point star sweeping across the coin face,
-      // opacity pulsed on its own sin so the orbit has a dim-bright
-      // cadence on top of the motion.
-      const sparkleT =
-        state.frame * ((Math.PI * 2 * COIN_SPARKLE_FREQUENCY_HZ) / 60) +
-        c.phase;
-      const s = Math.sin(sparkleT);
-      if (s > 0) {
-        const orbitT = sparkleT * 0.5;
-        const orbitRx = c.w * 0.18;
-        const orbitRy = c.h * 0.12;
-        const sx = c.x + c.w * 0.62 + Math.cos(orbitT) * orbitRx;
-        const sy = cy + c.h * 0.32 + Math.sin(orbitT) * orbitRy;
-        const sr = c.w * COIN_GLINT_SIZE_RATIO;
-        drawFourPointStar(ctx, sx, sy, sr, s * COIN_GLINT_MAX_ALPHA);
-      }
+    if (c.collected) continue;
 
-      // Ambient twinkles — star-flicks on an orbit around the coin,
-      // each with its own phase so they blink irregularly and
-      // neighbours don't stamp identically.
-      const twinkleBaseT =
-        state.frame * ((Math.PI * 2 * COIN_TWINKLE_FREQUENCY_HZ) / 60);
-      const cx = c.x + c.w / 2;
-      const centerY = cy + c.h / 2;
-      for (let i = 0; i < COIN_AMBIENT_TWINKLE_COUNT; i++) {
-        const ang =
-          ((i / COIN_AMBIENT_TWINKLE_COUNT) * Math.PI * 2) +
-          c.phase * 0.5;
-        const orbit = c.w * 0.6;
-        const tx = cx + Math.cos(ang) * orbit;
-        const ty = centerY + Math.sin(ang) * orbit * 0.7;
-        const tPhase = twinkleBaseT + c.phase * 1.7 + i * 2.1;
-        const tAmp = Math.sin(tPhase);
-        if (tAmp <= 0) continue;
-        // Squared envelope = narrow "blink" with a bright peak.
-        const tAlpha = tAmp * tAmp * 0.95;
-        const tr = c.w * 0.11;
-        drawFourPointStar(ctx, tx, ty, tr, tAlpha);
+    if (!fillStyleSet) {
+      ctx.fillStyle = "#fff";
+      fillStyleSet = true;
+    }
+
+    // Main glint — a 4-point star sweeping across the coin face,
+    // opacity pulsed on its own sin so the orbit has a dim-bright
+    // cadence on top of the motion.
+    const sparkleT =
+      state.frame * ((Math.PI * 2 * COIN_SPARKLE_FREQUENCY_HZ) / 60) +
+      c.phase;
+    const s = Math.sin(sparkleT);
+    if (s > 0) {
+      const orbitT = sparkleT * 0.5;
+      const orbitRx = c.w * 0.18;
+      const orbitRy = c.h * 0.12;
+      const sx = c.x + c.w * 0.62 + Math.cos(orbitT) * orbitRx;
+      const sy = cy + c.h * 0.32 + Math.sin(orbitT) * orbitRy;
+      const sr = c.w * COIN_GLINT_SIZE_RATIO;
+      const glintAlpha = Math.min(1, s * COIN_GLINT_MAX_ALPHA) * coinAlpha;
+      if (glintAlpha > 0 && sr > 0) {
+        if (glintAlpha !== lastAlpha) {
+          ctx.globalAlpha = glintAlpha;
+          lastAlpha = glintAlpha;
+        }
+        drawFourPointStar(ctx, ba, bb, bc, bd, be, bf, sx, sy, sr);
       }
     }
-    ctx.restore();
+
+    // Ambient twinkles — star-flicks on an orbit around the coin,
+    // each with its own phase so they blink irregularly and
+    // neighbours don't stamp identically.
+    const twinkleBaseT =
+      state.frame * ((Math.PI * 2 * COIN_TWINKLE_FREQUENCY_HZ) / 60);
+    const cx = c.x + c.w / 2;
+    const centerY = cy + c.h / 2;
+    for (let i = 0; i < COIN_AMBIENT_TWINKLE_COUNT; i++) {
+      const ang =
+        ((i / COIN_AMBIENT_TWINKLE_COUNT) * Math.PI * 2) +
+        c.phase * 0.5;
+      const orbit = c.w * 0.6;
+      const tx = cx + Math.cos(ang) * orbit;
+      const ty = centerY + Math.sin(ang) * orbit * 0.7;
+      const tPhase = twinkleBaseT + c.phase * 1.7 + i * 2.1;
+      const tAmp = Math.sin(tPhase);
+      if (tAmp <= 0) continue;
+      // Squared envelope = narrow "blink" with a bright peak.
+      const tAlpha = tAmp * tAmp * 0.95 * coinAlpha;
+      if (tAlpha <= 0) continue;
+      const tr = c.w * 0.11;
+      if (tAlpha !== lastAlpha) {
+        ctx.globalAlpha = tAlpha;
+        lastAlpha = tAlpha;
+      }
+      drawFourPointStar(ctx, ba, bb, bc, bd, be, bf, tx, ty, tr);
+    }
   }
+
+  // Restore base transform + default alpha so downstream draws
+  // aren't affected by the last coin/star's state.
+  ctx.setTransform(ba, bb, bc, bd, be, bf);
+  ctx.globalAlpha = 1;
 }
 
 // Unit-radius 4-point star baked once as a Path2D — translate+scale
@@ -326,22 +374,41 @@ const UNIT_STAR_PATH: Path2D = (() => {
 })();
 
 /** Shared 4-point white sparkle — main glint, ambient twinkles, and
- *  collect-burst particles all use this one primitive. */
+ *  collect-burst particles all use this one primitive.
+ *
+ *  Caller is responsible for context state: set globalAlpha and
+ *  fillStyle BEFORE the call, and reset the transform AFTER the
+ *  loop (see drawCoins / drawCoinSparks for the pattern). The
+ *  base-matrix params (ba..bf) are the snapshot the caller took
+ *  via getTransform() once at the top of its loop — we compose
+ *  `base × translate(x,y) × scale(r,r)` inline and setTransform
+ *  instead of paying for a save/restore + translate + scale stack
+ *  per star. */
 function drawFourPointStar(
   ctx: CanvasRenderingContext2D,
+  ba: number,
+  bb: number,
+  bc: number,
+  bd: number,
+  be: number,
+  bf: number,
   x: number,
   y: number,
   r: number,
-  alpha: number,
 ): void {
-  if (alpha <= 0 || r <= 0) return;
-  ctx.save();
-  ctx.globalAlpha = Math.min(1, alpha) * ctx.globalAlpha;
-  ctx.fillStyle = "#fff";
-  ctx.translate(x, y);
-  ctx.scale(r, r);
+  if (r <= 0) return;
+  // base * translate(x, y) * scale(r, r) =
+  //   [ba*r  bc*r  ba*x + bc*y + be]
+  //   [bb*r  bd*r  bb*x + bd*y + bf]
+  ctx.setTransform(
+    ba * r,
+    bb * r,
+    bc * r,
+    bd * r,
+    ba * x + bc * y + be,
+    bb * x + bd * y + bf,
+  );
   ctx.fill(UNIT_STAR_PATH);
-  ctx.restore();
 }
 
 export { drawFourPointStar };

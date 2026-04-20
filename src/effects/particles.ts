@@ -563,13 +563,36 @@ export function updateCoinSparks(dtSec: number): void {
 
 export function drawCoinSparks(ctx: CanvasRenderingContext2D): void {
   if (state.coinSparks.length === 0) return;
+
+  // Snapshot base transform once so drawFourPointStar can compose
+  // per-star setTransform calls without wiping the DPR scale.
+  // Same pattern as drawCoins / drawConfetti — avoids the
+  // save/restore + translate/scale stack that the old loop paid
+  // per spark.
+  const base = ctx.getTransform();
+  const ba = base.a,
+    bb = base.b,
+    bc = base.c,
+    bd = base.d,
+    be = base.e,
+    bf = base.f;
+
+  let lastAlpha = -1;
+  let fillStyleSet = false;
+
   for (const p of state.coinSparks) {
     const t = p.age / p.life;
     if (p.kind === "ring") {
-      // Expanding ring flash: thin gold stroke, fades fast.
+      // Expanding ring flash: thin gold stroke, fades fast. Rings
+      // are one-per-coin-collect (rare enough that the save/restore
+      // here isn't in a hot loop) and need different fill/stroke
+      // settings anyway, so keep the simple path. Reset the
+      // transform to base after in case a prior spark left a
+      // star-scaled matrix behind.
       const radius = p.startRadius + (p.endRadius - p.startRadius) * t;
       const alpha = Math.max(0, 1 - t);
       ctx.save();
+      ctx.setTransform(ba, bb, bc, bd, be, bf);
       ctx.globalAlpha = alpha * 0.85;
       ctx.strokeStyle = "rgba(255, 230, 140, 1)";
       ctx.lineWidth = 2;
@@ -577,14 +600,31 @@ export function drawCoinSparks(ctx: CanvasRenderingContext2D): void {
       ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
+      lastAlpha = -1; // save/restore wiped our globalAlpha tracking
+      fillStyleSet = false;
       continue;
     }
     // Spark: hold full alpha for ~35% of its life, then fade to zero.
     // Front-loads the brightness so the burst feels like a snap
     // rather than a lingering cloud.
     const alpha = t < 0.35 ? 1 : Math.max(0, 1 - (t - 0.35) / 0.65);
+    if (alpha <= 0) continue;
     // Shrink as it fades so the silhouette doesn't pop out.
     const size = p.size * (1 - t * 0.5);
-    drawFourPointStar(ctx, p.x, p.y, size, alpha);
+    if (size <= 0) continue;
+    if (!fillStyleSet) {
+      ctx.fillStyle = "#fff";
+      fillStyleSet = true;
+    }
+    if (alpha !== lastAlpha) {
+      ctx.globalAlpha = alpha;
+      lastAlpha = alpha;
+    }
+    drawFourPointStar(ctx, ba, bb, bc, bd, be, bf, p.x, p.y, size);
   }
+
+  // Restore base transform + default alpha so downstream draws
+  // aren't affected by the last spark/ring's state.
+  ctx.setTransform(ba, bb, bc, bd, be, bf);
+  ctx.globalAlpha = 1;
 }
