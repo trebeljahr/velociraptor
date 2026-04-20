@@ -16,6 +16,7 @@ import { state } from "../state";
 import { IMAGES } from "../images";
 import { audio } from "../audio";
 import { saveCoinsBalance } from "../persistence";
+import { pointInPolygon, Polygon } from "../helpers";
 import {
   VELOCITY_SCALE_DIVISOR,
   COIN_SCORE_VALUE,
@@ -26,6 +27,7 @@ import {
   COIN_BOB_FREQUENCY_HZ,
   COIN_COUNT_PER_FIELD,
   COIN_SPACING_RATIO,
+  COIN_FIELD_EDGE_MARGIN_RAPTOR_WIDTHS,
   COIN_COLLECT_FADE_FRAMES,
   COIN_SPARKLE_FREQUENCY_HZ,
   COIN_GLINT_SIZE_RATIO,
@@ -56,6 +58,10 @@ interface RaptorRef {
   y: number;
   w: number;
   h: number;
+  /** Optional body silhouette — when present, coin pickup uses it
+   *  as the authoritative hit test. Without it, collectCoins falls
+   *  back to the raptor's bounding box. */
+  collisionPolygon?: () => Polygon;
 }
 
 /** Scatter COIN_COUNT_PER_FIELD coins evenly across [startX, endX]
@@ -79,20 +85,30 @@ export function spawnCoinsInRange(
     state.ground -
     raptor.h * COIN_BASE_Y_ABOVE_GROUND_RATIO -
     coinSize / 2;
-  // Coins live in a tight ribbon centred in the field: a fixed
-  // raptor-width spacing gives a quick "ding-ding-ding…" run, and
-  // the ribbon is short enough that the player hits all COUNT
-  // coins in ~1–1.5s regardless of how long the breather itself
-  // is. If the ribbon happens to exceed the field width (tiny
-  // breather edge case), compress to fit instead of overflowing.
-  const fieldWidth = endX - startX;
+  // Shrink the usable span so coins don't hug the cactus on either
+  // side of the field. Fall back to the full field width on tiny
+  // breathers where 2× margin would leave nothing to spawn into.
+  const edgeMarginPx = raptor.w * COIN_FIELD_EDGE_MARGIN_RAPTOR_WIDTHS;
+  const rawFieldWidth = endX - startX;
+  const usableStartX =
+    rawFieldWidth > edgeMarginPx * 2 ? startX + edgeMarginPx : startX;
+  const usableEndX =
+    rawFieldWidth > edgeMarginPx * 2 ? endX - edgeMarginPx : endX;
+  // Coins live in a tight ribbon centred in the usable span: a
+  // fixed raptor-width spacing gives a quick "ding-ding-ding…"
+  // run, and the ribbon is short enough that the player hits all
+  // COUNT coins in ~1–1.5s regardless of how long the breather
+  // itself is. If the ribbon happens to exceed the usable width
+  // (tiny breather edge case), compress to fit instead of
+  // overflowing the margin.
+  const fieldWidth = usableEndX - usableStartX;
   const desiredSpacing = raptor.w * COIN_SPACING_RATIO;
   const gaps = COIN_COUNT_PER_FIELD - 1;
   const desiredSpanPx = desiredSpacing * gaps;
   const spacing =
     desiredSpanPx <= fieldWidth ? desiredSpacing : fieldWidth / gaps;
   const spanPx = spacing * gaps;
-  const firstCoinX = startX + (fieldWidth - spanPx) / 2;
+  const firstCoinX = usableStartX + (fieldWidth - spanPx) / 2;
   for (let i = 0; i < COIN_COUNT_PER_FIELD; i++) {
     state.coins.push({
       x: firstCoinX + spacing * i,
@@ -134,10 +150,12 @@ export function updateCoins(frameScale: number): void {
   });
 }
 
-/** AABB check against the raptor's bounding box. Coins are small
- *  enough that polygon-precise collision isn't worth the cost —
- *  the raptor hitbox already insets for forgiveness on cacti, and
- *  coins should feel forgiving to grab.
+/** Polygon-precise pickup test. The raptor's bounding box covers
+ *  the tail-to-snout sprite, most of which is empty air; coin
+ *  collection against that AABB fires on coins the player clearly
+ *  ran past. Instead we AABB-reject quickly, then confirm against
+ *  the body silhouette (same polygon the cactus collision uses)
+ *  so a coin is only grabbed when it actually overlaps the raptor.
  *
  *  `onCollect` receives the coin center (after bob offset) so
  *  callers can spawn burst particles at exactly where the coin
@@ -151,6 +169,7 @@ export function collectCoins(
   const rR = raptor.x + raptor.w;
   const rT = raptor.y;
   const rB = raptor.y + raptor.h;
+  const poly = raptor.collisionPolygon ? raptor.collisionPolygon() : null;
   for (const c of state.coins) {
     if (c.collected) continue;
     const cL = c.x;
@@ -158,6 +177,33 @@ export function collectCoins(
     if (cR < rL || cL > rR) continue;
     const cy = c.baseY + Math.sin(bobPhase(c)) * COIN_BOB_AMPLITUDE_PX;
     if (cy + c.h < rT || cy > rB) continue;
+    if (poly) {
+      // A handful of sample points around the coin's disc — centre
+      // plus the four cardinal edge midpoints — give a coin-radius
+      // approximation without the cost of full polygon-vs-polygon.
+      // Any one sample inside the body silhouette counts as a hit,
+      // so the test stays forgiving on glancing contacts but rejects
+      // the misses where the AABB used to false-positive (tail,
+      // neck-above-head air, feet-behind-body).
+      const cxC = c.x + c.w / 2;
+      const cyC = cy + c.h / 2;
+      const r = Math.min(c.w, c.h) / 2;
+      const samples = [
+        { x: cxC, y: cyC },
+        { x: cxC - r, y: cyC },
+        { x: cxC + r, y: cyC },
+        { x: cxC, y: cyC - r },
+        { x: cxC, y: cyC + r },
+      ];
+      let hit = false;
+      for (const s of samples) {
+        if (pointInPolygon(s, poly)) {
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) continue;
+    }
     c.collected = true;
     c.collectFrame = state.frame;
     state.score += COIN_SCORE_VALUE;
