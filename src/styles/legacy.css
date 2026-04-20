@@ -1672,6 +1672,14 @@ html,
        * full-screen shop overlay. The coin balance chip sits flush
        * against the right edge (margin-left: auto) so the label
        * reads left-aligned while the number hugs the trailing edge. */
+      .menu-panel .menu-shop {
+        /* Shop is a direct-child <button> of .menu-panel (not wrapped
+         * in the <ul><li> list below), so the generic `.menu-panel li`
+         * margin doesn't apply. Match the 0.75rem used by .sound-settings
+         * and .menu-group so Shop doesn't collapse flush against the
+         * Cosmetics <details> below it. */
+        margin: 0 0 0.75rem;
+      }
       .menu-panel .menu-shop .inner {
         gap: 0.7rem;
       }
