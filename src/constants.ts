@@ -146,9 +146,17 @@ export const COIN_SPACING_RATIO = 0.5;
  *  coin readable against the raptor at any viewport scale. */
 export const COIN_SIZE_RATIO = 0.28;
 /** Center of the coin hover above ground as a fraction of raptor
- *  height. 0.55 puts the coin roughly at running-torso height so
- *  the raptor intersects it during normal run, without jumping. */
-export const COIN_BASE_Y_ABOVE_GROUND_RATIO = 0.55;
+ *  height. 0.65 sits the coin around upper-chest / shoulder height
+ *  so it reads as "worth reaching for" while still collecting on a
+ *  straight run — low enough the raptor grabs it without jumping,
+ *  high enough to feel airborne instead of pinned to the torso. */
+export const COIN_BASE_Y_ABOVE_GROUND_RATIO = 0.65;
+/** Clearance inside a flower field where coins are NOT spawned, in
+ *  raptor-widths from each edge of the field. Keeps the ribbon of
+ *  coins clear of the cactus that's about to enter the field on the
+ *  right and the one the raptor just jumped on the left, so a grab
+ *  is never fighting with the "jump or die" beat. */
+export const COIN_FIELD_EDGE_MARGIN_RAPTOR_WIDTHS = 1.25;
 /** Bob amplitude in absolute px. Kept small so the coin stays
  *  within the raptor's AABB and is always collectible on contact. */
 export const COIN_BOB_AMPLITUDE_PX = 6;

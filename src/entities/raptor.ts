@@ -222,6 +222,10 @@ export class Raptor {
   draw(ctx: CanvasRenderingContext2D): void {
     if (!this.sheet) return;
     const srcY = this.frame * RAPTOR_NATIVE_H;
+    // Back-slot wings draw FIRST so the body sprite covers their
+    // inner edge; only the outer spread hangs behind the raptor.
+    // Matches the start-screen preview, which layers the same way.
+    this._drawEquippedSlot(ctx, "back");
     ctx.drawImage(
       this.sheet,
       0,
@@ -233,13 +237,11 @@ export class Raptor {
       this.w,
       this.h,
     );
-    // All cosmetics render on top of the body. Back-slot wings
-    // draw last so they sit fully over the body rather than
-    // peeking around it.
+    // Head-area cosmetics render on top of the body so they read
+    // as worn, not painted into the silhouette.
     this._drawEquippedSlot(ctx, "eyes");
     this._drawEquippedSlot(ctx, "head");
     this._drawEquippedSlot(ctx, "neck");
-    this._drawEquippedSlot(ctx, "back");
   }
 
   /**
