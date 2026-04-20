@@ -9,19 +9,14 @@
  *                  cactus at the right edge of the screen, scrolls
  *                  existing ones leftward at state.bgVelocity, and
  *                  retires each one when it falls off the left edge.
- *                  Retirement is also where score ticks up and the
- *                  per-score achievements and cosmetic unlocks fire.
+ *                  Each spawn also drops a single coin floating
+ *                  above the cactus — under the coins-only scoring
+ *                  model, that coin is the only way to earn score
+ *                  for clearing the obstacle.
  *
- * Dependencies on the rest of the game are passed in at construction
- * time so this module has no bare references back to src/main.ts:
- *   • raptor               — used for the body-height scaling ratio
- *                            and for positioning the confetti burst
- *                            at the crown during a cosmetic unlock
- *   • onAchievementUnlock  — fires the "score-25", "party-time",
- *                            "dinosaurs-forever", "score-250",
- *                            "first-jump" achievements
- *   • onCosmeticBurst      — fires the confetti burst on a cosmetic
- *                            unlock; the caller decides where/how
+ * Score progression and cosmetic/achievement thresholds live in
+ * the coin-pickup callback in src/main.ts, not here, since coins
+ * are now the sole score source.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -40,21 +35,14 @@ import {
   CACTUS_BREATHER_MIN_SECONDS,
   CACTUS_BREATHER_MAX_SECONDS,
   FLOWER_PATCH_WIDTH_PX,
-  PARTY_HAT_SCORE_THRESHOLD,
-  THUG_GLASSES_SCORE_THRESHOLD,
-  BOW_TIE_SCORE_THRESHOLD,
 } from "../constants";
 import { state } from "../state";
 import { IMAGES } from "../images";
 import { CACTUS_VARIANTS, CactusVariant } from "../cactusVariants";
 import { Polygon } from "../helpers";
 import { makeFlowerPatch } from "./flowers";
-import { spawnCoinsInRange } from "./coins";
-import { grantCosmetic } from "../cosmetics";
+import { spawnCoinsInRange, spawnCoinAboveCactus } from "./coins";
 import { Raptor } from "./raptor";
-
-export type CactusAchievementCallback = (id: string) => void;
-export type CactusCosmeticBurstCallback = (x: number, y: number) => void;
 
 export class Cactus {
   x: number;
@@ -139,11 +127,7 @@ export class Cactuses {
    *  immediately after the flower patches. Caching kills that bug. */
   private _nextGap = 0;
 
-  constructor(
-    private raptor: Raptor,
-    private onAchievementUnlock: CactusAchievementCallback,
-    private onCosmeticBurst: CactusCosmeticBurstCallback,
-  ) {
+  constructor(private raptor: Raptor) {
     // Seed the gap for the very first spawn so update() has
     // something to compare against.
     this._rollNextGap();
@@ -302,7 +286,13 @@ export class Cactuses {
   spawn(): void {
     const variant =
       CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
-    this.cacti.push(new Cactus(variant, this.raptor));
+    const cactus = new Cactus(variant, this.raptor);
+    this.cacti.push(cactus);
+    // Under the coins-only scoring model, clearing a cactus no longer
+    // grants points directly — the reward is the coin sitting in the
+    // jump arc above it. Spawn that coin here, using the cactus's
+    // final dimensions so variants and heightScale all line up.
+    spawnCoinAboveCactus(cactus.x, cactus.y, cactus.w, this.raptor);
     this._scrollSinceLastSpawn = 0;
     // Counts toward the next breather.
     state._cactiSinceBreather = (state._cactiSinceBreather ?? 0) + 1;
@@ -333,59 +323,11 @@ export class Cactuses {
 
     for (const c of this.cacti) c.update(frameScale);
 
-    this.cacti = this.cacti.filter((c) => {
-      if (c.x < -c.w) {
-        state.score++;
-        // Score-threshold achievements.
-        if (state.score === 1) this.onAchievementUnlock("first-jump");
-        if (state.score === 25) this.onAchievementUnlock("score-25");
-        if (state.score === 100) this.onAchievementUnlock("party-time");
-        if (state.score === BOW_TIE_SCORE_THRESHOLD)
-          this.onAchievementUnlock("dinosaurs-forever");
-        if (state.score === THUG_GLASSES_SCORE_THRESHOLD)
-          this.onAchievementUnlock("score-250");
-        // Cosmetic unlocks — party hat at 100 points, thug glasses at
-        // 200. Both fire at most once per save and burst a little
-        // confetti off the raptor's head so the player actually
-        // notices. The achievement toasts fire from the
-        // score-threshold block above (not here) so they trigger on
-        // every qualifying run, even if the cosmetic was already
-        // earned.
-        // Cosmetic unlocks via score. grantCosmetic handles the
-        // owned/equipped maps AND bridges the legacy unlock/wear
-        // flags, so old Game API shims stay correct. It auto-
-        // equips when the slot is empty — on first unlock that's
-        // always the case, so the cosmetic pops onto the raptor
-        // immediately. Idempotent, so re-crossing the threshold
-        // in a later run is a no-op.
-        if (
-          !state.ownedCosmetics["party-hat"] &&
-          state.score >= PARTY_HAT_SCORE_THRESHOLD
-        ) {
-          grantCosmetic("party-hat");
-          const crown = this.raptor.currentCrownPoint();
-          this.onCosmeticBurst(crown.x, crown.y);
-        }
-        if (
-          !state.ownedCosmetics["thug-glasses"] &&
-          state.score >= THUG_GLASSES_SCORE_THRESHOLD
-        ) {
-          grantCosmetic("thug-glasses");
-          const crown = this.raptor.currentCrownPoint();
-          this.onCosmeticBurst(crown.x, crown.y);
-        }
-        if (
-          !state.ownedCosmetics["bow-tie"] &&
-          state.score >= BOW_TIE_SCORE_THRESHOLD
-        ) {
-          grantCosmetic("bow-tie");
-          const crown = this.raptor.currentCrownPoint();
-          this.onCosmeticBurst(crown.x, crown.y);
-        }
-        return false;
-      }
-      return true;
-    });
+    // Coins-only scoring: clearing a cactus no longer grants score
+    // or triggers achievement/cosmetic thresholds. The reward is
+    // the coin floating above the cactus (spawned in spawn()); the
+    // pickup path in main.ts handles score progression + unlocks.
+    this.cacti = this.cacti.filter((c) => c.x >= -c.w);
   }
 
   draw(ctx: CanvasRenderingContext2D): void {

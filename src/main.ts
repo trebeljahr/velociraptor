@@ -729,6 +729,49 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         // of the regular pickup — "ding ding ding … diiing ✨".
         if (coin.lastInField) audio.playCoinChainEnd();
         spawnCoinCollectBurst(cx, cy);
+        // Score progression lives here now — coins are the sole
+        // score source in the coins-only model. Exact-equality
+        // checks (`score === N`) are safe because
+        // COIN_SCORE_VALUE === 1 and pickups are processed one at
+        // a time. Mirrors the cactus.ts block that used to fire
+        // these at the same cadence when cactus-pass bumped score.
+        if (state.score === 1) unlockAchievement("first-jump");
+        if (state.score === 25) unlockAchievement("score-25");
+        if (state.score === 100) unlockAchievement("party-time");
+        if (state.score === BOW_TIE_SCORE_THRESHOLD)
+          unlockAchievement("dinosaurs-forever");
+        if (state.score === THUG_GLASSES_SCORE_THRESHOLD)
+          unlockAchievement("score-250");
+        // Cosmetic unlocks — party hat at 100, thug glasses and
+        // bow tie at their thresholds. grantCosmetic is idempotent
+        // and auto-equips when the slot is free, so the cosmetic
+        // pops onto the raptor on first unlock and is a no-op on
+        // later runs. Confetti bursts off the raptor's head so
+        // the player actually notices.
+        if (
+          !state.ownedCosmetics["party-hat"] &&
+          state.score >= PARTY_HAT_SCORE_THRESHOLD
+        ) {
+          grantCosmetic("party-hat");
+          const crown = raptor.currentCrownPoint();
+          spawnConfettiBurst(crown.x, crown.y);
+        }
+        if (
+          !state.ownedCosmetics["thug-glasses"] &&
+          state.score >= THUG_GLASSES_SCORE_THRESHOLD
+        ) {
+          grantCosmetic("thug-glasses");
+          const crown = raptor.currentCrownPoint();
+          spawnConfettiBurst(crown.x, crown.y);
+        }
+        if (
+          !state.ownedCosmetics["bow-tie"] &&
+          state.score >= BOW_TIE_SCORE_THRESHOLD
+        ) {
+          grantCosmetic("bow-tie");
+          const crown = raptor.currentCrownPoint();
+          spawnConfettiBurst(crown.x, crown.y);
+        }
       });
       // Grass-field spans scroll at the same rate as the foreground
       // (ground speed), then fall off the left edge once they've
@@ -2880,11 +2923,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         spawnDust(raptor.x + raptor.w * offset, state.ground, 0.55);
       },
     );
-    cactuses = new Cactuses(
-      raptor,
-      (id) => unlockAchievement(id),
-      (x, y) => spawnConfettiBurst(x, y),
-    );
+    cactuses = new Cactuses(raptor);
     stars = new Stars();
     computeSkyGradient();
 

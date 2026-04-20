@@ -108,6 +108,42 @@ export function spawnCoinsInRange(
   audio.resetCoinStreak();
 }
 
+/** Spawn a single coin directly above a cactus — the raptor must
+ *  jump to clear the cactus, and the coin sits in the arc so
+ *  clearing it IS the pickup. Replaces the old "cactus-pass = +1
+ *  score" in the new coins-only scoring model: only the coin
+ *  grants points, not the jump itself. */
+export function spawnCoinAboveCactus(
+  cactusX: number,
+  cactusY: number,
+  cactusW: number,
+  raptor: RaptorRef,
+): void {
+  if (!raptor || raptor.h <= 0 || raptor.w <= 0) return;
+  const coinSize = raptor.h * COIN_SIZE_RATIO;
+  state.coins = state.coins || [];
+  // Horizontally centred on the cactus top.
+  const cx = cactusX + cactusW / 2 - coinSize / 2;
+  // Vertically: the coin's BOTTOM sits a little above the cactus
+  // top, so the raptor has to actually clear the cactus to
+  // intersect the coin. Lifting by ~70% of coinSize puts the coin
+  // roughly where the raptor's torso arcs at the peak of a
+  // just-clearing jump — forgiving to grab but not trivially low.
+  const baseY = cactusY - coinSize - coinSize * 0.7;
+  state.coins.push({
+    x: cx,
+    baseY,
+    w: coinSize,
+    h: coinSize,
+    phase: Math.random() * Math.PI * 2,
+    collected: false,
+    collectFrame: 0,
+    // Not part of a field — suppresses the chain-end chord so the
+    // per-cactus coin plays as a normal pickup, not a field finale.
+    lastInField: false,
+  });
+}
+
 /** Phase used for the bob sin() — shared between draw and collision
  *  so the hit-test uses the same y the player sees. */
 function bobPhase(c: Coin): number {
