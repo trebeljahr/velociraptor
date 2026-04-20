@@ -518,22 +518,30 @@ export const RAPTOR_NECK_CORRECTION: ReadonlyArray<readonly [number, number]> = 
 ];
 
 // ── 12-band day/night sky palette ──────────────────────────
-// Day and night are roughly equal, with shorter sunset/sunrise
-// transitions in between. See main.ts for the full explanation of
-// why the transition color is magenta-pink rather than orange.
+// Day and night are roughly equal (5 bands each), with single
+// twilight-transition bands on either side.
+//
+// The transition colour is a deep "blue hour" indigo rather than
+// a magenta sunset. Linear RGB lerps between day-blue and any
+// warm-tone sunset colour land at a desaturated mid-brightness
+// mauve-grey halfway through the transition — reads as a wonky
+// "bright grey" phase instead of a gradual dim. Staying inside
+// the blue family (day-cyan → indigo → dark navy) keeps every
+// midpoint saturated and luminance-monotonic, which is what
+// people actually see during a real blue hour.
 export const SKY_COLORS: ReadonlyArray<readonly [number, number, number]> = [
-  [80, 180, 205], // 0  blue
-  [80, 180, 205], // 1  blue
-  [80, 180, 205], // 2  blue
-  [80, 180, 205], // 3  blue
-  [80, 180, 205], // 4  blue
-  [220, 90, 120], // 5  magenta-pink (sunset)
+  [80, 180, 205], // 0  blue (day)
+  [80, 180, 205], // 1  blue (day)
+  [80, 180, 205], // 2  blue (day)
+  [80, 180, 205], // 3  blue (day)
+  [80, 180, 205], // 4  blue (day)
+  [40, 65, 130], // 5  blue hour (sunset)
   [21, 34, 56], // 6  night
   [21, 34, 56], // 7  night
   [21, 34, 56], // 8  night
   [21, 34, 56], // 9  night
   [21, 34, 56], // 10 night
-  [220, 90, 120], // 11 magenta-pink (sunrise)
+  [40, 65, 130], // 11 blue hour (sunrise)
 ];
 
 export const NIGHT_COLOR: readonly [number, number, number] = [21, 34, 56];
