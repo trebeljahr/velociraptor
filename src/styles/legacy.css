@@ -160,6 +160,53 @@ html,
         transform: translate(-90%, -20%) rotate(-0.15rad);
         transform-origin: 90% 20%;
       }
+      /* ── Per-cosmetic overrides ────────────────────────────
+       * Declared after the slot defaults so the cascade picks
+       * them up for specific items without touching the slot
+       * baseline. refreshStartRaptorCosmetics() sets
+       * data-cosmetic-id on each <img> so these selectors
+       * match the currently-equipped item. */
+      .start-raptor-cosmetic[data-cosmetic-id="monocle"] {
+        width: 4.5%;
+      }
+      .start-raptor-cosmetic[data-cosmetic-id="sombrero"] {
+        transform: translate(-50%, -100%) rotate(-0.45rad);
+      }
+      .start-raptor-cosmetic[data-cosmetic-id="eye-patch"] {
+        transform: translate(calc(-50% - 20px), -50%) rotate(2.9deg);
+      }
+      .start-raptor-cosmetic[data-cosmetic-id="bandana"] {
+        transform: translate(calc(-50% + 5px), calc(-50% + 10px)) rotate(-8deg);
+      }
+      .start-raptor-cosmetic[data-cosmetic-id="tiara"] {
+        transform: translate(calc(-50% + 5px), calc(-100% + 10px)) rotate(-0.2rad);
+      }
+      /* Wing overrides pin each sprite by its actual shoulder
+       * pixel rather than the shared (90%, 20%) upper-right
+       * corner the slot default uses. Values are per-wing because
+       * the attachment sits in a different place on each sprite:
+       * the feathered shoulder, the butterfly thorax, the demon
+       * spine. */
+      .start-raptor-cosmetic[data-cosmetic-id="angel-wings"] {
+        transform: translate(-82%, -45%) rotate(-0.15rad);
+        transform-origin: 82% 45%;
+      }
+      .start-raptor-cosmetic[data-cosmetic-id="demon-wings"] {
+        transform: translate(-68%, -12%) rotate(-0.15rad);
+        transform-origin: 68% 12%;
+      }
+      .start-raptor-cosmetic[data-cosmetic-id="butterfly-wings-orange"] {
+        transform: translate(-58%, -45%) rotate(-0.15rad);
+        transform-origin: 58% 45%;
+      }
+      .start-raptor-cosmetic[data-cosmetic-id="butterfly-wings-blue"] {
+        transform: translate(-50%, -55%) rotate(-0.15rad);
+        transform-origin: 50% 55%;
+      }
+      .start-raptor-cosmetic[data-cosmetic-id="butterfly-wings-purple"] {
+        transform: translate(-50%, -35%) rotate(-0.15rad);
+        transform-origin: 50% 35%;
+      }
       .start-cactus {
         position: absolute;
         bottom: calc(22vh - 4px);
@@ -1630,13 +1677,36 @@ html,
        * the section so the thumb + "Equipped" badge stay in
        * lockstep. */
       .menu-panel .cosmetic-slot + .cosmetic-slot {
-        margin-top: 0.35rem;
+        margin-top: 0.6rem;
+      }
+      /* Each slot section gets a slot-tinted left border so the
+       * per-slot groupings read as distinct blocks instead of
+       * one long merged list of options. */
+      .menu-panel .cosmetic-slot {
+        border-left: 3px solid transparent;
+        border-radius: 6px;
+        padding-left: 0.1rem;
+        background: #fafafa;
+      }
+      .menu-panel .cosmetic-slot[data-slot="head"] {
+        border-left-color: #d97706;
+      }
+      .menu-panel .cosmetic-slot[data-slot="eyes"] {
+        border-left-color: #1f2937;
+      }
+      .menu-panel .cosmetic-slot[data-slot="neck"] {
+        border-left-color: #b91c1c;
+      }
+      .menu-panel .cosmetic-slot[data-slot="back"] {
+        border-left-color: #7c3aed;
       }
       .cosmetic-slot-summary {
         /* Base .menu-group-summary already gives the font / padding /
            chevron styling. We just widen the gap so the thumb +
            label + current-value line breathe inside the row. */
         gap: 0.6rem;
+        background: #f3f4f6;
+        border-radius: 4px;
       }
       .cosmetic-slot-thumb {
         flex: 0 0 auto;
@@ -1707,6 +1777,19 @@ html,
       .cosmetic-option-thumb.cosmetic-slot-thumb-sprite {
         background: #ffffff;
         box-shadow: inset 0 0 0 1px #d1d5db;
+      }
+      /* "None" option: crossed-out circle in neutral grey, so
+       * the empty-slot choice doesn't look like a slot-coloured
+       * cosmetic of its own. */
+      .cosmetic-option-thumb.cosmetic-slot-thumb-none,
+      .cosmetic-slot-thumb.cosmetic-slot-thumb-none {
+        background: #f3f4f6;
+        box-shadow: inset 0 0 0 1px #d1d5db;
+        color: #6b7280;
+      }
+      .cosmetic-none-icon {
+        width: 70%;
+        height: 70%;
       }
       .cosmetic-option-name {
         flex: 1 1 auto;
@@ -1796,9 +1879,11 @@ html,
       .shop-item-thumb.shop-item-thumb-sprite {
         /* When a sprite is injected, ditch the slot-tint placeholder
            colour and show the art on a neutral white panel so the
-           transparent PNGs read well. */
+           transparent PNGs read well. Pad inside so the tightly-
+           bounded PNGs don't brush the container edge. */
         background: #ffffff !important;
         box-shadow: inset 0 0 0 1px #d1d5db;
+        padding: 5px;
       }
       .shop-item-thumb img {
         width: 100%;
