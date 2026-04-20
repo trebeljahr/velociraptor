@@ -130,8 +130,7 @@
         align-items: center;
         justify-content: center;
         font-family:
-          "Anonymous Pro", ui-monospace, SFMono-Regular, Menlo, Consolas,
-          monospace;
+          -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         color: #ffffff;
         user-select: none;
         -webkit-user-select: none;
@@ -528,6 +527,12 @@
           Tip: press <kbd>Space</kbd> or tap to jump · <kbd>Esc</kbd> for menu
         </p>
         <p class="start-hint start-hint-touch">Tip: Tap to jump</p>
+        <!-- Shown when body.gamepad-connected is set. Icons match the
+             vendor-neutral glyphs used in .menu-gamepad-hint: ● for any
+             face button, ☰ for any system/menu button. -->
+        <p class="start-hint start-hint-gamepad">
+          Tip: <kbd>●</kbd> to jump · <kbd>☰</kbd> for menu
+        </p>
       </div>
       <p class="start-byline">
         Made with

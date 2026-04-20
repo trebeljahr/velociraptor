@@ -45,16 +45,6 @@ See `package.json` for the full devDependency list.
 All original pixel-art sprites, audio, and in-game typography are
 © 2026 Rico Trebeljahr. See [LICENSE](LICENSE) for redistribution terms.
 
-### Anonymous Pro font
-
-- License: SIL Open Font License 1.1
-- Author: Mark Simonson
-- Homepage: https://www.marksimonson.com/fonts/view/anonymous-pro
-
-Self-hosted WOFF2 files under `public/assets/fonts/`. The SIL OFL
-permits bundling and distribution in both open-source and commercial
-products without a reserved font name clause.
-
 ---
 
 To regenerate a complete dependency-tree license list for a build, run:
