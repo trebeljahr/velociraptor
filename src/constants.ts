@@ -14,7 +14,12 @@
 export const INITIAL_BG_VELOCITY = 7;
 export const GRAVITY = 0.1;
 export const JUMP_CLEARANCE_MULTIPLIER = 1.65;
-export const SKY_CYCLE_SCORE = 60;
+// Score points per full day/night cycle. Derived from SKY_COLORS.length
+// so the pure-day and pure-night sub-periods both stay at exactly 5
+// points per band regardless of how many transition bands sit between
+// them. Changing the transition count only stretches the twilight; the
+// "feel" of day and night duration is preserved.
+export const SKY_CYCLE_SCORE = 70;
 export const SKY_UPDATE_INTERVAL_FRAMES = 10;
 
 // ── Gameplay & Physics ──────────────────────────────────────
@@ -200,8 +205,13 @@ export const COIN_STREAK_MAX_PITCH = 1.7;
 export const COIN_STREAK_RESET_MS = 1500;
 
 // ── Celestial Bodies (Sun & Moon) ──────────────────────────
-export const SUN_PHASE_CENTER = 1 / 6;
-export const MOON_PHASE_CENTER = 2 / 3;
+// Sun zenith at the start of the middle day band (band 2 of 0-4),
+// moon at the start of the middle night band (band 9 of 7-11).
+// Expressed as band-index / SKY_COLORS.length so the anchors
+// stay in lockstep with the palette if the band count ever
+// changes again.
+export const SUN_PHASE_CENTER = 2 / 14;
+export const MOON_PHASE_CENTER = 9 / 14;
 export const CELESTIAL_ARC_HALF_WIDTH = 0.25;
 export const CELESTIAL_ARC_EXTENSION = 0.18;
 export const CELESTIAL_ARC_HEIGHT_RATIO = 0.7;
@@ -288,16 +298,19 @@ export const GAMEPAD_STICK_DEADZONE = 0.25;
 
 // ── Cinematic / filming mode (F9) ────────────────────────
 // Phase values derived from SKY_COLORS band order + sun/moon arcs.
+// Phases are (band_index + offset) / SKY_COLORS.length, using band
+// centres where "between" a phenomenon reads better than its start.
 export const CINEMATIC_PHASES = [
   { key: "1", phase: 0.02, label: "Early morning" },
-  { key: "2", phase: 0.167, label: "Midday (sun zenith)" },
-  { key: "3", phase: 0.3, label: "Afternoon" },
-  { key: "4", phase: 0.44, label: "Sunset" },
-  { key: "5", phase: 0.55, label: "Early night" },
-  { key: "6", phase: 0.667, label: "Midnight (moon zenith)" },
-  { key: "7", phase: 0.8, label: "Late night" },
-  { key: "8", phase: 0.9, label: "Pre-dawn" },
-  { key: "9", phase: 0.96, label: "Sunrise" },
+  { key: "2", phase: 2 / 14, label: "Midday (sun zenith)" },
+  { key: "3", phase: 3.5 / 14, label: "Afternoon" },
+  { key: "4", phase: 5.5 / 14, label: "Sunset" },
+  { key: "5", phase: 6.5 / 14, label: "Blue hour" },
+  { key: "6", phase: 7.5 / 14, label: "Early night" },
+  { key: "7", phase: 9 / 14, label: "Midnight (moon zenith)" },
+  { key: "8", phase: 10.5 / 14, label: "Late night" },
+  { key: "9", phase: 12.5 / 14, label: "Pre-dawn blue hour" },
+  { key: "0", phase: 13.5 / 14, label: "Sunrise" },
 ] as const;
 
 // ── Dunes & Parallax ──────────────────────────────────────
@@ -517,31 +530,38 @@ export const RAPTOR_NECK_CORRECTION: ReadonlyArray<readonly [number, number]> = 
   [+0.00187, -0.00078], // frame 11
 ];
 
-// ── 12-band day/night sky palette ──────────────────────────
-// Day and night are roughly equal (5 bands each), with single
-// twilight-transition bands on either side.
+// ── 14-band day/night sky palette ──────────────────────────
+// 5 day + sunset + blue-hour + 5 night + blue-hour + sunrise.
 //
-// The transition colour is a deep "blue hour" indigo rather than
-// a magenta sunset. Linear RGB lerps between day-blue and any
-// warm-tone sunset colour land at a desaturated mid-brightness
-// mauve-grey halfway through the transition — reads as a wonky
-// "bright grey" phase instead of a gradual dim. Staying inside
-// the blue family (day-cyan → indigo → dark navy) keeps every
-// midpoint saturated and luminance-monotonic, which is what
-// people actually see during a real blue hour.
+// Twilight now takes TWO bands on each side instead of one:
+//   day → magenta sunset → blue-hour indigo → night
+// The magenta is the dramatic pink-horizon moment; the blue hour
+// is the deep-blue twilight that actually precedes night and
+// follows sunset in the real world. Chaining the two bands keeps
+// each lerp step short (one band each), so the ugly desaturated
+// mauve-grey that sits halfway between day-blue and magenta is
+// only briefly visible — the eye passes through it on the way
+// into the magenta, rather than dwelling on it as "the"
+// transition colour like it did with the original single-band
+// twilight. SKY_CYCLE_SCORE scales from 60 → 70 to keep pure
+// day and pure night each at exactly 5 points per band (25 pts),
+// matching the old cycle; the extra 10 points/cycle is the
+// blue-hour extension the user asked for.
 export const SKY_COLORS: ReadonlyArray<readonly [number, number, number]> = [
   [80, 180, 205], // 0  blue (day)
   [80, 180, 205], // 1  blue (day)
   [80, 180, 205], // 2  blue (day)
   [80, 180, 205], // 3  blue (day)
   [80, 180, 205], // 4  blue (day)
-  [40, 65, 130], // 5  blue hour (sunset)
-  [21, 34, 56], // 6  night
+  [220, 90, 120], // 5  magenta-pink (sunset)
+  [40, 65, 130], // 6  blue hour (post-sunset)
   [21, 34, 56], // 7  night
   [21, 34, 56], // 8  night
   [21, 34, 56], // 9  night
   [21, 34, 56], // 10 night
-  [40, 65, 130], // 11 blue hour (sunrise)
+  [21, 34, 56], // 11 night
+  [40, 65, 130], // 12 blue hour (pre-sunrise)
+  [220, 90, 120], // 13 magenta-pink (sunrise)
 ];
 
 export const NIGHT_COLOR: readonly [number, number, number] = [21, 34, 56];
