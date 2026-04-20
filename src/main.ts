@@ -176,6 +176,9 @@ import {
   saveTotalDayCycles,
   loadRareEventsSeen,
   saveRareEventsSeen,
+  saveCoinsBalance,
+  saveOwnedCosmetics,
+  saveEquippedCosmetics,
   loadBoolFlag,
   saveBoolFlag,
   hydratePersistence,
@@ -2107,8 +2110,9 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     /** Debug: wipe saved career jumps, unlock bits, and wear
      *  preferences so the raptor reverts to its naked state. */
     /** Wipe all persistent progress — jumps, cosmetic unlocks,
-     *  career runs, achievements, and high score — back to a
-     *  fresh-install state. Debug-only affordance. */
+     *  career runs, achievements, high score, coin balance, and
+     *  shop inventory / equipped slots — back to a fresh-install
+     *  state. Debug-only affordance. */
     resetAllProgress() {
       state.totalJumps = 0;
       state.highScore = 0;
@@ -2134,6 +2138,17 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       saveTotalDayCycles(0);
       state._rareEventsSeen = {};
       saveRareEventsSeen({});
+      // Shop state — wipe the coin balance, every owned cosmetic,
+      // and every equipped slot. These maps were added after the
+      // original reset was written, so missing them here left a
+      // "reset" raptor still wearing a full outfit with a full
+      // wallet on the next page load.
+      state.coinsBalance = 0;
+      state.ownedCosmetics = {};
+      state.equippedCosmetics = { head: null, eyes: null, neck: null, back: null };
+      saveCoinsBalance(0);
+      saveOwnedCosmetics({});
+      saveEquippedCosmetics(state.equippedCosmetics);
     },
 
     /** Remove all event listeners and stop the game loop. Call
