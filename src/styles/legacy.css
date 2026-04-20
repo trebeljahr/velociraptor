@@ -1613,14 +1613,13 @@ html,
         font-size: 1.05rem;
       }
 
-      /* ── Cosmetics equip menu (per-slot <details>) ──────────
-       * Each slot renders as a .menu-group <details> — same
-       * visual language as Sound Settings / Debug. The summary
-       * shows a thumb + "Slot · CurrentItem"; the body is a list
-       * of menu-item buttons, one per owned option plus a "None"
-       * row. Clicking a button equips or unequips and rebuilds
-       * the section so the thumb + "Equipped" badge stay in
-       * lockstep. */
+      /* ── Cosmetics equip menu (flat per-slot sections) ──────
+       * Each slot renders as a plain <div class="cosmetic-slot">
+       * with a slot-tinted left border + small label heading.
+       * No collapsible: every option button is always visible.
+       * The option thumbs ("Equipped" badge + aria-pressed) are
+       * enough for the player to tell what's on without a header
+       * summary duplicating the state. */
       .menu-panel .cosmetic-slot + .cosmetic-slot {
         margin-top: 0.6rem;
       }
@@ -1645,52 +1644,18 @@ html,
       .menu-panel .cosmetic-slot[data-slot="back"] {
         border-left-color: #7c3aed;
       }
-      .cosmetic-slot-summary {
-        /* Base .menu-group-summary already gives the font / padding /
-           chevron styling. We just widen the gap so the thumb +
-           label + current-value line breathe inside the row. */
-        gap: 0.6rem;
-        background: #f3f4f6;
-        border-radius: 4px;
-      }
-      .cosmetic-slot-thumb {
-        flex: 0 0 auto;
-        width: 32px;
-        height: 32px;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-      }
-      .cosmetic-slot-thumb img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-      }
-      .cosmetic-slot-thumb-sprite {
-        background: #ffffff;
-        box-shadow: inset 0 0 0 1px #d1d5db;
-      }
-      .cosmetic-slot-summary-text {
-        display: inline-flex;
-        align-items: baseline;
-        gap: 0;
-        flex: 1 1 auto;
-        min-width: 0;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-      .cosmetic-slot-summary-slot {
+      .menu-panel .cosmetic-slot-label {
+        /* Tiny, uppercase-y slot heading. Non-interactive — it's
+         * just a label so the per-slot groupings are named. The
+         * tinted left border on the parent already carries the
+         * slot colour cue. */
+        margin: 0;
+        padding: 0.35rem 0.6rem 0.1rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #6b7280;
         font-weight: 600;
-      }
-      .cosmetic-slot-summary-sep {
-        color: #9ca3af;
-      }
-      .cosmetic-slot-summary-current {
-        color: #4b5563;
-        font-weight: 500;
       }
       /* Option rows inside a slot's body. Each row has a small
          thumbnail + item name; currently-equipped row gets the
