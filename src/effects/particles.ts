@@ -43,9 +43,15 @@ import {
   SHOOTING_STAR_LIFETIME_MIN_SEC,
   SHOOTING_STAR_LIFETIME_MAX_SEC,
   SHOOTING_STAR_RAIN_THRESHOLD,
+  COIN_COLLECT_BURST_COUNT,
+  COIN_COLLECT_SPARK_LIFE_MIN_SEC,
+  COIN_COLLECT_SPARK_LIFE_MAX_SEC,
+  COIN_COLLECT_SPARK_SPEED_MIN,
+  COIN_COLLECT_SPARK_SPEED_MAX,
 } from "../constants";
 import { state } from "../state";
 import { compactInPlace, randRange } from "../helpers";
+import { drawFourPointStar } from "../entities/coins";
 
 // ══════════════════════════════════════════════════════════════════
 // Achievement bridge
@@ -432,5 +438,107 @@ export function drawAsh(ctx: CanvasRenderingContext2D): void {
     }
     ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
     ctx.restore();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Coin collect sparkles
+//
+// A short golden-white burst emitted when the raptor grabs a coin.
+// Each spark is a 4-point star (same shape as the ambient glint on
+// the coin) radiating outward from the pickup center with linear
+// velocity, per-frame drag, and no gravity — so the burst "freezes"
+// into a soft dust-cloud rather than falling, which reads as magic
+// rather than debris. Also paints a single expanding ring flash for
+// the first ~120ms so the eye catches the grab even on a busy frame.
+// ══════════════════════════════════════════════════════════════════
+
+/** Drag factor per frame (at 60fps) — shared by every spark. Lower
+ *  = faster deceleration. 0.90 gives a satisfying quick stop. */
+const COIN_SPARK_DRAG_PER_FRAME = 0.9;
+
+export function spawnCoinCollectBurst(x: number, y: number): void {
+  // Ring flash: a single non-particle entry with kind="ring" that
+  // lives alongside the sparks in the same array. Cheap to render
+  // and one-shot per pickup.
+  state.coinSparks.push({
+    kind: "ring",
+    x,
+    y,
+    age: 0,
+    life: 0.13,
+    startRadius: 4,
+    endRadius: 28,
+  });
+  for (let i = 0; i < COIN_COLLECT_BURST_COUNT; i++) {
+    const angle = (i / COIN_COLLECT_BURST_COUNT) * Math.PI * 2 +
+      randRange(-0.15, 0.15);
+    const speed = randRange(
+      COIN_COLLECT_SPARK_SPEED_MIN,
+      COIN_COLLECT_SPARK_SPEED_MAX,
+    );
+    state.coinSparks.push({
+      kind: "spark",
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: randRange(3, 6),
+      age: 0,
+      life: randRange(
+        COIN_COLLECT_SPARK_LIFE_MIN_SEC,
+        COIN_COLLECT_SPARK_LIFE_MAX_SEC,
+      ),
+    });
+  }
+}
+
+export function updateCoinSparks(dtSec: number): void {
+  if (state.coinSparks.length === 0) return;
+  // Per-frame drag: convert the 60fps constant to whatever dt we got.
+  // At 60fps, dtSec ≈ 1/60 and the multiplier equals COIN_SPARK_DRAG_PER_FRAME.
+  const dragThisStep = Math.pow(COIN_SPARK_DRAG_PER_FRAME, dtSec * 60);
+  let expired = 0;
+  for (const p of state.coinSparks) {
+    p.age += dtSec;
+    if (p.kind === "spark") {
+      p.x += p.vx * dtSec;
+      p.y += p.vy * dtSec;
+      p.vx *= dragThisStep;
+      p.vy *= dragThisStep;
+    }
+    if (p.age >= p.life) {
+      p.dead = true;
+      expired++;
+    }
+  }
+  if (expired > 0) compactInPlace(state.coinSparks, (p: any) => !p.dead);
+}
+
+export function drawCoinSparks(ctx: CanvasRenderingContext2D): void {
+  if (state.coinSparks.length === 0) return;
+  for (const p of state.coinSparks) {
+    const t = p.age / p.life;
+    if (p.kind === "ring") {
+      // Expanding ring flash: thin gold stroke, fades fast.
+      const radius = p.startRadius + (p.endRadius - p.startRadius) * t;
+      const alpha = Math.max(0, 1 - t);
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.85;
+      ctx.strokeStyle = "rgba(255, 230, 140, 1)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+      continue;
+    }
+    // Spark: hold full alpha for ~35% of its life, then fade to zero.
+    // Front-loads the brightness so the burst feels like a snap
+    // rather than a lingering cloud.
+    const alpha = t < 0.35 ? 1 : Math.max(0, 1 - (t - 0.35) / 0.65);
+    // Shrink as it fades so the silhouette doesn't pop out.
+    const size = p.size * (1 - t * 0.5);
+    drawFourPointStar(ctx, p.x, p.y, size, alpha);
   }
 }

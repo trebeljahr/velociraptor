@@ -28,6 +28,10 @@ import {
   COIN_SPACING_RATIO,
   COIN_COLLECT_FADE_FRAMES,
   COIN_SPARKLE_FREQUENCY_HZ,
+  COIN_GLINT_SIZE_RATIO,
+  COIN_GLINT_MAX_ALPHA,
+  COIN_AMBIENT_TWINKLE_COUNT,
+  COIN_TWINKLE_FREQUENCY_HZ,
 } from "../constants";
 
 export interface Coin {
@@ -133,10 +137,14 @@ export function updateCoins(frameScale: number): void {
 /** AABB check against the raptor's bounding box. Coins are small
  *  enough that polygon-precise collision isn't worth the cost —
  *  the raptor hitbox already insets for forgiveness on cacti, and
- *  coins should feel forgiving to grab. */
+ *  coins should feel forgiving to grab.
+ *
+ *  `onCollect` receives the coin center (after bob offset) so
+ *  callers can spawn burst particles at exactly where the coin
+ *  was rendered this frame, not at its stored baseY. */
 export function collectCoins(
   raptor: RaptorRef,
-  onCollect: (coin: Coin) => void,
+  onCollect: (coin: Coin, centerX: number, centerY: number) => void,
 ): void {
   if (!state.coins || state.coins.length === 0) return;
   const rL = raptor.x;
@@ -158,7 +166,7 @@ export function collectCoins(
     // already grabbed, which matches the "picked up = yours" feel.
     state.coinsBalance += COIN_BANK_REWARD;
     saveCoinsBalance(state.coinsBalance);
-    onCollect(c);
+    onCollect(c, c.x + c.w / 2, cy + c.h / 2);
   }
 }
 
@@ -194,37 +202,96 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
       Math.round(w),
       Math.round(h),
     );
-    // Glint overlay: a small white 4-point sparkle whose opacity
-    // pulses on a slower, independent cycle so the field doesn't
-    // twinkle in sync. Capped at ~40% so it reads as a shimmer,
-    // not a flash.
+
     if (!c.collected) {
+      // ── Main rotating glint ────────────────────────────────
+      // A 4-point white star that sweeps across the coin face
+      // over time, stronger than the original shimmer so the
+      // coin reads as actively shiny instead of just bright.
+      // Position orbits a small arc across the top-right of the
+      // coin; opacity pulses on its own sin so the sweep has a
+      // dim-bright cadence on top of the motion.
       const sparkleT =
         state.frame * ((Math.PI * 2 * COIN_SPARKLE_FREQUENCY_HZ) / 60) +
         c.phase;
       const s = Math.sin(sparkleT);
       if (s > 0) {
-        ctx.globalAlpha = s * 0.45;
-        const sx = c.x + c.w * 0.72;
-        const sy = cy + c.h * 0.26;
-        const sr = c.w * 0.1;
-        ctx.fillStyle = "#fff";
-        ctx.beginPath();
-        ctx.moveTo(sx, sy - sr);
-        ctx.lineTo(sx + sr * 0.3, sy - sr * 0.3);
-        ctx.lineTo(sx + sr, sy);
-        ctx.lineTo(sx + sr * 0.3, sy + sr * 0.3);
-        ctx.lineTo(sx, sy + sr);
-        ctx.lineTo(sx - sr * 0.3, sy + sr * 0.3);
-        ctx.lineTo(sx - sr, sy);
-        ctx.lineTo(sx - sr * 0.3, sy - sr * 0.3);
-        ctx.closePath();
-        ctx.fill();
+        const orbitT = sparkleT * 0.5;
+        const orbitRx = c.w * 0.18;
+        const orbitRy = c.h * 0.12;
+        const sx = c.x + c.w * 0.62 + Math.cos(orbitT) * orbitRx;
+        const sy = cy + c.h * 0.32 + Math.sin(orbitT) * orbitRy;
+        const sr = c.w * COIN_GLINT_SIZE_RATIO;
+        drawFourPointStar(ctx, sx, sy, sr, s * COIN_GLINT_MAX_ALPHA);
+      }
+
+      // ── Ambient twinkles ───────────────────────────────────
+      // Small star-flicks at fixed offsets around the coin, each
+      // on an independent phase so they pop in and out at
+      // irregular intervals. They sit OUTSIDE the coin's disc
+      // (at 1.1× radius) so they read as "shine escaping the
+      // coin" rather than being engraved on the face.
+      const twinkleBaseT =
+        state.frame * ((Math.PI * 2 * COIN_TWINKLE_FREQUENCY_HZ) / 60);
+      const cx = c.x + c.w / 2;
+      const centerY = cy + c.h / 2;
+      for (let i = 0; i < COIN_AMBIENT_TWINKLE_COUNT; i++) {
+        // Fixed angular offsets give a predictable constellation
+        // around each coin; adding c.phase rotates the set per
+        // coin so neighbours aren't stamped identically.
+        const ang =
+          ((i / COIN_AMBIENT_TWINKLE_COUNT) * Math.PI * 2) +
+          c.phase * 0.5;
+        const orbit = c.w * 0.6;
+        const tx = cx + Math.cos(ang) * orbit;
+        const ty = centerY + Math.sin(ang) * orbit * 0.7;
+        // Per-twinkle phase: offset by i * 2.1 rad and by this
+        // coin's phase so the twinkles don't flash in sync.
+        const tPhase = twinkleBaseT + c.phase * 1.7 + i * 2.1;
+        const tAmp = Math.sin(tPhase);
+        if (tAmp <= 0) continue;
+        // Squared envelope keeps a narrow "blink" feel but with a
+        // brighter peak than the cubed version — the twinkles now
+        // read as real shine pops, not hint-level flickers.
+        const tAlpha = tAmp * tAmp * 0.95;
+        const tr = c.w * 0.11;
+        drawFourPointStar(ctx, tx, ty, tr, tAlpha);
       }
     }
     ctx.restore();
   }
 }
+
+/** Shared helper: a 4-point (plus-shape with tapered points)
+ *  white sparkle. Used for the main glint, ambient twinkles, and
+ *  the collect-burst particles so the whole system shares one
+ *  visual language. */
+function drawFourPointStar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  alpha: number,
+): void {
+  if (alpha <= 0 || r <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, alpha) * ctx.globalAlpha;
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.moveTo(x, y - r);
+  ctx.lineTo(x + r * 0.3, y - r * 0.3);
+  ctx.lineTo(x + r, y);
+  ctx.lineTo(x + r * 0.3, y + r * 0.3);
+  ctx.lineTo(x, y + r);
+  ctx.lineTo(x - r * 0.3, y + r * 0.3);
+  ctx.lineTo(x - r, y);
+  ctx.lineTo(x - r * 0.3, y - r * 0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+export { drawFourPointStar };
 
 export function clearCoins(): void {
   state.coins = [];

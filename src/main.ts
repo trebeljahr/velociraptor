@@ -245,6 +245,9 @@ import {
   spawnAsh,
   updateAsh,
   drawAsh,
+  spawnCoinCollectBurst,
+  updateCoinSparks,
+  drawCoinSparks,
   SHOOTING_STAR_TRAIL_LEN,
   SHOOTING_STAR_TRAIL_H,
   warmShootingStarSprite,
@@ -704,6 +707,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     updateConfetti(dtSec);
     updateDust(dtSec);
     updateAsh(dtSec);
+    updateCoinSparks(dtSec);
     if (!state.gameOver) updateRareEvent(dtSec);
 
     if (!state.gameOver) {
@@ -719,11 +723,12 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // the frame the raptor dies — the pickup reads as "last coin
       // before the fall" rather than getting swallowed by the
       // game-over branch.
-      collectCoins(raptor, (coin) => {
+      collectCoins(raptor, (coin, cx, cy) => {
         audio.playCoinCollect();
         // Last coin in the field layers the chain-end chord on top
         // of the regular pickup — "ding ding ding … diiing ✨".
         if (coin.lastInField) audio.playCoinChainEnd();
+        spawnCoinCollectBurst(cx, cy);
       });
       // Grass-field spans scroll at the same rate as the foreground
       // (ground speed), then fall off the left edge once they've
@@ -1026,6 +1031,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // this pass so they read as part of the foreground atmosphere.
     drawFlowerPatches(fgCtx);
     drawCoins(fgCtx);
+    // Collect bursts on top of the coin layer so the expanding
+    // ring + sparkle particles aren't clipped by cacti/raptor
+    // rendered later. Coins sit inside rest-area flower fields,
+    // so there's nothing meaningful in front of them anyway.
+    drawCoinSparks(fgCtx);
 
     // Ground bands. Default top band is desert-yellow; grass-field
     // rest-area spans overlay the top band in green afterwards.

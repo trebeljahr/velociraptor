@@ -149,11 +149,34 @@ export const COIN_BASE_Y_ABOVE_GROUND_RATIO = 0.55;
 export const COIN_BOB_AMPLITUDE_PX = 6;
 /** Bob frequency in Hz — one full up-down cycle per (1/freq)s. */
 export const COIN_BOB_FREQUENCY_HZ = 1.2;
-/** Pop-fade duration for a collected coin, in frames (60 Hz). */
-export const COIN_COLLECT_FADE_FRAMES = 10;
+/** Pop-fade duration for a collected coin, in frames (60 Hz).
+ *  Short — the grab should register as a snap, not a decay. */
+export const COIN_COLLECT_FADE_FRAMES = 6;
 /** Sparkle glint frequency — slower than bob so the two visual
  *  rhythms don't beat against each other. */
-export const COIN_SPARKLE_FREQUENCY_HZ = 0.7;
+export const COIN_SPARKLE_FREQUENCY_HZ = 0.9;
+/** Main glint star size as a fraction of coin width. Chunky enough
+ *  that the shine reads at a glance without looking painted on. */
+export const COIN_GLINT_SIZE_RATIO = 0.22;
+/** Peak opacity of the main rotating glint (0..1). */
+export const COIN_GLINT_MAX_ALPHA = 1.0;
+/** Number of secondary twinkle sparkles drawn near each coin. They
+ *  sit at fixed offsets relative to the coin, each with its own
+ *  phase so neighbouring coins don't twinkle in sync. */
+export const COIN_AMBIENT_TWINKLE_COUNT = 5;
+/** Twinkle sparkles cycle independently of the main glint so the
+ *  coin feels "alive" rather than pulsing on one rhythm. */
+export const COIN_TWINKLE_FREQUENCY_HZ = 1.8;
+/** Number of sparkle particles emitted when a coin is collected. */
+export const COIN_COLLECT_BURST_COUNT = 16;
+/** Lifetime (seconds) of each collect-burst sparkle before it fades.
+ *  Short so the burst reads as a quick flash, not a lingering cloud. */
+export const COIN_COLLECT_SPARK_LIFE_MIN_SEC = 0.18;
+export const COIN_COLLECT_SPARK_LIFE_MAX_SEC = 0.32;
+/** Max radial speed (px/s) for collect-burst sparkles. Paired with a
+ *  per-particle drag so they decelerate into drift. */
+export const COIN_COLLECT_SPARK_SPEED_MIN = 140;
+export const COIN_COLLECT_SPARK_SPEED_MAX = 300;
 /** Gain for the chain-end chord — lower than the base pickup
  *  (0.35) so the chord doesn't blow out when it layers on top of
  *  the tenth pickup's already-maxed pitch. */

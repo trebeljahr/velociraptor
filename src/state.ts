@@ -150,6 +150,9 @@ export interface GameState {
 
   // ── Collectible coins (spawned inside flower breathers) ──
   coins: any[];
+  /** Short-lived sparkle particles emitted when a coin is collected.
+   *  Radiate outward from the coin center and fade out in <1s. */
+  coinSparks: any[];
 
   // ── Grass-field spans (the rest-area top-band overlay) ────
   /** Screen-space x-ranges where the top ground band should render
@@ -250,6 +253,7 @@ export const state: GameState = {
   _nextDuneCactusX: 0,
   flowerPatches: [],
   coins: [],
+  coinSparks: [],
   grassFields: [],
   _cactiSinceBreather: 0,
   // Initial value picked on first run. resetGame rerolls this each
