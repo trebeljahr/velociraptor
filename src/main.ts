@@ -724,7 +724,12 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // before the fall" rather than getting swallowed by the
       // game-over branch.
       collectCoins(raptor, (coin, cx, cy) => {
-        audio.playCoinCollect();
+        // Pass the flower-field flag so the rising-pitch chain only
+        // plays when the raptor is visibly on the patch; coins
+        // grabbed on bare ground (field edges, debug spawns) fall
+        // back to the default pitch.
+        const onFlowerField = raptorCrossingPatch(raptor.x, raptor.w) != null;
+        audio.playCoinCollect(onFlowerField);
         // Last coin in the field layers the chain-end chord on top
         // of the regular pickup — "ding ding ding … diiing ✨".
         if (coin.lastInField) audio.playCoinChainEnd();

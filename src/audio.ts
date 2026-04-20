@@ -940,25 +940,39 @@ export const audio = {
    *  fire several times per breather — a 0.6 level would pile up
    *  into a loud chord when the raptor runs a full row.
    *
-   *  Each pickup within COIN_STREAK_RESET_MS of the previous one
-   *  bumps the playbackRate by COIN_STREAK_PITCH_STEP, capped at
-   *  COIN_STREAK_MAX_PITCH. Reads as a rising "1-up" chain. */
-  playCoinCollect() {
+   *  The rising "1-up" chain (each pickup within COIN_STREAK_RESET_MS
+   *  bumps playbackRate by COIN_STREAK_PITCH_STEP) is gated on
+   *  `onFlowerField`: it's the flower-patch ribbon's musical cue.
+   *  Any coin grabbed off the patch — one-off pickups, debug spawns,
+   *  coins trailing out of a compressed field — plays at the base
+   *  pitch and leaves the streak reset so re-entering the field
+   *  starts the climb fresh. */
+  playCoinCollect(onFlowerField: boolean = true) {
     if (this.muted || this.jumpMuted) return;
     if (!this._audioCtx || !this._coinBuffer) return;
     if (this._audioCtx.state === "suspended") {
       this._audioCtx.resume().catch(() => {});
     }
     const now = performance.now();
-    if (now - this._coinStreakLastMs > COIN_STREAK_RESET_MS) {
+    let pitch: number;
+    if (onFlowerField) {
+      if (now - this._coinStreakLastMs > COIN_STREAK_RESET_MS) {
+        this._coinStreak = 0;
+      }
+      pitch = Math.min(
+        COIN_STREAK_MAX_PITCH,
+        1 + this._coinStreak * COIN_STREAK_PITCH_STEP,
+      );
+      this._coinStreak++;
+      this._coinStreakLastMs = now;
+    } else {
+      // Off-field pickup: default pitch, and reset the streak so the
+      // next field entry starts from "ding" again rather than
+      // resuming mid-chain.
+      pitch = 1;
       this._coinStreak = 0;
+      this._coinStreakLastMs = 0;
     }
-    const pitch = Math.min(
-      COIN_STREAK_MAX_PITCH,
-      1 + this._coinStreak * COIN_STREAK_PITCH_STEP,
-    );
-    this._coinStreak++;
-    this._coinStreakLastMs = now;
     try {
       const src = this._audioCtx.createBufferSource();
       src.buffer = this._coinBuffer;
