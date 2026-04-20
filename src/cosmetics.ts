@@ -122,7 +122,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 50,
     spriteKey: "cowboyHat",
     description: "Yeehaw. Fits the desert.",
-    draw: { scale: 0.22, rotation: -0.35, offset: { y: 0.05 } },
+    draw: { scale: 0.22, rotation: -0.38, offset: { x: 0, y: 0.02 } },
   },
   {
     id: "top-hat",
@@ -131,7 +131,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 150,
     spriteKey: "topHat",
     description: "Fancy. Pairs with the bow tie.",
-    draw: { scale: 0.3, rotation: -0.3, offset: { y: 0.05 } },
+    draw: { scale: 0.2, rotation: -0.4, offset: { x: 0, y: 0 } },
   },
   {
     id: "wizard-hat",
@@ -140,7 +140,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 200,
     spriteKey: "wizardHat",
     description: "Pointy and arcane.",
-    draw: { scale: 0.32, rotation: -0.15, offset: { y: 0.04 } },
+    draw: { scale: 0.32, rotation: -0.15, offset: { x: -0.02, y: 0.02 } },
   },
   {
     id: "pirate-tricorn",
@@ -149,11 +149,11 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 175,
     spriteKey: "pirateTricorn",
     description: "Skull and crossbones, plumed. Pairs with the eye patch.",
-    draw: { scale: 0.26, rotation: 0.02, offset: { x: -0.04, y: 0.06 } },
+    draw: { scale: 0.26, rotation: -0.1, offset: { x: -0.012, y: 0.02 } },
   },
   {
     id: "tiara",
-    name: "Tiara",
+    name: "Diadem",
     slot: "head",
     price: 350,
     spriteKey: "tiara",
@@ -169,7 +169,9 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 600,
     spriteKey: "crown",
     description: "Gold, jewelled, and unmistakably regal.",
-    draw: { scale: 0.28, rotation: -0.05, offset: { y: 0.08 } },
+    // Sprite was cropped down to just the jewelled arches (no
+    // decorative band) so it sits higher on the skull.
+    draw: { scale: 0.2, rotation: -0.2, offset: { x: -0.0, y: -0.01 } },
   },
   {
     id: "sombrero",
@@ -179,18 +181,12 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     spriteKey: "sombrero",
     description: "Wide-brimmed desert shade.",
     // Massively wide brim — keep small so it doesn't eclipse
-    // the head, nudged down so the brim sits on the skull.
-    draw: { scale: 0.26, rotation: -0.08, offset: { y: 0.06 } },
+    // the head, tilted hard so the brim angles off rather than
+    // sitting flat as a disc.
+    draw: { scale: 0.26, rotation: -0.5, offset: { x: 0.02, y: 0.03 } },
   },
 
   // ── Shop: eyes ────────────────────────────────────────
-  {
-    id: "aviators",
-    name: "Aviators",
-    slot: "eyes",
-    price: 75,
-    description: "Classic pilot shades.",
-  },
   {
     id: "monocle",
     name: "Monocle",
@@ -198,11 +194,9 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 100,
     spriteKey: "monocle",
     description: "Distinguished and a little silly.",
-    // Round lens + hanging chain — wants to sit flat at eye level,
-    // not follow the snout angle the slot default uses. Tiny
-    // scale (0.025) and pulled way back toward the eye so the
-    // chain doesn't dangle past the snout tip.
-    draw: { scale: 0.025, rotation: 0, offset: { x: -0.11 } },
+    // Round lens sits at eye level — nudged forward toward the
+    // snout so the lens actually covers the eye.
+    draw: { scale: 0.05, rotation: 0, offset: { x: 0.01, y: -0.01 } },
   },
   {
     id: "eye-patch",
@@ -211,11 +205,9 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 50,
     spriteKey: "eyePatch",
     description: "Arrr.",
-    // Nudge back from the snout-mid default so the patch sits
-    // squarely over the eye. Rotation omitted so the slot-default
-    // snout-ridge angle kicks in — makes the small leading strap
-    // drape over the snout rather than sticking out flat.
-    draw: { scale: 0.13, offset: { x: -0.08 } },
+    // Centre the patch on the eye — slot-default snout-ridge
+    // rotation drapes the small leading strap over the snout.
+    draw: { scale: 0.08, offset: { x: -0.005, y: 0 } },
   },
 
   // ── Shop: neck ────────────────────────────────────────
@@ -227,10 +219,8 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     spriteKey: "bandana",
     description: "Outlaw chic — knot tied at the front.",
     // Tied with the knot at the neck; drapes down over the
-    // upper chest. Sized up relative to the bow tie because
-    // the sprite includes the whole kerchief, not just the
-    // knot.
-    draw: { scale: 0.16, rotation: -0.05, offset: { y: 0.04 } },
+    // upper chest.
+    draw: { scale: 0.06, rotation: -0.05, offset: { x: -0.02, y: 0.053 } },
   },
   {
     id: "gold-chain",
@@ -239,32 +229,19 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 200,
     spriteKey: "goldChain",
     description: "Bejewelled bling to match the coin hoard.",
-    // Cropped to just the pendants + flipped so the back of the
-    // chain doesn't show in front of the neck. Slot default is
-    // 8% of raptor width; the pendant group is wider relative
-    // to the bow tie so we size it down further. Pulled well
-    // down and forward from the neck anchor so the pendants sit
-    // on the upper chest instead of creeping toward the chin.
-    draw: { scale: 0.07, rotation: -0.1, offset: { x: 0.05, y: 0.15 } },
-  },
-  {
-    id: "scarf",
-    name: "Scarf",
-    slot: "neck",
-    price: 100,
-    description: "Streamlined even while running.",
+    // Pendant group sits on the neck/chest — scaled down again
+    // after the last pass felt too chunky, nudged a touch down
+    // and forward so the pendants rest on the throat.
+    draw: { scale: 0.063, rotation: -0.3, offset: { x: -0.03, y: 0.05 } },
   },
 
   // ── Shop: back ────────────────────────────────────────
-  // Wings render behind the raptor body — the back-slot draw
-  // pass in raptor.ts runs before the body blit so the near wing
-  // peeks out around the body rather than overlaying it.
-  // Wings: all pre-flipped so shoulder sits in sprite's right
-  // half. Default back anchor lives at crown-offset (-0.08w, 0.2h);
-  // these per-wing offsets nudge each set up-and-back until the
-  // shoulder lines up with the raptor's actual shoulder. Scales
-  // trimmed down from the earlier sweep so the wings read as
-  // feathered equipment, not a cape swallowing the body.
+  // Wings render on top of the raptor body — the back-slot
+  // draw pass in raptor.ts runs last so the wings overlay the
+  // sprite rather than peeking around it. All wings are
+  // pre-flipped so the shoulder/body sits in the sprite's right
+  // half; per-wing attachmentPoints pin that actual shoulder
+  // pixel to the back anchor.
   {
     id: "angel-wings",
     name: "Angel Wings",
@@ -272,13 +249,13 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 600,
     spriteKey: "angelWings",
     description: "Feathered, luminous. Halo not included.",
-    // Shoulder joint where the feathers fan out — upper-right of
-    // the (pre-flipped) sprite. Pulled inward (x=0.68) because
-    // the extreme right edge is feather tips, not the bony root.
+    // Shoulder joint where the feathers fan out — centre-right of
+    // the (pre-flipped) sprite.
     draw: {
       scale: 0.6,
-      rotation: -0.15,
-      attachmentPoint: { x: 0.68, y: 0.3 },
+      rotation: 0.5,
+      offset: { x: 0.2, y: 0.09 },
+      attachmentPoint: { x: 0.82, y: 0.45 },
     },
   },
   {
@@ -288,11 +265,12 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 600,
     spriteKey: "demonWings",
     description: "Boned and membraned. Runic markings optional.",
-    // Horned shoulder bones — upper-left of the sprite as drawn.
+    // Horned shoulder bones converge at top-right of the sprite.
     draw: {
       scale: 0.7,
-      rotation: -0.15,
-      attachmentPoint: { x: 0.28, y: 0.2 },
+      rotation: 0.3,
+      offset: { x: 0.16, y: -0.21 },
+      attachmentPoint: { x: 0.68, y: 0.12 },
     },
   },
   {
@@ -302,12 +280,13 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsOrange",
     description: "Orange monarch — moons and flowers pattern.",
-    // Thorax where the upper and lower wings meet — around the
-    // middle of the sprite vertically, a touch left of centre.
+    // Thorax where upper and lower wings meet — middle-right of
+    // the sprite.
     draw: {
       scale: 0.55,
-      rotation: -0.15,
-      attachmentPoint: { x: 0.45, y: 0.4 },
+      rotation: 0.4,
+      offset: { x: 0.14, y: -0.02 },
+      attachmentPoint: { x: 0.58, y: 0.45 },
     },
   },
   {
@@ -319,8 +298,9 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     description: "Deep-blue morpho — speckled and eyespotted.",
     draw: {
       scale: 0.55,
-      rotation: -0.15,
-      attachmentPoint: { x: 0.4, y: 0.45 },
+      rotation: -0.0,
+      offset: { x: 0.1, y: 0.09 },
+      attachmentPoint: { x: 0.5, y: 0.55 },
     },
   },
   {
@@ -333,8 +313,9 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     // Twilight has the vertical body band on the LEFT edge.
     draw: {
       scale: 0.55,
-      rotation: -0.15,
-      attachmentPoint: { x: 0.17, y: 0.5 },
+      rotation: 0.3,
+      offset: { x: 0.13, y: -0.08 },
+      attachmentPoint: { x: 0.5, y: 0.35 },
     },
   },
 ];
