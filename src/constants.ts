@@ -420,6 +420,10 @@ export const RARE_EVENTS_SEEN_KEY = "raptor-runner:rareEventsSeen";
 /** Persistent lifetime coin balance — earned by picking up coins
  *  during runs, spent at the cosmetics shop. */
 export const COINS_BALANCE_KEY = "raptor-runner:coinsBalance";
+/** Persistent lifetime total of coins PICKED UP — never decremented
+ *  by spending. Drives the "coin hoarder" achievement and could
+ *  back stats displays later. */
+export const COINS_COLLECTED_KEY = "raptor-runner:coinsCollected";
 /** JSON array of owned cosmetic ids (buys + score unlocks). */
 export const OWNED_COSMETICS_KEY = "raptor-runner:ownedCosmetics";
 /** JSON object {head, eyes, neck} → cosmetic id or null — the

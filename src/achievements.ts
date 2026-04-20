@@ -257,6 +257,62 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
       '<path d="M12 13L8 20h8z" fill="#ff8c00" opacity="0.6"/>' +
       '<line x1="15" y1="8" x2="20" y2="4" stroke="#ffa040" stroke-width="1.5"/>',
   },
+  // ── Shop + economy achievements ────────────────────────────
+  {
+    id: "first-purchase",
+    title: "Treat Yourself",
+    desc: "Buy your first cosmetic from the shop",
+    // Shopping bag with a tag "1".
+    iconHTML:
+      '<path d="M5 9h14l-1.3 11.2a2 2 0 0 1-2 1.8H8.3a2 2 0 0 1-2-1.8L5 9z" fill="#ffb347" stroke="#7a4a00" stroke-width="1"/>' +
+      '<path d="M8.5 9V7a3.5 3.5 0 0 1 7 0v2" fill="none" stroke="#7a4a00" stroke-width="1.4"/>' +
+      '<circle cx="12" cy="14.5" r="3.2" fill="#fff" stroke="#7a4a00" stroke-width="0.8"/>' +
+      '<text x="12" y="16.4" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="4.2" font-weight="900" fill="#7a4a00">1</text>',
+  },
+  {
+    id: "fully-equipped",
+    title: "Jurassic Runway",
+    desc: "Equip a cosmetic in every slot at the same time",
+    // Four tiny coloured squares arranged like a 2×2 outfit grid,
+    // each hinting at one of the four slots' tint colours.
+    iconHTML:
+      '<rect x="3" y="3" width="8" height="8" rx="1.6" fill="#d97706"/>' + // head
+      '<rect x="13" y="3" width="8" height="8" rx="1.6" fill="#1f2937"/>' + // eyes
+      '<rect x="3" y="13" width="8" height="8" rx="1.6" fill="#b91c1c"/>' + // neck
+      '<rect x="13" y="13" width="8" height="8" rx="1.6" fill="#7c3aed"/>' + // back
+      '<path d="M5.5 7l1.2 1.2 2.2-2.2" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M15.5 7l1.2 1.2 2.2-2.2" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M5.5 17l1.2 1.2 2.2-2.2" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M15.5 17l1.2 1.2 2.2-2.2" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
+  },
+  {
+    id: "coin-hoarder",
+    title: "Scrooge McRaptor",
+    desc: "Pick up 1,000 coins across all your runs",
+    // Stack of three gold coins with a "1K" stamp on the top.
+    iconHTML:
+      '<ellipse cx="12" cy="19" rx="8" ry="2.2" fill="#b8860b"/>' +
+      '<rect x="4" y="14" width="16" height="4.5" fill="#e0a818"/>' +
+      '<ellipse cx="12" cy="14" rx="8" ry="2.2" fill="#f2c94c" stroke="#7a4a00" stroke-width="0.8"/>' +
+      '<rect x="4" y="9" width="16" height="4.5" fill="#e0a818"/>' +
+      '<ellipse cx="12" cy="9" rx="8" ry="2.2" fill="#f2c94c" stroke="#7a4a00" stroke-width="0.8"/>' +
+      '<rect x="4" y="4" width="16" height="4.5" fill="#e0a818"/>' +
+      '<ellipse cx="12" cy="4" rx="8" ry="2.2" fill="#ffd95a" stroke="#7a4a00" stroke-width="0.8"/>' +
+      '<text x="12" y="5.7" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="3.6" font-weight="900" fill="#7a4a00">1K</text>',
+  },
+  {
+    id: "shop-cleaned-out",
+    title: "Shopkeeper\u2019s Early Retirement",
+    desc: "Own every item in the shop",
+    // Empty-shelf icon: three bare shelves + a hanging "SOLD OUT" tag.
+    iconHTML:
+      '<rect x="3" y="4" width="18" height="16" rx="1.5" fill="none" stroke="#7a4a00" stroke-width="1.4"/>' +
+      '<line x1="3" y1="10" x2="21" y2="10" stroke="#7a4a00" stroke-width="1.2"/>' +
+      '<line x1="3" y1="15" x2="21" y2="15" stroke="#7a4a00" stroke-width="1.2"/>' +
+      '<path d="M13 2l6 4-2 2.8a1 1 0 0 1-1.4.2L9 4.6a1 1 0 0 1 .2-1.4z" fill="#e85f5c" stroke="#7a4a00" stroke-width="0.8"/>' +
+      '<circle cx="14.2" cy="4.4" r="0.7" fill="#fff"/>' +
+      '<text x="15" y="8.3" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="2.8" font-weight="900" fill="#fff">SOLD</text>',
+  },
 ];
 
 /** id → definition lookup for fast runtime dispatch. */

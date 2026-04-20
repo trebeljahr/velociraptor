@@ -406,6 +406,51 @@ const LEGACY_WEAR_STATE: Record<string, keyof typeof state> = {
   "bow-tie": "wearBowTie",
 };
 
+// ══════════════════════════════════════════════════════════════════
+// Achievement bridge
+//
+// cosmetics.ts can't import unlockAchievement from main.ts (it's
+// defined inside main.ts's init closure, not exported). Instead we
+// expose a setter that main.ts calls once at boot, the same pattern
+// particles.ts uses for its shooting-star achievement. Undefined
+// handler is fine — the cosmetics layer just skips the achievement
+// path and continues working.
+// ══════════════════════════════════════════════════════════════════
+
+type AchievementCallback = (id: string) => void;
+let onAchievementUnlock: AchievementCallback | null = null;
+
+/** Register the achievement-unlock hook. Called once from main.ts's
+ *  init so cosmetics-related achievements can fire without importing
+ *  from the main module. */
+export function setCosmeticsAchievementHandler(
+  cb: AchievementCallback | null,
+): void {
+  onAchievementUnlock = cb;
+}
+
+/** Count of purchasable (non-scoreUnlock) cosmetics. Cached because
+ *  COSMETICS is readonly at module scope. */
+const SHOP_INVENTORY_SIZE = COSMETICS.filter((c) => !c.scoreUnlock).length;
+
+/** True once the player owns every purchasable cosmetic. scoreUnlock
+ *  classics are excluded so earning party-hat etc. doesn't partially
+ *  satisfy a "spent coins on everything" goal. */
+function _ownsEntireShop(): boolean {
+  let owned = 0;
+  for (const def of COSMETICS) {
+    if (def.scoreUnlock) continue;
+    if (state.ownedCosmetics[def.id]) owned += 1;
+  }
+  return owned >= SHOP_INVENTORY_SIZE;
+}
+
+/** True when every slot currently has a cosmetic equipped. */
+function _allSlotsEquipped(): boolean {
+  const e = state.equippedCosmetics;
+  return e.head != null && e.eyes != null && e.neck != null && e.back != null;
+}
+
 /**
  * Add a cosmetic to the player's inventory. Auto-equips it in its
  * slot if that slot is currently empty — nice first-impression for
@@ -459,6 +504,15 @@ export function purchaseCosmetic(id: string): PurchaseResult {
   state.coinsBalance -= def.price;
   saveCoinsBalance(state.coinsBalance);
   grantCosmetic(id);
+  // Achievement bridge. Fire after grantCosmetic so the
+  // ownedCosmetics entry is set before the completionist check
+  // looks at the inventory. unlockAchievement is idempotent on
+  // the main.ts side, so re-firing "first-purchase" on every
+  // subsequent buy is a no-op after the first.
+  if (onAchievementUnlock) {
+    onAchievementUnlock("first-purchase");
+    if (_ownsEntireShop()) onAchievementUnlock("shop-cleaned-out");
+  }
   return "ok";
 }
 
@@ -479,6 +533,13 @@ export function equipCosmetic(id: string): void {
   state.equippedCosmetics[def.slot] = id;
   saveEquippedCosmetics(state.equippedCosmetics);
   _setLegacyWear(id, true);
+  // "Jurassic Runway": all four slots occupied at the same time.
+  // equipCosmetic is the only function that ADDS to equippedCosmetics,
+  // so this is the right place to check — unequip/empty-slot never
+  // satisfies the condition.
+  if (onAchievementUnlock && _allSlotsEquipped()) {
+    onAchievementUnlock("fully-equipped");
+  }
 }
 
 /** Remove whatever is equipped in the given slot; slot becomes empty. */

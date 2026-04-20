@@ -31,6 +31,7 @@ import {
   UNLOCKED_BOW_TIE_KEY,
   WEAR_BOW_TIE_KEY,
   COINS_BALANCE_KEY,
+  COINS_COLLECTED_KEY,
   OWNED_COSMETICS_KEY,
   EQUIPPED_COSMETICS_KEY,
 } from "./constants";
@@ -110,6 +111,7 @@ const DURABLE_KEYS: string[] = [
   UNLOCKED_BOW_TIE_KEY,
   WEAR_BOW_TIE_KEY,
   COINS_BALANCE_KEY,
+  COINS_COLLECTED_KEY,
   OWNED_COSMETICS_KEY,
   EQUIPPED_COSMETICS_KEY,
 ];
@@ -266,6 +268,26 @@ export function loadCoinsBalance(): number {
 
 export function saveCoinsBalance(value: number): void {
   _persistSet(COINS_BALANCE_KEY, String(value));
+}
+
+// ── Coins collected (lifetime, monotonic) ─────────────────
+// Parallel to coinsBalance but never decremented. Drives the
+// "coin hoarder" achievement and anywhere else a monotonic
+// lifetime counter matters later.
+
+export function loadCoinsCollected(): number {
+  try {
+    const raw = window.localStorage.getItem(COINS_COLLECTED_KEY);
+    if (raw == null) return 0;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function saveCoinsCollected(value: number): void {
+  _persistSet(COINS_COLLECTED_KEY, String(value));
 }
 
 // ── Owned cosmetics (set of ids) ────────────────────────────

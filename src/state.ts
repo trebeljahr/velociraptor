@@ -117,6 +117,10 @@ export interface GameState {
   /** Persistent lifetime coin balance — earned by coin pickups,
    *  spent at the cosmetics shop. */
   coinsBalance: number;
+  /** Persistent lifetime total of coins the player has ever picked
+   *  up. Never decremented (unlike coinsBalance which drops on
+   *  purchase); monotonically grows for the life of the save. */
+  coinsCollected: number;
   /** Set of owned cosmetic ids. Includes score-unlocked classics
    *  (party-hat, thug-glasses, bow-tie) once earned and everything
    *  the player has purchased. */
@@ -238,6 +242,7 @@ export const state: GameState = {
   unlockedBowTie: false,
   wearBowTie: true,
   coinsBalance: 0,
+  coinsCollected: 0,
   ownedCosmetics: {},
   equippedCosmetics: { head: null, eyes: null, neck: null, back: null },
   shootingStars: [],
