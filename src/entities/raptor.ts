@@ -44,6 +44,8 @@ import {
   RAPTOR_NATIVE_H,
   RAPTOR_CROWN,
   RAPTOR_SNOUT,
+  RAPTOR_BACK_CORRECTION,
+  RAPTOR_NECK_CORRECTION,
   RAPTOR_COLLISION_INSET,
 } from "../constants";
 import { state } from "../state";
@@ -219,11 +221,6 @@ export class Raptor {
 
   draw(ctx: CanvasRenderingContext2D): void {
     if (!this.sheet) return;
-    // Back-slot cosmetics (wings) render BEFORE the body blit so
-    // the body covers the wing's near edge — reads as the far
-    // wing peeking out around the raptor, not a sticker slapped
-    // on top. All other slots render after the body.
-    this._drawEquippedSlot(ctx, "back");
     const srcY = this.frame * RAPTOR_NATIVE_H;
     ctx.drawImage(
       this.sheet,
@@ -236,18 +233,13 @@ export class Raptor {
       this.w,
       this.h,
     );
-    // Cosmetics: iterate the slots and draw whatever id is equipped
-    // there. The three score-unlock classics get their bespoke draw
-    // functions (hand-tuned anchors + rotations); any other equipped
-    // cosmetic falls back to a slot-default placeholder rectangle
-    // so we can wire the full shop/equip flow end-to-end before the
-    // final art lands.
-    //
-    // Order: eyes first so the snout draws clean, then head, then
-    // neck. Matches the z-ordering the old hand-coded block used.
+    // All cosmetics render on top of the body. Back-slot wings
+    // draw last so they sit fully over the body rather than
+    // peeking around it.
     this._drawEquippedSlot(ctx, "eyes");
     this._drawEquippedSlot(ctx, "head");
     this._drawEquippedSlot(ctx, "neck");
+    this._drawEquippedSlot(ctx, "back");
   }
 
   /**
@@ -334,6 +326,15 @@ export class Raptor {
       const crown = this.currentCrownPoint();
       cx = crown.x - this.w * 0.02;
       cy = crown.y + this.h * 0.2;
+      // Per-frame correction: the neck/throat bends on a slightly
+      // delayed cycle from the crown, so we add the differential
+      // motion (zero-mean) to replace the head's bob with the
+      // throat's actual motion. Without this the bandana rides
+      // the head bounce instead of the throat.
+      const f = this.y === this.ground ? this.frame : RAPTOR_IDLE_FRAME;
+      const [ncx, ncy] = RAPTOR_NECK_CORRECTION[f];
+      cx += this.w * ncx;
+      cy += this.h * ncy;
       const scale = drawOverride?.scale ?? 0.08;
       w = this.w * scale;
       h = w * (sprite ? sprite.height / sprite.width : 0.7);
@@ -349,6 +350,15 @@ export class Raptor {
       const back = this.currentBackPoint();
       cx = back.x;
       cy = back.y;
+      // Per-frame correction: the back is near-rigid while the
+      // crown (which currentBackPoint is derived from) bobs with
+      // the stride. Subtracting the crown's motion and adding
+      // the back's measured motion keeps wings glued to the
+      // shoulder instead of sloshing with the head.
+      const f = this.y === this.ground ? this.frame : RAPTOR_IDLE_FRAME;
+      const [bcx, bcy] = RAPTOR_BACK_CORRECTION[f];
+      cx += this.w * bcx;
+      cy += this.h * bcy;
       const scale = drawOverride?.scale ?? 0.85;
       w = this.h * scale;
       h = w * (sprite ? sprite.height / sprite.width : 0.85);
@@ -489,8 +499,15 @@ export class Raptor {
     const crown = this.currentCrownPoint();
     // The neck is below and behind the crown — offset downward and
     // slightly toward the body center.
-    const neckX = crown.x - this.w * 0.02;
-    const neckY = crown.y + this.h * 0.2;
+    let neckX = crown.x - this.w * 0.02;
+    let neckY = crown.y + this.h * 0.2;
+    // Per-frame correction so the bow tie tracks the throat's real
+    // motion instead of the head's bob — same differential that the
+    // generic neck-slot draw path applies.
+    const f = this.y === this.ground ? this.frame : RAPTOR_IDLE_FRAME;
+    const [ncx, ncy] = RAPTOR_NECK_CORRECTION[f];
+    neckX += this.w * ncx;
+    neckY += this.h * ncy;
     // Bow tie ~6% of raptor width, aspect ratio from source.
     const btW = this.w * 0.06;
     const btH = btW * (sprite.height / sprite.width);
