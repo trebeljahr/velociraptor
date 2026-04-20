@@ -1395,6 +1395,17 @@ function renderCosmeticsMenu() {
     return;
   }
   cosmeticsGroup.hidden = false;
+  // Before we blow the list away and rebuild, remember which
+  // per-slot <details> elements were open so we can reopen them
+  // afterward. Otherwise clicking an option inside an open slot
+  // re-renders and snaps the slot closed — which reads as "the
+  // equip didn't take" when actually the state just got hidden.
+  const previouslyOpen = new Set<string>();
+  cosmeticsList
+    .querySelectorAll<HTMLDetailsElement>("details.cosmetic-slot[open]")
+    .forEach((el) => {
+      if (el.dataset.slot) previouslyOpen.add(el.dataset.slot);
+    });
   const frag = document.createDocumentFragment();
   for (const { slot, label } of COSMETIC_SLOT_UI) {
     const ownedInSlot = owned.filter(
@@ -1402,14 +1413,14 @@ function renderCosmeticsMenu() {
     );
     if (ownedInSlot.length === 0) continue;
     const equippedId = window.Game.getEquippedCosmetic?.(slot) ?? null;
-    frag.appendChild(
-      _buildCosmeticSlotRow({
-        slot,
-        label,
-        equippedId,
-        options: ownedInSlot,
-      }),
-    );
+    const row = _buildCosmeticSlotRow({
+      slot,
+      label,
+      equippedId,
+      options: ownedInSlot,
+    });
+    if (previouslyOpen.has(slot)) row.setAttribute("open", "");
+    frag.appendChild(row);
   }
   cosmeticsList.innerHTML = "";
   cosmeticsList.appendChild(frag);

@@ -2070,9 +2070,22 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     /** Attempt to purchase. Returns:
      *    "ok"       purchased, balance deducted
      *    "owned"    already in inventory
-     *    "poor"     can't afford
-     *    "unknown"  bad id */
+     *    "poor"     can't afford (skipped when state.debug is on)
+     *    "unknown"  bad id
+     *
+     *  In debug mode the coin cost is waived so testers can grab
+     *  every cosmetic without grinding — still goes through the
+     *  "unknown" / "owned" checks so the shop UI state stays
+     *  honest (a second buy on an already-owned item is still
+     *  "owned", not "ok"). */
     buyCosmetic(id: string) {
+      if (state.debug) {
+        const def = COSMETICS_BY_ID[id];
+        if (!def) return "unknown" as const;
+        if (state.ownedCosmetics[id]) return "owned" as const;
+        grantCosmetic(id);
+        return "ok" as const;
+      }
       return purchaseCosmetic(id);
     },
 

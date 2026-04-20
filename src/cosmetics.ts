@@ -178,9 +178,10 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     spriteKey: "monocle",
     description: "Distinguished and a little silly.",
     // Round lens + hanging chain — wants to sit flat at eye level,
-    // not follow the snout angle the slot default uses, and smaller
-    // than the thug glasses' 10% width.
-    draw: { scale: 0.07, rotation: 0 },
+    // not follow the snout angle the slot default uses. Smaller
+    // than the thug glasses and nudged back toward the eye so the
+    // chain doesn't hang off the snout tip.
+    draw: { scale: 0.05, rotation: 0, offset: { x: -0.03 } },
   },
   {
     id: "eye-patch",
@@ -189,6 +190,10 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 50,
     spriteKey: "eyePatch",
     description: "Arrr.",
+    // Nudge slightly back from the snout-mid default so the patch
+    // sits squarely over the eye. Rotation 0 — a strap shouldn't
+    // follow the snout-ridge angle.
+    draw: { scale: 0.13, rotation: 0, offset: { x: -0.02 } },
   },
 
   // ── Shop: neck ────────────────────────────────────────
@@ -209,8 +214,10 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     // Cropped to just the pendants + flipped so the back of the
     // chain doesn't show in front of the neck. Slot default is
     // 8% of raptor width; the pendant group is wider relative
-    // to the bow tie so we size it down further.
-    draw: { scale: 0.07, rotation: -0.1 },
+    // to the bow tie so we size it down further. Nudged lower +
+    // right so the pendants hang on the front of the neck rather
+    // than sliding up toward the chin.
+    draw: { scale: 0.07, rotation: -0.1, offset: { x: 0.02, y: 0.03 } },
   },
   {
     id: "scarf",
@@ -237,7 +244,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 600,
     spriteKey: "angelWings",
     description: "Feathered, luminous. Halo not included.",
-    draw: { scale: 0.65, rotation: -0.2, offset: { x: -0.1, y: -0.2 } },
+    draw: { scale: 0.65, rotation: -0.2, offset: { x: -0.18, y: -0.32 } },
   },
   {
     id: "demon-wings",
@@ -246,7 +253,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 600,
     spriteKey: "demonWings",
     description: "Boned and membraned. Runic markings optional.",
-    draw: { scale: 0.7, rotation: -0.2, offset: { x: -0.1, y: -0.2 } },
+    draw: { scale: 0.7, rotation: -0.2, offset: { x: -0.18, y: -0.32 } },
   },
   {
     id: "butterfly-wings-orange",
@@ -255,7 +262,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsOrange",
     description: "Orange monarch — moons and flowers pattern.",
-    draw: { scale: 0.55, rotation: -0.15, offset: { x: -0.08, y: -0.15 } },
+    draw: { scale: 0.55, rotation: -0.15, offset: { x: -0.15, y: -0.28 } },
   },
   {
     id: "butterfly-wings-blue",
@@ -264,7 +271,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsBlue",
     description: "Deep-blue morpho — speckled and eyespotted.",
-    draw: { scale: 0.55, rotation: -0.15, offset: { x: -0.08, y: -0.15 } },
+    draw: { scale: 0.55, rotation: -0.15, offset: { x: -0.15, y: -0.28 } },
   },
   {
     id: "butterfly-wings-purple",
@@ -273,7 +280,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 300,
     spriteKey: "butterflyWingsPurple",
     description: "Magenta with celestial banding.",
-    draw: { scale: 0.55, rotation: -0.15, offset: { x: -0.08, y: -0.15 } },
+    draw: { scale: 0.55, rotation: -0.15, offset: { x: -0.15, y: -0.28 } },
   },
 ];
 
