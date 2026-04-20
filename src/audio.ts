@@ -199,6 +199,7 @@ export const audio = {
     this._preloadCoinBuffer();
     this._preloadCoinChainEndBuffer();
     this._preloadShopPurchaseBuffer();
+    this._preloadAchievementBuffer();
     this._preloadUfoBuffer();
     this._preloadSantaBuffer();
     this._preloadMeteorBuffer();
@@ -1037,6 +1038,62 @@ export const audio = {
       src.buffer = this._shopPurchaseBuffer;
       const gain = this._audioCtx.createGain();
       gain.gain.value = 0.55;
+      src.connect(gain);
+      gain.connect(this._audioCtx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
+      };
+      src.start(0);
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
+
+  // ── Achievement unlock cue (freesound_community glockenspiel) ─
+  // Short glockenspiel "treasure video game" stinger — fires once
+  // when an achievement crosses from locked to unlocked. Sample
+  // credit: freesound_community on Pixabay (sound 6346) — see the
+  // credits overlay and imprint.html.
+  _achievementBuffer: null as AudioBuffer | null,
+
+  _preloadAchievementBuffer() {
+    if (
+      typeof AudioContext === "undefined" &&
+      typeof window.webkitAudioContext === "undefined"
+    )
+      return;
+    fetch("assets/achievement.mp3")
+      .then((r) => r.arrayBuffer())
+      .then((buf) => {
+        this._ensureAudioCtx();
+        if (!this._audioCtx) return;
+        return this._audioCtx.decodeAudioData(buf);
+      })
+      .then((decoded) => {
+        if (decoded) this._achievementBuffer = decoded;
+      })
+      .catch(() => {
+        /* achievement cue simply won't play */
+      });
+  },
+
+  /** Achievement-unlock chime. Paired with the toast the UI shows
+   *  on unlock, so we gate it on uiMuted — a player who silenced
+   *  the UI clicks channel probably also wants the toast fanfare
+   *  muted. Master mute still takes precedence. Never throttled /
+   *  coalesced: only one unlock fires at a time and they're rare
+   *  enough that stacking isn't a concern. */
+  playAchievement() {
+    if (this.muted || this.uiMuted) return;
+    if (!this._audioCtx || !this._achievementBuffer) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    try {
+      const src = this._audioCtx.createBufferSource();
+      src.buffer = this._achievementBuffer;
+      const gain = this._audioCtx.createGain();
+      gain.gain.value = 0.6;
       src.connect(gain);
       gain.connect(this._audioCtx.destination);
       src.onended = () => {
