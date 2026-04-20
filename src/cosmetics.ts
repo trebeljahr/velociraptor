@@ -152,22 +152,35 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     draw: { scale: 0.26, rotation: 0.02, offset: { x: -0.04, y: 0.06 } },
   },
   {
-    id: "crown",
+    id: "tiara",
     name: "Tiara",
     slot: "head",
-    price: 500,
+    price: 350,
     spriteKey: "tiara",
-    description: "Silver with a sapphire centrepiece — premium royalty.",
+    description: "Silver with a sapphire centrepiece.",
     // Tiara sprite has had its right leg cropped so the far band
     // doesn't appear in front of the raptor's face.
     draw: { scale: 0.22, rotation: -0.05, offset: { y: 0.08 } },
+  },
+  {
+    id: "crown",
+    name: "Crown",
+    slot: "head",
+    price: 600,
+    spriteKey: "crown",
+    description: "Gold, jewelled, and unmistakably regal.",
+    draw: { scale: 0.28, rotation: -0.05, offset: { y: 0.08 } },
   },
   {
     id: "sombrero",
     name: "Sombrero",
     slot: "head",
     price: 75,
+    spriteKey: "sombrero",
     description: "Wide-brimmed desert shade.",
+    // Massively wide brim — keep small so it doesn't eclipse
+    // the head, nudged down so the brim sits on the skull.
+    draw: { scale: 0.26, rotation: -0.08, offset: { y: 0.06 } },
   },
 
   // ── Shop: eyes ────────────────────────────────────────
@@ -211,7 +224,13 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     name: "Bandana",
     slot: "neck",
     price: 50,
-    description: "Outlaw chic.",
+    spriteKey: "bandana",
+    description: "Outlaw chic — knot tied at the front.",
+    // Tied with the knot at the neck; drapes down over the
+    // upper chest. Sized up relative to the bow tie because
+    // the sprite includes the whole kerchief, not just the
+    // knot.
+    draw: { scale: 0.16, rotation: -0.05, offset: { y: 0.04 } },
   },
   {
     id: "gold-chain",

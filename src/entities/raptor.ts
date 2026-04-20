@@ -261,13 +261,12 @@ export class Raptor {
     const crown = this.currentCrownPoint();
     // Target the upper-back ridge — the line of spots running
     // along the raptor's dorsal side above the shoulders. Pulled
-    // back from the crown toward mid-body (so the wing-root lands
-    // over the spine, not the neck) and only a sliver below the
-    // crown y (so wings extend up-and-back from the top of the
-    // back, instead of hanging off the belly).
+    // well back from the crown so the wing-root lands over the
+    // spine near mid-body, and lifted above the crown y so wings
+    // sit on the TOP of the back rather than hanging off the belly.
     return {
-      x: crown.x - this.w * 0.2,
-      y: crown.y + this.h * 0.08,
+      x: crown.x - this.w * 0.32,
+      y: crown.y - this.h * 0.05,
     };
   }
 
