@@ -1310,9 +1310,11 @@ function refreshStartRaptorCosmetics() {
     const url = id ? _spriteUrlForId(id) : null;
     if (url) {
       if (img.getAttribute("src") !== url) img.src = url;
+      if (id && img.dataset.cosmeticId !== id) img.dataset.cosmeticId = id;
       img.hidden = false;
     } else {
       // Nothing equipped, or equipped item has no sprite yet.
+      if (img.dataset.cosmeticId) delete img.dataset.cosmeticId;
       img.hidden = true;
     }
   }
@@ -1344,6 +1346,9 @@ function _spriteUrlForId(id: string): string | null {
     butterflyWingsOrange: "assets/cosmetics/butterfly-wings-orange.png",
     butterflyWingsBlue: "assets/cosmetics/butterfly-wings-blue.png",
     butterflyWingsPurple: "assets/cosmetics/butterfly-wings-purple.png",
+    sombrero: "assets/cosmetics/sombrero.png",
+    bandana: "assets/cosmetics/bandana.png",
+    crown: "assets/cosmetics/crown.png",
   };
   return map[def.spriteKey] ?? null;
 }
@@ -1526,15 +1531,49 @@ function _setThumbForId(
   const spriteUrl = id ? _spriteUrlForId(id) : null;
   el.innerHTML = "";
   el.classList.toggle("cosmetic-slot-thumb-sprite", spriteUrl != null);
+  el.classList.toggle("cosmetic-slot-thumb-none", id == null);
   if (spriteUrl) {
     el.style.background = "";
-    const img = document.createElement("img");
-    img.src = spriteUrl;
-    img.alt = "";
-    el.appendChild(img);
+    el.appendChild(_buildCosmeticThumbImg(spriteUrl));
+  } else if (id == null) {
+    // "None" option: crossed-out circle so it reads as
+    // "nothing equipped" rather than a slot-coloured block
+    // that looks like yet another cosmetic.
+    el.style.background = "";
+    el.appendChild(_buildNoneIcon());
   } else {
     el.style.background = slotColor[slot] ?? "#555";
   }
+}
+
+function _buildCosmeticThumbImg(src: string): HTMLImageElement {
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = "";
+  return img;
+}
+
+function _buildNoneIcon(): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("aria-hidden", "true");
+  svg.classList.add("cosmetic-none-icon");
+  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  circle.setAttribute("cx", "12");
+  circle.setAttribute("cy", "12");
+  circle.setAttribute("r", "9");
+  svg.appendChild(circle);
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("x1", "5.6");
+  line.setAttribute("y1", "5.6");
+  line.setAttribute("x2", "18.4");
+  line.setAttribute("y2", "18.4");
+  svg.appendChild(line);
+  return svg;
 }
 
 // ───────── Shop ─────────
@@ -1643,8 +1682,16 @@ function renderShop() {
         renderShop();
         refreshStartRaptorCosmetics();
       });
-    } else if (balance >= def.price) {
-      action.textContent = `Buy · ${def.price}`;
+    } else if (balance >= def.price || window.Game.isDebug?.()) {
+      // Normal purchase path — or the debug-mode free grab the
+      // Game API allows regardless of balance. Either way the
+      // click handler is the same (buyCosmetic short-circuits
+      // the coin deduction when debug is on).
+      const isDebugFree =
+        window.Game.isDebug?.() === true && balance < def.price;
+      action.textContent = isDebugFree
+        ? `Buy · ${def.price} (debug)`
+        : `Buy · ${def.price}`;
       action.addEventListener("click", (e) => {
         e.stopPropagation();
         const res = window.Game.buyCosmetic?.(def.id);
