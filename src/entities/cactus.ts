@@ -292,7 +292,12 @@ export class Cactuses {
     // grants points directly — the reward is the coin sitting in the
     // jump arc above it. Spawn that coin here, using the cactus's
     // final dimensions so variants and heightScale all line up.
-    spawnCoinAboveCactus(cactus.x, cactus.y, cactus.w, this.raptor);
+    // heightScale ≥ 0.85 covers the three tall variants (0.9/0.95/1.0);
+    // for those the coin lifts twice as far above the cactus so the
+    // grab window actually lives at the raptor's peak-of-arc instead
+    // of inside the cactus-clearance envelope.
+    const isLarge = variant.heightScale >= 0.85;
+    spawnCoinAboveCactus(cactus.x, cactus.y, cactus.w, this.raptor, isLarge);
     this._scrollSinceLastSpawn = 0;
     // Counts toward the next breather.
     state._cactiSinceBreather = (state._cactiSinceBreather ?? 0) + 1;

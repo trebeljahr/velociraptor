@@ -51,6 +51,12 @@ export interface Coin {
    *  the raptor passes through on its way out. Triggers the
    *  chain-end chord on top of the regular pickup cue. */
   lastInField: boolean;
+  /** True for coins spawned inside a flower-field breather (the
+   *  10-coin ribbon). These coins feed the rising-pitch chain cue.
+   *  Coins spawned above cacti set this to false and play the flat
+   *  base-pitch chime — the chain is specifically a "full field"
+   *  reward, not a metric for every pickup in a run. */
+  fieldCoin: boolean;
 }
 
 interface RaptorRef {
@@ -119,6 +125,7 @@ export function spawnCoinsInRange(
       collected: false,
       collectFrame: 0,
       lastInField: i === COIN_COUNT_PER_FIELD - 1,
+      fieldCoin: true,
     });
   }
   audio.resetCoinStreak();
@@ -128,24 +135,32 @@ export function spawnCoinsInRange(
  *  jump to clear the cactus, and the coin sits in the arc so
  *  clearing it IS the pickup. Replaces the old "cactus-pass = +1
  *  score" in the new coins-only scoring model: only the coin
- *  grants points, not the jump itself. */
+ *  grants points, not the jump itself.
+ *
+ *  `isLarge` bumps the gap above the cactus top. Small cacti leave
+ *  0.7 × coinSize of air between coin-bottom and cactus-top; tall
+ *  cacti double that to 1.4 × coinSize so the raptor has to commit
+ *  to a real peak-of-arc grab instead of clipping the coin with a
+ *  shallow hop. */
 export function spawnCoinAboveCactus(
   cactusX: number,
   cactusY: number,
   cactusW: number,
   raptor: RaptorRef,
+  isLarge: boolean = false,
 ): void {
   if (!raptor || raptor.h <= 0 || raptor.w <= 0) return;
   const coinSize = raptor.h * COIN_SIZE_RATIO;
   state.coins = state.coins || [];
   // Horizontally centred on the cactus top.
   const cx = cactusX + cactusW / 2 - coinSize / 2;
-  // Vertically: the coin's BOTTOM sits a little above the cactus
-  // top, so the raptor has to actually clear the cactus to
-  // intersect the coin. Lifting by ~70% of coinSize puts the coin
-  // roughly where the raptor's torso arcs at the peak of a
-  // just-clearing jump — forgiving to grab but not trivially low.
-  const baseY = cactusY - coinSize - coinSize * 0.7;
+  // Vertically: the coin's BOTTOM sits a configurable gap above the
+  // cactus top. 0.7 × coinSize is the default — puts the coin roughly
+  // where the raptor's torso arcs at the peak of a just-clearing jump.
+  // For tall cacti we double the gap so the coin isn't inside the
+  // minimum clearance envelope.
+  const gapMultiplier = isLarge ? 1.4 : 0.7;
+  const baseY = cactusY - coinSize - coinSize * gapMultiplier;
   state.coins.push({
     x: cx,
     baseY,
@@ -157,6 +172,10 @@ export function spawnCoinAboveCactus(
     // Not part of a field — suppresses the chain-end chord so the
     // per-cactus coin plays as a normal pickup, not a field finale.
     lastInField: false,
+    // Per-cactus coins are NOT part of the pitched chain cue. The
+    // rising "ding-ding-diiing" is specifically the 10-coin field
+    // reward; per-cactus pickups play the flat base-pitch chime.
+    fieldCoin: false,
   });
 }
 

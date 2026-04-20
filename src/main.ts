@@ -724,12 +724,15 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // before the fall" rather than getting swallowed by the
       // game-over branch.
       collectCoins(raptor, (coin, cx, cy) => {
-        // Pass the flower-field flag so the rising-pitch chain only
-        // plays when the raptor is visibly on the patch; coins
-        // grabbed on bare ground (field edges, debug spawns,
-        // cactus-top coins) fall back to the default pitch.
-        const onFlowerField = raptorCrossingPatch(raptor.x, raptor.w) != null;
-        audio.playCoinCollect(onFlowerField);
+        // The rising-pitch chain is specifically the 10-coin field
+        // ribbon's cue — not "any coin while the raptor happens to
+        // be over grass". A cactus-top coin that lines up with a
+        // flower-field's x-range would otherwise slot into the chain
+        // and break the per-field count. Keying off the coin's own
+        // `fieldCoin` flag makes the chain cue strictly a field
+        // reward: every other coin (cactus tops, debug spawns, any
+        // future one-offs) plays the flat base-pitch chime.
+        audio.playCoinCollect(coin.fieldCoin);
         // Last coin in the field layers the chain-end chord on top
         // of the regular pickup — "ding ding ding … diiing ✨".
         if (coin.lastInField) audio.playCoinChainEnd();
