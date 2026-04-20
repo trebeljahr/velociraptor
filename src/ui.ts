@@ -1293,6 +1293,30 @@ const jumpsResetBtn = document.getElementById("menu-jumpsreset-toggle");
 // every equip/unequip so the preview matches the live game.
 const startRaptorStage = document.getElementById("start-raptor-stage");
 
+// Idle-frame (frame 11) anchors, mirroring RAPTOR_CROWN / RAPTOR_SNOUT
+// and the BACK/NECK corrections in src/constants.ts. The stage shares
+// the raptor sprite's 578:212 aspect ratio, so normalised fractions
+// map directly to stage percentages and the preview picks up the
+// same anchors as the canvas draw path in src/entities/raptor.ts.
+const _IDLE_CROWN = { x: 0.86851, y: 0.15566 };
+const _IDLE_SNOUT = { x: 0.98616, y: 0.25472 };
+const _IDLE_NECK_CORRECTION = { x: 0.00187, y: -0.00078 };
+const _IDLE_BACK_CORRECTION = { x: 0.00332, y: 0.00354 };
+const _RAPTOR_ASPECT = 212 / 578;
+
+// The three score-unlock classics bypass the generic placeholder
+// draw path in raptor.ts and use slightly smaller scales. Mirror
+// those here so party-hat/thug-glasses/bow-tie render identically
+// on the start screen.
+const _CLASSIC_DRAW: Record<
+  string,
+  { scale?: number; rotation?: number }
+> = {
+  "party-hat": { scale: 0.25, rotation: -0.35 },
+  "thug-glasses": { scale: 0.07 },
+  "bow-tie": { scale: 0.06, rotation: -0.15 },
+};
+
 function refreshStartRaptorCosmetics() {
   if (!startRaptorStage || !window.Game) return;
   const slots: Array<"head" | "eyes" | "neck" | "back"> = [
@@ -1308,16 +1332,91 @@ function refreshStartRaptorCosmetics() {
     if (!img) continue;
     const id = window.Game.getEquippedCosmetic?.(slot);
     const url = id ? _spriteUrlForId(id) : null;
-    if (url) {
+    if (url && id) {
       if (img.getAttribute("src") !== url) img.src = url;
-      if (id && img.dataset.cosmeticId !== id) img.dataset.cosmeticId = id;
+      if (img.dataset.cosmeticId !== id) img.dataset.cosmeticId = id;
       img.hidden = false;
+      _applyStartCosmeticTransform(img, slot, id);
     } else {
       // Nothing equipped, or equipped item has no sprite yet.
       if (img.dataset.cosmeticId) delete img.dataset.cosmeticId;
       img.hidden = true;
     }
   }
+}
+
+// Compute and apply the inline transform for a single start-screen
+// cosmetic image, mirroring src/entities/raptor.ts::_drawCosmeticPlaceholder
+// at the idle frame. Every number here has a direct counterpart in
+// the canvas draw path — keep them in sync if that logic changes.
+function _applyStartCosmeticTransform(
+  img: HTMLImageElement,
+  slot: "head" | "eyes" | "neck" | "back",
+  id: string,
+) {
+  const def = window.Game?.getAllCosmetics?.().find(
+    (c: { id: string }) => c.id === id,
+  );
+  const draw = def?.draw ?? _CLASSIC_DRAW[id] ?? {};
+  let cx = 0;
+  let cy = 0;
+  let rot = 0;
+  let widthFrac: number | null = null;
+  let heightFrac: number | null = null;
+  let apX = 0.5;
+  let apY = 0.5;
+  if (slot === "head") {
+    cx = _IDLE_CROWN.x - 0.01;
+    cy = _IDLE_CROWN.y + 0.04;
+    heightFrac = draw.scale ?? 0.3;
+    rot = draw.rotation ?? -0.35;
+    // Bottom-centre of the sprite anchors to the crown.
+    apX = 0.5;
+    apY = 1.0;
+  } else if (slot === "eyes") {
+    cx = _IDLE_CROWN.x + (_IDLE_SNOUT.x - _IDLE_CROWN.x) * 0.5 - 0.012;
+    cy = _IDLE_CROWN.y + (_IDLE_SNOUT.y - _IDLE_CROWN.y) * 0.5 + 0.013;
+    widthFrac = draw.scale ?? 0.1;
+    // atan2 must use pixel deltas, so scale dy by the raptor aspect
+    // before taking the angle.
+    const rideAngle = Math.atan2(
+      (_IDLE_SNOUT.y - _IDLE_CROWN.y) * _RAPTOR_ASPECT,
+      _IDLE_SNOUT.x - _IDLE_CROWN.x,
+    );
+    rot = draw.rotation ?? rideAngle - 0.25;
+  } else if (slot === "neck") {
+    cx = _IDLE_CROWN.x - 0.02 + _IDLE_NECK_CORRECTION.x;
+    cy = _IDLE_CROWN.y + 0.2 + _IDLE_NECK_CORRECTION.y;
+    widthFrac = draw.scale ?? 0.08;
+    rot = draw.rotation ?? -0.15;
+  } else {
+    // back (wings). Canvas sizes wings by raptor HEIGHT; we express
+    // that as a fraction of stage WIDTH via RAPTOR_ASPECT so the
+    // CSS width percentage lines up with the canvas pixel count.
+    cx = _IDLE_CROWN.x - 0.32 + _IDLE_BACK_CORRECTION.x;
+    cy = _IDLE_CROWN.y - 0.05 + _IDLE_BACK_CORRECTION.y;
+    widthFrac = (draw.scale ?? 0.85) * _RAPTOR_ASPECT;
+    rot = draw.rotation ?? -0.1;
+    const ap = draw.attachmentPoint ?? { x: 0.9, y: 0.2 };
+    apX = ap.x;
+    apY = ap.y;
+  }
+  if (draw.offset?.x != null) cx += draw.offset.x;
+  if (draw.offset?.y != null) cy += draw.offset.y;
+  img.style.left = (cx * 100).toFixed(3) + "%";
+  img.style.top = (cy * 100).toFixed(3) + "%";
+  if (widthFrac != null) {
+    img.style.width = (widthFrac * 100).toFixed(3) + "%";
+    img.style.height = "auto";
+  } else {
+    img.style.height = (heightFrac! * 100).toFixed(3) + "%";
+    img.style.width = "auto";
+  }
+  img.style.transform =
+    `translate(${(-apX * 100).toFixed(2)}%, ${(-apY * 100).toFixed(2)}%) ` +
+    `rotate(${rot.toFixed(4)}rad)`;
+  img.style.transformOrigin =
+    `${(apX * 100).toFixed(2)}% ${(apY * 100).toFixed(2)}%`;
 }
 
 /** id → sprite URL. Kept in module scope so both the shop grid

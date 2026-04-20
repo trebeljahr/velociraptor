@@ -100,111 +100,18 @@ html,
         width: 100%;
         height: 100%;
       }
-      /* Start-screen cosmetic overlays. One generic <img> per slot,
-       * positioned to match the slot's draw anchor in raptor.ts.
-       * ui.ts sets img.src from the equipped cosmetic and toggles
-       * the `hidden` attribute; these rules handle layout only so
-       * new art drops in without CSS changes. Per-cosmetic size or
-       * position tweaks can be added via explicit rules keyed on
-       * [data-cosmetic-id=<id>] later if needed. */
+      /* Start-screen cosmetic overlays. One generic <img> per slot.
+       * All layout — position, size, rotation, attachment point —
+       * is applied inline by refreshStartRaptorCosmetics() in
+       * src/ui.ts, which mirrors the canvas draw path in
+       * src/entities/raptor.ts at the idle frame. Keep this rule
+       * minimal so the inline styles from JS stay authoritative. */
       .start-raptor-cosmetic {
         position: absolute;
         pointer-events: none;
-        /* Default: the sprite's natural aspect wins. */
       }
       .start-raptor-cosmetic[hidden] {
         display: none;
-      }
-      /* Head slot: anchor at (85.85%, 19.57%) — crown + drawPartyHat's
-         (-0.01 w, +0.04 h) nudges baked in. Size scales by height
-         so wide-brimmed hats and pointy hats both read correctly at
-         the same rule; wing-follows-aspect. */
-      .start-raptor-cosmetic[data-slot="head"] {
-        left: 85.85%;
-        top: 19.57%;
-        height: 25%;
-        width: auto;
-        transform: translate(-50%, -100%) rotate(-0.2rad);
-        transform-origin: 50% 100%;
-      }
-      /* Eyes slot: mid-point between crown and snout. */
-      .start-raptor-cosmetic[data-slot="eyes"] {
-        left: 91.53%;
-        top: 21.82%;
-        width: 9%;
-        height: auto;
-        transform: translate(-50%, -50%) rotate(2.9deg);
-        transform-origin: 50% 50%;
-      }
-      /* Neck slot: anchor at the base of the throat. */
-      .start-raptor-cosmetic[data-slot="neck"] {
-        left: 84.5%;
-        top: 33%;
-        width: 7%;
-        height: auto;
-        transform: translate(-50%, -50%) rotate(-8deg);
-        transform-origin: 50% 50%;
-      }
-      /* Back slot (wings): anchor near the shoulder. Width sized
-         generously so the wing fans out behind the body; the
-         per-cosmetic draw-offsets in raptor.ts for in-game are
-         not mirrored here — this is a static preview, and tuning
-         these rules per-cosmetic can come later if the defaults
-         ever look off on a specific wing variant. */
-      .start-raptor-cosmetic[data-slot="back"] {
-        left: 78%;
-        top: 24%;
-        width: 30%;
-        height: auto;
-        transform: translate(-90%, -20%) rotate(-0.15rad);
-        transform-origin: 90% 20%;
-      }
-      /* ── Per-cosmetic overrides ────────────────────────────
-       * Declared after the slot defaults so the cascade picks
-       * them up for specific items without touching the slot
-       * baseline. refreshStartRaptorCosmetics() sets
-       * data-cosmetic-id on each <img> so these selectors
-       * match the currently-equipped item. */
-      .start-raptor-cosmetic[data-cosmetic-id="monocle"] {
-        width: 4.5%;
-      }
-      .start-raptor-cosmetic[data-cosmetic-id="sombrero"] {
-        transform: translate(-50%, -100%) rotate(-0.45rad);
-      }
-      .start-raptor-cosmetic[data-cosmetic-id="eye-patch"] {
-        transform: translate(calc(-50% - 20px), -50%) rotate(2.9deg);
-      }
-      .start-raptor-cosmetic[data-cosmetic-id="bandana"] {
-        transform: translate(calc(-50% + 5px), calc(-50% + 10px)) rotate(-8deg);
-      }
-      .start-raptor-cosmetic[data-cosmetic-id="tiara"] {
-        transform: translate(calc(-50% + 5px), calc(-100% + 10px)) rotate(-0.2rad);
-      }
-      /* Wing overrides pin each sprite by its actual shoulder
-       * pixel rather than the shared (90%, 20%) upper-right
-       * corner the slot default uses. Values are per-wing because
-       * the attachment sits in a different place on each sprite:
-       * the feathered shoulder, the butterfly thorax, the demon
-       * spine. */
-      .start-raptor-cosmetic[data-cosmetic-id="angel-wings"] {
-        transform: translate(-82%, -45%) rotate(-0.15rad);
-        transform-origin: 82% 45%;
-      }
-      .start-raptor-cosmetic[data-cosmetic-id="demon-wings"] {
-        transform: translate(-68%, -12%) rotate(-0.15rad);
-        transform-origin: 68% 12%;
-      }
-      .start-raptor-cosmetic[data-cosmetic-id="butterfly-wings-orange"] {
-        transform: translate(-58%, -45%) rotate(-0.15rad);
-        transform-origin: 58% 45%;
-      }
-      .start-raptor-cosmetic[data-cosmetic-id="butterfly-wings-blue"] {
-        transform: translate(-50%, -55%) rotate(-0.15rad);
-        transform-origin: 50% 55%;
-      }
-      .start-raptor-cosmetic[data-cosmetic-id="butterfly-wings-purple"] {
-        transform: translate(-50%, -35%) rotate(-0.15rad);
-        transform-origin: 50% 35%;
       }
       .start-cactus {
         position: absolute;
