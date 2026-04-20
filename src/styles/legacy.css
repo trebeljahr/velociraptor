@@ -1453,6 +1453,17 @@ html,
       .menu-panel.pre-game .in-game-only {
         display: none;
       }
+      /* Debug mode + start screen: the generic
+         `body[data-debug="true"] .menu-panel .debug-only { display: revert }`
+         rule above has specificity (0,3,1) and would otherwise win over
+         the (0,3,0) in-game-only rule — meaning an element that's BOTH
+         .debug-only AND .in-game-only (like #debug-settings) would
+         appear on the start screen in debug mode. Add a combined rule
+         at specificity (0,4,1) that keeps in-game-only winning in
+         debug mode too. */
+      body[data-debug="true"] .menu-panel.pre-game .in-game-only {
+        display: none;
+      }
       .menu-panel:not(.pre-game) .pre-game-only {
         display: none;
       }
