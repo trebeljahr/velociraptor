@@ -190,10 +190,11 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     price: 50,
     spriteKey: "eyePatch",
     description: "Arrr.",
-    // Nudge slightly back from the snout-mid default so the patch
-    // sits squarely over the eye. Rotation 0 — a strap shouldn't
-    // follow the snout-ridge angle.
-    draw: { scale: 0.13, rotation: 0, offset: { x: -0.05 } },
+    // Nudge back from the snout-mid default so the patch sits
+    // squarely over the eye. Rotation omitted so the slot-default
+    // snout-ridge angle kicks in — makes the small leading strap
+    // drape over the snout rather than sticking out flat.
+    draw: { scale: 0.13, offset: { x: -0.05 } },
   },
 
   // ── Shop: neck ────────────────────────────────────────
