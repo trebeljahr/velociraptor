@@ -78,15 +78,109 @@ function mirrorWrite(key: string, value: string): void {
     _mirrorLoading.then(() => _mirrorApi?.mirrorSet(key, value));
 }
 
-/** Every persistence write in the codebase goes through this. Writes
- *  to localStorage synchronously (what the next sync load() will
- *  read) AND queues a mirror into Preferences on mobile. */
-function _persistSet(key: string, value: string): void {
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    /* ignore — no-op in environments without localStorage */
+// ── Batched write queue ─────────────────────────────────────
+//
+// localStorage.setItem is synchronous and can cost 1–15ms per call
+// on mobile WebViews (more under memory pressure). A single
+// cosmetic-unlock frame was paying for 4–5 such writes back-to-back
+// (owned + legacy-unlock + equipped + legacy-wear + achievement),
+// producing a visible stutter right at the celebration moment.
+//
+// Writes now queue into _pendingWrites (deduplicated by key — the
+// last value wins) and flush during the next idle period via
+// requestIdleCallback, or setTimeout(0) on WebViews that don't
+// support rIC. In-process reads go through _persistGet which
+// checks the pending queue first, so save→load in the same tick
+// still sees the fresh value.
+//
+// The queue is flushed synchronously on visibilitychange (hidden)
+// and pagehide so we don't lose data when the tab dies. Mirror
+// writes are NOT queued — they're already async via Capacitor's
+// Preferences API so they don't cost the main thread anything,
+// and firing them eagerly means the durable copy is in flight
+// even if the tab dies before the idle flush runs (next
+// hydration pulls from the mirror).
+
+const _pendingWrites = new Map<string, string>();
+let _flushScheduled = false;
+
+function _scheduleFlush(): void {
+  if (_flushScheduled) return;
+  _flushScheduled = true;
+  const runFlush = () => {
+    _flushScheduled = false;
+    _flushPending();
+  };
+  const w = window as unknown as {
+    requestIdleCallback?: (
+      cb: () => void,
+      opts?: { timeout?: number },
+    ) => number;
+  };
+  if (typeof w.requestIdleCallback === "function") {
+    // timeout: 1000ms caps the deferral so a tab that never becomes
+    // idle (e.g. a heavy animation loop) still gets its writes
+    // flushed within a second.
+    w.requestIdleCallback(runFlush, { timeout: 1000 });
+  } else {
+    setTimeout(runFlush, 0);
   }
+}
+
+function _flushPending(): void {
+  if (_pendingWrites.size === 0) return;
+  for (const [key, value] of _pendingWrites) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      /* storage unavailable — drop silently, same as before */
+    }
+  }
+  _pendingWrites.clear();
+}
+
+/** Flush all queued writes to localStorage synchronously. Called on
+ *  page-hide so nothing is lost when the tab dies; also safe to
+ *  call from tests that want to assert post-save localStorage
+ *  state directly. */
+export function flushPersistenceWrites(): void {
+  _flushPending();
+}
+
+// Install flush-on-hide listeners once per module load.
+//   • visibilitychange fires on tab switch / app background (covers
+//     iOS Capacitor swipe-away where beforeunload doesn't fire).
+//   • pagehide is the reliable "tab is going away" event — on iOS
+//     Safari it fires where beforeunload is unreliable.
+if (typeof window !== "undefined" && typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") _flushPending();
+  });
+  window.addEventListener("pagehide", () => _flushPending());
+}
+
+/** getItem wrapper that consults the pending-write queue first, so
+ *  a read in the same tick as a save returns the fresh value even
+ *  though the idle flush hasn't fired yet. Falls back to
+ *  localStorage on a miss; returns null if storage throws. */
+function _persistGet(key: string): string | null {
+  const pending = _pendingWrites.get(key);
+  if (pending !== undefined) return pending;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/** Every persistence write in the codebase goes through this.
+ *  Queues the localStorage write for an idle flush (see the
+ *  _pendingWrites comment above) and kicks off the async Capacitor
+ *  Preferences mirror eagerly so the durable copy is in flight
+ *  immediately. */
+function _persistSet(key: string, value: string): void {
+  _pendingWrites.set(key, value);
+  _scheduleFlush();
   mirrorWrite(key, value);
 }
 
@@ -134,7 +228,7 @@ export async function hydratePersistence(): Promise<void> {
 
 export function loadHighScore(): number {
   try {
-    const raw = window.localStorage.getItem(HIGH_SCORE_KEY);
+    const raw = _persistGet(HIGH_SCORE_KEY);
     if (raw == null) return 0;
     const n = parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
@@ -152,7 +246,7 @@ export function saveHighScore(value: number): void {
 
 export function loadCareerRuns(): number {
   try {
-    const raw = window.localStorage.getItem(CAREER_RUNS_KEY);
+    const raw = _persistGet(CAREER_RUNS_KEY);
     if (raw == null) return 0;
     const n = parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
@@ -170,7 +264,7 @@ export function saveCareerRuns(value: number): void {
 export function loadUnlockedAchievements(): UnlockedAchievementSet {
   const set: UnlockedAchievementSet = Object.create(null);
   try {
-    const raw = window.localStorage.getItem(ACHIEVEMENTS_KEY);
+    const raw = _persistGet(ACHIEVEMENTS_KEY);
     if (!raw) return set;
     const arr = JSON.parse(raw);
     if (Array.isArray(arr)) {
@@ -190,7 +284,7 @@ export function saveUnlockedAchievements(set: UnlockedAchievementSet): void {
 
 export function loadTotalJumps(): number {
   try {
-    const raw = window.localStorage.getItem(TOTAL_JUMPS_KEY);
+    const raw = _persistGet(TOTAL_JUMPS_KEY);
     if (raw == null) return 0;
     const n = parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
@@ -207,7 +301,7 @@ export function saveTotalJumps(value: number): void {
 
 export function loadTotalDayCycles(): number {
   try {
-    const raw = window.localStorage.getItem(TOTAL_DAY_CYCLES_KEY);
+    const raw = _persistGet(TOTAL_DAY_CYCLES_KEY);
     if (raw == null) return 0;
     const n = parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
@@ -224,7 +318,7 @@ export function saveTotalDayCycles(n: number): void {
 
 export function loadRareEventsSeen(): RareEventsSeen {
   try {
-    const raw = window.localStorage.getItem(RARE_EVENTS_SEEN_KEY);
+    const raw = _persistGet(RARE_EVENTS_SEEN_KEY);
     return raw ? JSON.parse(raw) : {};
   } catch (e) {
     return {};
@@ -241,7 +335,7 @@ export function saveRareEventsSeen(seen: RareEventsSeen): void {
  *  (e.g. private mode, denied storage). */
 export function loadBoolFlag(key: string, fallback: boolean): boolean {
   try {
-    const raw = window.localStorage.getItem(key);
+    const raw = _persistGet(key);
     if (raw == null) return fallback;
     return raw === "1";
   } catch (e) {
@@ -257,7 +351,7 @@ export function saveBoolFlag(key: string, value: boolean): void {
 
 export function loadCoinsBalance(): number {
   try {
-    const raw = window.localStorage.getItem(COINS_BALANCE_KEY);
+    const raw = _persistGet(COINS_BALANCE_KEY);
     if (raw == null) return 0;
     const n = parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
@@ -277,7 +371,7 @@ export function saveCoinsBalance(value: number): void {
 
 export function loadCoinsCollected(): number {
   try {
-    const raw = window.localStorage.getItem(COINS_COLLECTED_KEY);
+    const raw = _persistGet(COINS_COLLECTED_KEY);
     if (raw == null) return 0;
     const n = parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
@@ -295,7 +389,7 @@ export function saveCoinsCollected(value: number): void {
 export function loadOwnedCosmetics(): { [id: string]: true } {
   const set: { [id: string]: true } = Object.create(null);
   try {
-    const raw = window.localStorage.getItem(OWNED_COSMETICS_KEY);
+    const raw = _persistGet(OWNED_COSMETICS_KEY);
     if (!raw) return set;
     const arr = JSON.parse(raw);
     if (Array.isArray(arr)) {
@@ -323,7 +417,7 @@ export function loadEquippedCosmetics(): EquippedMap {
     back: null,
   };
   try {
-    const raw = window.localStorage.getItem(EQUIPPED_COSMETICS_KEY);
+    const raw = _persistGet(EQUIPPED_COSMETICS_KEY);
     if (!raw) return fallback;
     const obj = JSON.parse(raw);
     if (!obj || typeof obj !== "object") return fallback;

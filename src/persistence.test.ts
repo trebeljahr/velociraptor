@@ -15,6 +15,7 @@ import {
   TOTAL_JUMPS_KEY,
 } from "./constants";
 import {
+  flushPersistenceWrites,
   loadBoolFlag,
   loadCareerRuns,
   loadHighScore,
@@ -33,9 +34,13 @@ import {
 
 /*
  * Persistence tests rely on happy-dom's window.localStorage. We reset
- * it between every test so no leak crosses test boundaries.
+ * it between every test so no leak crosses test boundaries. The
+ * synchronous flush before clear drains any queued writes from a
+ * prior test out of the pending-writes map so they don't leak into
+ * the next test's reads via _persistGet's pending-first fallback.
  */
 beforeEach(() => {
+  flushPersistenceWrites();
   window.localStorage.clear();
 });
 
@@ -57,6 +62,12 @@ describe("loadHighScore / saveHighScore", () => {
   });
   it("writes the raw number as a string", () => {
     saveHighScore(42);
+    // Writes are now queued for an idle flush (see
+    // _pendingWrites in persistence.ts); force the flush here so
+    // the assertion can inspect the underlying localStorage state
+    // directly rather than going through load*() which would
+    // short-circuit via _persistGet's pending-first fallback.
+    flushPersistenceWrites();
     expect(window.localStorage.getItem(HIGH_SCORE_KEY)).toBe("42");
   });
 });
@@ -131,6 +142,10 @@ describe("loadUnlockedAchievements / saveUnlockedAchievements", () => {
   });
   it("serializes as a JSON array of ids", () => {
     saveUnlockedAchievements({ alpha: true, beta: true });
+    // Writes are queued for idle flush — drain before probing
+    // localStorage directly. load*() would read from the pending
+    // queue first and hide the underlying serialization format.
+    flushPersistenceWrites();
     const raw = window.localStorage.getItem(ACHIEVEMENTS_KEY);
     expect(raw).toBe(JSON.stringify(["alpha", "beta"]));
   });
