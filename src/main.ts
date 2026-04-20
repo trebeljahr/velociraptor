@@ -327,7 +327,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
   // CACTUS_VARIANTS (sprite + collision catalog) lives in
   // src/cactusVariants.ts.
 
-  // The 14-band day/night palette (SKY_COLORS) and NIGHT_COLOR live in
+  // The 16-band day/night palette (SKY_COLORS) and NIGHT_COLOR live in
   // _isNightBand / _isDayBand / isNightPhase / tintStrength /
   // tintFactor / celestialArc / drawSun / drawMoon /
   // computeSkyGradient all live in src/render/sky.ts.

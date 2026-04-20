@@ -19,7 +19,7 @@ export const JUMP_CLEARANCE_MULTIPLIER = 1.65;
 // points per band regardless of how many transition bands sit between
 // them. Changing the transition count only stretches the twilight; the
 // "feel" of day and night duration is preserved.
-export const SKY_CYCLE_SCORE = 70;
+export const SKY_CYCLE_SCORE = 80;
 export const SKY_UPDATE_INTERVAL_FRAMES = 10;
 
 // ── Gameplay & Physics ──────────────────────────────────────
@@ -206,12 +206,12 @@ export const COIN_STREAK_RESET_MS = 1500;
 
 // ── Celestial Bodies (Sun & Moon) ──────────────────────────
 // Sun zenith at the start of the middle day band (band 2 of 0-4),
-// moon at the start of the middle night band (band 9 of 7-11).
+// moon at the start of the middle night band (band 10 of 8-12).
 // Expressed as band-index / SKY_COLORS.length so the anchors
 // stay in lockstep with the palette if the band count ever
 // changes again.
-export const SUN_PHASE_CENTER = 2 / 14;
-export const MOON_PHASE_CENTER = 9 / 14;
+export const SUN_PHASE_CENTER = 2 / 16;
+export const MOON_PHASE_CENTER = 10 / 16;
 export const CELESTIAL_ARC_HALF_WIDTH = 0.25;
 export const CELESTIAL_ARC_EXTENSION = 0.18;
 export const CELESTIAL_ARC_HEIGHT_RATIO = 0.7;
@@ -300,17 +300,21 @@ export const GAMEPAD_STICK_DEADZONE = 0.25;
 // Phase values derived from SKY_COLORS band order + sun/moon arcs.
 // Phases are (band_index + offset) / SKY_COLORS.length, using band
 // centres where "between" a phenomenon reads better than its start.
+// Keys 1–9 + 0: ten slots, eleven phenomena — "Sunrise" and the
+// pre-dawn blue hour share a single key-group; only one sits under
+// the "Pre-dawn" slot so every named moment in the 16-band cycle
+// stays reachable from a number key.
 export const CINEMATIC_PHASES = [
-  { key: "1", phase: 0.02, label: "Early morning" },
-  { key: "2", phase: 2 / 14, label: "Midday (sun zenith)" },
-  { key: "3", phase: 3.5 / 14, label: "Afternoon" },
-  { key: "4", phase: 5.5 / 14, label: "Sunset" },
-  { key: "5", phase: 6.5 / 14, label: "Blue hour" },
-  { key: "6", phase: 7.5 / 14, label: "Early night" },
-  { key: "7", phase: 9 / 14, label: "Midnight (moon zenith)" },
-  { key: "8", phase: 10.5 / 14, label: "Late night" },
-  { key: "9", phase: 12.5 / 14, label: "Pre-dawn blue hour" },
-  { key: "0", phase: 13.5 / 14, label: "Sunrise" },
+  { key: "1", phase: 2 / 16, label: "Midday (sun zenith)" },
+  { key: "2", phase: 4 / 16, label: "Afternoon" },
+  { key: "3", phase: 5.5 / 16, label: "Golden hour" },
+  { key: "4", phase: 6.5 / 16, label: "Sunset" },
+  { key: "5", phase: 7.5 / 16, label: "Blue hour" },
+  { key: "6", phase: 10 / 16, label: "Midnight (moon zenith)" },
+  { key: "7", phase: 12 / 16, label: "Late night" },
+  { key: "8", phase: 13.5 / 16, label: "Pre-dawn blue hour" },
+  { key: "9", phase: 14.5 / 16, label: "Sunrise" },
+  { key: "0", phase: 15.5 / 16, label: "Early morning gold" },
 ] as const;
 
 // ── Dunes & Parallax ──────────────────────────────────────
@@ -530,38 +534,42 @@ export const RAPTOR_NECK_CORRECTION: ReadonlyArray<readonly [number, number]> = 
   [+0.00187, -0.00078], // frame 11
 ];
 
-// ── 14-band day/night sky palette ──────────────────────────
-// 5 day + sunset + blue-hour + 5 night + blue-hour + sunrise.
+// ── 16-band day/night sky palette ──────────────────────────
+// 5 day + golden + sunset + blue-hour + 5 night + blue-hour +
+// sunrise + golden.
 //
-// Twilight now takes TWO bands on each side instead of one:
-//   day → magenta sunset → blue-hour indigo → night
-// The magenta is the dramatic pink-horizon moment; the blue hour
-// is the deep-blue twilight that actually precedes night and
-// follows sunset in the real world. Chaining the two bands keeps
-// each lerp step short (one band each), so the ugly desaturated
-// mauve-grey that sits halfway between day-blue and magenta is
-// only briefly visible — the eye passes through it on the way
-// into the magenta, rather than dwelling on it as "the"
-// transition colour like it did with the original single-band
-// twilight. SKY_CYCLE_SCORE scales from 60 → 70 to keep pure
-// day and pure night each at exactly 5 points per band (25 pts),
-// matching the old cycle; the extra 10 points/cycle is the
-// blue-hour extension the user asked for.
+// Twilight takes THREE bands on each side, taking the sky
+// through every stage a real evening runs through:
+//   day blue → golden hour → magenta sunset → blue hour → night
+// and symmetrically on the way out. The golden band bridges the
+// luminance gap between day-blue and magenta — going straight
+// from blue to magenta lands halfway through at a desaturated
+// mauve-grey (similar R/G/B averages), which reads as a wonky
+// bright-grey moment. Gold [240, 170, 70] is both warmer and
+// BRIGHTER than day-blue, so the day→gold midpoint is a warm
+// yellow-green and the gold→magenta midpoint is a salmon pink.
+// No step in the chain sits on the grey axis.
+//
+// SKY_CYCLE_SCORE scales 70 → 80 so pure day and pure night
+// each stay at exactly 25 points (5 per band). The extra 10
+// points/cycle is the two new golden-hour bands.
 export const SKY_COLORS: ReadonlyArray<readonly [number, number, number]> = [
   [80, 180, 205], // 0  blue (day)
   [80, 180, 205], // 1  blue (day)
   [80, 180, 205], // 2  blue (day)
   [80, 180, 205], // 3  blue (day)
   [80, 180, 205], // 4  blue (day)
-  [220, 90, 120], // 5  magenta-pink (sunset)
-  [40, 65, 130], // 6  blue hour (post-sunset)
-  [21, 34, 56], // 7  night
+  [240, 170, 70], // 5  golden hour (pre-sunset)
+  [220, 90, 120], // 6  magenta-pink (sunset)
+  [40, 65, 130], // 7  blue hour (post-sunset)
   [21, 34, 56], // 8  night
   [21, 34, 56], // 9  night
   [21, 34, 56], // 10 night
   [21, 34, 56], // 11 night
-  [40, 65, 130], // 12 blue hour (pre-sunrise)
-  [220, 90, 120], // 13 magenta-pink (sunrise)
+  [21, 34, 56], // 12 night
+  [40, 65, 130], // 13 blue hour (pre-sunrise)
+  [220, 90, 120], // 14 magenta-pink (sunrise)
+  [240, 170, 70], // 15 golden hour (post-sunrise)
 ];
 
 export const NIGHT_COLOR: readonly [number, number, number] = [21, 34, 56];
