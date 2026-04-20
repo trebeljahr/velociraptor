@@ -372,6 +372,14 @@ export const MUTED_KEY = "raptor-runner:muted";
 export const MUSIC_MUTED_KEY = "raptor-runner:musicMuted";
 export const JUMP_MUTED_KEY = "raptor-runner:jumpMuted";
 export const RAIN_MUTED_KEY = "raptor-runner:rainMuted";
+// Finer-grained SFX channels. Older saves won't have these set —
+// the audio loader treats missing values as "not muted" so every
+// channel defaults to ON on first launch.
+export const FOOTSTEPS_MUTED_KEY = "raptor-runner:footstepsMuted";
+export const COINS_MUTED_KEY = "raptor-runner:coinsMuted";
+export const UI_MUTED_KEY = "raptor-runner:uiMuted";
+export const EVENTS_MUTED_KEY = "raptor-runner:eventsMuted";
+export const THUNDER_MUTED_KEY = "raptor-runner:thunderMuted";
 export const TOTAL_JUMPS_KEY = "raptor-runner:totalJumps";
 export const UNLOCKED_PARTY_HAT_KEY = "raptor-runner:unlocked:partyHat";
 export const UNLOCKED_THUG_GLASSES_KEY = "raptor-runner:unlocked:thugGlasses";

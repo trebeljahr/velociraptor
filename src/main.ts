@@ -1763,6 +1763,42 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       return audio.rainMuted;
     },
 
+    // ── Finer SFX channel toggles ───────────────────────────
+    // Each pair mirrors the music/jump/rain shape: setter +
+    // getter, persisted via audio.ts. The menu UI wires one
+    // toggle per pair so the player can silence, say, just the
+    // coin-collect chain without losing the jump or rain audio.
+    setFootstepsMuted(muted: boolean) {
+      audio.setFootstepsMuted(muted);
+    },
+    isFootstepsMuted() {
+      return audio.footstepsMuted;
+    },
+    setCoinsMuted(muted: boolean) {
+      audio.setCoinsMuted(muted);
+    },
+    isCoinsMuted() {
+      return audio.coinsMuted;
+    },
+    setUiMuted(muted: boolean) {
+      audio.setUiMuted(muted);
+    },
+    isUiMuted() {
+      return audio.uiMuted;
+    },
+    setEventsMuted(muted: boolean) {
+      audio.setEventsMuted(muted);
+    },
+    isEventsMuted() {
+      return audio.eventsMuted;
+    },
+    setThunderMuted(muted: boolean) {
+      audio.setThunderMuted(muted);
+    },
+    isThunderMuted() {
+      return audio.thunderMuted;
+    },
+
     isDebug() {
       return state.debug;
     },
