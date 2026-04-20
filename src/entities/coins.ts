@@ -1,15 +1,9 @@
 /*
- * Raptor Runner — collectible coins.
- *
- * Scattered across each cactus-breather flower field at chest
- * height on the running raptor. Bob gently so they read as
- * collectibles, not static decor. Running through one adds
- * COIN_SCORE_VALUE to the score, plays a short pickup cue, and
- * plays a brief pop-fade so the player sees what they grabbed.
- *
- * Spawn is driven from inside Cactuses._rollNextGap so coins
- * always land inside the same x-range as the flower patches —
- * never on top of an upcoming cactus.
+ * Raptor Runner — collectible coins. Scattered across each flower-
+ * field breather + one above each cactus. Bob, pop-fade on pickup,
+ * add to the score and the persistent shop balance. Spawning runs
+ * from Cactuses._rollNextGap / Cactus.spawn so coins can never
+ * collide with an upcoming cactus.
  */
 
 import { state } from "../state";
@@ -70,13 +64,9 @@ interface RaptorRef {
   collisionPolygon?: () => Polygon;
 }
 
-/** Scatter COIN_COUNT_PER_FIELD coins evenly across [startX, endX]
- *  at chest-height on the running raptor. Intended to be called
- *  once per breather, from inside the Cactuses spawn roll.
- *
- *  Also resets the audio coin streak so the first pickup in the new
- *  field plays at base pitch — the rising-pitch chain is a
- *  PER-FIELD cue ("ding ding ding … diiing"), not an endless climb
+/** Scatter COIN_COUNT_PER_FIELD coins across [startX, endX] at
+ *  chest-height on the running raptor. Resets the audio coin streak
+ *  so the rising-pitch chain restarts per-field rather than climbing
  *  across the whole run. */
 export function spawnCoinsInRange(
   startX: number,
@@ -91,8 +81,8 @@ export function spawnCoinsInRange(
     state.ground -
     raptor.h * COIN_BASE_Y_ABOVE_GROUND_RATIO -
     coinSize / 2;
-  // Shrink the usable span so coins don't hug the cactus on either
-  // side of the field. Fall back to the full field width on tiny
+  // Inset the usable span by EDGE_MARGIN on each side so coins don't
+  // hug the cactus bookends. Fall back to the full width on tiny
   // breathers where 2× margin would leave nothing to spawn into.
   const edgeMarginPx = raptor.w * COIN_FIELD_EDGE_MARGIN_RAPTOR_WIDTHS;
   const rawFieldWidth = endX - startX;
@@ -100,13 +90,9 @@ export function spawnCoinsInRange(
     rawFieldWidth > edgeMarginPx * 2 ? startX + edgeMarginPx : startX;
   const usableEndX =
     rawFieldWidth > edgeMarginPx * 2 ? endX - edgeMarginPx : endX;
-  // Coins live in a tight ribbon centred in the usable span: a
-  // fixed raptor-width spacing gives a quick "ding-ding-ding…"
-  // run, and the ribbon is short enough that the player hits all
-  // COUNT coins in ~1–1.5s regardless of how long the breather
-  // itself is. If the ribbon happens to exceed the usable width
-  // (tiny breather edge case), compress to fit instead of
-  // overflowing the margin.
+  // Tight ribbon centred in the usable span — quick ding-ding-ding
+  // run regardless of field length. Compress to fit if the full
+  // ribbon would overflow the margin.
   const fieldWidth = usableEndX - usableStartX;
   const desiredSpacing = raptor.w * COIN_SPACING_RATIO;
   const gaps = COIN_COUNT_PER_FIELD - 1;
@@ -131,17 +117,10 @@ export function spawnCoinsInRange(
   audio.resetCoinStreak();
 }
 
-/** Spawn a single coin directly above a cactus — the raptor must
- *  jump to clear the cactus, and the coin sits in the arc so
- *  clearing it IS the pickup. Replaces the old "cactus-pass = +1
- *  score" in the new coins-only scoring model: only the coin
- *  grants points, not the jump itself.
- *
- *  `isLarge` bumps the gap above the cactus top. Small cacti leave
- *  0.7 × coinSize of air between coin-bottom and cactus-top; tall
- *  cacti double that to 1.4 × coinSize so the raptor has to commit
- *  to a real peak-of-arc grab instead of clipping the coin with a
- *  shallow hop. */
+/** Spawn a single coin above a cactus: clearing IS the pickup. Coin
+ *  sits at the peak of a just-clearing arc. `isLarge` doubles the
+ *  gap (0.7 → 1.4 × coinSize) so tall cacti aren't trivially clipped
+ *  by a shallow hop. Sole score source in the coins-only model. */
 export function spawnCoinAboveCactus(
   cactusX: number,
   cactusY: number,
@@ -152,13 +131,7 @@ export function spawnCoinAboveCactus(
   if (!raptor || raptor.h <= 0 || raptor.w <= 0) return;
   const coinSize = raptor.h * COIN_SIZE_RATIO;
   state.coins = state.coins || [];
-  // Horizontally centred on the cactus top.
   const cx = cactusX + cactusW / 2 - coinSize / 2;
-  // Vertically: the coin's BOTTOM sits a configurable gap above the
-  // cactus top. 0.7 × coinSize is the default — puts the coin roughly
-  // where the raptor's torso arcs at the peak of a just-clearing jump.
-  // For tall cacti we double the gap so the coin isn't inside the
-  // minimum clearance envelope.
   const gapMultiplier = isLarge ? 1.4 : 0.7;
   const baseY = cactusY - coinSize - coinSize * gapMultiplier;
   state.coins.push({
@@ -169,8 +142,7 @@ export function spawnCoinAboveCactus(
     phase: Math.random() * Math.PI * 2,
     collected: false,
     collectFrame: 0,
-    // Not part of a field — suppresses the chain-end chord so the
-    // per-cactus coin plays as a normal pickup, not a field finale.
+    // Not part of a field — no chain-end chord.
     lastInField: false,
     // Per-cactus coins are NOT part of the pitched chain cue. The
     // rising "ding-ding-diiing" is specifically the 10-coin field
@@ -179,8 +151,7 @@ export function spawnCoinAboveCactus(
   });
 }
 
-/** Phase used for the bob sin() — shared between draw and collision
- *  so the hit-test uses the same y the player sees. */
+/** Shared bob phase — same y used by draw and collision. */
 function bobPhase(c: Coin): number {
   return (
     state.frame * ((Math.PI * 2 * COIN_BOB_FREQUENCY_HZ) / 60) + c.phase
@@ -205,16 +176,12 @@ export function updateCoins(frameScale: number): void {
   });
 }
 
-/** Polygon-precise pickup test. The raptor's bounding box covers
- *  the tail-to-snout sprite, most of which is empty air; coin
- *  collection against that AABB fires on coins the player clearly
- *  ran past. Instead we AABB-reject quickly, then confirm against
- *  the body silhouette (same polygon the cactus collision uses)
- *  so a coin is only grabbed when it actually overlaps the raptor.
+/** Polygon-precise pickup. AABB-rejects first (cheap), then samples
+ *  the coin disc (centre + 4 cardinal edges) against the raptor body
+ *  silhouette so phantom grabs through tail/neck-air don't register.
  *
- *  `onCollect` receives the coin center (after bob offset) so
- *  callers can spawn burst particles at exactly where the coin
- *  was rendered this frame, not at its stored baseY. */
+ *  `onCollect` gets the coin centre after bob offset so callers can
+ *  spawn bursts exactly where the coin was rendered. */
 export function collectCoins(
   raptor: RaptorRef,
   onCollect: (coin: Coin, centerX: number, centerY: number) => void,
@@ -233,13 +200,6 @@ export function collectCoins(
     const cy = c.baseY + Math.sin(bobPhase(c)) * COIN_BOB_AMPLITUDE_PX;
     if (cy + c.h < rT || cy > rB) continue;
     if (poly) {
-      // A handful of sample points around the coin's disc — centre
-      // plus the four cardinal edge midpoints — give a coin-radius
-      // approximation without the cost of full polygon-vs-polygon.
-      // Any one sample inside the body silhouette counts as a hit,
-      // so the test stays forgiving on glancing contacts but rejects
-      // the misses where the AABB used to false-positive (tail,
-      // neck-above-head air, feet-behind-body).
       const cxC = c.x + c.w / 2;
       const cyC = cy + c.h / 2;
       const r = Math.min(c.w, c.h) / 2;
@@ -262,9 +222,8 @@ export function collectCoins(
     c.collected = true;
     c.collectFrame = state.frame;
     state.score += COIN_SCORE_VALUE;
-    // Bank the coin into the persistent shop balance immediately —
-    // if the player dies mid-field they still keep what they've
-    // already grabbed, which matches the "picked up = yours" feel.
+    // Bank immediately — "picked up = yours" even if the player
+    // dies later in the field.
     state.coinsBalance += COIN_BANK_REWARD;
     saveCoinsBalance(state.coinsBalance);
     onCollect(c, c.x + c.w / 2, cy + c.h / 2);
@@ -305,13 +264,9 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
     );
 
     if (!c.collected) {
-      // ── Main rotating glint ────────────────────────────────
-      // A 4-point white star that sweeps across the coin face
-      // over time, stronger than the original shimmer so the
-      // coin reads as actively shiny instead of just bright.
-      // Position orbits a small arc across the top-right of the
-      // coin; opacity pulses on its own sin so the sweep has a
-      // dim-bright cadence on top of the motion.
+      // Main glint — a 4-point star sweeping across the coin face,
+      // opacity pulsed on its own sin so the orbit has a dim-bright
+      // cadence on top of the motion.
       const sparkleT =
         state.frame * ((Math.PI * 2 * COIN_SPARKLE_FREQUENCY_HZ) / 60) +
         c.phase;
@@ -326,34 +281,24 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
         drawFourPointStar(ctx, sx, sy, sr, s * COIN_GLINT_MAX_ALPHA);
       }
 
-      // ── Ambient twinkles ───────────────────────────────────
-      // Small star-flicks at fixed offsets around the coin, each
-      // on an independent phase so they pop in and out at
-      // irregular intervals. They sit OUTSIDE the coin's disc
-      // (at 1.1× radius) so they read as "shine escaping the
-      // coin" rather than being engraved on the face.
+      // Ambient twinkles — star-flicks on an orbit around the coin,
+      // each with its own phase so they blink irregularly and
+      // neighbours don't stamp identically.
       const twinkleBaseT =
         state.frame * ((Math.PI * 2 * COIN_TWINKLE_FREQUENCY_HZ) / 60);
       const cx = c.x + c.w / 2;
       const centerY = cy + c.h / 2;
       for (let i = 0; i < COIN_AMBIENT_TWINKLE_COUNT; i++) {
-        // Fixed angular offsets give a predictable constellation
-        // around each coin; adding c.phase rotates the set per
-        // coin so neighbours aren't stamped identically.
         const ang =
           ((i / COIN_AMBIENT_TWINKLE_COUNT) * Math.PI * 2) +
           c.phase * 0.5;
         const orbit = c.w * 0.6;
         const tx = cx + Math.cos(ang) * orbit;
         const ty = centerY + Math.sin(ang) * orbit * 0.7;
-        // Per-twinkle phase: offset by i * 2.1 rad and by this
-        // coin's phase so the twinkles don't flash in sync.
         const tPhase = twinkleBaseT + c.phase * 1.7 + i * 2.1;
         const tAmp = Math.sin(tPhase);
         if (tAmp <= 0) continue;
-        // Squared envelope keeps a narrow "blink" feel but with a
-        // brighter peak than the cubed version — the twinkles now
-        // read as real shine pops, not hint-level flickers.
+        // Squared envelope = narrow "blink" with a bright peak.
         const tAlpha = tAmp * tAmp * 0.95;
         const tr = c.w * 0.11;
         drawFourPointStar(ctx, tx, ty, tr, tAlpha);
@@ -363,16 +308,9 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
   }
 }
 
-/** Shared helper: a 4-point (plus-shape with tapered points)
- *  white sparkle. Used for the main glint, ambient twinkles, and
- *  the collect-burst particles so the whole system shares one
- *  visual language. */
-// Unit-radius four-point star, baked once so the up-to-60 star
-// draws per frame (10 live coins × 1 main glint + 5 ambient twinkles
-// each) don't rebuild the same 8-segment path every call. At draw
-// time we translate + scale to the requested (x, y, r) and fill this
-// constant Path2D — the shape is pure geometry, so no need to bake
-// per-radius canvases like the moon halo.
+// Unit-radius 4-point star baked once as a Path2D — translate+scale
+// per draw instead of rebuilding the 8-segment path (~60 star draws
+// per frame across live coins' glints + twinkles).
 const UNIT_STAR_PATH: Path2D = (() => {
   const p = new Path2D();
   p.moveTo(0, -1);
@@ -387,6 +325,8 @@ const UNIT_STAR_PATH: Path2D = (() => {
   return p;
 })();
 
+/** Shared 4-point white sparkle — main glint, ambient twinkles, and
+ *  collect-burst particles all use this one primitive. */
 function drawFourPointStar(
   ctx: CanvasRenderingContext2D,
   x: number,
