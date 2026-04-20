@@ -193,7 +193,7 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     // Nudge slightly back from the snout-mid default so the patch
     // sits squarely over the eye. Rotation 0 — a strap shouldn't
     // follow the snout-ridge angle.
-    draw: { scale: 0.13, rotation: 0, offset: { x: -0.02 } },
+    draw: { scale: 0.13, rotation: 0, offset: { x: -0.05 } },
   },
 
   // ── Shop: neck ────────────────────────────────────────
