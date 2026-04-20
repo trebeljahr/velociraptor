@@ -358,10 +358,13 @@ html,
         color: #2a1d13;
         opacity: 0.9;
       }
-      /* Desktop: show keyboard hint, hide touch hint.
+      /* Desktop: show keyboard hint, hide touch + gamepad hints.
          Swap on touch devices OR narrow viewports as a fallback
-         for browsers that don't report pointer/hover correctly. */
-      .start-hint-touch {
+         for browsers that don't report pointer/hover correctly.
+         Gamepad overrides both via body.gamepad-connected below
+         (set by the gamepadconnected listener in src/main.ts). */
+      .start-hint-touch,
+      .start-hint-gamepad {
         display: none;
       }
       @media (hover: none) and (pointer: coarse), (max-width: 600px) {
@@ -374,6 +377,16 @@ html,
         .start-raptor-stage {
           left: 2vw;
         }
+      }
+      /* Gamepad wins over both desktop and touch — if someone
+         plugged in a pad, show them the pad glyphs regardless of
+         pointer type. */
+      body.gamepad-connected .start-hint-desktop,
+      body.gamepad-connected .start-hint-touch {
+        display: none;
+      }
+      body.gamepad-connected .start-hint-gamepad {
+        display: block;
       }
       .start-hint kbd {
         display: inline-block;
@@ -1344,6 +1357,13 @@ html,
         color: #888;
         font-size: 0.8rem;
         margin-top: 0.5rem;
+      }
+      /* Gamepad attached: the dedicated .menu-gamepad-hint row takes
+         over, so hide the Esc-specific copy — keeping both would
+         stack two redundant hints. (Capacitor already hides this
+         hint further below for the same reason on mobile.) */
+      body.gamepad-connected .menu-panel .menu-hint {
+        display: none;
       }
 
       /* ── Gamepad button hint ──────────────────────────────
