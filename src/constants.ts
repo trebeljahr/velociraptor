@@ -438,6 +438,54 @@ export const RAPTOR_SNOUT: ReadonlyArray<readonly [number, number]> = [
   [0.98616, 0.25472], // frame 11
 ];
 
+// Per-frame animation corrections for the NECK and BACK anchors.
+//
+// Every slot-default cx/cy in raptor._drawCosmeticPlaceholder is
+// derived from the crown (a per-frame lookup) plus a fixed anatomical
+// offset. That's right on AVERAGE but wrong per-frame: the actual
+// back barely bobs while the crown dips with the stride, and the
+// throat/neck bends on a slightly delayed cycle from the head. Without
+// correcting for this the bandana tracks the head bob instead of the
+// throat, and wings slosh around exaggeratedly instead of staying
+// pinned to a near-rigid shoulder blade.
+//
+// Values below were extracted by scanning each frame of
+// assets/raptor-sheet.png for the topmost opaque pixel in the
+// upper-back region ([0.35W, 0.55W]) for BACK, and the rightmost
+// opaque pixel in the throat valley (where the head's body-facing
+// curve meets the chest) for NECK — then subtracting the crown's
+// per-frame delta from each so the correction is zero-mean. Adding
+// this to the crown-derived cy gives cosmetic anchors that track
+// their actual body part instead of the head.
+export const RAPTOR_BACK_CORRECTION: ReadonlyArray<readonly [number, number]> = [
+  [+0.00678, -0.00118], // frame 0
+  [+0.00332, +0.00354], // frame 1
+  [-0.01225, -0.00119], // frame 2
+  [-0.0036, -0.0059], // frame 3
+  [+0.00159, +0.00353], // frame 4
+  [+0.00332, +0.00354], // frame 5
+  [+0.00505, -0.00118], // frame 6
+  [+0.00159, -0.00118], // frame 7
+  [-0.00187, -0.00119], // frame 8
+  [-0.00533, -0.00118], // frame 9
+  [-0.00187, -0.00118], // frame 10
+  [+0.00332, +0.00354], // frame 11
+];
+export const RAPTOR_NECK_CORRECTION: ReadonlyArray<readonly [number, number]> = [
+  [+0.0036, -0.00079], // frame 0
+  [+0.00187, -0.00078], // frame 1
+  [-0.01197, +0.00393], // frame 2
+  [-0.00332, +0.00393], // frame 3
+  [+0.00187, -0.00079], // frame 4
+  [+0.00187, -0.00078], // frame 5
+  [+0.0036, -0.00078], // frame 6
+  [+0.00187, -0.00078], // frame 7
+  [+0.00014, +0.00393], // frame 8
+  [-0.00159, -0.00078], // frame 9
+  [+0.00014, -0.0055], // frame 10
+  [+0.00187, -0.00078], // frame 11
+];
+
 // ── 12-band day/night sky palette ──────────────────────────
 // Day and night are roughly equal, with shorter sunset/sunrise
 // transitions in between. See main.ts for the full explanation of

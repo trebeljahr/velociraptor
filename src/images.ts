@@ -41,6 +41,9 @@ export const IMAGE_SRCS: { [key: string]: string } = {
   butterflyWingsOrange: "assets/cosmetics/butterfly-wings-orange.png",
   butterflyWingsBlue: "assets/cosmetics/butterfly-wings-blue.png",
   butterflyWingsPurple: "assets/cosmetics/butterfly-wings-purple.png",
+  sombrero: "assets/cosmetics/sombrero.png",
+  bandana: "assets/cosmetics/bandana.png",
+  crown: "assets/cosmetics/crown.png",
 };
 
 // Cactus variants are registered here so any code that iterates
