@@ -174,7 +174,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: [
-          "**/*.{js,css,html,ico,png,svg,webmanifest,mp3,woff2}",
+          "**/*.{js,css,html,ico,png,svg,webmanifest,mp3}",
         ],
         // PWA manifest icons are injected separately by vite-plugin-pwa
         // (without a __WB_REVISION__ query). If the glob scan also picks
