@@ -367,6 +367,26 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
  *  white sparkle. Used for the main glint, ambient twinkles, and
  *  the collect-burst particles so the whole system shares one
  *  visual language. */
+// Unit-radius four-point star, baked once so the up-to-60 star
+// draws per frame (10 live coins × 1 main glint + 5 ambient twinkles
+// each) don't rebuild the same 8-segment path every call. At draw
+// time we translate + scale to the requested (x, y, r) and fill this
+// constant Path2D — the shape is pure geometry, so no need to bake
+// per-radius canvases like the moon halo.
+const UNIT_STAR_PATH: Path2D = (() => {
+  const p = new Path2D();
+  p.moveTo(0, -1);
+  p.lineTo(0.3, -0.3);
+  p.lineTo(1, 0);
+  p.lineTo(0.3, 0.3);
+  p.lineTo(0, 1);
+  p.lineTo(-0.3, 0.3);
+  p.lineTo(-1, 0);
+  p.lineTo(-0.3, -0.3);
+  p.closePath();
+  return p;
+})();
+
 function drawFourPointStar(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -378,17 +398,9 @@ function drawFourPointStar(
   ctx.save();
   ctx.globalAlpha = Math.min(1, alpha) * ctx.globalAlpha;
   ctx.fillStyle = "#fff";
-  ctx.beginPath();
-  ctx.moveTo(x, y - r);
-  ctx.lineTo(x + r * 0.3, y - r * 0.3);
-  ctx.lineTo(x + r, y);
-  ctx.lineTo(x + r * 0.3, y + r * 0.3);
-  ctx.lineTo(x, y + r);
-  ctx.lineTo(x - r * 0.3, y + r * 0.3);
-  ctx.lineTo(x - r, y);
-  ctx.lineTo(x - r * 0.3, y - r * 0.3);
-  ctx.closePath();
-  ctx.fill();
+  ctx.translate(x, y);
+  ctx.scale(r, r);
+  ctx.fill(UNIT_STAR_PATH);
   ctx.restore();
 }
 
