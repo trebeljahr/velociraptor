@@ -268,6 +268,7 @@ import {
   RARE_EVENTS,
   maybeSpawnRareEvent,
   updateRareEvent,
+  stopActiveRareEventAudio,
   setRareEventsAchievementHandler,
   setDuneHeightProvider,
   drawRareEventSky,
@@ -826,6 +827,12 @@ import { generateScoreCardBlob } from "./render/scoreCard";
             state.gameOverFrame = state.frame;
             audio.playHit();
             audio.pauseMusicForGameOver();
+            // Kill any rare-event looping audio (UFO hover, Santa,
+            // comet whoosh). updateRareEvent stops being called the
+            // instant state.gameOver flips, so the sample would
+            // otherwise loop forever into the next run — see
+            // stopActiveRareEventAudio for the full rationale.
+            stopActiveRareEventAudio();
             if (!audio.muted) hapticDeath();
             // Gamepad rumble — heavy jolt on death. Deferred via
             // setTimeout(0) so the blocking playEffect IPC doesn't
@@ -1449,6 +1456,13 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     state.confetti = [];
     state.dust = [];
     state.ash = [];
+    // Belt-and-braces: the death-site handler already stops these,
+    // but resetGame is also reachable from the "reset progress"
+    // debug path and the start-of-next-run transition, so double-
+    // dispatching the stop keeps a lingering loop from surviving an
+    // edge case where the death handler didn't run (e.g. cinematic
+    // mode, noCollisions).
+    stopActiveRareEventAudio();
     state.activeRareEvent = null;
     state.rainParticles = [];
     state.lightning = { alpha: 0, nextAt: 0 };

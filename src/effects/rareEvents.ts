@@ -280,15 +280,28 @@ export function updateRareEvent(dtSec: number): void {
     }
   }
   if (e.age >= e.life) {
-    // Fade out any rare-event audio that plays for the whole event
-    // window. UFO's ~12s sample is shorter than the ~20s event so
-    // this is just a safety net there; santa + comet both loop and
-    // need the explicit fade-out as they leave the frame.
-    if (e.id === "ufo") audio.stopUfo();
-    else if (e.id === "santa") audio.stopSanta();
-    else if (e.id === "comet") audio.stopComet();
+    stopActiveRareEventAudio();
     state.activeRareEvent = null;
   }
+}
+
+/** Stop any looping audio attached to the currently-active rare
+ *  event. UFO's ~12s sample is shorter than its ~20s event window
+ *  so the stop is mostly a safety net there; santa + comet both
+ *  loop and would otherwise bleed into the next run forever when
+ *  the player dies mid-event and updateRareEvent stops ticking.
+ *
+ *  Called from updateRareEvent when the event's lifetime naturally
+ *  expires, AND from the game-over + resetGame paths in main.ts so
+ *  a mid-event death doesn't leave the sample looping. Safe to call
+ *  with no active event (no-ops when state.activeRareEvent is null
+ *  or missing its `id`). */
+export function stopActiveRareEventAudio(): void {
+  const e = state.activeRareEvent;
+  if (!e) return;
+  if (e.id === "ufo") audio.stopUfo();
+  else if (e.id === "santa") audio.stopSanta();
+  else if (e.id === "comet") audio.stopComet();
 }
 
 
