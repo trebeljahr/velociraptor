@@ -1,7 +1,7 @@
 {
   "name": "raptor-runner",
   "private": true,
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A pixel-art homage to the Chrome 'No Internet' dinosaur game, with a full day/night cycle and a starry sky.",
   "type": "module",
   "main": "electron/main.js",
