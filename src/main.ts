@@ -920,28 +920,21 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // === uniformly sky-tinted, then composited onto the main pass) =
     fgCtx.clearRect(0, 0, state.width, state.height);
 
-    // UFO / Santa first — drawn underneath the clouds so the clouds
-    // pass in front of them instead of the events flying over the
-    // sky. Tumbleweed still draws in the dune layer, comet + meteor
-    // on the background canvas, so this only covers the mid-sky
-    // events. The dune + final sky tints that follow also hit these
-    // events, which reads as atmospheric depth (they feel distant,
-    // not stuck to the camera).
-    drawRareEventFg(fgCtx);
+    // Render order (reworked so only the dunes get the extra-strong
+    // "distance" tint — clouds + UFO/Santa now end up with the same
+    // final sky tint as the raptor, keeping them visible at night /
+    // during storms instead of washing out):
+    //   1. Dunes + dune cacti + tumbleweed
+    //   2. Extra dune-tint pass — source-atop at this point only
+    //      hits dune pixels because nothing else is on fgCtx yet
+    //   3. Clouds (in front of dunes, no extra dune-tint applied)
+    //   4. UFO / Santa via destination-over so they land UNDER the
+    //      clouds + dunes (preserves the "clouds pass in front" read)
+    //      while skipping the dune-tint pass entirely
+    //   5. Flowers, ground, cacti, raptor, dust, ash
+    //   6. Final sky-light tint — hits everything at normal strength
 
-    // Clouds — drawn pure white here, the source-atop tint below
-    // picks up the sky color and washes them toward it.
-    for (const cloud of state.clouds) {
-      drawCloudMorphed(
-        fgCtx,
-        cloud.x,
-        cloud.y,
-        cloud.size * cloud.scale,
-        state.rainIntensity,
-      );
-    }
-
-    // Parallax dunes — drawn procedurally from noise each frame.
+    // 1. Parallax dunes — drawn procedurally from noise each frame.
     {
       const off = state.duneOffset;
       const groundY = state.ground;
@@ -1013,8 +1006,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       _drawDuneCacti(3); // in front of tumbleweed
     }
 
-    // Extra sky tint on dunes + dune cacti — stronger than the
-    // foreground tint so they feel more distant.
+    // 2. Extra sky tint on dunes + dune cacti only — stronger than
+    //    the foreground tint so they feel more distant. Runs now
+    //    (before clouds / UFO / Santa / foreground) so source-atop
+    //    only lands on dune pixels.
     {
       const sky = state.currentSky;
       const strength = Math.min(1, tintStrength() * 1.8);
@@ -1022,6 +1017,35 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       fgCtx.globalCompositeOperation = "source-atop";
       fgCtx.fillStyle = `rgba(${sky[0]}, ${sky[1]}, ${sky[2]}, ${strength})`;
       fgCtx.fillRect(0, 0, state.width, state.height);
+      fgCtx.restore();
+    }
+
+    // 3. Clouds — drawn pure white here, the final sky-tint pass
+    //    below picks up the sky color and washes them toward it at
+    //    normal strength (not the stronger dune tint).
+    for (const cloud of state.clouds) {
+      drawCloudMorphed(
+        fgCtx,
+        cloud.x,
+        cloud.y,
+        cloud.size * cloud.scale,
+        state.rainIntensity,
+      );
+    }
+
+    // 4. UFO / Santa — drawn with destination-over so they slide
+    //    UNDER the clouds + dunes already on fgCtx (preserves the
+    //    "clouds pass in front of them" z-order). Because we draw
+    //    AFTER the extra dune-tint pass, UFO/Santa only pick up the
+    //    final sky tint below — same strength as the raptor, so they
+    //    stay visible at night and during storms.
+    //    Tumbleweed draws in the dune layer above, comet + meteor on
+    //    the background canvas — drawRareEventFg here only covers
+    //    the mid-sky events (UFO, Santa).
+    {
+      fgCtx.save();
+      fgCtx.globalCompositeOperation = "destination-over";
+      drawRareEventFg(fgCtx);
       fgCtx.restore();
     }
 
