@@ -198,6 +198,7 @@ export const audio = {
     this._preloadHitBuffer();
     this._preloadCoinBuffer();
     this._preloadCoinChainEndBuffer();
+    this._preloadShopPurchaseBuffer();
     this._preloadUfoBuffer();
     this._preloadSantaBuffer();
     this._preloadMeteorBuffer();
@@ -982,6 +983,60 @@ export const audio = {
       src.buffer = this._coinChainEndBuffer;
       const gain = this._audioCtx.createGain();
       gain.gain.value = COIN_CHAIN_END_GAIN;
+      src.connect(gain);
+      gain.connect(this._audioCtx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
+      };
+      src.start(0);
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
+
+  // ── Shop purchase cue (rhodesmas "Level Up 01") ─────────────
+  // Short "leveling up" chime played when a cosmetic is bought in
+  // the shop. Sample credit: rhodesmas on Freesound.org
+  // (sound 320655) — see credits overlay / imprint.html.
+  _shopPurchaseBuffer: null as AudioBuffer | null,
+
+  _preloadShopPurchaseBuffer() {
+    if (
+      typeof AudioContext === "undefined" &&
+      typeof window.webkitAudioContext === "undefined"
+    )
+      return;
+    fetch("assets/shop-purchase.mp3")
+      .then((r) => r.arrayBuffer())
+      .then((buf) => {
+        this._ensureAudioCtx();
+        if (!this._audioCtx) return;
+        return this._audioCtx.decodeAudioData(buf);
+      })
+      .then((decoded) => {
+        if (decoded) this._shopPurchaseBuffer = decoded;
+      })
+      .catch(() => {
+        /* purchase cue simply won't play */
+      });
+  },
+
+  /** Shop-purchase chime. Celebratory and louder than the pickup
+   *  cue — a purchase is a deliberate, infrequent action so the
+   *  feedback can be bigger. Routed through jumpMuted so the SFX
+   *  mute toggle still covers it, but NOT gated on muted-for-the-
+   *  run achievement checks since the shop is outside active play. */
+  playShopPurchase() {
+    if (this.muted || this.jumpMuted) return;
+    if (!this._audioCtx || !this._shopPurchaseBuffer) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    try {
+      const src = this._audioCtx.createBufferSource();
+      src.buffer = this._shopPurchaseBuffer;
+      const gain = this._audioCtx.createGain();
+      gain.gain.value = 0.55;
       src.connect(gain);
       gain.connect(this._audioCtx.destination);
       src.onended = () => {

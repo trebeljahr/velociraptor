@@ -2162,6 +2162,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       return purchaseCosmetic(id);
     },
 
+    /** Play the shop-purchase chime. Exposed as a Game API method
+     *  so ui.ts doesn't have to import audio directly — matches the
+     *  "UI talks to the game layer through window.Game only" rule
+     *  documented at the top of src/ui.ts. */
+    playShopPurchase() {
+      audio.playShopPurchase();
+    },
+
     /** Equip a cosmetic the player owns (displacing whatever was
      *  in that slot). No-op if not owned. */
     equipCosmetic(id: string) {

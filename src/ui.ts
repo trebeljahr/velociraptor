@@ -1860,6 +1860,14 @@ function renderShop() {
           refreshShopBalance();
           renderShop();
           refreshStartRaptorCosmetics();
+          // Celebratory feedback: "level up" chime + a DOM confetti
+          // burst emitted from the buy-button's screen position, so
+          // the player gets a clear "that worked" signal that isn't
+          // hidden under the shop overlay (canvas-based confetti
+          // would draw behind the dim backdrop).
+          window.Game.playShopPurchase?.();
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          spawnShopConfetti(rect.left + rect.width / 2, rect.top + rect.height / 2);
         }
       });
     } else {
@@ -1873,8 +1881,86 @@ function renderShop() {
   }
 }
 
+// DOM confetti used only by the shop — the canvas-based
+// spawnConfettiBurst would render behind the 60%-black shop backdrop,
+// so we need real DOM elements on top. Kept deliberately small and
+// self-contained: ~24 absolutely-positioned divs with randomised
+// velocity + rotation, driven by a single rAF loop, cleaned up when
+// every particle has faded. Colours mirror the canvas confetti
+// palette so the two effects read as one language.
+const SHOP_CONFETTI_COLORS = [
+  "#ff4d6d", "#ffb703", "#06d6a0", "#118ab2",
+  "#8338ec", "#ffd60a", "#ff7b00", "#ef476f",
+];
+function spawnShopConfetti(originX: number, originY: number) {
+  // Container sits over EVERYTHING (above the shop overlay at 2700).
+  // One container per burst — removed once the last particle expires.
+  const layer = document.createElement("div");
+  layer.style.cssText =
+    "position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:3000;";
+  document.body.appendChild(layer);
+  interface P { el: HTMLElement; x: number; y: number; vx: number; vy: number; rot: number; vrot: number; age: number; life: number; }
+  const particles: P[] = [];
+  for (let i = 0; i < 24; i++) {
+    const el = document.createElement("div");
+    const color = SHOP_CONFETTI_COLORS[i % SHOP_CONFETTI_COLORS.length];
+    const size = 6 + Math.random() * 5;
+    el.style.cssText =
+      `position:absolute;left:${originX}px;top:${originY}px;` +
+      `width:${size}px;height:${size * 0.6}px;` +
+      `background:${color};border-radius:1px;will-change:transform,opacity;`;
+    layer.appendChild(el);
+    // Radial burst — fan outward, slight upward bias so it feels
+    // celebratory rather than a gravity-dominated drop.
+    const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.4;
+    const speed = 220 + Math.random() * 280;
+    particles.push({
+      el,
+      x: originX, y: originY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      rot: Math.random() * Math.PI * 2,
+      vrot: (Math.random() - 0.5) * 10,
+      age: 0,
+      life: 0.9 + Math.random() * 0.6,
+    });
+  }
+  let lastT = performance.now();
+  function step(now: number) {
+    const dt = Math.min(0.05, (now - lastT) / 1000);
+    lastT = now;
+    let alive = 0;
+    for (const p of particles) {
+      if (p.age >= p.life) continue;
+      p.age += dt;
+      p.vy += 780 * dt; // gravity
+      p.vx *= 0.99;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.rot += p.vrot * dt;
+      const t = p.age / p.life;
+      const alpha = t < 0.8 ? 1 : Math.max(0, 1 - (t - 0.8) / 0.2);
+      p.el.style.transform = `translate(${p.x - originX}px, ${p.y - originY}px) rotate(${p.rot}rad)`;
+      p.el.style.opacity = String(alpha);
+      if (p.age < p.life) alive++;
+    }
+    if (alive > 0) {
+      requestAnimationFrame(step);
+    } else {
+      layer.remove();
+    }
+  }
+  requestAnimationFrame(step);
+}
+
 function openShop() {
   if (!shopOverlay) return;
+  // Shop is a full-screen modal — always pause the game underneath.
+  // Reached in two paths: (a) menu → Shop (menu already paused us,
+  // but it calls Game.resume() on closeMenu just before we open),
+  // or (b) direct hotkey opens from gameplay. Either way pause is
+  // the right move.
+  try { window.Game?.pause?.(); } catch {}
   refreshShopBalance();
   renderShop();
   shopOverlay.classList.add("open");
@@ -1882,6 +1968,9 @@ function openShop() {
 function closeShop() {
   if (!shopOverlay) return;
   shopOverlay.classList.remove("open");
+  // Mirror the pause on open. Game.resume is a no-op if the run
+  // hasn't started yet, so safe on the start-screen shop entry too.
+  try { window.Game?.resume?.(); } catch {}
 }
 
 if (menuShopBtn) {
