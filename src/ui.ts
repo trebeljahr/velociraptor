@@ -35,6 +35,7 @@ import { refreshSoundSettings } from "./ui/react/mountSoundSettings";
 import { refreshCosmeticsMenu } from "./ui/react/mountCosmeticsMenu";
 import { refreshMenuList } from "./ui/react/mountMenuList";
 import { refreshDebugSettings } from "./ui/react/mountDebugSettings";
+import { refreshStartScreen } from "./ui/react/mountStartScreen";
 
 // Desktop "challenge a friend" store-link. Sourced from a Vite env
 // var; falls back to the web URL when not set. The env name is
@@ -129,9 +130,29 @@ const achievementsOverlay = document.getElementById("achievements-overlay");
 const imprintCloseBtn = document.getElementById("imprint-close");
 const imprintIframe = document.getElementById("imprint-iframe");
 const startScreen = document.getElementById("start-screen");
-const startBtn = document.getElementById("start-btn");
 let imprintLoaded = false;
 let assetsReady = false;
+
+// The start button lives inside the React <StartScreen> component, so
+// we look it up by id whenever we need to touch it (the rendered
+// element is stable across re-renders because the id doesn't change,
+// but capturing a module-level reference at parse time would race
+// the React mount). Used by the tap-animation toggle + the initial
+// boot sync so keyboard / click paths both replay the same keyframes.
+function getStartBtn() {
+  return document.getElementById("start-btn");
+}
+
+const START_SCREEN_CALLBACKS = {
+  onStart: () => triggerStart(),
+  getHighScore: () =>
+    (window.Game?.getHighScore && window.Game.getHighScore()) || 0,
+  getAssetsReady: () => assetsReady,
+};
+
+function syncStartScreen() {
+  refreshStartScreen(START_SCREEN_CALLBACKS);
+}
 
 // ───────── Boot splash fade-out ─────────
 function hideBootSplash() {
@@ -150,21 +171,10 @@ function hideBootSplash() {
 function onGameReady() {
   assetsReady = true;
   hideBootSplash();
-  startBtn.classList.remove("loading");
-  startBtn.disabled = false;
-  startBtn.querySelector(".label").textContent = "Start Game";
-
-  // Show the saved personal best (if any) as a badge above
-  // the Start Game button so returning players see their
-  // previous record immediately.
-  const hs =
-    (window.Game.getHighScore && window.Game.getHighScore()) || 0;
-  const hsEl = document.getElementById("start-highscore");
-  const hsVal = document.getElementById("start-highscore-value");
-  if (hs > 0 && hsEl && hsVal) {
-    hsVal.textContent = String(hs);
-    hsEl.hidden = false;
-  }
+  // Flip the React <StartScreen> from loading to ready. The button's
+  // label / disabled / class all follow assetsReady + getHighScore()
+  // — no imperative label poke needed.
+  syncStartScreen();
 
   // Wire the share panel to the game's onGameOver /
   // onGameReset events now that the API is ready.
@@ -296,14 +306,23 @@ function triggerStart() {
   if (!assetsReady || window.Game.isStarted()) return;
   if (window.Game && window.Game.playMenuTap) window.Game.playMenuTap();
   // Retrigger-safe: remove + force reflow + re-add so rapid
-  // keyboard repeats still replay the animation cleanly.
-  startBtn.classList.remove("tapped");
-  void startBtn.offsetWidth;
-  startBtn.classList.add("tapped");
-  window.setTimeout(() => startBtn.classList.remove("tapped"), 200);
+  // keyboard repeats still replay the animation cleanly. The
+  // button is rendered by React, so look it up fresh each call
+  // instead of capturing a stale reference.
+  const btn = getStartBtn();
+  if (btn) {
+    btn.classList.remove("tapped");
+    void btn.offsetWidth;
+    btn.classList.add("tapped");
+    window.setTimeout(() => {
+      const b = getStartBtn();
+      b?.classList.remove("tapped");
+    }, 200);
+  }
   startGame();
 }
-startBtn.addEventListener("click", triggerStart);
+// The start button's own onClick goes through the React component
+// (StartScreen.tsx) and delegates to triggerStart via START_SCREEN_CALLBACKS.
 // Expose a hook so the main.ts keydown handler can trigger
 // Start Game from Space/Enter on the start screen.
 window.__onStartKey = triggerStart;
@@ -1411,10 +1430,9 @@ function doReset() {
   }
   const pbEl = document.getElementById("personal-best");
   if (pbEl) pbEl.textContent = "Personal best: 0";
-  const startHsEl = document.getElementById("start-highscore");
-  const startHsVal = document.getElementById("start-highscore-value");
-  if (startHsVal) startHsVal.textContent = "0";
-  if (startHsEl) startHsEl.hidden = true;
+  // High-score badge on the start screen is inside <StartScreen>
+  // and reads getHighScore() each render, so a sync is enough.
+  syncStartScreen();
   closeResetConfirm();
   closeMenu();
 }
@@ -1817,3 +1835,8 @@ if (scoreCardOverlay) {
 // instantly rather than waiting on the subsequent refresh.
 syncScoreCardActions();
 syncMenuList();
+// Paint the start screen immediately with the loading state so the
+// button has real DOM to attach the boot-splash fade-out to. onGameReady
+// later flips assetsReady and syncs again to reveal the ready state +
+// personal-best badge.
+syncStartScreen();
