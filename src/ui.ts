@@ -29,6 +29,7 @@
 /* eslint-disable */
 
 import { refreshShop } from "./ui/react/mountShop";
+import { refreshAchievements } from "./ui/react/mountAchievements";
 
 // Desktop "challenge a friend" store-link. Sourced from a Vite env
 // var; falls back to the web URL when not set. The env name is
@@ -74,23 +75,9 @@ if (steamStoreBtn) {
     }
   });
 }
-// Desktop-only: "View on Steam" button inside the achievements
-// overlay. Opens the Steam overlay to the Achievements dialog
-// for this game — player sees the canonical cross-platform
-// achievement list right next to our in-game version.
-const achievementsSteamLink = document.getElementById(
-  "achievements-steam-link",
-);
-if (achievementsSteamLink) {
-  achievementsSteamLink.addEventListener("click", () => {
-    if (
-      window.electronAPI &&
-      typeof window.electronAPI.openSteamOverlay === "function"
-    ) {
-      window.electronAPI.openSteamOverlay("Achievements");
-    }
-  });
-}
+// "View on Steam" button — its click handler moved into the React
+// <Achievements> component when the overlay was migrated; no
+// ui.ts-level listener required.
 const quitBtn = document.getElementById("menu-quit");
 // Wire Quit (desktop only). Safe no-op in browser since the
 // <li class="desktop-only"> is display:none and the element
@@ -182,9 +169,6 @@ const aboutCloseBtn = document.getElementById("about-close");
 const aboutIframe = document.getElementById("about-iframe");
 let aboutLoaded = false;
 const achievementsOverlay = document.getElementById("achievements-overlay");
-const achievementsCloseBtn = document.getElementById("achievements-close");
-const achievementsList = document.getElementById("achievements-list");
-const achievementsProgress = document.getElementById("achievements-progress");
 const imprintCloseBtn = document.getElementById("imprint-close");
 const imprintIframe = document.getElementById("imprint-iframe");
 const startScreen = document.getElementById("start-screen");
@@ -510,84 +494,19 @@ if (creditsOverlay) {
 }
 
 // ───────── Achievements overlay ─────────
-function renderAchievementsList() {
-  if (
-    !achievementsList ||
-    !window.Game ||
-    !window.Game.getAchievements
-  ) {
-    return;
-  }
-  const list = window.Game.getAchievements();
-  // Clear previous content safely.
-  while (achievementsList.firstChild) {
-    achievementsList.removeChild(achievementsList.firstChild);
-  }
-  let unlockedCount = 0;
-  for (const a of list) {
-    if (a.unlocked) unlockedCount += 1;
-    const li = document.createElement("li");
-    li.className =
-      "achievement-item " + (a.unlocked ? "unlocked" : "locked");
-    const isHidden = a.secret && !a.unlocked;
-    const iconDiv = document.createElement("div");
-    iconDiv.className = "icon";
-    if (isHidden) {
-      // Show a "?" icon for undiscovered secrets
-      const qSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      qSvg.setAttribute("viewBox", "0 0 24 24");
-      qSvg.innerHTML = '<text x="12" y="17" text-anchor="middle" font-size="16" fill="#aaa">?</text>';
-      iconDiv.appendChild(qSvg);
-    } else {
-      iconDiv.appendChild(buildAchievementIconNode(a));
-    }
-    li.appendChild(iconDiv);
-
-    const body = document.createElement("div");
-    body.className = "body";
-    const title = document.createElement("div");
-    title.className = "title";
-    title.textContent = isHidden ? "???" : a.title;
-    const desc = document.createElement("div");
-    desc.className = "desc";
-    desc.textContent = isHidden ? "Keep playing to discover this secret..." : a.desc;
-    body.appendChild(title);
-    body.appendChild(desc);
-    li.appendChild(body);
-
-    achievementsList.appendChild(li);
-  }
-  if (achievementsProgress) {
-    achievementsProgress.textContent =
-      unlockedCount + " / " + list.length + " unlocked";
-  }
-}
-
 function openAchievements() {
-  _achievementsPriorFocus = document.activeElement;
-  renderAchievementsList();
+  refreshAchievements({ onClose: closeAchievements });
   if (achievementsOverlay) achievementsOverlay.classList.add("open");
-  // Focus the × button (same rationale as openCredits /
-  // openAbout / openImprint). The previous heading-focus
-  // target was a non-interactive h1 that broke gamepad nav.
-  if (achievementsCloseBtn) achievementsCloseBtn.focus();
   if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
     window.Game.pause();
   }
 }
 function closeAchievements() {
   if (achievementsOverlay) achievementsOverlay.classList.remove("open");
-  _achievementsPriorFocus = null;
   // Always route back to the menu — that's where every
   // entry into this overlay originates, and the "back"
   // affordance is expected to retrace steps.
   openMenu();
-}
-if (achievementsCloseBtn) {
-  achievementsCloseBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeAchievements();
-  });
 }
 if (achievementsOverlay) {
   achievementsOverlay.addEventListener("click", (e) => {
@@ -805,7 +724,6 @@ function refreshMenuHighscore() {
 // Track the element that had focus before an overlay opened,
 // so we can restore it when the overlay closes.
 let _menuPriorFocus = null;
-let _achievementsPriorFocus = null;
 
 function openMenuBase() {
   _menuPriorFocus = document.activeElement;
@@ -1799,7 +1717,7 @@ function doReset() {
     achievementsOverlay &&
     achievementsOverlay.classList.contains("open")
   ) {
-    renderAchievementsList();
+    refreshAchievements({ onClose: closeAchievements });
   }
   const pbEl = document.getElementById("personal-best");
   if (pbEl) pbEl.textContent = "Personal best: 0";

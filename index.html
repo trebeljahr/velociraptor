@@ -945,51 +945,17 @@
 
     <!-- Achievements overlay — rendered in the parent window
          (no iframe) because the list is data-driven from the
-         Game API. -->
+         Game API. The sheet content is rendered by the React
+         <Achievements> component (src/ui/react/Achievements.tsx);
+         this outer div keeps the .imprint-overlay backdrop and
+         the .open class toggle in ui.ts working unchanged. -->
     <div
       id="achievements-overlay"
       class="imprint-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Achievements"
-    >
-      <div class="imprint-sheet achievements-sheet">
-        <button
-          id="achievements-close"
-          class="imprint-close"
-          aria-label="Close"
-        >
-          ×
-        </button>
-        <div class="achievements-scroll">
-          <h1 class="achievements-heading" tabindex="-1">Achievements</h1>
-          <p id="achievements-progress" class="achievements-progress">
-            0 / 0 unlocked
-          </p>
-          <button
-            id="achievements-steam-link"
-            class="achievements-steam-link desktop-only"
-            type="button"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <polygon points="10 8 16 12 10 16 10 8"></polygon>
-            </svg>
-            View on Steam
-          </button>
-          <ul id="achievements-list" class="achievements-list"></ul>
-        </div>
-      </div>
-    </div>
+    ></div>
 
     <!-- Reset-progress confirmation dialog -->
     <div
