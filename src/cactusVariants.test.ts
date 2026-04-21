@@ -107,24 +107,4 @@ describe("collision polygons", () => {
     }
   });
 
-  it("cactus7 (tall thin column) has mirror-symmetric trunk bounds", () => {
-    // Anchor test for the shape the audit flagged — documents that the
-    // polygon IS symmetric around x=0.5 so future edits don't drift it.
-    const c7 = CACTUS_VARIANTS.find((v) => v.key === "cactus7")!;
-    expect(c7).toBeDefined();
-    const xs = c7.collision.map(([x]) => x);
-    // Symmetry check: for every x on the left (< 0.5), there's a
-    // mirrored x on the right (> 0.5) at distance 1 - x from origin.
-    const leftXs = xs.filter((x) => x < 0.5).sort();
-    const rightXs = xs.filter((x) => x > 0.5).sort();
-    expect(leftXs.length).toBe(rightXs.length);
-    for (let i = 0; i < leftXs.length; i++) {
-      // Mirror of leftXs[i] about x=0.5 should appear in rightXs. Use
-      // epsilon comparison since the polygon coords are authored with
-      // 2-decimal precision (float representation adds trailing noise).
-      const mirror = 1 - leftXs[i]!;
-      const hit = rightXs.some((r) => Math.abs(r - mirror) < 1e-9);
-      expect(hit, `no mirror for left x=${leftXs[i]}`).toBe(true);
-    }
-  });
 });

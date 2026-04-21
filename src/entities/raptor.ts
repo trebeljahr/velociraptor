@@ -29,6 +29,7 @@ import {
   RAPTOR_CROWN,
   RAPTOR_SNOUT,
   RAPTOR_NECK_CORRECTION,
+  RAPTOR_COLLISION,
   RAPTOR_COLLISION_INSET,
 } from "../constants";
 import { state } from "../state";
@@ -380,44 +381,23 @@ export class Raptor {
     ctx.restore();
   }
 
-  /** Concave body silhouette, shrunk by RAPTOR_COLLISION_INSET px so
-   *  the collision feels forgiving. Cached per update() call. */
+  /** Per-frame silhouette polygon from RAPTOR_COLLISION, scaled to
+   *  world size and shrunk by RAPTOR_COLLISION_INSET px for forgiveness.
+   *  Locked to the idle frame while airborne — matches the sprite the
+   *  draw() path picks, so the hit box and the visible body always
+   *  line up. Cached per update() call. */
   collisionPolygon(): Polygon {
     if (this._polyCache) return this._polyCache;
+    const f = this.y === this.ground ? this.frame : RAPTOR_IDLE_FRAME;
+    const norm = RAPTOR_COLLISION[f];
     const x = this.x;
     const y = this.y;
     const w = this.w;
     const h = this.h;
-    const raw: Polygon = [
-      { x: x + w * 0.5, y: y + h * 0.27 },
-      { x: x + w * 0.5, y: y + h * 0.4 },
-      { x: x + w * 0.6, y: y + h * 0.6 },
-      { x: x + w * 0.5, y: y + h * 0.82 },
-      { x: x + w * 0.48, y: y + h },
-      { x: x + w * 0.55, y: y + h },
-      { x: x + w * 0.51, y: y + h * 0.955 },
-      { x: x + w * 0.53, y: y + h * 0.9 },
-      { x: x + w * 0.55, y: y + h * 0.9 },
-      { x: x + w * 0.55, y: y + h * 0.86 },
-      { x: x + w * 0.51, y: y + h * 0.86 },
-      { x: x + w * 0.53, y: y + h * 0.8 },
-      { x: x + w * 0.62, y: y + h * 0.65 },
-      { x: x + w * 0.63, y: y + h * 0.6 },
-      { x: x + w * 0.67, y: y + h * 0.6 },
-      { x: x + w * 0.67, y: y + h * 0.85 },
-      { x: x + w * 0.72, y: y + h * 0.95 },
-      { x: x + w * 0.78, y: y + h * 0.95 },
-      { x: x + w * 0.7, y: y + h * 0.8 },
-      { x: x + w * 0.75, y: y + h * 0.8 },
-      { x: x + w * 0.8, y: y + h * 0.6 },
-      { x: x + w * 0.78, y: y + h * 0.55 },
-      { x: x + w * 0.9, y: y + h * 0.3 },
-      { x: x + w, y: y + h * 0.3 },
-      { x: x + w, y: y + h * 0.23 },
-      { x: x + w * 0.9, y: y + h * 0.15 },
-      { x: x + w * 0.85, y: y + h * 0.15 },
-      { x: x + w * 0.8, y: y + h * 0.35 },
-    ];
+    const raw: Polygon = new Array(norm.length);
+    for (let i = 0; i < norm.length; i++) {
+      raw[i] = { x: x + norm[i][0] * w, y: y + norm[i][1] * h };
+    }
     this._polyCache = shrinkPolygon(raw, RAPTOR_COLLISION_INSET);
     return this._polyCache;
   }
