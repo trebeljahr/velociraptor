@@ -25,6 +25,7 @@ import {
   CACTUS_BREATHER_MIN_SECONDS,
   CACTUS_BREATHER_MAX_SECONDS,
   FLOWER_PATCH_WIDTH_PX,
+  PTERODACTYL_SPAWN_CHANCE,
 } from "../constants";
 import { state } from "../state";
 import { IMAGES } from "../images";
@@ -33,6 +34,7 @@ import { Polygon } from "../helpers";
 import { makeFlowerPatch } from "./flowers";
 import { spawnCoinsInRange, spawnCoinAboveCactus } from "./coins";
 import { Raptor } from "./raptor";
+import { Pterodactyls } from "./pterodactyl";
 
 export class Cactus {
   x: number;
@@ -99,13 +101,18 @@ export class Cactus {
 
 export class Cactuses {
   cacti: Cactus[] = [];
+  pterodactyls: Pterodactyls;
   /** Distance-from-last-cactus before the next spawn. Set once per
    *  spawn by _rollNextGap() and read (not recomputed) every frame
    *  — the old getter design re-rolled every frame and collapsed
    *  breathers down to normal gaps on the next tick. */
   private _nextGap = 0;
+  /** Debug: force the NEXT spawn to be a pterodactyl regardless of
+   *  the probability roll. Consumed (and reset) inside spawn(). */
+  private _forcePteroNext = false;
 
   constructor(private raptor: Raptor) {
+    this.pterodactyls = new Pterodactyls(raptor);
     this._rollNextGap();
   }
 
@@ -211,6 +218,22 @@ export class Cactuses {
   private _scrollSinceLastSpawn = 0;
 
   spawn(): void {
+    // Roll to replace this spawn with a pterodactyl. No coin above a
+    // flyer — the reward-ladder lives on cactus tops, and lifting a
+    // coin to the pterodactyl's flight height would drag it into the
+    // jump-peak envelope where it'd collide with the flyer itself.
+    const pteroRoll = this._forcePteroNext || Math.random() < PTERODACTYL_SPAWN_CHANCE;
+    this._forcePteroNext = false;
+    if (pteroRoll) {
+      this.pterodactyls.spawn();
+      this._scrollSinceLastSpawn = 0;
+      // Still counts toward the next breather — a flyer is pacing-
+      // equivalent to a cactus in terms of "thing the player had
+      // to clear", and ignoring it would delay the rest area.
+      state._cactiSinceBreather = (state._cactiSinceBreather ?? 0) + 1;
+      this._rollNextGap();
+      return;
+    }
     const variant =
       CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
     const cactus = new Cactus(variant, this.raptor);
@@ -233,7 +256,18 @@ export class Cactuses {
     this._rollNextGap();
   }
 
-  update(frameScale = 1): void {
+  /** Debug helper — arm the next spawn to be a pterodactyl and force
+   *  the gap "already elapsed" so it fires next frame. Mirrors
+   *  forceBreather(). */
+  forcePterodactyl(): void {
+    this._forcePteroNext = true;
+    this._scrollSinceLastSpawn = Math.max(
+      this._scrollSinceLastSpawn,
+      this._nextGap,
+    );
+  }
+
+  update(now: number, frameScale = 1): void {
     // Accumulate this frame's scroll BEFORE the spawn check. Must
     // match the per-frame scroll that Cactus.update applies to each
     // cactus (and that updateFlowerPatches applies to flower patches)
@@ -243,7 +277,10 @@ export class Cactuses {
     this._scrollSinceLastSpawn += dx;
 
     if (this._scrollSinceLastSpawn >= this._nextGap) {
-      const isFirstSpawn = this.cacti.length === 0 && this._nextGap === 0;
+      const isFirstSpawn =
+        this.cacti.length === 0 &&
+        this.pterodactyls.pteros.length === 0 &&
+        this._nextGap === 0;
       this.spawn();
       if (!isFirstSpawn) {
         state.bgVelocity = Math.min(
@@ -254,6 +291,7 @@ export class Cactuses {
     }
 
     for (const c of this.cacti) c.update(frameScale);
+    this.pterodactyls.update(now, frameScale);
 
     // Coins-only scoring: clearing a cactus no longer grants score
     // or triggers achievement/cosmetic thresholds. The reward is
@@ -264,11 +302,22 @@ export class Cactuses {
 
   draw(ctx: CanvasRenderingContext2D): void {
     for (const c of this.cacti) c.draw(ctx);
+    // Pterodactyls fly above the cactus line, so drawing them after
+    // the cacti can't produce a wrong-order visible overlap — and it
+    // keeps the whole obstacle layer in one place for z-order clarity.
+    this.pterodactyls.draw(ctx);
+  }
+
+  resize(): void {
+    for (const c of this.cacti) c.resize();
+    this.pterodactyls.resize();
   }
 
   clear(): void {
     this.cacti = [];
+    this.pterodactyls.clear();
     this._scrollSinceLastSpawn = 0;
+    this._forcePteroNext = false;
     // Reset the gap too so the first cactus of the next run
     // spawns immediately (matches the pre-fix "!last → spawn"
     // behaviour at run-start, just without the bug where that

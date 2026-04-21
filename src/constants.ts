@@ -318,6 +318,34 @@ export const RAPTOR_FRAME_DELAY_MIN = 24;
 export const RAPTOR_FRAME_DELAY_MAX = 42;
 export const RAPTOR_COLLISION_INSET = 4;
 
+// ── Pterodactyl (flying obstacle) ─────────────────────────
+// 5×5 grid layout on the sprite sheet with frames 22-24 empty
+// (last row only has 2 sprites). Frames cycle through the
+// full flap animation; sprite is drawn horizontally flipped so
+// the pterodactyl faces the raptor (head leads the scroll).
+export const PTERODACTYL_SHEET_COLS = 5;
+export const PTERODACTYL_SHEET_ROWS = 5;
+export const PTERODACTYL_FRAMES = 22;
+export const PTERODACTYL_FRAME_W = 456;
+export const PTERODACTYL_FRAME_H = 360;
+/** Height relative to raptor height. ~1.05 puts the sprite at
+ *  roughly the raptor's own silhouette size, which reads as a
+ *  same-scale aerial threat without dominating the screen. */
+export const PTERODACTYL_HEIGHT_SCALE = 1.05;
+/** Ground-clearance of the sprite bottom edge, in raptor heights.
+ *  1.10 lands the body at roughly the same height as the coins that
+ *  hover above large cacti (COIN_BASE_Y_ABOVE_GROUND_RATIO plus the
+ *  isLarge 1.4× gap multiplier in spawnCoinAboveCactus). Keeps the
+ *  flyer in the same visual band players already associate with
+ *  "reward at the top of a tall jump". */
+export const PTERODACTYL_FLIGHT_HEIGHT_RATIO = 1.10;
+/** Animation cadence (ms per frame). ~90ms = ~11 fps, a readable
+ *  flap that doesn't blur into a buzz. */
+export const PTERODACTYL_FRAME_DELAY_MS = 90;
+/** Probability that a cactus spawn is replaced by a pterodactyl
+ *  instead. ~12% → roughly 1 in 8 obstacles is a flyer. */
+export const PTERODACTYL_SPAWN_CHANCE = 0.12;
+
 // Per-frame head reference points, extracted by scanning each frame
 // of assets/raptor-sheet.png for the topmost opaque pixel (crown)
 // and the rightmost opaque pixel on the upper head band (snout tip).
