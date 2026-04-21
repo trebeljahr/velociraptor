@@ -30,7 +30,7 @@ import {
 import { state } from "../state";
 import { IMAGES } from "../images";
 import { CACTUS_VARIANTS, CactusVariant } from "../cactusVariants";
-import { Polygon } from "../helpers";
+import { Polygon, compactInPlace } from "../helpers";
 import { makeFlowerPatch } from "./flowers";
 import { spawnCoinsInRange, spawnCoinAboveCactus } from "./coins";
 import { Raptor } from "./raptor";
@@ -44,6 +44,11 @@ export class Cactus {
   img: HTMLImageElement | undefined;
   aspectRatio: number;
   private _polyCache: Polygon | null = null;
+  /** Pre-allocated polygon buffer — same length as variant.collision,
+   *  reused on every collisionPolygon() call so we never allocate N
+   *  {x,y} objects per frame. The sprite-traced polygons go up to
+   *  284 points, so this matters. */
+  private _polyBuffer: Polygon;
 
   constructor(
     public variant: CactusVariant,
@@ -55,6 +60,7 @@ export class Cactus {
     this.w = this.h * this.aspectRatio;
     this.x = state.width;
     this.y = state.ground - this.h;
+    this._polyBuffer = variant.collision.map(() => ({ x: 0, y: 0 }));
   }
 
   /** Rebind h/w and the bottom edge to the new state.ground after a
@@ -79,12 +85,14 @@ export class Cactus {
     const y = this.y;
     const w = this.w;
     const h = this.h;
-    const poly: Polygon = new Array(norm.length);
+    const buf = this._polyBuffer;
     for (let i = 0; i < norm.length; i++) {
-      poly[i] = { x: x + norm[i][0] * w, y: y + norm[i][1] * h };
+      const p = buf[i];
+      p.x = x + norm[i][0] * w;
+      p.y = y + norm[i][1] * h;
     }
-    this._polyCache = poly;
-    return poly;
+    this._polyCache = buf;
+    return buf;
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
@@ -297,7 +305,7 @@ export class Cactuses {
     // or triggers achievement/cosmetic thresholds. The reward is
     // the coin floating above the cactus (spawned in spawn()); the
     // pickup path in main.ts handles score progression + unlocks.
-    this.cacti = this.cacti.filter((c) => c.x >= -c.w);
+    compactInPlace(this.cacti, (c) => c.x >= -c.w);
   }
 
   draw(ctx: CanvasRenderingContext2D): void {

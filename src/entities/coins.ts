@@ -10,7 +10,7 @@ import { state } from "../state";
 import { IMAGES } from "../images";
 import { audio } from "../audio";
 import { saveCoinsBalance } from "../persistence";
-import { pointInPolygon, Polygon } from "../helpers";
+import { pointInPolygon, Polygon, compactInPlace } from "../helpers";
 import {
   VELOCITY_SCALE_DIVISOR,
   COIN_SCORE_VALUE,
@@ -165,7 +165,7 @@ export function updateCoins(frameScale: number): void {
   const dx =
     state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * frameScale;
   for (const c of state.coins) c.x -= dx;
-  state.coins = state.coins.filter((c) => {
+  compactInPlace(state.coins, (c) => {
     if (c.x + c.w < -20) return false;
     if (
       c.collected &&

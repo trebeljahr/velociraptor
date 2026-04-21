@@ -34,7 +34,7 @@ import {
 } from "../constants";
 import { state } from "../state";
 import { IMAGES } from "../images";
-import { Polygon } from "../helpers";
+import { Polygon, compactInPlace } from "../helpers";
 import { Raptor } from "./raptor";
 import type { NormalizedPoint } from "../cactusVariants";
 
@@ -82,6 +82,17 @@ export class Pterodactyl {
   private _lastAdvance: number = 0;
   img: HTMLImageElement | undefined;
   private _polyCache: Polygon | null = null;
+  /** Buffer sized to the longest per-frame polygon so flap-cycle
+   *  frame switches don't reallocate. length is re-set per call to
+   *  match the active frame's vertex count. */
+  private _polyBuffer: Polygon = Array.from(
+    {
+      length: Math.max(
+        ...PTERODACTYL_COLLISION.map((f) => f.length),
+      ),
+    },
+    () => ({ x: 0, y: 0 }),
+  );
 
   constructor(private raptor: Raptor) {
     this.img = IMAGES.pterodactylSprite;
@@ -116,16 +127,20 @@ export class Pterodactyl {
   collisionPolygon(): Polygon {
     if (this._polyCache) return this._polyCache;
     const norm = PTERODACTYL_COLLISION[this.frame] ?? PTERODACTYL_COLLISION[0];
+    const n = norm.length;
     const x = this.x;
     const y = this.y;
     const w = this.w;
     const h = this.h;
-    const poly: Polygon = new Array(norm.length);
-    for (let i = 0; i < norm.length; i++) {
-      poly[i] = { x: x + norm[i][0] * w, y: y + norm[i][1] * h };
+    const buf = this._polyBuffer;
+    buf.length = n;
+    for (let i = 0; i < n; i++) {
+      const p = buf[i];
+      p.x = x + norm[i][0] * w;
+      p.y = y + norm[i][1] * h;
     }
-    this._polyCache = poly;
-    return poly;
+    this._polyCache = buf;
+    return buf;
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
@@ -168,7 +183,7 @@ export class Pterodactyls {
 
   update(now: number, frameScale = 1): void {
     for (const p of this.pteros) p.update(now, frameScale);
-    this.pteros = this.pteros.filter((p) => p.x >= -p.w);
+    compactInPlace(this.pteros, (p) => p.x >= -p.w);
   }
 
   draw(ctx: CanvasRenderingContext2D): void {

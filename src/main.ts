@@ -810,7 +810,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
           g.startX -= dx;
           g.endX -= dx;
         }
-        state.grassFields = state.grassFields.filter((g) => g.endX > 0);
+        compactInPlace(state.grassFields, (g) => g.endX > 0);
       }
       // First-patch achievement. Scan once per frame; short-
       // circuits as soon as a hit is found, and crossed flags make
@@ -831,67 +831,91 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // window is active so the player can phase past the obstacle
       // they just died to.
       if (!state.noCollisions && state.frame >= state.invulnerableUntilFrame) {
-        const raptorPoly = raptor.collisionPolygon();
-        const obstacles: Array<{ collisionPolygon(): Polygon }> = [
-          ...cactuses.pterodactyls.pteros,
-          ...cactuses.cacti,
-        ];
-        for (const c of obstacles) {
-          if (polygonsOverlap(raptorPoly, c.collisionPolygon())) {
-            state.gameOver = true;
-            state.gameOverFrame = state.frame;
-            audio.playHit();
-            audio.pauseMusicForGameOver();
-            // Kill any rare-event looping audio (UFO hover, Santa,
-            // comet whoosh). updateRareEvent stops being called the
-            // instant state.gameOver flips, so the sample would
-            // otherwise loop forever into the next run — see
-            // stopActiveRareEventAudio for the full rationale.
-            stopActiveRareEventAudio();
-            if (!audio.muted) hapticDeath();
-            // Gamepad rumble — heavy jolt on death. Deferred via
-            // setTimeout(0) so the blocking playEffect IPC doesn't
-            // steal frame time from the death animation.
-            setTimeout(() => {
-              try {
-                const gp = navigator.getGamepads?.()[0];
-                gp?.vibrationActuator?.playEffect("dual-rumble", {
-                  duration: 150,
-                  weakMagnitude: 0.8,
-                  strongMagnitude: 1.0,
-                });
-              } catch (_) {}
-            }, 0);
-            commitRunScore();
-            // Bump the career run counter and unlock the
-            // "first-run" / "century-runner" milestones. Only count
-            // once per actual run — further deaths after a revive
-            // are part of the same run, not new career starts.
-            if (state.revivesUsedThisRun === 0) {
-              state.careerRuns += 1;
-              saveCareerRuns(state.careerRuns);
-              if (state.careerRuns >= 1) unlockAchievement("first-run");
-              if (state.careerRuns >= 100)
-                unlockAchievement("century-runner");
+        // Broad phase: raptor AABB vs obstacle AABB. Most obstacles
+        // on screen aren't near the raptor — skipping their (up to
+        // 284-vertex) polygon rebuild + segment-test is the whole
+        // reason we split the check. raptorPoly is built lazily so
+        // frames with no close obstacle pay nothing for the shrink.
+        const rx = raptor.x;
+        const rRight = rx + raptor.w;
+        const ry = raptor.y;
+        const rBottom = ry + raptor.h;
+        let raptorPoly: Polygon | null = null;
+        const flyers = cactuses.pterodactyls.pteros;
+        const cacti = cactuses.cacti;
+        let hitObstacle: { collisionPolygon(): Polygon } | null = null;
+        for (let pass = 0; pass < 2 && !hitObstacle; pass++) {
+          const arr = pass === 0 ? flyers : cacti;
+          for (let i = 0; i < arr.length; i++) {
+            const c = arr[i];
+            if (
+              c.x + c.w < rx ||
+              c.x > rRight ||
+              c.y + c.h < ry ||
+              c.y > rBottom
+            ) {
+              continue; // AABBs disjoint — narrow phase would be wasted.
             }
-            // Sound-of-silence is awarded for surviving a full
-            // run (any length) with audio muted the whole time.
-            // We ignore trivial zero-jump runs so the player
-            // can't game it by instantly dying.
-            if (state._runMutedThroughout && state.runJumps >= 5) {
-              unlockAchievement("sound-of-silence");
+            if (raptorPoly === null) raptorPoly = raptor.collisionPolygon();
+            if (polygonsOverlap(raptorPoly, c.collisionPolygon())) {
+              hitObstacle = c;
+              break;
             }
-            // Notify any listeners (e.g. the shell's share button)
-            // that a game-over just happened. Fired exactly once per
-            // run, directly from the transition instead of via a poll.
-            for (const cb of GameAPI._gameOverCbs) {
-              try {
-                cb();
-              } catch (e) {
-                /* ignore listener errors */
-              }
+          }
+        }
+        if (hitObstacle) {
+          state.gameOver = true;
+          state.gameOverFrame = state.frame;
+          audio.playHit();
+          audio.pauseMusicForGameOver();
+          // Kill any rare-event looping audio (UFO hover, Santa,
+          // comet whoosh). updateRareEvent stops being called the
+          // instant state.gameOver flips, so the sample would
+          // otherwise loop forever into the next run — see
+          // stopActiveRareEventAudio for the full rationale.
+          stopActiveRareEventAudio();
+          if (!audio.muted) hapticDeath();
+          // Gamepad rumble — heavy jolt on death. Deferred via
+          // setTimeout(0) so the blocking playEffect IPC doesn't
+          // steal frame time from the death animation.
+          setTimeout(() => {
+            try {
+              const gp = navigator.getGamepads?.()[0];
+              gp?.vibrationActuator?.playEffect("dual-rumble", {
+                duration: 150,
+                weakMagnitude: 0.8,
+                strongMagnitude: 1.0,
+              });
+            } catch (_) {}
+          }, 0);
+          commitRunScore();
+          // Bump the career run counter and unlock the
+          // "first-run" / "century-runner" milestones. Only count
+          // once per actual run — further deaths after a revive
+          // are part of the same run, not new career starts.
+          if (state.revivesUsedThisRun === 0) {
+            state.careerRuns += 1;
+            saveCareerRuns(state.careerRuns);
+            if (state.careerRuns >= 1) unlockAchievement("first-run");
+            if (state.careerRuns >= 100)
+              unlockAchievement("century-runner");
+          }
+          // Sound-of-silence is awarded for surviving a full
+          // run (any length) with audio muted the whole time.
+          // We ignore trivial zero-jump runs so the player
+          // can't game it by instantly dying.
+          if (state._runMutedThroughout && state.runJumps >= 5) {
+            unlockAchievement("sound-of-silence");
+          }
+          // Notify any listeners (e.g. the shell's share button)
+          // that a game-over just happened. Fired exactly once per
+          // run, directly from the transition instead of via a poll.
+          for (const cb of GameAPI._gameOverCbs) {
+            try {
+              cb();
+            } catch (e) {
+              /* ignore listener errors */
             }
-            break;
           }
         }
       } // end noCollisions guard
