@@ -1194,14 +1194,17 @@ html,
       }
 
       /* ───────── Menu overlay ───────── */
+      /* ───────── Phase 2.2 redesign — pause menu shell ─────────
+       * Flat opaque panel with a thick dune border instead of a
+       * web-app floating card. The backdrop dims less aggressively
+       * (rgba 0.35 vs 0.55) so the game canvas is visible behind
+       * the menu, reinforcing "this is a pause, not a modal".
+       */
       .menu-overlay {
         position: fixed;
         inset: 0;
-        /* Above everything except toasts (2800) and the rotate
-           prompt (3000). Same tier as the imprint/about/achievements
-           overlays so they all layer predictably. */
         z-index: 2700;
-        background: rgba(0, 0, 0, 0.55);
+        background: rgba(42, 29, 19, 0.35);
         display: none;
         align-items: center;
         justify-content: center;
@@ -1219,22 +1222,17 @@ html,
         }
       }
       .menu-panel {
-        background: #ffffff;
-        color: #222;
-        border-radius: 12px;
-        padding: 1.75rem 1.75rem 1.5rem;
-        /* Scales across mobile to desktop: at least 320px, prefers
-           420px, never more than 92% of the viewport width. The 420px
-           target sits comfortably inside every phone-in-landscape
-           width (smallest common: iPhone SE at 667×375 = 667px wide
-           in landscape, leaving ~250px of margin around a 420px
-           panel). */
+        background: var(--color-sand);
+        color: var(--color-dune);
+        border: 4px solid var(--color-dune);
+        border-radius: 8px;
+        padding: 1.5rem 1.5rem 1.25rem;
         width: clamp(320px, 420px, 92vw);
         max-height: 80vh;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
         text-align: center;
+        font-family: var(--font-display);
       }
       /* Short mobile screens: tighter menu so it doesn't press
          against the top/bottom edges. */
@@ -1271,6 +1269,8 @@ html,
       .menu-panel h2 {
         margin: 0 0 1rem;
         font-size: 1.4rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
       }
       .menu-panel ul {
         list-style: none;
@@ -1286,39 +1286,49 @@ html,
       /* Buttons fill the panel's content width so every item is the
          same size, with the icon + text left-aligned inside. Wraps
          are disabled so labels like "Back to home screen" and
-         "Thug glasses: off" always sit on a single line. */
+         "Thug glasses: off" always sit on a single line.
+         Phase 2.2: sand-contrast fill + thick dune border so each
+         row reads as a physical key. Hover colour-swaps to sky-teal
+         and active nudges down 2px — same language as the start
+         button and HUD icons. */
       .menu-panel .menu-item {
         display: flex;
         width: 100%;
         box-sizing: border-box;
         align-items: center;
-        padding: 0.7rem 1rem;
-        background: #f4f6f8;
-        border: none;
-        border-radius: 8px;
-        color: #222;
+        padding: 0.65rem 0.9rem;
+        background: var(--color-sand-contrast);
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        color: var(--color-dune);
         text-decoration: none;
         font: inherit;
-        font-size: 0.95rem;
+        font-family: var(--font-display);
+        font-size: 0.9rem;
+        font-weight: 600;
         cursor: pointer;
         white-space: nowrap;
         transition:
-          background 0.1s,
-          color 0.1s;
+          background-color 0.12s ease,
+          color 0.12s ease,
+          transform 0.06s ease;
       }
       .menu-panel .menu-item:hover {
-        background: #e8ecf0;
+        background: var(--color-sky);
+      }
+      .menu-panel .menu-item:active {
+        transform: translateY(2px);
       }
       /* Keyboard + gamepad focus ring. :focus-visible fires on
          tab-navigation and programmatic focus (which is what
          window.__rrMenuFocusNext/Prev use), but NOT on plain mouse
          clicks, so mouse users don't get a stuck outline after every
-         tap. 3px solid is emphatic enough to read from 10ft away
-         when the player is holding a controller in their lap. */
+         tap. Same dune-dark colour as the border, just thicker, so
+         the focus ring reads as "this is the same button, louder". */
       .menu-panel .menu-item:focus-visible {
-        outline: 3px solid #50b4cd;
+        outline: 3px solid var(--color-sky-dim);
         outline-offset: 2px;
-        background: #e8ecf0;
+        background: var(--color-sky);
       }
       .menu-panel .menu-item .inner {
         display: inline-flex;
@@ -1378,8 +1388,9 @@ html,
         display: revert;
       }
       .menu-panel .menu-hint {
-        color: #888;
-        font-size: 0.8rem;
+        color: var(--color-dune-dim);
+        font-size: 0.75rem;
+        font-weight: 500;
         margin-top: 0.5rem;
       }
       /* Gamepad attached: the dedicated .menu-gamepad-hint row takes
@@ -1457,19 +1468,28 @@ html,
       .menu-panel .close-hint {
         margin-top: 1rem;
       }
+      /* Resume-game button: same sand panel + dune border as the
+       * other menu items, slightly more compact so it reads as a
+       * secondary / utility action rather than another row. */
       .menu-panel .close-hint button {
-        background: none;
-        border: 1px solid #ccc;
-        color: #666;
-        padding: 0.4rem 1.1rem;
+        background: var(--color-sand-contrast);
+        border: 3px solid var(--color-dune);
+        color: var(--color-dune);
+        padding: 0.35rem 1.1rem;
         border-radius: 6px;
         cursor: pointer;
-        font: inherit;
+        font-family: var(--font-display);
         font-size: 0.85rem;
+        font-weight: 600;
+        transition:
+          background-color 0.12s ease,
+          transform 0.06s ease;
       }
       .menu-panel .close-hint button:hover {
-        background: #f4f6f8;
-        color: #222;
+        background: var(--color-sky);
+      }
+      .menu-panel .close-hint button:active {
+        transform: translateY(2px);
       }
       /* Hide "Back to home" + "Resume game" when the menu is opened
          from the start screen — those actions only make sense once
@@ -1532,13 +1552,13 @@ html,
         display: block;
         width: fit-content;
         margin: -0.25rem auto 1rem;
-        padding: 0.45rem 1rem;
-        border: 1px solid rgba(42, 29, 19, 0.18);
-        border-radius: 999px;
-        background: rgba(255, 236, 170, 0.45);
-        color: #2a1d13;
-        font-size: 0.9rem;
-        font-weight: 600;
+        padding: 0.35rem 0.9rem;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-coin);
+        color: var(--color-dune);
+        font-size: 0.85rem;
+        font-weight: 700;
         letter-spacing: 0.01em;
       }
       .menu-panel .menu-highscore[hidden] {
@@ -1570,14 +1590,18 @@ html,
         display: flex;
         align-items: center;
         gap: 0.7rem;
-        padding: 0.7rem 1rem;
-        font-size: 0.95rem;
-        font-weight: 600;
+        padding: 0.6rem 0.9rem;
+        font-family: var(--font-display);
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--color-dune);
         cursor: pointer;
         list-style: none;
         user-select: none;
-        border-radius: 8px;
-        transition: background 0.1s;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
+        transition: background-color 0.12s ease;
       }
       .sound-settings-summary::-webkit-details-marker {
         display: none;
@@ -1585,27 +1609,28 @@ html,
       .sound-settings-summary::after {
         content: "";
         margin-left: auto;
-        width: 6px;
-        height: 6px;
-        border-right: 2px solid #888;
-        border-bottom: 2px solid #888;
+        width: 8px;
+        height: 8px;
+        border-right: 3px solid var(--color-dune);
+        border-bottom: 3px solid var(--color-dune);
         transform: rotate(-45deg);
         transition: transform 0.15s;
         flex-shrink: 0;
+      }
+      .sound-settings[open] > .sound-settings-summary {
+        border-radius: 6px 6px 0 0;
+        border-bottom: none;
       }
       .sound-settings[open] > .sound-settings-summary::after {
         transform: rotate(45deg);
       }
       .sound-settings-summary:hover {
-        background: #e8ecf0;
+        background: var(--color-sky);
       }
-      /* Match the same 3px cyan focus ring .menu-item:focus-visible
-         uses so the summary doesn't paint a browser-default orange
-         ring that looks out of place against the cool blue accents. */
       .sound-settings-summary:focus-visible {
-        outline: 3px solid #50b4cd;
+        outline: 3px solid var(--color-sky-dim);
         outline-offset: 2px;
-        background: #e8ecf0;
+        background: var(--color-sky);
       }
       .sound-settings-summary svg {
         width: 18px;
@@ -1615,14 +1640,12 @@ html,
       .sound-settings-body {
         display: flex;
         flex-direction: column;
-        gap: 0.35rem;
-        padding: 0.45rem 0.5rem 0.6rem;
-      }
-      .sound-settings-body .menu-item {
-        background: #ebeef1;
-      }
-      .sound-settings-body .menu-item:hover {
-        background: #dde1e6;
+        gap: 0.3rem;
+        padding: 0.45rem;
+        border: 3px solid var(--color-dune);
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        background: var(--color-sand-dim);
       }
 
       /* ── Collapsible group blocks (cosmetics, debug) ──────
@@ -1636,26 +1659,27 @@ html,
        * groups. */
       .menu-panel .menu-group {
         margin: 0 0 0.75rem;
-        border-radius: 8px;
-        background: #f4f6f8;
       }
       .menu-panel .menu-group[open] > .menu-group-summary {
-        /* When open, square off the bottom so the summary butts
-           flush against the body below without a visible seam. */
-        border-radius: 8px 8px 0 0;
+        border-radius: 6px 6px 0 0;
+        border-bottom: none;
       }
       .menu-panel .menu-group-summary {
         display: flex;
         align-items: center;
         gap: 0.7rem;
-        padding: 0.7rem 1rem;
-        font-size: 0.95rem;
-        font-weight: 600;
+        padding: 0.6rem 0.9rem;
+        font-family: var(--font-display);
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--color-dune);
         cursor: pointer;
         list-style: none;
         user-select: none;
-        border-radius: 8px;
-        transition: background 0.1s;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
+        transition: background-color 0.12s ease;
       }
       .menu-panel .menu-group-summary::-webkit-details-marker {
         display: none;
@@ -1663,10 +1687,10 @@ html,
       .menu-panel .menu-group-summary::after {
         content: "";
         margin-left: auto;
-        width: 6px;
-        height: 6px;
-        border-right: 2px solid #888;
-        border-bottom: 2px solid #888;
+        width: 8px;
+        height: 8px;
+        border-right: 3px solid var(--color-dune);
+        border-bottom: 3px solid var(--color-dune);
         transform: rotate(-45deg);
         transition: transform 0.15s;
         flex-shrink: 0;
@@ -1675,12 +1699,12 @@ html,
         transform: rotate(45deg);
       }
       .menu-panel .menu-group-summary:hover {
-        background: #e8ecf0;
+        background: var(--color-sky);
       }
       .menu-panel .menu-group-summary:focus-visible {
-        outline: 3px solid #50b4cd;
+        outline: 3px solid var(--color-sky-dim);
         outline-offset: 2px;
-        background: #e8ecf0;
+        background: var(--color-sky);
       }
       .menu-panel .menu-group-summary svg {
         width: 18px;
@@ -1695,11 +1719,20 @@ html,
         list-style: none;
         margin: 0;
       }
-      .menu-panel .menu-group-body .menu-item {
-        background: #ebeef1;
+      .menu-panel .menu-group-body {
+        border: 3px solid var(--color-dune);
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        background: var(--color-sand-dim);
       }
-      .menu-panel .menu-group-body .menu-item:hover {
-        background: #dde1e6;
+      /* Inside an open disclosure, the rows live inside a sand-dim
+       * body. Shrink the rows a little and drop their outer border
+       * so they don't make a double-border sandwich with the body. */
+      .menu-panel .menu-group-body .menu-item,
+      .menu-panel .sound-settings-body .menu-item {
+        border-width: 2px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
       }
 
       /* ── Shop button in the menu ──────────────────────────
@@ -1723,8 +1756,13 @@ html,
         display: inline-flex;
         align-items: center;
         gap: 0.3rem;
-        font-weight: 600;
-        color: #b45309; /* amber-700 — matches coin tone */
+        padding: 0.15rem 0.5rem;
+        border: 2px solid var(--color-dune);
+        border-radius: 4px;
+        background: var(--color-coin);
+        font-weight: 700;
+        font-size: 0.8rem;
+        color: var(--color-dune);
       }
       .menu-panel .menu-shop .menu-shop-coin {
         font-size: 1.05rem;
@@ -1744,32 +1782,33 @@ html,
        * per-slot groupings read as distinct blocks instead of
        * one long merged list of options. */
       .menu-panel .cosmetic-slot {
-        border-left: 3px solid transparent;
-        border-radius: 6px;
-        padding-left: 0.1rem;
-        background: #fafafa;
+        border-left: 4px solid transparent;
+        border-radius: 0;
+        padding-left: 0.4rem;
+        background: transparent;
       }
       .menu-panel .cosmetic-slot[data-slot="head"] {
-        border-left-color: #d97706;
+        border-left-color: var(--color-coin);
       }
       .menu-panel .cosmetic-slot[data-slot="eyes"] {
-        border-left-color: #1f2937;
+        border-left-color: var(--color-dune);
       }
       .menu-panel .cosmetic-slot[data-slot="neck"] {
-        border-left-color: #b91c1c;
+        border-left-color: var(--color-cactus);
       }
       .menu-panel .cosmetic-slot-label {
-        /* Tiny, uppercase-y slot heading. Non-interactive — it's
-         * just a label so the per-slot groupings are named. The
-         * tinted left border on the parent already carries the
+        /* Tiny, uppercase slot heading in the display face — the
+         * coloured left border on the parent already carries the
          * slot colour cue. */
         margin: 0;
-        padding: 0.35rem 0.6rem 0.1rem;
-        font-size: 0.72rem;
-        letter-spacing: 0.04em;
+        padding: 0.2rem 0 0.3rem;
+        font-family: var(--font-display);
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #6b7280;
-        font-weight: 600;
+        color: var(--color-dune-dim);
+        font-weight: 700;
+        text-align: left;
       }
       /* Option rows inside a slot's body. Each row has a small
          thumbnail + item name; currently-equipped row gets the
@@ -1799,17 +1838,17 @@ html,
         object-fit: contain;
       }
       .cosmetic-option-thumb.cosmetic-slot-thumb-sprite {
-        background: #ffffff;
-        box-shadow: inset 0 0 0 1px #d1d5db;
+        background: var(--color-sand);
+        box-shadow: inset 0 0 0 2px var(--color-dune);
       }
-      /* "None" option: crossed-out circle in neutral grey, so
-       * the empty-slot choice doesn't look like a slot-coloured
+      /* "None" option: crossed-out circle, neutral colour so the
+       * empty-slot choice doesn't look like a slot-coloured
        * cosmetic of its own. */
       .cosmetic-option-thumb.cosmetic-slot-thumb-none,
       .cosmetic-slot-thumb.cosmetic-slot-thumb-none {
-        background: #f3f4f6;
-        box-shadow: inset 0 0 0 1px #d1d5db;
-        color: #6b7280;
+        background: var(--color-sand);
+        box-shadow: inset 0 0 0 2px var(--color-dune);
+        color: var(--color-dune);
       }
       .cosmetic-none-icon {
         width: 70%;
@@ -1818,21 +1857,34 @@ html,
       .cosmetic-option-name {
         flex: 1 1 auto;
       }
+      /* Currently-equipped row: cactus-green fill so "this is on"
+       * reads louder than the default sand, without abandoning the
+       * flat-border aesthetic. Same 3px border so the row doesn't
+       * resize between pressed and not. */
       .menu-panel .cosmetic-equip-btn[aria-pressed="true"] {
-        background: #d1e7dd;
-        box-shadow: inset 0 0 0 1px #34d399;
+        background: var(--color-cactus);
+        color: var(--color-sand-contrast);
       }
       .menu-panel .cosmetic-equip-btn[aria-pressed="true"]:hover {
-        background: #bfe0cc;
+        background: var(--color-cactus);
+      }
+      .menu-panel .cosmetic-equip-btn[aria-pressed="true"] .cosmetic-option-thumb,
+      .menu-panel .cosmetic-equip-btn[aria-pressed="true"] .cosmetic-option-thumb.cosmetic-slot-thumb-none,
+      .menu-panel .cosmetic-equip-btn[aria-pressed="true"] .cosmetic-option-thumb.cosmetic-slot-thumb-sprite {
+        box-shadow: inset 0 0 0 2px var(--color-sand-contrast);
       }
       .cosmetic-equip-badge {
         margin-left: auto;
-        font-size: 0.72rem;
-        font-weight: 600;
+        font-family: var(--font-display);
+        font-size: 0.65rem;
+        font-weight: 700;
         padding: 0.1rem 0.5rem;
-        border-radius: 999px;
-        background: #10b981;
-        color: #fff;
+        border: 2px solid var(--color-sand-contrast);
+        border-radius: 3px;
+        background: var(--color-dune);
+        color: var(--color-sand-contrast);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
       }
 
       /* ── Shop overlay ─────────────────────────────────────
@@ -1994,20 +2046,22 @@ html,
         font-style: italic;
       }
       .menu-panel .made-by {
-        margin-top: 1.25rem;
-        padding-top: 1rem;
-        border-top: 1px solid #eee;
-        color: #888;
-        font-size: 0.78rem;
+        margin-top: 1rem;
+        padding-top: 0.75rem;
+        border-top: 2px solid var(--color-dune);
+        color: var(--color-dune-dim);
+        font-family: var(--font-display);
+        font-size: 0.68rem;
+        font-weight: 500;
       }
       .menu-panel .made-by a {
-        color: #555;
-        text-decoration: none;
-        border-bottom: 1px dotted #bbb;
+        color: var(--color-dune);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        text-decoration-thickness: 1.5px;
       }
       .menu-panel .made-by a:hover {
-        color: #222;
-        border-bottom-color: #555;
+        color: var(--color-sky-dim);
       }
       .menu-panel .made-by .heart {
         display: inline-block;
