@@ -33,6 +33,7 @@ import { refreshAchievements } from "./ui/react/mountAchievements";
 import { refreshScoreCardActions } from "./ui/react/mountScoreCardActions";
 import { refreshSoundSettings } from "./ui/react/mountSoundSettings";
 import { refreshCosmeticsMenu } from "./ui/react/mountCosmeticsMenu";
+import { refreshMenuList } from "./ui/react/mountMenuList";
 
 // Desktop "challenge a friend" store-link. Sourced from a Vite env
 // var; falls back to the web URL when not set. The env name is
@@ -47,122 +48,74 @@ const STEAM_STORE_URL: string =
 
 const cog = document.getElementById("settings-cog");
 const overlay = document.getElementById("menu-overlay");
-const closeBtn = document.getElementById("menu-close");
-// Desktop-only: open the Steam overlay directly to the Friends
-// panel. Note: on macOS the Steam overlay is flaky/unreliable
-// for Electron apps (Valve limitation), so this click may be
-// a no-op visually. Windows and Linux fully support it.
-const steamFriendsBtn = document.getElementById("menu-steam-friends");
-if (steamFriendsBtn) {
-  steamFriendsBtn.addEventListener("click", () => {
-    if (
-      window.electronAPI &&
-      typeof window.electronAPI.openSteamOverlay === "function"
-    ) {
-      window.electronAPI.openSteamOverlay("Friends");
-    }
-  });
-}
-// Desktop-only: open the Steam overlay to the store page for
-// this game. Uses the same STEAM_STORE_URL that the share/
-// challenge invite text uses (declared above) so there's one
-// knob to turn when the real AppID ships.
-const steamStoreBtn = document.getElementById("menu-steam-store");
-if (steamStoreBtn) {
-  steamStoreBtn.addEventListener("click", () => {
-    if (
-      window.electronAPI &&
-      typeof window.electronAPI.openSteamOverlayUrl === "function"
-    ) {
-      window.electronAPI.openSteamOverlayUrl(STEAM_STORE_URL);
-    }
-  });
-}
-// "View on Steam" button — its click handler moved into the React
-// <Achievements> component when the overlay was migrated; no
-// ui.ts-level listener required.
-const quitBtn = document.getElementById("menu-quit");
-// Wire Quit (desktop only). Safe no-op in browser since the
-// <li class="desktop-only"> is display:none and the element
-// is still in the DOM.
-//
-// stopPropagation so the click doesn't bubble to the overlay
-// backdrop handler (that one only fires on e.target === overlay,
-// but defensive anyway). Then fire the IPC, and if it rejects —
-// or if electronAPI is absent for some reason — fall through to
-// window.close() which the window-all-closed handler in
-// electron/main.ts catches on Linux/Windows (macOS quits via
-// app.quit() from the main-process side).
-if (quitBtn) {
-  quitBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.electronAPI && typeof window.electronAPI.quit === "function") {
-      window.electronAPI.quit().catch((err: unknown) => {
-        console.warn("Quit IPC failed:", err);
-        try {
-          window.close();
-        } catch {
-          /* noop */
-        }
-      });
-      return;
-    }
-    try {
-      window.close();
-    } catch {
-      /* noop */
-    }
-  });
-}
-// Desktop-only fullscreen toggle. The top-right fullscreen
-// button is hidden on desktop (it's redundant — the window
-// opens fullscreen by default), but players still want an
-// opt-out. The Electron main process owns the window state
-// and persists it across launches via prefs.json in
-// userData. We ask it for the current state each time the
-// menu opens so the label stays honest even if the player
-// toggled via ESC on macOS Spaces fullscreen.
-const fullscreenToggle = document.getElementById("menu-fullscreen-toggle");
-const fullscreenLabel = document.getElementById("menu-fullscreen-label");
-let fullscreenState = true; // mirror of win state
-function syncFullscreenLabel() {
-  if (!fullscreenLabel) return;
-  fullscreenLabel.textContent =
-    "Fullscreen: " + (fullscreenState ? "on" : "off");
-}
+
+// The top block of menu-item buttons — Steam Friends, Steam Store,
+// Quit, Fullscreen — all live inside the React <MenuList> component
+// now. Their click handlers are defined below in MENU_LIST_CALLBACKS
+// and routed through the callback props. The fullscreen label state
+// lives in this module so the Electron main-process IPC round-trip
+// stays synchronous from the React component's POV: the label reads
+// a local cache that refreshFullscreenState() updates on menu-open.
+
+let fullscreenState = true; // mirror of Electron window state
 async function refreshFullscreenState() {
-  if (!window.electronAPI || typeof window.electronAPI.isFullscreen !== "function") {
+  if (
+    !window.electronAPI ||
+    typeof window.electronAPI.isFullscreen !== "function"
+  ) {
     return;
   }
   try {
     fullscreenState = !!(await window.electronAPI.isFullscreen());
-    syncFullscreenLabel();
+    syncMenuList();
   } catch (_) {}
 }
-if (fullscreenToggle && window.electronAPI) {
-  fullscreenToggle.addEventListener("click", async () => {
-    if (typeof window.electronAPI.setFullscreen !== "function") return;
-    try {
-      fullscreenState = !!(await window.electronAPI.setFullscreen(
-        !fullscreenState,
-      ));
-      syncFullscreenLabel();
-      // The fullscreen transition churns the window and on
-      // some Electron versions silently drops focus to
-      // <body>. That stranded the gamepad / keyboard user
-      // outside the menu until they clicked back in.
-      // Explicitly refocus the button after the awaited
-      // IPC round-trip settles. requestAnimationFrame
-      // ensures the window-resize layout pass has finished
-      // so the button is visible + focusable.
-      requestAnimationFrame(() => {
-        if (document.activeElement !== fullscreenToggle) {
-          fullscreenToggle.focus();
-        }
-      });
-    } catch (_) {}
-  });
-  refreshFullscreenState();
+
+function handleQuitClick() {
+  if (window.electronAPI && typeof window.electronAPI.quit === "function") {
+    window.electronAPI.quit().catch((err: unknown) => {
+      console.warn("Quit IPC failed:", err);
+      try {
+        window.close();
+      } catch {
+        /* noop */
+      }
+    });
+    return;
+  }
+  try {
+    window.close();
+  } catch {
+    /* noop */
+  }
+}
+
+async function handleFullscreenClick() {
+  if (
+    !window.electronAPI ||
+    typeof window.electronAPI.setFullscreen !== "function"
+  ) {
+    return;
+  }
+  try {
+    fullscreenState = !!(await window.electronAPI.setFullscreen(
+      !fullscreenState,
+    ));
+    syncMenuList();
+    // The fullscreen transition churns the window and on some
+    // Electron versions silently drops focus to <body>. Restore
+    // focus to the rendered button so the gamepad / keyboard user
+    // keeps their menu position. Look the button up by label text
+    // because React may have remounted the element during the
+    // syncMenuList() above — caching a stale reference would leak
+    // into nothing.
+    requestAnimationFrame(() => {
+      const btn = Array.from(
+        document.querySelectorAll<HTMLElement>(".menu-panel .menu-item"),
+      ).find((el) => el.textContent?.includes("Fullscreen"));
+      btn?.focus();
+    });
+  } catch (_) {}
 }
 const topSoundBtn = document.getElementById("sound-toggle");
 const fullscreenBtn = document.getElementById("fullscreen-toggle");
@@ -453,7 +406,6 @@ if (aboutOverlay) {
 // files in the build root aren't bundled.
 const creditsOverlay = document.getElementById("credits-overlay");
 const creditsCloseBtn = document.getElementById("credits-close");
-const creditsBtn = document.getElementById("menu-credits");
 function openCredits() {
   if (!creditsOverlay) return;
   creditsOverlay.classList.add("open");
@@ -476,13 +428,6 @@ function closeCredits() {
   // the "back" affordance (× / Esc / gamepad B) lands the
   // player on the menu they came from, not the live game.
   openMenu();
-}
-if (creditsBtn) {
-  creditsBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeMenu();
-    openCredits();
-  });
 }
 if (creditsCloseBtn) {
   creditsCloseBtn.addEventListener("click", (e) => {
@@ -689,6 +634,9 @@ function openMenuBase() {
   refreshEasterEggUI();
   refreshScoreEditor();
   refreshMenuHighscore();
+  // Re-render the React menu list so it re-reads live state
+  // (install-availability, fullscreen label, etc.).
+  syncMenuList();
   // Refresh the fullscreen toggle label so it's honest if the
   // player hit ESC or Cmd-Ctrl-F outside the menu. No-op on web.
   refreshFullscreenState();
@@ -996,7 +944,6 @@ window.addEventListener("focus", () => {
   focusMenuIndex(currentMenuFocusIdx());
 });
 
-closeBtn.addEventListener("click", closeMenu);
 overlay.addEventListener("click", (e) => {
   // Click outside the panel closes the menu.
   if (e.target === overlay) closeMenu();
@@ -1004,79 +951,84 @@ overlay.addEventListener("click", (e) => {
 
 // "Back to home screen" — reset the game, close the menu, and
 // re-show the start screen with its current personal-best badge.
-const homeBtn = document.getElementById("menu-home");
-if (homeBtn) {
-  homeBtn.addEventListener("click", () => {
-    if (window.Game && window.Game.returnToHome) {
-      window.Game.returnToHome();
-    }
-    // Close menu without a Game.resume() side-effect, since we
-    // just moved the game back to its paused pre-start state.
-    overlay.classList.remove("open");
-    cog.setAttribute("aria-expanded", "false");
-    // Re-show the start screen. Refresh its high-score badge in
-    // case the player just set a new personal best this run.
-    startScreen.classList.remove("hidden");
-    onGameReady();
-    hideScoreDisplay();
-  });
-}
-
-// Intercept the menu's imprint link so it opens as an inline
-// overlay (music keeps playing) instead of navigating away.
-const menuImprintLink = overlay.querySelector('a[href="imprint.html"]');
-if (menuImprintLink) {
-  menuImprintLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    closeMenu();
-    openImprint();
-  });
-}
-// Same for the about link.
-const menuAboutLink = overlay.querySelector('a[href="about.html"]');
-if (menuAboutLink) {
-  menuAboutLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    closeMenu();
-    openAbout();
-  });
-}
-// Achievements button.
-const menuAchievementsBtn = document.getElementById("menu-achievements");
-if (menuAchievementsBtn) {
-  menuAchievementsBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeMenu();
-    openAchievements();
-  });
+function handleHomeClick() {
+  if (window.Game && window.Game.returnToHome) {
+    window.Game.returnToHome();
+  }
+  // Close menu without a Game.resume() side-effect, since we
+  // just moved the game back to its paused pre-start state.
+  overlay.classList.remove("open");
+  cog.setAttribute("aria-expanded", "false");
+  // Re-show the start screen. Refresh its high-score badge in
+  // case the player just set a new personal best this run.
+  startScreen.classList.remove("hidden");
+  onGameReady();
+  hideScoreDisplay();
 }
 
 // ───────── PWA Install button ─────────
-let deferredInstallPrompt = null;
-const installLi = document.getElementById("menu-install-li");
-const installBtn = document.getElementById("menu-install");
+let deferredInstallPrompt: any = null;
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredInstallPrompt = e;
-  if (installLi) installLi.style.display = "";
+  syncMenuList();
 });
-if (installBtn) {
-  installBtn.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    if (!deferredInstallPrompt) return;
-    deferredInstallPrompt.prompt();
-    const { outcome } = await deferredInstallPrompt.userChoice;
-    deferredInstallPrompt = null;
-    if (installLi) installLi.style.display = "none";
-    if (outcome === "accepted") closeMenu();
-  });
-}
 window.addEventListener("appinstalled", () => {
   deferredInstallPrompt = null;
-  if (installLi) installLi.style.display = "none";
+  syncMenuList();
 });
+async function handleInstallClick() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  syncMenuList();
+  if (outcome === "accepted") closeMenu();
+}
+
+// Steam overlay IPC helpers — desktop-only but the call is safe
+// no-op elsewhere (electronAPI is undefined on web and mobile).
+function handleSteamStoreClick() {
+  if (
+    window.electronAPI &&
+    typeof window.electronAPI.openSteamOverlayUrl === "function"
+  ) {
+    window.electronAPI.openSteamOverlayUrl(STEAM_STORE_URL);
+  }
+}
+function handleSteamFriendsClick() {
+  if (
+    window.electronAPI &&
+    typeof window.electronAPI.openSteamOverlay === "function"
+  ) {
+    window.electronAPI.openSteamOverlay("Friends");
+  }
+}
+
+// Callbacks table for the React <MenuList>. Each entry is either a
+// direct open-overlay / close-menu delegation or a thin wrapper
+// around a Game-API / electron IPC call.
+const MENU_LIST_CALLBACKS = {
+  onClose: () => closeMenu(),
+  onHome: handleHomeClick,
+  onAchievements: () => { closeMenu(); openAchievements(); },
+  onResetProgress: () => openResetConfirm(),
+  onInstall: handleInstallClick,
+  onAbout: () => { closeMenu(); openAbout(); },
+  onCredits: () => { closeMenu(); openCredits(); },
+  onImprint: () => { closeMenu(); openImprint(); },
+  onSteamStore: handleSteamStoreClick,
+  onSteamFriends: handleSteamFriendsClick,
+  onFullscreen: handleFullscreenClick,
+  onQuit: handleQuitClick,
+  getInstallAvailable: () => deferredInstallPrompt != null,
+  getFullscreenLabel: () =>
+    "Fullscreen: " + (fullscreenState ? "on" : "off"),
+};
+
+function syncMenuList() {
+  refreshMenuList(MENU_LIST_CALLBACKS);
+}
 
 cog.addEventListener("click", (e) => {
   e.stopPropagation();
@@ -1234,7 +1186,6 @@ const menuShopBalanceValue = document.getElementById(
   "menu-shop-balance-value",
 );
 const shopOverlay = document.getElementById("shop-overlay");
-const jumpsResetBtn = document.getElementById("menu-jumpsreset-toggle");
 
 // Start-screen raptor stage. Each <img class="start-raptor-cosmetic">
 // has a data-slot attribute; refreshStartRaptorCosmetics() reads
@@ -1515,12 +1466,6 @@ function doReset() {
   if (startHsEl) startHsEl.hidden = true;
   closeResetConfirm();
   closeMenu();
-}
-if (jumpsResetBtn) {
-  jumpsResetBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    openResetConfirm();
-  });
 }
 if (resetYes) resetYes.addEventListener("click", doReset);
 if (resetNo) resetNo.addEventListener("click", closeResetConfirm);
@@ -1932,7 +1877,10 @@ if (scoreCardOverlay) {
     }
   });
 }
-// Seed an initial render so the React tree exists before the
-// panel first opens. The hint renders immediately; revive stays
-// hidden until startReviveOffer flips reviveCost to a number.
+// Seed an initial render so the React trees exist before the
+// panels first open. The score-card hint renders immediately;
+// revive stays hidden until startReviveOffer flips reviveCost to
+// a number. The menu list seeds so the first openMenu() paints
+// instantly rather than waiting on the subsequent refresh.
 syncScoreCardActions();
+syncMenuList();
