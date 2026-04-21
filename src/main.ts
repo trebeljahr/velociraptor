@@ -117,6 +117,8 @@ import {
   RAINBOW_MAX_OPACITY,
   RAINBOW_SPAWN_CHANCE,
   GAME_OVER_FADE_RATE,
+  REVIVE_BASE_COST,
+  REVIVE_INVULN_FRAMES,
   DELTA_TIME_CLAMP,
   HIGH_SCORE_KEY,
   MUTED_KEY,
@@ -825,7 +827,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // force-spawn that overlaps existing cacti) attributes the
       // death to the flyer — matches the visual "the wing hit me"
       // reading.
-      if (!state.noCollisions) {
+      // Post-revive invulnerability: short-circuit while the grace
+      // window is active so the player can phase past the obstacle
+      // they just died to.
+      if (!state.noCollisions && state.frame >= state.invulnerableUntilFrame) {
         const raptorPoly = raptor.collisionPolygon();
         const obstacles: Array<{ collisionPolygon(): Polygon }> = [
           ...cactuses.pterodactyls.pteros,
@@ -859,11 +864,16 @@ import { generateScoreCardBlob } from "./render/scoreCard";
             }, 0);
             commitRunScore();
             // Bump the career run counter and unlock the
-            // "first-run" / "century-runner" milestones.
-            state.careerRuns += 1;
-            saveCareerRuns(state.careerRuns);
-            if (state.careerRuns >= 1) unlockAchievement("first-run");
-            if (state.careerRuns >= 100) unlockAchievement("century-runner");
+            // "first-run" / "century-runner" milestones. Only count
+            // once per actual run — further deaths after a revive
+            // are part of the same run, not new career starts.
+            if (state.revivesUsedThisRun === 0) {
+              state.careerRuns += 1;
+              saveCareerRuns(state.careerRuns);
+              if (state.careerRuns >= 1) unlockAchievement("first-run");
+              if (state.careerRuns >= 100)
+                unlockAchievement("century-runner");
+            }
             // Sound-of-silence is awarded for surviving a full
             // run (any length) with audio muted the whole time.
             // We ignore trivial zero-jump runs so the player
@@ -1174,8 +1184,16 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // Cacti.
     cactuses.draw(fgCtx);
 
-    // Raptor.
-    raptor.draw(fgCtx);
+    // Raptor — flashes at ~7.5Hz during post-revive invulnerability
+    // so the player can tell the grace window is active.
+    if (state.frame < state.invulnerableUntilFrame) {
+      fgCtx.save();
+      fgCtx.globalAlpha = Math.floor(state.frame / 4) % 2 === 0 ? 0.45 : 1;
+      raptor.draw(fgCtx);
+      fgCtx.restore();
+    } else {
+      raptor.draw(fgCtx);
+    }
     drawDust(fgCtx);
 
     // Sky-light tint applied ONLY where the foreground has drawn
@@ -1425,6 +1443,8 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     state._pendingNights = 0;
     state.runShootingStars = 0;
     state._wasInNight = false;
+    state.revivesUsedThisRun = 0;
+    state.invulnerableUntilFrame = 0;
     // Rainy Day achievement: gate on whether the player witnessed
     // the rain START during this run. A continuation run that begins
     // already-raining (because soft-reset preserves weather across
@@ -1965,6 +1985,61 @@ import { generateScoreCardBlob } from "./render/scoreCard";
      *  cooldown is still applied inside maybeResetAfterGameOver. */
     restartFromGameOver() {
       maybeResetAfterGameOver();
+    },
+
+    /** Current coin cost of a mid-run revive. Base price doubles
+     *  each time the player has already revived this run — cheap
+     *  first pull, punishing the eighth. */
+    getReviveCost(): number {
+      return REVIVE_BASE_COST * Math.pow(2, state.revivesUsedThisRun);
+    },
+
+    /** True iff the player is currently dead and can afford the
+     *  current revive cost. Drives the UI's Revive button state. */
+    canRevive(): boolean {
+      if (!state.gameOver) return false;
+      return state.coinsBalance >= GameAPI.getReviveCost();
+    },
+
+    /** Spend coins to un-die: deducts the current cost, clears
+     *  game-over, grants a ~1s invulnerability window so the
+     *  raptor can phase past the obstacle that killed it, and
+     *  increments the revive counter for the next cost tier.
+     *  Returns true on success, false if the player can't afford
+     *  it or isn't in a game-over state. */
+    revive(): boolean {
+      if (!GameAPI.canRevive()) return false;
+      const cost = GameAPI.getReviveCost();
+      state.coinsBalance -= cost;
+      saveCoinsBalance(state.coinsBalance);
+      state.gameOver = false;
+      state.gameOverFade = 0;
+      state.gameOverFrame = 0;
+      // Put the raptor back on solid ground with zero velocity —
+      // otherwise it'd still be tumbling mid-jump from the hit.
+      if (raptor) {
+        raptor.velocity = 0;
+        raptor.y = raptor.ground;
+        raptor.frame = 0;
+        raptor.lastFrameAdvanceAt = 0;
+      }
+      state.invulnerableUntilFrame =
+        state.frame + REVIVE_INVULN_FRAMES;
+      state.revivesUsedThisRun += 1;
+      // Belt-and-braces: the death handler paused music + killed
+      // rare-event loops. Reverse both so the revived run feels
+      // alive instead of entering a silent void.
+      audio.resumeMusicOnRunStart();
+      audio.ensureLiveSession();
+      stopActiveRareEventAudio();
+      state.activeRareEvent = null;
+      // Let the next death capture a fresh score-card snapshot
+      // instead of showing the now-obsolete one from this death.
+      deathSnapshotReady = false;
+      // Positive feedback cue (same chime as a shop purchase —
+      // coins-out → reward feels cohesive).
+      audio.playShopPurchase();
+      return true;
     },
 
     /** Manually drive one update+render tick. Used by cinematic mode

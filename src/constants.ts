@@ -264,6 +264,14 @@ export const RAINBOW_SPAWN_CHANCE = 0.5;
 export const GAME_OVER_FADE_RATE = 0.01;
 export const DELTA_TIME_CLAMP = 1 / 20;
 
+// ── Revive ─────────────────────────────────────────────────
+// First-revive price; doubles per subsequent revive within the
+// same run (250 → 500 → 1000 → 2000 …).
+export const REVIVE_BASE_COST = 250;
+// ~1 second at 60fps. Long enough to phase past the killing
+// obstacle without being long enough to cheese the next one.
+export const REVIVE_INVULN_FRAMES = 60;
+
 // ── localStorage keys (namespaced under `raptor-runner:*`) ─
 export const HIGH_SCORE_KEY = "raptor-runner:highScore";
 export const MUTED_KEY = "raptor-runner:muted";
