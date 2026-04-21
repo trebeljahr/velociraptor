@@ -200,6 +200,7 @@ import {
   shrinkPolygon,
   moonPhaseFromCycles,
   compactInPlace,
+  type Polygon,
 } from "./helpers";
 import { ACHIEVEMENTS, ACHIEVEMENTS_BY_ID } from "./achievements";
 import { CACTUS_VARIANTS } from "./cactusVariants";
@@ -716,7 +717,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
 
     if (!state.gameOver) {
       raptor.update(now, frameScale);
-      cactuses.update(frameScale);
+      cactuses.update(now, frameScale);
       // Flowers scroll at ground speed like cacti. Spawn happens
       // inside Cactuses' breather roll so empty stretches read as
       // a scenic break, not dead grass.
@@ -818,10 +819,19 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         unlockAchievement("stop-and-smell");
       }
 
-      // Collision: raptor concave polygon vs each cactus polygon.
+      // Collision: raptor concave polygon vs each obstacle polygon.
+      // Pterodactyls go first so a frame where the raptor clips both
+      // a flyer and a cactus (unlikely but possible during a debug
+      // force-spawn that overlaps existing cacti) attributes the
+      // death to the flyer — matches the visual "the wing hit me"
+      // reading.
       if (!state.noCollisions) {
         const raptorPoly = raptor.collisionPolygon();
-        for (const c of cactuses.cacti) {
+        const obstacles: Array<{ collisionPolygon(): Polygon }> = [
+          ...cactuses.pterodactyls.pteros,
+          ...cactuses.cacti,
+        ];
+        for (const c of obstacles) {
           if (polygonsOverlap(raptorPoly, c.collisionPolygon())) {
             state.gameOver = true;
             state.gameOverFrame = state.frame;
@@ -1231,6 +1241,12 @@ import { generateScoreCardBlob } from "./render/scoreCard";
           fill: "rgba(80, 200, 255, 0.18)",
         });
       }
+      for (const p of cactuses.pterodactyls.pteros) {
+        drawPolygon(ctx, p.collisionPolygon(), {
+          stroke: "rgba(180, 255, 120, 0.95)",
+          fill: "rgba(180, 255, 120, 0.18)",
+        });
+      }
     }
 
     // Capture a pristine snapshot of the canvas the first frame
@@ -1578,11 +1594,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     }
 
     if (raptor) raptor.resize();
-    // Re-anchor every currently-alive cactus to the new
-    // state.ground so they don't visibly jump when the viewport
-    // dimensions change (most obvious when toggling fullscreen).
+    // Re-anchor every currently-alive obstacle (cacti + pterodactyls)
+    // to the new state.ground so they don't visibly jump when the
+    // viewport dimensions change (most obvious when toggling fullscreen).
     if (cactuses && raptor) {
-      for (const c of cactuses.cacti) c.resize();
+      cactuses.resize();
     }
     if (stars) stars = new Stars();
     state.clouds = [];
@@ -1986,6 +2002,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
      *  without running through ~40 cacti first. */
     _forceBreather() {
       if (cactuses) cactuses.forceBreather();
+    },
+
+    /** Debug helper: arm the next spawn to be a pterodactyl (and
+     *  fire it this frame). Lets testers eyeball the flyer's
+     *  height, per-frame hitbox, and animation cadence without
+     *  hoping the 12% roll hits. */
+    _spawnPterodactyl() {
+      if (cactuses) cactuses.forcePterodactyl();
     },
 
     /** Debug helper: force a game-over immediately without needing

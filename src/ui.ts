@@ -1338,6 +1338,19 @@ if (flowerFieldBtn) {
   });
 }
 
+// Debug: spawn a pterodactyl as the next obstacle — replaces the
+// natural 12% roll so flyers can be tested without waiting.
+const pterodactylBtn = document.getElementById("menu-spawn-pterodactyl");
+if (pterodactylBtn) {
+  pterodactylBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (window.Game && window.Game._spawnPterodactyl) {
+      window.Game._spawnPterodactyl();
+      closeMenu();
+    }
+  });
+}
+
 // ───────── Accessory toggles (party hat / thug glasses) ─────────
 // Both entries are hidden in the markup by default and only
 // shown once the player actually unlocks them — or always in
