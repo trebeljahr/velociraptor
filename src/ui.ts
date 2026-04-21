@@ -32,6 +32,7 @@ import { refreshShop } from "./ui/react/mountShop";
 import { refreshAchievements } from "./ui/react/mountAchievements";
 import { refreshScoreCardActions } from "./ui/react/mountScoreCardActions";
 import { refreshSoundSettings } from "./ui/react/mountSoundSettings";
+import { refreshCosmeticsMenu } from "./ui/react/mountCosmeticsMenu";
 
 // Desktop "challenge a friend" store-link. Sourced from a Vite env
 // var; falls back to the web URL when not set. The env name is
@@ -1379,17 +1380,6 @@ function _spriteUrlForId(id: string): string | null {
   return map[def.spriteKey] ?? null;
 }
 
-// Slot data used to render the per-slot sections in the cosmetics
-// menu. Order here is the order the sections stack top-to-bottom.
-const COSMETIC_SLOT_UI: Array<{
-  slot: "head" | "eyes" | "neck";
-  label: string;
-}> = [
-  { slot: "head", label: "Head" },
-  { slot: "eyes", label: "Eyes" },
-  { slot: "neck", label: "Neck" },
-];
-
 function refreshEasterEggUI() {
   if (!window.Game) return;
   renderCosmeticsMenu();
@@ -1397,194 +1387,41 @@ function refreshEasterEggUI() {
   refreshStartRaptorCosmetics();
 }
 
+/** Callbacks passed to <CosmeticsMenu>. Equip / unequip fire the
+ *  Game API mutation then trigger renderCosmeticsMenu() to repaint
+ *  the React tree and refreshStartRaptorCosmetics() to update the
+ *  (non-React) start-screen raptor preview. */
+const COSMETICS_MENU_CALLBACKS = {
+  onEquipCosmetic: (id: string) => {
+    window.Game?.equipCosmetic?.(id);
+    renderCosmeticsMenu();
+    refreshStartRaptorCosmetics();
+  },
+  onUnequipSlot: (slot: "head" | "eyes" | "neck") => {
+    window.Game?.unequipSlot?.(slot);
+    renderCosmeticsMenu();
+    refreshStartRaptorCosmetics();
+  },
+};
+
 /**
- * Rebuild the cosmetics section of the menu from scratch. Called
- * on every menu-open and after any equip change so the dropdowns
- * stay in sync with the latest state.
+ * Rebuild the cosmetics section of the menu. Called on every
+ * menu-open and after any equip change so the React tree stays in
+ * sync with the latest state.
  *
- * Layout: one row per slot the player owns at least one item in.
- * Each row is a "[Slot label] [Select]" pair — the select lists
- * "None" plus every owned cosmetic in that slot, and changing it
- * equips/unequips immediately. A slot with nothing owned in it
- * is hidden entirely so the menu doesn't fill up with empty
- * Back/Eyes/Neck rows before the player has any options.
- *
- * The outer <details class="cosmetics"> stays hidden until at
- * least one cosmetic is owned — no empty header at the start of
- * a fresh save.
+ * The outer <details id="cosmetics"> stays hidden until at least
+ * one cosmetic is owned — no empty header at the start of a fresh
+ * save. Per-slot sections, option buttons, thumbnails, and the
+ * "None" row are all rendered by <CosmeticsMenu> in React.
  */
 function renderCosmeticsMenu() {
-  if (!cosmeticsList || !cosmeticsGroup || !window.Game) return;
+  if (!cosmeticsGroup || !window.Game) return;
   const all = window.Game.getAllCosmetics?.() ?? [];
   const owned = all.filter((c: { id: string }) =>
     window.Game.ownsCosmetic?.(c.id),
   );
-  if (owned.length === 0) {
-    cosmeticsGroup.hidden = true;
-    cosmeticsList.innerHTML = "";
-    return;
-  }
-  cosmeticsGroup.hidden = false;
-  // Before we blow the list away and rebuild, remember which
-  // per-slot <details> elements were open so we can reopen them
-  // afterward. Otherwise clicking an option inside an open slot
-  // re-renders and snaps the slot closed — which reads as "the
-  // equip didn't take" when actually the state just got hidden.
-  const previouslyOpen = new Set<string>();
-  cosmeticsList
-    .querySelectorAll<HTMLDetailsElement>("details.cosmetic-slot[open]")
-    .forEach((el) => {
-      if (el.dataset.slot) previouslyOpen.add(el.dataset.slot);
-    });
-  const frag = document.createDocumentFragment();
-  for (const { slot, label } of COSMETIC_SLOT_UI) {
-    const ownedInSlot = owned.filter(
-      (c: { slot: string }) => c.slot === slot,
-    );
-    if (ownedInSlot.length === 0) continue;
-    const equippedId = window.Game.getEquippedCosmetic?.(slot) ?? null;
-    const row = _buildCosmeticSlotRow({
-      slot,
-      label,
-      equippedId,
-      options: ownedInSlot,
-    });
-    if (previouslyOpen.has(slot)) row.setAttribute("open", "");
-    frag.appendChild(row);
-  }
-  cosmeticsList.innerHTML = "";
-  cosmeticsList.appendChild(frag);
-}
-
-function _buildCosmeticSlotRow(opts: {
-  slot: "head" | "eyes" | "neck";
-  label: string;
-  equippedId: string | null;
-  options: Array<{ id: string; name: string; spriteKey?: string }>;
-}): HTMLElement {
-  // Flat per-slot section — no <details>, no collapse. Every
-  // option is always visible so the player can scan+pick in one
-  // motion instead of fold→expand→click. The slot-tinted left
-  // border (CSS [data-slot]) keeps Head/Eyes/Neck visually
-  // distinct without needing a clickable header to separate them.
-  const section = document.createElement("div");
-  section.className = "cosmetic-slot";
-  section.dataset.slot = opts.slot;
-
-  const header = document.createElement("h3");
-  header.className = "cosmetic-slot-label";
-  header.textContent = opts.label;
-  section.appendChild(header);
-
-  const body = document.createElement("ul");
-  body.className = "menu-group-body cosmetic-slot-body";
-
-  const addOption = (id: string | "", name: string) => {
-    const li = document.createElement("li");
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "menu-item cosmetic-equip-btn";
-    const isEquipped =
-      (id === "" && opts.equippedId == null) || id === opts.equippedId;
-    btn.setAttribute("aria-pressed", isEquipped ? "true" : "false");
-    const inner = document.createElement("span");
-    inner.className = "inner";
-    const optThumb = document.createElement("div");
-    optThumb.className = "cosmetic-option-thumb";
-    _setThumbForId(optThumb, id === "" ? null : id, opts.slot);
-    inner.appendChild(optThumb);
-    const nameSpan = document.createElement("span");
-    nameSpan.className = "cosmetic-option-name";
-    nameSpan.textContent = name;
-    inner.appendChild(nameSpan);
-    if (isEquipped) {
-      const badge = document.createElement("span");
-      badge.className = "cosmetic-equip-badge";
-      badge.textContent = "Equipped";
-      inner.appendChild(badge);
-    }
-    btn.appendChild(inner);
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      window.Game?.playMenuTap?.();
-      if (id === "") {
-        window.Game.unequipSlot?.(opts.slot);
-      } else {
-        window.Game.equipCosmetic?.(id);
-      }
-      renderCosmeticsMenu();
-      refreshStartRaptorCosmetics();
-    });
-    li.appendChild(btn);
-    body.appendChild(li);
-  };
-
-  addOption("", "None");
-  for (const opt of opts.options) addOption(opt.id, opt.name);
-
-  section.appendChild(body);
-  return section;
-}
-
-/** Paint the given thumbnail div either as a sprite preview
- *  (when an owned item with art is equipped) or as a neutral
- *  slot-tinted placeholder (None, or an item without art yet). */
-function _setThumbForId(
-  el: HTMLDivElement,
-  id: string | null,
-  slot: "head" | "eyes" | "neck",
-): void {
-  const slotColor: Record<string, string> = {
-    head: "#d97706",
-    eyes: "#1f2937",
-    neck: "#b91c1c",
-  };
-  const spriteUrl = id ? _spriteUrlForId(id) : null;
-  el.innerHTML = "";
-  el.classList.toggle("cosmetic-slot-thumb-sprite", spriteUrl != null);
-  el.classList.toggle("cosmetic-slot-thumb-none", id == null);
-  if (spriteUrl) {
-    el.style.background = "";
-    el.appendChild(_buildCosmeticThumbImg(spriteUrl));
-  } else if (id == null) {
-    // "None" option: crossed-out circle so it reads as
-    // "nothing equipped" rather than a slot-coloured block
-    // that looks like yet another cosmetic.
-    el.style.background = "";
-    el.appendChild(_buildNoneIcon());
-  } else {
-    el.style.background = slotColor[slot] ?? "#555";
-  }
-}
-
-function _buildCosmeticThumbImg(src: string): HTMLImageElement {
-  const img = document.createElement("img");
-  img.src = src;
-  img.alt = "";
-  return img;
-}
-
-function _buildNoneIcon(): SVGSVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "2");
-  svg.setAttribute("stroke-linecap", "round");
-  svg.setAttribute("aria-hidden", "true");
-  svg.classList.add("cosmetic-none-icon");
-  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-  circle.setAttribute("cx", "12");
-  circle.setAttribute("cy", "12");
-  circle.setAttribute("r", "9");
-  svg.appendChild(circle);
-  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  line.setAttribute("x1", "5.6");
-  line.setAttribute("y1", "5.6");
-  line.setAttribute("x2", "18.4");
-  line.setAttribute("y2", "18.4");
-  svg.appendChild(line);
-  return svg;
+  cosmeticsGroup.hidden = owned.length === 0;
+  refreshCosmeticsMenu(COSMETICS_MENU_CALLBACKS);
 }
 
 // ───────── Shop ─────────

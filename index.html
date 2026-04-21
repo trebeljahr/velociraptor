@@ -979,11 +979,14 @@
             </svg>
             Cosmetics
           </summary>
-          <div class="cosmetics-body menu-group-body" id="cosmetics-list">
-            <!-- Populated by ui.ts renderCosmeticsMenu() on every
-                 menu-open. Each slot renders as a subsection with
-                 equip buttons for owned items + a "None" row. -->
-          </div>
+          <!-- Populated by the React <CosmeticsMenu> component
+               (src/ui/react/CosmeticsMenu.tsx) on every menu-open and
+               after any equip change. One subsection per owned slot
+               with equip buttons + a "None" row. The outer <details>
+               and #cosmetics-list host div stay here so the
+               hidden-attribute gating in ui.ts's renderCosmeticsMenu
+               keeps working. -->
+          <div class="cosmetics-body menu-group-body" id="cosmetics-list"></div>
         </details>
 
         <!-- Debug (collapsible). Only shown when body[data-debug="true"]
