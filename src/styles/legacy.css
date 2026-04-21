@@ -442,29 +442,24 @@ html,
         width: auto;
         max-width: min(92vw, 420px);
       }
+      /* Achievement unlock toast: was a frosted-white capsule with
+       * a blur backdrop — the most glassmorphism-adjacent thing on
+       * screen. Swap for the same flat sand-on-dune language every
+       * other panel uses; coin-gold fill signals 'unlocked' the
+       * same way it does inside the Achievements list. */
       .achievement-toast {
         display: flex;
         align-items: center;
         gap: 0.75rem;
         padding: 0.55rem 1.1rem 0.55rem 0.55rem;
-        /* Frosted-white capsule — same visual language as the
-           top-right icon cluster and the score pill. */
-        background: rgba(255, 255, 255, 0.82);
-        color: #222;
-        border: 1px solid rgba(255, 255, 255, 0.65);
-        border-radius: 999px;
-        box-shadow: 0 10px 28px rgba(20, 30, 60, 0.18);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        font-family: inherit;
+        background: var(--color-coin);
+        color: var(--color-dune);
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        font-family: var(--font-display);
         min-width: 240px;
         max-width: 92vw;
         pointer-events: auto;
-        /* Transition-based entry rather than @keyframes, because
-           CSS animations can stall in throttled / backgrounded
-           tabs and the toast would never become visible. A
-           transition on opacity + transform runs reliably the
-           moment a class swap happens. */
         opacity: 1;
         transform: translateY(0) scale(1);
         transition:
@@ -477,21 +472,23 @@ html,
       }
       .achievement-toast-icon {
         flex: 0 0 auto;
+        box-sizing: border-box;
         width: 44px;
         height: 44px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.9);
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+        padding: 4px;
+        border: 2px solid var(--color-dune);
+        border-radius: 5px;
+        background: var(--color-sand-contrast);
       }
       .achievement-toast-icon svg,
       .achievement-toast-icon img.achievement-icon-image {
-        width: 28px;
-        height: 28px;
+        width: 100%;
+        height: 100%;
         display: block;
+        object-fit: contain;
       }
       /* Party-hat / thug-glasses sprites are pixel-art; keep the
          crisp blocky look instead of letting the browser blur
@@ -512,18 +509,20 @@ html,
         font-size: 0.62rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: rgba(0, 0, 0, 0.5);
+        color: var(--color-dune-dim);
         font-weight: 700;
       }
       .achievement-toast-title {
-        font-size: 0.98rem;
+        font-size: 0.95rem;
         font-weight: 800;
-        color: #1a1a1a;
+        color: var(--color-dune);
         letter-spacing: -0.005em;
       }
       .achievement-toast-desc {
-        font-size: 0.8rem;
-        color: rgba(0, 0, 0, 0.6);
+        font-size: 0.78rem;
+        color: var(--color-dune);
+        opacity: 0.85;
+        font-weight: 500;
       }
       @media (prefers-reduced-motion: reduce) {
         .achievement-toast,
@@ -532,8 +531,12 @@ html,
         }
       }
 
-      /* Top-left score pill. Same visual language as the top-right
-         icon cluster: frosted white capsule, subtle shadow. */
+      /* Top-left score pill: matches the HUD icon cluster in the
+       * top-right. Flat sand-contrast panel + 3px dune border, no
+       * blur, no drop shadow — the thing reads as a stamped tag
+       * welded onto the game view rather than a floating
+       * notification. Sharp corners keep the pixel-art-adjacent
+       * feel of the rest of the chrome. */
       .score-display {
         position: fixed;
         top: calc(14px + env(safe-area-inset-top, 0px));
@@ -542,19 +545,15 @@ html,
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.55rem 1.1rem;
-        background: rgba(255, 255, 255, 0.72);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        border-radius: 999px;
-        color: #222;
-        font: inherit;
+        padding: 0.35rem 0.85rem;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
+        color: var(--color-dune);
+        font-family: var(--font-display);
         font-weight: 700;
-        font-size: 1.05rem;
+        font-size: 1rem;
         letter-spacing: 0.01em;
-        box-shadow:
-          0 2px 6px rgba(0, 0, 0, 0.12),
-          inset 0 1px 0 rgba(255, 255, 255, 0.6);
         user-select: none;
         cursor: default;
       }
@@ -564,7 +563,7 @@ html,
       .score-display .trophy-icon {
         width: 20px;
         height: 20px;
-        color: #222;
+        color: var(--color-dune);
         transform-origin: 50% 80%;
         transition: transform 0.2s ease;
       }
@@ -572,7 +571,7 @@ html,
         animation: trophy-wiggle 0.6s ease-in-out;
       }
       .score-display .score-value {
-        color: #222;
+        color: var(--color-dune);
         font-variant-numeric: tabular-nums;
         min-width: 1.5ch;
         text-align: right;
