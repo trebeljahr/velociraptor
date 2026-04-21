@@ -339,9 +339,10 @@ export const PTERODACTYL_HEIGHT_SCALE = 1.05;
  *  flyer in the same visual band players already associate with
  *  "reward at the top of a tall jump". */
 export const PTERODACTYL_FLIGHT_HEIGHT_RATIO = 1.10;
-/** Animation cadence (ms per frame). ~90ms = ~11 fps, a readable
- *  flap that doesn't blur into a buzz. */
-export const PTERODACTYL_FRAME_DELAY_MS = 90;
+/** Animation cadence (ms per frame). ~55ms ≈ 18 fps — snappy enough
+ *  for the flap to read as active flight without blurring into a
+ *  buzz at a full 22-frame cycle. */
+export const PTERODACTYL_FRAME_DELAY_MS = 55;
 /** Probability that a cactus spawn is replaced by a pterodactyl
  *  instead. ~12% → roughly 1 in 8 obstacles is a flyer. */
 export const PTERODACTYL_SPAWN_CHANCE = 0.12;

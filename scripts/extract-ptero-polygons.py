@@ -17,7 +17,10 @@ from pathlib import Path
 SHEET = Path(__file__).parent.parent / "public" / "assets" / "pterodactyl-sprite.png"
 COLS, ROWS = 5, 5
 FRAMES = 22  # 5×4 + 2 in last row
-COLUMNS_PER_FRAME = 14  # sampling resolution along x
+# 24 columns → 48-vertex polygon per frame. Enough to trace the
+# wing curves tightly — lower counts leave visible gaps between the
+# wing tip and the body during mid-flap transitions.
+COLUMNS_PER_FRAME = 24
 ALPHA_THRESHOLD = 32
 
 
