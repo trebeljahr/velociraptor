@@ -929,47 +929,19 @@
     </div>
 
     <!-- Shop overlay — full-screen modal listing buyable cosmetics.
-         Opens from the "Shop" menu button; items grid is populated
-         by ui.ts renderShop() so adding a cosmetic to the registry
-         doesn't require HTML changes. -->
+         Opens from the "Shop" menu button. The outer wrapper stays
+         here so the existing .imprint-overlay backdrop / open-state
+         CSS and the ui.ts open/close class toggle continue to work;
+         the sheet contents (close button + balance + items grid) are
+         rendered by the React <Shop> component — see
+         src/ui/react/Shop.tsx and src/ui/react/mountShop.ts. -->
     <div
       id="shop-overlay"
       class="imprint-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Shop"
-    >
-      <div class="imprint-sheet shop-sheet">
-        <button
-          id="shop-close"
-          class="imprint-close"
-          aria-label="Close"
-        >
-          ×
-        </button>
-        <div class="shop-scroll">
-          <h1 class="shop-heading" tabindex="-1">Shop</h1>
-          <p class="shop-balance">
-            <span class="shop-balance-label">Coins</span>
-            <span class="shop-balance-value">
-              <span id="shop-balance-value">0</span>
-              <img
-                src="assets/coin.png"
-                alt=""
-                class="coin-icon"
-                aria-hidden="true"
-              />
-            </span>
-          </p>
-          <div id="shop-items" class="shop-items">
-            <!-- Populated by ui.ts renderShop() when the overlay opens. -->
-          </div>
-          <p id="shop-empty-hint" class="shop-empty-hint" hidden>
-            Collect coins on the flower fields to spend them here.
-          </p>
-        </div>
-      </div>
-    </div>
+    ></div>
 
     <!-- Achievements overlay — rendered in the parent window
          (no iframe) because the list is data-driven from the

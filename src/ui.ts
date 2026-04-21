@@ -28,6 +28,8 @@
 // @ts-nocheck
 /* eslint-disable */
 
+import { refreshShop } from "./ui/react/mountShop";
+
 // Desktop "challenge a friend" store-link. Sourced from a Vite env
 // var; falls back to the web URL when not set. The env name is
 // store-neutral now — use VITE_DESKTOP_STORE_URL pointing at whichever
@@ -1362,10 +1364,6 @@ const menuShopBalanceValue = document.getElementById(
   "menu-shop-balance-value",
 );
 const shopOverlay = document.getElementById("shop-overlay");
-const shopCloseBtn = document.getElementById("shop-close");
-const shopItemsEl = document.getElementById("shop-items");
-const shopBalanceValue = document.getElementById("shop-balance-value");
-const shopEmptyHint = document.getElementById("shop-empty-hint");
 const jumpsResetBtn = document.getElementById("menu-jumpsreset-toggle");
 
 // Start-screen raptor stage. Each <img class="start-raptor-cosmetic">
@@ -1526,7 +1524,7 @@ const COSMETIC_SLOT_UI: Array<{
 function refreshEasterEggUI() {
   if (!window.Game) return;
   renderCosmeticsMenu();
-  refreshShopBalance();
+  refreshShopMenuBalance();
   refreshStartRaptorCosmetics();
 }
 
@@ -1721,256 +1719,25 @@ function _buildNoneIcon(): SVGSVGElement {
 }
 
 // ───────── Shop ─────────
-/** Small inline coin icon — reuses the in-game coin.png asset so the
- *  shop prices read as "same currency you collected on the field". */
-function makeCoinIcon(): HTMLImageElement {
-  const img = document.createElement("img");
-  img.src = "assets/coin.png";
-  img.alt = "";
-  img.className = "coin-icon";
-  img.setAttribute("aria-hidden", "true");
-  return img;
-}
-
-/** Update the "💰 N" chip on the Shop menu button AND the balance
- *  line inside the shop overlay. Called after any purchase and on
- *  every menu-open. */
-function refreshShopBalance() {
+/** Update the coin chip on the main menu's Shop button. The shop
+ *  overlay itself is rendered by the React <Shop> component
+ *  (src/ui/react/Shop.tsx), which reads the balance on each render.
+ *  This function covers the chip that lives OUTSIDE the shop, so the
+ *  menu button shows the right number even when the shop's closed. */
+function refreshShopMenuBalance() {
   if (!window.Game) return;
   const n = window.Game.getCoinsBalance?.() ?? 0;
   if (menuShopBalanceValue) menuShopBalanceValue.textContent = String(n);
-  if (shopBalanceValue) shopBalanceValue.textContent = String(n);
 }
 
-/** Build the shop grid from the current inventory. Each card shows
- *  the name, price, and a state-aware action button:
- *    • "Buy"      — not owned, can afford (click purchases + refreshes)
- *    • "Costs N"  — not owned, can't afford (disabled)
- *    • "Equip"    — owned but another item in its slot is equipped
- *    • "Equipped" — currently worn (disabled)
- *
- *  Thumbnail is a slot-coloured rectangle with the item's initials
- *  — same pattern as the raptor's placeholder rendering, so the
- *  shop preview and the in-game preview match until final art
- *  lands. */
-function renderShop() {
-  if (!shopItemsEl || !window.Game) return;
-  const inventory = window.Game.getShopInventory?.() ?? [];
-  shopItemsEl.innerHTML = "";
-  if (inventory.length === 0) {
-    if (shopEmptyHint) shopEmptyHint.hidden = false;
-    return;
-  }
-  if (shopEmptyHint) shopEmptyHint.hidden = true;
-  const balance = window.Game.getCoinsBalance?.() ?? 0;
-  const slotColor: Record<string, string> = {
-    head: "#d97706",
-    eyes: "#1f2937",
-    neck: "#b91c1c",
-    back: "#7c3aed",
-  };
-  const slotLabel: Record<string, string> = {
-    head: "Head",
-    eyes: "Eyes",
-    neck: "Neck",
-    back: "Back",
-  };
-  // Uses the module-level _spriteUrlForId helper so the shop
-  // grid, the equip menu, and the start-raptor-stage all agree
-  // on which sprite URL to load for a given cosmetic id.
-  for (const def of inventory) {
-    const card = document.createElement("div");
-    card.className = "shop-item";
-    card.dataset.id = def.id;
-
-    const thumb = document.createElement("div");
-    thumb.className = "shop-item-thumb";
-    const thumbUrl = _spriteUrlForId(def.id);
-    if (thumbUrl) {
-      // Real sprite — transparent PNG on a neutral panel so the
-      // art reads well regardless of slot colour.
-      thumb.classList.add("shop-item-thumb-sprite");
-      const img = document.createElement("img");
-      img.src = thumbUrl;
-      img.alt = "";
-      img.loading = "lazy";
-      thumb.appendChild(img);
-    } else {
-      // Placeholder: slot-tinted square with the item's initials.
-      thumb.style.background = slotColor[def.slot] ?? "#555";
-      thumb.textContent = def.name.slice(0, 2).toUpperCase();
-    }
-    card.appendChild(thumb);
-
-    const owned = window.Game.ownsCosmetic?.(def.id) === true;
-    const equipped = window.Game.isCosmeticEquipped?.(def.id) === true;
-
-    const info = document.createElement("div");
-    info.className = "shop-item-info";
-    const name = document.createElement("div");
-    name.className = "shop-item-name";
-    name.textContent = def.name;
-    info.appendChild(name);
-    const metaRow = document.createElement("div");
-    metaRow.className = "shop-item-meta-row";
-    const slotTag = document.createElement("div");
-    slotTag.className = "shop-item-slot";
-    slotTag.textContent = slotLabel[def.slot] ?? def.slot;
-    metaRow.appendChild(slotTag);
-    if (owned) {
-      const pill = document.createElement("span");
-      pill.className = "shop-item-owned-pill";
-      pill.textContent = "Owned";
-      metaRow.appendChild(pill);
-    }
-    info.appendChild(metaRow);
-    if (def.description) {
-      const desc = document.createElement("div");
-      desc.className = "shop-item-description";
-      desc.textContent = def.description;
-      info.appendChild(desc);
-    }
-    card.appendChild(info);
-
-    const action = document.createElement("button");
-    action.type = "button";
-    action.className = "shop-item-action";
-    if (equipped) {
-      action.textContent = "Equipped";
-      action.disabled = true;
-      action.classList.add("shop-item-action-equipped");
-    } else if (owned) {
-      action.textContent = "Equip";
-      action.addEventListener("click", (e) => {
-        e.stopPropagation();
-        window.Game?.playMenuTap?.();
-        window.Game.equipCosmetic?.(def.id);
-        renderShop();
-        refreshStartRaptorCosmetics();
-      });
-    } else if (balance >= def.price || window.Game.isDebug?.()) {
-      // Normal purchase path — or the debug-mode free grab the
-      // Game API allows regardless of balance. Either way the
-      // click handler is the same (buyCosmetic short-circuits
-      // the coin deduction when debug is on).
-      const isDebugFree =
-        window.Game.isDebug?.() === true && balance < def.price;
-      const priceLabel = document.createElement("span");
-      priceLabel.className = "shop-item-price";
-      priceLabel.textContent = isDebugFree
-        ? `Buy · ${def.price} (debug)`
-        : `Buy · ${def.price}`;
-      action.appendChild(priceLabel);
-      action.appendChild(makeCoinIcon());
-      action.addEventListener("click", (e) => {
-        e.stopPropagation();
-        // Capture the button's screen position BEFORE buyCosmetic
-        // → renderShop() rebuilds every card and detaches the
-        // clicked button. getBoundingClientRect on a detached
-        // element returns all zeros, which previously threw the
-        // confetti burst into the top-left corner of the viewport.
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const res = window.Game.buyCosmetic?.(def.id);
-        if (res === "ok") {
-          refreshShopBalance();
-          renderShop();
-          refreshStartRaptorCosmetics();
-          // Celebratory feedback: "level up" chime + a DOM confetti
-          // burst emitted from the buy-button's screen position, so
-          // the player gets a clear "that worked" signal that isn't
-          // hidden under the shop overlay (canvas-based confetti
-          // would draw behind the dim backdrop).
-          window.Game.playShopPurchase?.();
-          spawnShopConfetti(cx, cy);
-        }
-      });
-    } else {
-      const priceLabel = document.createElement("span");
-      priceLabel.className = "shop-item-price";
-      priceLabel.textContent = String(def.price);
-      action.appendChild(priceLabel);
-      action.appendChild(makeCoinIcon());
-      action.disabled = true;
-      action.classList.add("shop-item-action-poor");
-    }
-    card.appendChild(action);
-
-    shopItemsEl.appendChild(card);
-  }
-}
-
-// DOM confetti used only by the shop — the canvas-based
-// spawnConfettiBurst would render behind the 60%-black shop backdrop,
-// so we need real DOM elements on top. Kept deliberately small and
-// self-contained: ~24 absolutely-positioned divs with randomised
-// velocity + rotation, driven by a single rAF loop, cleaned up when
-// every particle has faded. Colours mirror the canvas confetti
-// palette so the two effects read as one language.
-const SHOP_CONFETTI_COLORS = [
-  "#ff4d6d", "#ffb703", "#06d6a0", "#118ab2",
-  "#8338ec", "#ffd60a", "#ff7b00", "#ef476f",
-];
-function spawnShopConfetti(originX: number, originY: number) {
-  // Container sits over EVERYTHING (above the shop overlay at 2700).
-  // One container per burst — removed once the last particle expires.
-  const layer = document.createElement("div");
-  layer.style.cssText =
-    "position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:3000;";
-  document.body.appendChild(layer);
-  interface P { el: HTMLElement; x: number; y: number; vx: number; vy: number; rot: number; vrot: number; age: number; life: number; }
-  const particles: P[] = [];
-  for (let i = 0; i < 24; i++) {
-    const el = document.createElement("div");
-    const color = SHOP_CONFETTI_COLORS[i % SHOP_CONFETTI_COLORS.length];
-    const size = 6 + Math.random() * 5;
-    el.style.cssText =
-      `position:absolute;left:${originX}px;top:${originY}px;` +
-      `width:${size}px;height:${size * 0.6}px;` +
-      `background:${color};border-radius:1px;will-change:transform,opacity;`;
-    layer.appendChild(el);
-    // Radial burst — fan outward, slight upward bias so it feels
-    // celebratory rather than a gravity-dominated drop.
-    const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.4;
-    const speed = 220 + Math.random() * 280;
-    particles.push({
-      el,
-      x: originX, y: originY,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      rot: Math.random() * Math.PI * 2,
-      vrot: (Math.random() - 0.5) * 10,
-      age: 0,
-      life: 0.9 + Math.random() * 0.6,
-    });
-  }
-  let lastT = performance.now();
-  function step(now: number) {
-    const dt = Math.min(0.05, (now - lastT) / 1000);
-    lastT = now;
-    let alive = 0;
-    for (const p of particles) {
-      if (p.age >= p.life) continue;
-      p.age += dt;
-      p.vy += 780 * dt; // gravity
-      p.vx *= 0.99;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.rot += p.vrot * dt;
-      const t = p.age / p.life;
-      const alpha = t < 0.8 ? 1 : Math.max(0, 1 - (t - 0.8) / 0.2);
-      p.el.style.transform = `translate(${p.x - originX}px, ${p.y - originY}px) rotate(${p.rot}rad)`;
-      p.el.style.opacity = String(alpha);
-      if (p.age < p.life) alive++;
-    }
-    if (alive > 0) {
-      requestAnimationFrame(step);
-    } else {
-      layer.remove();
-    }
-  }
-  requestAnimationFrame(step);
+/** Called from the React <Shop> component whenever a buy or equip
+ *  succeeds. Updates the bits of UI that live OUTSIDE the shop:
+ *  the main menu's Shop-button coin chip and the start-screen
+ *  raptor preview (so a just-equipped cosmetic shows up on the
+ *  raptor behind the overlay). */
+function onShopChange() {
+  refreshShopMenuBalance();
+  refreshStartRaptorCosmetics();
 }
 
 function openShop() {
@@ -1981,8 +1748,8 @@ function openShop() {
   // or (b) direct hotkey opens from gameplay. Either way pause is
   // the right move.
   try { window.Game?.pause?.(); } catch {}
-  refreshShopBalance();
-  renderShop();
+  refreshShopMenuBalance();
+  refreshShop({ onClose: closeShop, onShopChange });
   shopOverlay.classList.add("open");
 }
 function closeShop() {
@@ -1998,12 +1765,6 @@ if (menuShopBtn) {
     e.stopPropagation();
     closeMenu();
     openShop();
-  });
-}
-if (shopCloseBtn) {
-  shopCloseBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeShop();
   });
 }
 if (shopOverlay) {
