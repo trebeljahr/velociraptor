@@ -318,11 +318,19 @@ html,
       /* Byline pinned to the bottom of the start screen. Two explicit
          links so high-intent visitors can pick between the portfolio
          (lead capture) and the newsletter on ricos.site (writing). */
+      /* React-mount root. Set to display:contents so its children
+       * (.start-content + .start-byline) become direct flex items
+       * of .start-screen — otherwise the .start-byline auto-margin
+       * below has nothing to push against and the byline sticks to
+       * the content instead of the bottom of the viewport. */
+      #start-content-root {
+        display: contents;
+      }
       .start-byline {
-        margin: auto 0 1.2rem;
+        margin: auto 0 1rem;
         padding: 0 1rem;
         font-family: var(--font-display);
-        font-size: 0.78rem;
+        font-size: 0.68rem;
         font-weight: 500;
         color: var(--color-dune);
         text-align: center;
@@ -1006,21 +1014,29 @@ html,
           animation: none;
         }
       }
+      /* Top-right HUD icons (sound, fullscreen, cog). Same flat
+       * sand-on-dune panel treatment as the start-screen buttons +
+       * kbd chips so the whole UI reads as one cohesive language
+       * instead of pairing frosted-glass circles with blocky
+       * redesigned buttons. Square-ish corners deliberately — the
+       * prior border-radius: 50% was the most web-app-leaning thing
+       * on screen. */
       .icon-btn {
-        width: 44px;
-        height: 44px;
+        width: 40px;
+        height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border: none;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.65);
-        color: #333;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
+        color: var(--color-dune);
         cursor: pointer;
         padding: 0;
         transition:
-          background 0.15s,
-          transform 0.2s;
+          background-color 0.12s ease,
+          color 0.12s ease,
+          transform 0.06s ease;
         /* Eliminate tap delay + disable double-tap zoom on mobile. */
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
@@ -1036,20 +1052,26 @@ html,
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
       }
-      .icon-btn:hover {
-        background: rgba(255, 255, 255, 0.95);
+      .icon-btn:hover,
+      .icon-btn:focus-visible {
+        background: var(--color-sky);
+        color: var(--color-dune);
+      }
+      .icon-btn:active {
+        transform: translateY(2px);
       }
       .icon-btn:focus-visible {
-        outline: 2px solid #3498db;
+        outline: 3px solid var(--color-dune);
         outline-offset: 2px;
       }
       .icon-btn svg {
-        width: 22px;
-        height: 22px;
+        width: 20px;
+        height: 20px;
       }
-      .settings-cog:hover {
-        transform: rotate(30deg);
-      }
+      /* The prior .settings-cog:hover rotate(30deg) trick was a
+       * web-app flourish that paired with the frosted circle but
+       * fights the press-down idiom of the redesigned panel. Drop
+       * it — the colour-swap to teal is feedback enough. */
 
       /* Fullscreen button: toggles between an "enter" (four corners
          pointing outward) and an "exit" (four corners pointing in)
