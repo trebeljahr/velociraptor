@@ -36,6 +36,11 @@ import { refreshCosmeticsMenu } from "./ui/react/mountCosmeticsMenu";
 import { refreshMenuList } from "./ui/react/mountMenuList";
 import { refreshDebugSettings } from "./ui/react/mountDebugSettings";
 import { refreshStartScreen } from "./ui/react/mountStartScreen";
+import { refreshCredits } from "./ui/react/mountCredits";
+import {
+  refreshAboutOverlay,
+  refreshImprintOverlay,
+} from "./ui/react/mountIframeOverlay";
 
 // Desktop "challenge a friend" store-link. Sourced from a Vite env
 // var; falls back to the web URL when not set. The env name is
@@ -123,12 +128,13 @@ const topSoundBtn = document.getElementById("sound-toggle");
 const fullscreenBtn = document.getElementById("fullscreen-toggle");
 const imprintOverlay = document.getElementById("imprint-overlay");
 const aboutOverlay = document.getElementById("about-overlay");
-const aboutCloseBtn = document.getElementById("about-close");
-const aboutIframe = document.getElementById("about-iframe");
+// Iframe src is lazily flipped from "about:blank" on first open —
+// ui.ts holds the flag, the React component reads the current value
+// via the iframeSrc prop.
+let aboutIframeSrc: string = "about:blank";
+let imprintIframeSrc: string = "about:blank";
 let aboutLoaded = false;
 const achievementsOverlay = document.getElementById("achievements-overlay");
-const imprintCloseBtn = document.getElementById("imprint-close");
-const imprintIframe = document.getElementById("imprint-iframe");
 const startScreen = document.getElementById("start-screen");
 let imprintLoaded = false;
 let assetsReady = false;
@@ -345,26 +351,20 @@ window.addEventListener("resize", refreshRotateGuard);
 window.addEventListener("orientationchange", refreshRotateGuard);
 
 // ───────── Imprint overlay ─────────
-// Loaded as an iframe pointing at the standalone imprint.html
-// page. The page detects iframe embedding via window.self !==
-// window.top and hides its own "Back to the game" link, so
-// only the overlay's close button is usable.
+// The sheet is rendered by <IframeOverlay>. Lazy iframe src: the
+// page isn't fetched until the user actually wants to see it.
 function openImprint() {
-  // Set the iframe src lazily on first open so the legal page
-  // isn't fetched until the user actually wants to see it.
   if (!imprintLoaded) {
-    imprintIframe.src = "imprint.html";
+    imprintIframeSrc = "imprint.html";
     imprintLoaded = true;
   }
+  refreshImprintOverlay({
+    callbacks: { onClose: closeImprint },
+    iframeSrc: imprintIframeSrc,
+  });
   imprintOverlay.classList.add("open");
-  // Focus the × button, not the iframe heading — gives the
-  // gamepad / keyboard user an immediately actionable target
-  // (Activate = close) and keeps the focus ring INSIDE the
-  // overlay even when the iframe hasn't loaded yet.
-  if (imprintCloseBtn) imprintCloseBtn.focus();
   window.Game.pause();
 }
-
 function closeImprint() {
   imprintOverlay.classList.remove("open");
   // Every path into the imprint overlay goes through the
@@ -375,13 +375,7 @@ function closeImprint() {
   // side-effect, so no explicit resume is needed here.
   openMenu();
 }
-
-imprintCloseBtn.addEventListener("click", (e) => {
-  e.stopPropagation();
-  closeImprint();
-});
 imprintOverlay.addEventListener("click", (e) => {
-  // Click on the dark backdrop closes the overlay.
   if (e.target === imprintOverlay) closeImprint();
 });
 
@@ -391,13 +385,14 @@ imprintOverlay.addEventListener("click", (e) => {
 // pauses the game while visible.
 function openAbout() {
   if (!aboutLoaded) {
-    aboutIframe.src = "about.html";
+    aboutIframeSrc = "about.html";
     aboutLoaded = true;
   }
+  refreshAboutOverlay({
+    callbacks: { onClose: closeAbout },
+    iframeSrc: aboutIframeSrc,
+  });
   aboutOverlay.classList.add("open");
-  // Focus the × button so gamepad / keyboard immediately
-  // target the canonical "back" action. See openImprint.
-  if (aboutCloseBtn) aboutCloseBtn.focus();
   if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
     window.Game.pause();
   }
@@ -408,12 +403,6 @@ function closeAbout() {
   // pause gating (no-op when the game isn't started).
   openMenu();
 }
-if (aboutCloseBtn) {
-  aboutCloseBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeAbout();
-  });
-}
 if (aboutOverlay) {
   aboutOverlay.addEventListener("click", (e) => {
     if (e.target === aboutOverlay) closeAbout();
@@ -421,22 +410,13 @@ if (aboutOverlay) {
 }
 
 // ───────── Credits overlay ─────────
-// Static content (no iframe) so it works identically on
-// every platform including Capacitor, where standalone HTML
-// files in the build root aren't bundled.
+// Rendered by <Credits> — static content pulled from src/credits.ts
+// at runtime, so works identically on web, Electron, and Capacitor.
 const creditsOverlay = document.getElementById("credits-overlay");
-const creditsCloseBtn = document.getElementById("credits-close");
 function openCredits() {
   if (!creditsOverlay) return;
+  refreshCredits({ onClose: closeCredits });
   creditsOverlay.classList.add("open");
-  // Focus the × button instead of the heading. The heading
-  // is a non-interactive h1 — focusing it trapped the
-  // gamepad user on an element whose Activate did nothing,
-  // and keyboard Tab then had to cycle past it to reach the
-  // actual content. The close button is the universal
-  // "back" affordance; focus lands on something you can
-  // act on.
-  if (creditsCloseBtn) creditsCloseBtn.focus();
   if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
     window.Game.pause();
   }
@@ -448,12 +428,6 @@ function closeCredits() {
   // the "back" affordance (× / Esc / gamepad B) lands the
   // player on the menu they came from, not the live game.
   openMenu();
-}
-if (creditsCloseBtn) {
-  creditsCloseBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeCredits();
-  });
 }
 if (creditsOverlay) {
   creditsOverlay.addEventListener("click", (e) => {

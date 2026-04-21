@@ -675,128 +675,42 @@
          iframe avoids any fetch/parse failure modes (the earlier
          approach had Cloudflare email-obfuscation rewriting the HTML
          in ways that broke DOMParser extraction). -->
+    <!-- Imprint overlay — rendered by the React <IframeOverlay>
+         component (src/ui/react/IframeOverlay.tsx). The outer
+         .imprint-overlay wrapper keeps the backdrop + .open class
+         toggle plumbing working. -->
     <div
       id="imprint-overlay"
       class="imprint-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Imprint and legal notice"
-    >
-      <div class="imprint-sheet">
-        <button id="imprint-close" class="imprint-close" aria-label="Close">
-          ×
-        </button>
-        <iframe
-          id="imprint-iframe"
-          title="Imprint"
-          src="about:blank"
-          loading="lazy"
-        ></iframe>
-      </div>
-    </div>
+    ></div>
 
-    <!-- Credits overlay — static, in-app content (no iframe). Unlike
-         the imprint overlay this doesn't depend on a separate HTML
-         file being bundled, so it works identically on web, desktop
-         Electron, and Capacitor. Legal links (Imprint, Privacy) at
-         the bottom point at the website so the full legally-required
-         text lives in one canonical place and gets indexed. -->
+    <!-- Credits overlay — static content rendered by the React
+         <Credits> component (src/ui/react/Credits.tsx). The component
+         reads ATTRIBUTION_SECTIONS from src/credits.ts at runtime, so
+         the build-time injection that the creditsBuildInjectPlugin
+         still runs for imprint.html is no-op here. Works identically
+         on web, Electron, and Capacitor. -->
     <div
       id="credits-overlay"
       class="imprint-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Credits"
-    >
-      <div class="imprint-sheet credits-sheet">
-        <button id="credits-close" class="imprint-close" aria-label="Close">
-          ×
-        </button>
-        <div class="credits-scroll">
-          <h1 class="credits-heading" tabindex="-1">Credits</h1>
-          <section class="credits-section">
-            <h2>Game</h2>
-            <p>
-              Design, code, and everything else by
-              <a href="https://portfolio.trebeljahr.com" target="_blank" rel="noopener"
-                >Rico Trebeljahr</a
-              >.
-            </p>
-          </section>
+    ></div>
 
-          <!-- Art / Music / Sound effects / Engine — injected at BUILD
-               time from src/credits.ts by the creditsBuildInjectPlugin
-               in vite.config.ts. Same data also powers imprint.html,
-               so the two can't drift out of sync. Static HTML — no
-               runtime mount needed. -->
-          <div id="credits-attribution-sections"></div>
-
-          <section class="credits-section">
-            <h2>Homage</h2>
-            <p>
-              A love letter to the Chrome "No Internet" dinosaur game,
-              extended with a full day/night cycle, a rotating
-              starfield, and the occasional visit from something
-              weirder.
-            </p>
-          </section>
-
-          <section class="credits-section">
-            <h2>Writing &amp; more</h2>
-            <ul class="credits-links">
-              <li>
-                <a href="https://ricos.site/newsletters" target="_blank" rel="noopener"
-                  >Rico's writing at ricos.site</a
-                >
-              </li>
-              <li>
-                <a href="https://github.com/trebeljahr/velociraptor" target="_blank" rel="noopener"
-                  >Source on GitHub</a
-                >
-              </li>
-            </ul>
-          </section>
-
-          <section class="credits-section credits-legal">
-            <h2>Legal</h2>
-            <ul class="credits-links">
-              <li>
-                <a href="https://raptor.trebeljahr.com/imprint.html" target="_blank" rel="noopener"
-                  >Imprint / Impressum</a
-                >
-              </li>
-              <li>
-                <a href="https://raptor.trebeljahr.com/imprint.html#privacy" target="_blank" rel="noopener"
-                  >Privacy policy</a
-                >
-              </li>
-            </ul>
-          </section>
-        </div>
-      </div>
-    </div>
-
-    <!-- About overlay — loads about.html in an iframe, same
-         pattern as the imprint overlay. -->
+    <!-- About overlay — rendered by the React <IframeOverlay>
+         component; iframe src flips lazily from "about:blank" to
+         about.html on first open. -->
     <div
       id="about-overlay"
       class="imprint-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="About Raptor Runner"
-    >
-      <div class="imprint-sheet">
-        <button id="about-close" class="imprint-close" aria-label="Close">
-          ×
-        </button>
-        <iframe
-          id="about-iframe"
-          title="About Raptor Runner"
-          src="about:blank"
-          loading="lazy"
-        ></iframe>
-      </div>
-    </div>
+    ></div>
 
     <!-- Shop overlay — full-screen modal listing buyable cosmetics.
          Opens from the "Shop" menu button. The outer wrapper stays
