@@ -883,17 +883,34 @@ html,
           box-shadow 0.2s ease;
         box-shadow: 0 0 0 rgba(251, 191, 36, 0);
       }
-      .revive-btn:hover {
+      .revive-btn:hover:not(:disabled) {
         background: rgba(0, 0, 0, 0.5);
         border-color: rgba(251, 191, 36, 0.9);
         transform: translateY(-1px);
         box-shadow: 0 4px 18px rgba(251, 191, 36, 0.3);
       }
-      .revive-btn:active {
+      .revive-btn:active:not(:disabled) {
         transform: translateY(0) scale(0.97);
       }
       .revive-btn[hidden] {
         display: none;
+      }
+      /* "Poor" / unaffordable state: greyed out, no click, no
+         amber accents. Still shows the cost + drain bar so the
+         player knows the option exists and what it would take. */
+      .revive-btn.poor,
+      .revive-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+      .revive-btn.poor .coin-icon,
+      .revive-btn:disabled .coin-icon {
+        filter: grayscale(0.6);
+      }
+      .revive-btn.poor .revive-btn-progress,
+      .revive-btn:disabled .revive-btn-progress {
+        background: rgba(255, 255, 255, 0.35);
       }
       .revive-btn-inner {
         display: inline-flex;

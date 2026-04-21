@@ -2272,12 +2272,13 @@ function hideScoreCard() {
 }
 
 // ─── Revive offer ─────────────────────────────────────────
-// The revive button sits above the Share/Play-again row, visible
-// only when the player can afford it and for a 5-second window.
-// A drain bar along the bottom signals the time limit without a
-// loud countdown number. Click → spend coins → dismiss the score
-// card and hand control back to the game loop (main.ts then runs
-// a ~1s invulnerability grace period).
+// The revive button sits above the Share/Play-again row. Always
+// visible on game-over so the option is discoverable — but the
+// button renders as a disabled "poor" state (greyed out, no click)
+// when the player can't afford the current cost. A drain bar along
+// the bottom signals the 5-second offer window. Click → spend coins
+// → dismiss the score card and hand control back to the game loop
+// (main.ts then runs a ~1s invulnerability grace period).
 const reviveBtn = document.getElementById("revive-btn");
 const reviveBtnCost = document.getElementById("revive-btn-cost");
 const REVIVE_OFFER_MS = 5000;
@@ -2291,17 +2292,23 @@ function stopReviveOffer() {
   if (reviveBtn) {
     reviveBtn.hidden = true;
     reviveBtn.classList.remove("draining");
+    reviveBtn.classList.remove("poor");
+    (reviveBtn as HTMLButtonElement).disabled = false;
   }
 }
 
 function startReviveOffer() {
   stopReviveOffer();
-  if (!reviveBtn || !window.Game?.canRevive || !window.Game?.getReviveCost) {
+  if (!reviveBtn || !window.Game?.isGameOver || !window.Game?.getReviveCost) {
     return;
   }
-  if (!window.Game.canRevive()) return; // Can't afford or not game-over
+  if (!window.Game.isGameOver()) return; // No offer outside a game-over
   const cost = window.Game.getReviveCost();
+  const balance = window.Game.getCoinsBalance?.() ?? 0;
+  const canAfford = balance >= cost;
   if (reviveBtnCost) reviveBtnCost.textContent = String(cost);
+  (reviveBtn as HTMLButtonElement).disabled = !canAfford;
+  reviveBtn.classList.toggle("poor", !canAfford);
   reviveBtn.hidden = false;
   // Force a layout reflow between the class-remove (in stopReviveOffer)
   // and the class-add below, so the browser restarts the keyframe
