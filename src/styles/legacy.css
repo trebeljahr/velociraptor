@@ -854,6 +854,90 @@ html,
           display: none;
         }
       }
+      /* Revive button — sits on its own row above the Share/Play-again
+         pair, time-limited offer. Dark translucent palette to match
+         the rest of the score-card UI, amber accent for the
+         "coin-sink" signalling (border tint, coin icon, drain bar). */
+      .revive-btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: clamp(0.55rem, 1.5vh, 0.8rem) clamp(1rem, 3vh, 1.6rem);
+        border: 1px solid rgba(251, 191, 36, 0.55);
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.35);
+        color: #ffffff;
+        font: inherit;
+        font-size: clamp(0.85rem, min(2.3vw, 2.7vh), 1.05rem);
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        transition:
+          background 0.15s ease,
+          transform 0.15s ease,
+          border-color 0.15s ease,
+          box-shadow 0.2s ease;
+        box-shadow: 0 0 0 rgba(251, 191, 36, 0);
+      }
+      .revive-btn:hover {
+        background: rgba(0, 0, 0, 0.5);
+        border-color: rgba(251, 191, 36, 0.9);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 18px rgba(251, 191, 36, 0.3);
+      }
+      .revive-btn:active {
+        transform: translateY(0) scale(0.97);
+      }
+      .revive-btn[hidden] {
+        display: none;
+      }
+      .revive-btn-inner {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .revive-btn .coin-icon {
+        width: 1.15em;
+        height: 1.15em;
+        filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.55));
+      }
+      /* Drain bar along the bottom edge. Runs a fresh keyframe
+         animation each time .draining is applied — a keyframe
+         (vs. a transition) restarts cleanly on class re-add even
+         when the preceding class removal + re-add happen in the
+         same microtask and would otherwise be batched. */
+      .revive-btn-progress {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 3px;
+        background: linear-gradient(to right, #fbbf24, #f59e0b);
+        transform: scaleX(0);
+        transform-origin: left center;
+        pointer-events: none;
+      }
+      .revive-btn.draining .revive-btn-progress {
+        animation: revive-drain 5s linear forwards;
+      }
+      @keyframes revive-drain {
+        from {
+          transform: scaleX(1);
+        }
+        to {
+          transform: scaleX(0);
+        }
+      }
+      /* Score-card layout tweak — when the revive offer is present
+         it sits centered above the Share/Restart duo with a snug gap.
+         The panel's column flexbox already handles the stacking. */
+      .score-card-panel .revive-btn {
+        margin: 0 auto;
+      }
       .play-again-btn {
         display: inline-flex;
         align-items: center;
@@ -1755,6 +1839,9 @@ html,
       }
       .shop-balance-value {
         font-size: 1.1rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
       }
       .shop-items {
         display: flex;
@@ -1804,12 +1891,28 @@ html,
         font-weight: 600;
         font-size: 0.95rem;
       }
+      .shop-item-meta-row {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-top: 0.1rem;
+      }
       .shop-item-slot {
         font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: #6b7280;
-        margin-top: 0.1rem;
+      }
+      .shop-item-owned-pill {
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 0.1rem 0.45rem;
+        border-radius: 999px;
+        background: #10b981;
+        color: #fff;
+        line-height: 1.2;
       }
       .shop-item-description {
         font-size: 0.8rem;
@@ -1826,6 +1929,17 @@ html,
         font-size: 0.85rem;
         cursor: pointer;
         white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      .coin-icon {
+        width: 1em;
+        height: 1em;
+        object-fit: contain;
+        display: inline-block;
+        flex-shrink: 0;
+        vertical-align: -0.15em;
       }
       .shop-item-action:hover:not(:disabled) {
         background: #2563eb;

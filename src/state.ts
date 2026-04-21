@@ -35,6 +35,12 @@ export interface GameState {
   started: boolean;
   paused: boolean;
   frame: number;
+  /** How many times the player has revived in the current run.
+   *  Drives the escalating cost (base * 2^n). Reset on resetGame. */
+  revivesUsedThisRun: number;
+  /** The frame number at which post-revive invulnerability ends.
+   *  Collision checks short-circuit while state.frame < this value. */
+  invulnerableUntilFrame: number;
 
   // ── Day/night cycle ─────────────────────────────────
   /** Current interpolated sky color — a mutable 3-tuple shared across
@@ -189,6 +195,8 @@ export const state: GameState = {
   started: false,
   paused: true,
   frame: 0,
+  revivesUsedThisRun: 0,
+  invulnerableUntilFrame: 0,
   currentSky: [...SKY_COLORS[0]],
   lastSkyScore: -1,
   isNight: false,

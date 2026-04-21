@@ -583,6 +583,29 @@
               alt="Raptor Runner score card preview"
             />
           </div>
+          <button
+            id="revive-btn"
+            class="revive-btn"
+            type="button"
+            hidden
+            aria-label="Revive with coins"
+          >
+            <span class="revive-btn-inner">
+              <img
+                src="assets/coin.png"
+                alt=""
+                class="coin-icon"
+                aria-hidden="true"
+              />
+              <span class="revive-btn-label">
+                Revive · <span id="revive-btn-cost">0</span>
+              </span>
+            </span>
+            <span
+              class="revive-btn-progress"
+              aria-hidden="true"
+            ></span>
+          </button>
           <div class="score-card-actions">
             <button
               id="share-score-btn"
@@ -930,6 +953,12 @@
             <span class="shop-balance-label">Coins</span>
             <span class="shop-balance-value">
               <span id="shop-balance-value">0</span>
+              <img
+                src="assets/coin.png"
+                alt=""
+                class="coin-icon"
+                aria-hidden="true"
+              />
             </span>
           </p>
           <div id="shop-items" class="shop-items">
@@ -1146,7 +1175,12 @@
             <span>Shop</span>
             <span class="menu-shop-balance">
               <span id="menu-shop-balance-value">0</span>
-              <span class="menu-shop-coin-label">coins</span>
+              <img
+                src="assets/coin.png"
+                alt=""
+                class="coin-icon"
+                aria-hidden="true"
+              />
             </span>
           </span>
         </button>

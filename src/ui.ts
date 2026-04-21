@@ -1708,6 +1708,17 @@ function _buildNoneIcon(): SVGSVGElement {
 }
 
 // ───────── Shop ─────────
+/** Small inline coin icon — reuses the in-game coin.png asset so the
+ *  shop prices read as "same currency you collected on the field". */
+function makeCoinIcon(): HTMLImageElement {
+  const img = document.createElement("img");
+  img.src = "assets/coin.png";
+  img.alt = "";
+  img.className = "coin-icon";
+  img.setAttribute("aria-hidden", "true");
+  return img;
+}
+
 /** Update the "💰 N" chip on the Shop menu button AND the balance
  *  line inside the shop overlay. Called after any purchase and on
  *  every menu-open. */
@@ -1778,16 +1789,28 @@ function renderShop() {
     }
     card.appendChild(thumb);
 
+    const owned = window.Game.ownsCosmetic?.(def.id) === true;
+    const equipped = window.Game.isCosmeticEquipped?.(def.id) === true;
+
     const info = document.createElement("div");
     info.className = "shop-item-info";
     const name = document.createElement("div");
     name.className = "shop-item-name";
     name.textContent = def.name;
     info.appendChild(name);
+    const metaRow = document.createElement("div");
+    metaRow.className = "shop-item-meta-row";
     const slotTag = document.createElement("div");
     slotTag.className = "shop-item-slot";
     slotTag.textContent = slotLabel[def.slot] ?? def.slot;
-    info.appendChild(slotTag);
+    metaRow.appendChild(slotTag);
+    if (owned) {
+      const pill = document.createElement("span");
+      pill.className = "shop-item-owned-pill";
+      pill.textContent = "Owned";
+      metaRow.appendChild(pill);
+    }
+    info.appendChild(metaRow);
     if (def.description) {
       const desc = document.createElement("div");
       desc.className = "shop-item-description";
@@ -1799,8 +1822,6 @@ function renderShop() {
     const action = document.createElement("button");
     action.type = "button";
     action.className = "shop-item-action";
-    const owned = window.Game.ownsCosmetic?.(def.id) === true;
-    const equipped = window.Game.isCosmeticEquipped?.(def.id) === true;
     if (equipped) {
       action.textContent = "Equipped";
       action.disabled = true;
@@ -1821,9 +1842,13 @@ function renderShop() {
       // the coin deduction when debug is on).
       const isDebugFree =
         window.Game.isDebug?.() === true && balance < def.price;
-      action.textContent = isDebugFree
+      const priceLabel = document.createElement("span");
+      priceLabel.className = "shop-item-price";
+      priceLabel.textContent = isDebugFree
         ? `Buy · ${def.price} (debug)`
         : `Buy · ${def.price}`;
+      action.appendChild(priceLabel);
+      action.appendChild(makeCoinIcon());
       action.addEventListener("click", (e) => {
         e.stopPropagation();
         // Capture the button's screen position BEFORE buyCosmetic
@@ -1849,7 +1874,11 @@ function renderShop() {
         }
       });
     } else {
-      action.textContent = `${def.price} coins`;
+      const priceLabel = document.createElement("span");
+      priceLabel.className = "shop-item-price";
+      priceLabel.textContent = String(def.price);
+      action.appendChild(priceLabel);
+      action.appendChild(makeCoinIcon());
       action.disabled = true;
       action.classList.add("shop-item-action-poor");
     }
@@ -2000,6 +2029,10 @@ function doReset() {
   }
   const pbEl = document.getElementById("personal-best");
   if (pbEl) pbEl.textContent = "Personal best: 0";
+  const startHsEl = document.getElementById("start-highscore");
+  const startHsVal = document.getElementById("start-highscore-value");
+  if (startHsVal) startHsVal.textContent = "0";
+  if (startHsEl) startHsEl.hidden = true;
   closeResetConfirm();
   closeMenu();
 }
@@ -2116,6 +2149,7 @@ function showScoreCard() {
   sharePanel.classList.add("visible");
   if (scoreCardOverlay) scoreCardOverlay.classList.add("visible");
   if (shareBtnLabel) shareBtnLabel.textContent = originalShareLabel;
+  startReviveOffer();
   // Defer card generation by two animation frames so the
   // death snapshot is captured in render() before the
   // worker asks for it.
@@ -2221,6 +2255,61 @@ function hideScoreCard() {
   clearCard();
   shareInFlight = false;
   if (shareBtnLabel) shareBtnLabel.textContent = originalShareLabel;
+  stopReviveOffer();
+}
+
+// ─── Revive offer ─────────────────────────────────────────
+// The revive button sits above the Share/Play-again row, visible
+// only when the player can afford it and for a 5-second window.
+// A drain bar along the bottom signals the time limit without a
+// loud countdown number. Click → spend coins → dismiss the score
+// card and hand control back to the game loop (main.ts then runs
+// a ~1s invulnerability grace period).
+const reviveBtn = document.getElementById("revive-btn");
+const reviveBtnCost = document.getElementById("revive-btn-cost");
+const REVIVE_OFFER_MS = 5000;
+let reviveExpireTimer: number | null = null;
+
+function stopReviveOffer() {
+  if (reviveExpireTimer !== null) {
+    clearTimeout(reviveExpireTimer);
+    reviveExpireTimer = null;
+  }
+  if (reviveBtn) {
+    reviveBtn.hidden = true;
+    reviveBtn.classList.remove("draining");
+  }
+}
+
+function startReviveOffer() {
+  stopReviveOffer();
+  if (!reviveBtn || !window.Game?.canRevive || !window.Game?.getReviveCost) {
+    return;
+  }
+  if (!window.Game.canRevive()) return; // Can't afford or not game-over
+  const cost = window.Game.getReviveCost();
+  if (reviveBtnCost) reviveBtnCost.textContent = String(cost);
+  reviveBtn.hidden = false;
+  // Force a layout reflow between the class-remove (in stopReviveOffer)
+  // and the class-add below, so the browser restarts the keyframe
+  // animation from its `from` state on every invocation — otherwise
+  // same-task class toggles are batched and the animation doesn't
+  // re-play on the second revive offer.
+  void reviveBtn.offsetHeight;
+  reviveBtn.classList.add("draining");
+  reviveExpireTimer = window.setTimeout(stopReviveOffer, REVIVE_OFFER_MS);
+}
+
+if (reviveBtn) {
+  reviveBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!window.Game?.revive) return;
+    const ok = window.Game.revive();
+    if (ok) {
+      stopReviveOffer();
+      hideScoreCard();
+    }
+  });
 }
 
 // Touch/mobile heuristic — on desktop we prefer clipboard
