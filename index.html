@@ -583,89 +583,15 @@
               alt="Raptor Runner score card preview"
             />
           </div>
-          <button
-            id="revive-btn"
-            class="revive-btn"
-            type="button"
-            hidden
-            aria-label="Revive with coins"
-          >
-            <span class="revive-btn-inner">
-              <img
-                src="assets/coin.png"
-                alt=""
-                class="coin-icon"
-                aria-hidden="true"
-              />
-              <span class="revive-btn-label">
-                Revive · <span id="revive-btn-cost">0</span>
-              </span>
-            </span>
-            <span
-              class="revive-btn-progress"
-              aria-hidden="true"
-            ></span>
-          </button>
-          <div class="score-card-actions">
-            <button
-              id="share-score-btn"
-              class="share-score-btn"
-              type="button"
-              aria-label="Share your score"
-            >
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <circle cx="18" cy="5" r="3"></circle>
-                  <circle cx="6" cy="12" r="3"></circle>
-                  <circle cx="18" cy="19" r="3"></circle>
-                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-                </svg>
-                <span class="label">Share your score</span>
-              </span>
-            </button>
-            <button
-              id="play-again-btn"
-              class="play-again-btn"
-              type="button"
-              aria-label="Play again"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <polygon points="6 4 20 12 6 20 6 4"></polygon>
-              </svg>
-              <span>Play again</span>
-            </button>
-          </div>
+          <!-- Revive / Share / Play-again buttons are rendered by the
+               React <ScoreCardActions> component. The hint renders
+               via portal into #score-card-hint-root below so its
+               layout (outside .score-card-body) stays as before —
+               see src/ui/react/ScoreCardActions.tsx. -->
+          <div id="score-card-actions-root"></div>
         </div>
-        <p
-          class="score-card-hint"
-          id="score-card-hint"
-          role="button"
-          tabindex="0"
-          style="cursor: pointer"
-        >
-          <!-- Two copies, one visible at a time. CSS in legacy.css
-               hides the keyboard hint when body.gamepad-connected
-               is set and vice-versa, so the copy the player sees
-               always matches the device they're holding. Symbols
-               are vendor-neutral (● = any face button, same as the
-               pause-menu footer row). -->
-          <span class="kbd-hint">Press <kbd>Enter</kbd> to restart</span>
-          <span class="pad-hint"><kbd class="gp-select">●</kbd> to restart</span>
-        </p>
+        <!-- Portal target for the restart hint rendered by React. -->
+        <div id="score-card-hint-root"></div>
       </div>
     </div>
 

@@ -30,6 +30,7 @@
 
 import { refreshShop } from "./ui/react/mountShop";
 import { refreshAchievements } from "./ui/react/mountAchievements";
+import { refreshScoreCardActions } from "./ui/react/mountScoreCardActions";
 
 // Desktop "challenge a friend" store-link. Sourced from a Vite env
 // var; falls back to the web URL when not set. The env name is
@@ -1805,19 +1806,37 @@ document.addEventListener(
 refreshSoundUI();
 
 // ───────── Share your score ─────────
+// The PNG slot (#score-card-slot + #score-card-preview) stays vanilla
+// so the blob lifecycle can keep its imperative shape. The action
+// buttons (revive / share / play-again / hint) render through the
+// React <ScoreCardActions> component — see src/ui/react/
+// ScoreCardActions.tsx. All cross-render state lives here and is
+// pushed into React via syncScoreCardActions().
 const scoreCardOverlay = document.getElementById("score-card-overlay");
 const sharePanel = document.getElementById("score-card-panel");
 const scoreCardImg = document.getElementById("score-card-preview");
-const shareBtn = document.getElementById("share-score-btn");
-const shareBtnLabel = shareBtn
-  ? shareBtn.querySelector(".label")
-  : null;
-const originalShareLabel = shareBtnLabel
-  ? shareBtnLabel.textContent
-  : "Share your score";
+const originalShareLabel = "Share your score";
 let currentCardBlob = null;
 let currentCardUrl = null;
 let shareInFlight = false;
+let shareLabel = originalShareLabel;
+let reviveCost: number | null = null;
+// Bumped on every startReviveOffer so React remounts the revive
+// button and the CSS drain animation replays from its from-frame.
+// The vanilla code achieved the same thing with a manual
+// `void reviveBtn.offsetHeight` reflow between classList toggles.
+let reviveKey = 0;
+
+function syncScoreCardActions() {
+  refreshScoreCardActions({
+    reviveCost,
+    reviveKey,
+    shareLabel,
+    onRevive: handleReviveClick,
+    onShare: handleShareClick,
+    onRestart: doRestart,
+  });
+}
 
 function clearCard() {
   if (currentCardUrl) {
@@ -1840,7 +1859,7 @@ function showScoreCard() {
   if (scoreCardSlot) scoreCardSlot.classList.remove("loaded");
   sharePanel.classList.add("visible");
   if (scoreCardOverlay) scoreCardOverlay.classList.add("visible");
-  if (shareBtnLabel) shareBtnLabel.textContent = originalShareLabel;
+  shareLabel = originalShareLabel;
   startReviveOffer();
   // Defer card generation by two animation frames so the
   // death snapshot is captured in render() before the
@@ -1946,8 +1965,9 @@ function hideScoreCard() {
   if (scoreCardSlot) scoreCardSlot.classList.remove("loaded");
   clearCard();
   shareInFlight = false;
-  if (shareBtnLabel) shareBtnLabel.textContent = originalShareLabel;
+  shareLabel = originalShareLabel;
   stopReviveOffer();
+  syncScoreCardActions();
 }
 
 // ─── Revive offer ─────────────────────────────────────────
@@ -1957,8 +1977,6 @@ function hideScoreCard() {
 // loud countdown number. Click → spend coins → dismiss the score
 // card and hand control back to the game loop (main.ts then runs
 // a ~1s invulnerability grace period).
-const reviveBtn = document.getElementById("revive-btn");
-const reviveBtnCost = document.getElementById("revive-btn-cost");
 const REVIVE_OFFER_MS = 5000;
 let reviveExpireTimer: number | null = null;
 
@@ -1967,41 +1985,30 @@ function stopReviveOffer() {
     clearTimeout(reviveExpireTimer);
     reviveExpireTimer = null;
   }
-  if (reviveBtn) {
-    reviveBtn.hidden = true;
-    reviveBtn.classList.remove("draining");
-  }
+  reviveCost = null;
+  syncScoreCardActions();
 }
 
 function startReviveOffer() {
   stopReviveOffer();
-  if (!reviveBtn || !window.Game?.canRevive || !window.Game?.getReviveCost) {
-    return;
-  }
+  if (!window.Game?.canRevive || !window.Game?.getReviveCost) return;
   if (!window.Game.canRevive()) return; // Can't afford or not game-over
-  const cost = window.Game.getReviveCost();
-  if (reviveBtnCost) reviveBtnCost.textContent = String(cost);
-  reviveBtn.hidden = false;
-  // Force a layout reflow between the class-remove (in stopReviveOffer)
-  // and the class-add below, so the browser restarts the keyframe
-  // animation from its `from` state on every invocation — otherwise
-  // same-task class toggles are batched and the animation doesn't
-  // re-play on the second revive offer.
-  void reviveBtn.offsetHeight;
-  reviveBtn.classList.add("draining");
+  reviveCost = window.Game.getReviveCost();
+  // Bumping the key remounts the revive button in React so the
+  // CSS .draining keyframe restarts from its from-frame on every
+  // offer — equivalent to the vanilla reflow trick.
+  reviveKey += 1;
+  syncScoreCardActions();
   reviveExpireTimer = window.setTimeout(stopReviveOffer, REVIVE_OFFER_MS);
 }
 
-if (reviveBtn) {
-  reviveBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (!window.Game?.revive) return;
-    const ok = window.Game.revive();
-    if (ok) {
-      stopReviveOffer();
-      hideScoreCard();
-    }
-  });
+function handleReviveClick() {
+  if (!window.Game?.revive) return;
+  const ok = window.Game.revive();
+  if (ok) {
+    stopReviveOffer();
+    hideScoreCard();
+  }
 }
 
 // Touch/mobile heuristic — on desktop we prefer clipboard
@@ -2011,7 +2018,8 @@ const isTouchDevice =
   (navigator.maxTouchPoints || 0) > 1;
 
 function setShareLabel(text) {
-  if (shareBtnLabel) shareBtnLabel.textContent = text;
+  shareLabel = text;
+  syncScoreCardActions();
 }
 function flashShareLabel(text, duration = 1800) {
   setShareLabel(text);
@@ -2114,27 +2122,17 @@ async function handleShareClick() {
   }
 }
 
-if (shareBtn) {
-  shareBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    handleShareClick();
-  });
-}
-
-// Play again button — explicit restart action. Uses
+// Play again — explicit restart action. Uses
 // Game.restartFromGameOver which honours the short
-// death-animation cooldown built into main.ts.
+// death-animation cooldown built into main.ts. Share, Revive, Play
+// Again, and the restart hint are all rendered by the React
+// <ScoreCardActions> component; their click handlers delegate back
+// to the functions defined here (doRestart, handleShareClick,
+// handleReviveClick).
 function doRestart() {
   if (window.Game && window.Game.restartFromGameOver) {
     window.Game.restartFromGameOver();
   }
-}
-const playAgainBtn = document.getElementById("play-again-btn");
-if (playAgainBtn) {
-  playAgainBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    doRestart();
-  });
 }
 // Clicking anywhere on the game-over overlay backdrop
 // (but not the panel itself) restarts the game via mouse
@@ -2147,11 +2145,7 @@ if (scoreCardOverlay) {
     }
   });
 }
-// Make the "Press Enter to restart" hint clickable too.
-const scoreCardHint = document.getElementById("score-card-hint");
-if (scoreCardHint) {
-  scoreCardHint.addEventListener("click", (e) => {
-    e.stopPropagation();
-    doRestart();
-  });
-}
+// Seed an initial render so the React tree exists before the
+// panel first opens. The hint renders immediately; revive stays
+// hidden until startReviveOffer flips reviveCost to a number.
+syncScoreCardActions();
