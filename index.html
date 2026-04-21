@@ -495,69 +495,13 @@
         alt=""
         aria-hidden="true"
       />
-      <div class="start-content">
-        <h1>Raptor Runner</h1>
-        <p class="subtitle">Jump the cacti. Don't let the raptor die.</p>
-        <p class="homage">A homage to the Google "No Internet" idle game.</p>
-        <p id="start-highscore" class="start-highscore" hidden>
-          ★ Personal best: <span id="start-highscore-value">0</span>
-        </p>
-        <button id="start-btn" class="start-btn loading" type="button" disabled>
-          <span class="spinner" aria-hidden="true"></span>
-          <svg
-            class="play-icon"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            <path d="M8 5v14l11-7z"></path>
-          </svg>
-          <span class="label">Loading…</span>
-        </button>
-        <p class="start-hint start-hint-desktop">
-          Tip: press <kbd>Space</kbd> or tap to jump · <kbd>Esc</kbd> for menu
-        </p>
-        <p class="start-hint start-hint-touch">Tip: Tap to jump</p>
-        <!-- Shown when body.gamepad-connected is set. Icons match the
-             vendor-neutral glyphs used in .menu-gamepad-hint: ● for any
-             face button, ☰ for any system/menu button. -->
-        <p class="start-hint start-hint-gamepad">
-          Tip: <kbd>●</kbd> to jump · <kbd>☰</kbd> for menu
-        </p>
-      </div>
-      <p class="start-byline">
-        Made with
-        <svg
-          class="heart"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"
-          />
-        </svg>
-        by
-        <span class="web-only">
-          <a href="https://portfolio.trebeljahr.com" target="_blank"
-            >Rico Trebeljahr</a
-          >
-          <span class="dot">·</span>
-          <a href="https://ricos.site/newsletters" target="_blank"
-            >Writing at ricos.site</a
-          >
-          <span class="dot">·</span>
-          Dino Art by
-          <a href="https://www.instagram.com/chrismasna" target="_blank"
-            >Chris Masna</a
-          >
-        </span>
-        <span class="desktop-only"
-          >Rico Trebeljahr <span class="dot">·</span> Dino Art by Chris
-          Masna</span
-        >
-      </p>
+      <!-- .start-content (title, subtitle, personal-best badge,
+           start button, hints) and .start-byline are rendered by
+           the React <StartScreen> component — see
+           src/ui/react/StartScreen.tsx. The outer #start-screen
+           div and the CSS-animated clouds / ground / cacti / raptor
+           stage above stay vanilla. -->
+      <div id="start-content-root"></div>
     </div>
 
     <!-- Score-card panel: appears on game-over, shows the
@@ -583,103 +527,20 @@
               alt="Raptor Runner score card preview"
             />
           </div>
-          <button
-            id="revive-btn"
-            class="revive-btn"
-            type="button"
-            hidden
-            aria-label="Revive with coins"
-          >
-            <span class="revive-btn-inner">
-              <img
-                src="assets/coin.png"
-                alt=""
-                class="coin-icon"
-                aria-hidden="true"
-              />
-              <span class="revive-btn-label">
-                Revive · <span id="revive-btn-cost">0</span>
-              </span>
-            </span>
-            <span
-              class="revive-btn-progress"
-              aria-hidden="true"
-            ></span>
-          </button>
-          <div
-            id="revive-balance"
-            class="revive-balance"
-            hidden
-            aria-live="polite"
-          >
-            You have <span id="revive-balance-amount">0</span>
-            <img
-              src="assets/coin.png"
-              alt=""
-              class="coin-icon"
-              aria-hidden="true"
-            />
-          </div>
-          <div class="score-card-actions">
-            <button
-              id="share-score-btn"
-              class="share-score-btn"
-              type="button"
-              aria-label="Share your score"
-            >
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <circle cx="18" cy="5" r="3"></circle>
-                  <circle cx="6" cy="12" r="3"></circle>
-                  <circle cx="18" cy="19" r="3"></circle>
-                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-                </svg>
-                <span class="label">Share your score</span>
-              </span>
-            </button>
-            <button
-              id="play-again-btn"
-              class="play-again-btn"
-              type="button"
-              aria-label="Play again"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <polygon points="6 4 20 12 6 20 6 4"></polygon>
-              </svg>
-              <span>Play again</span>
-            </button>
-          </div>
+          <!-- Revive / Share / Play-again buttons are rendered by the
+               React <ScoreCardActions> component. The hint renders
+               via portal into #score-card-hint-root below so its
+               layout (outside .score-card-body) stays as before —
+               see src/ui/react/ScoreCardActions.tsx.
+               Note: the revive-balance ("You have N coins") panel
+               added in the v1.0.4 revive-polish pass will render
+               through the same React component — its data flows in
+               via the same callback path as the rest of the score-
+               card actions, no extra mount root needed. -->
+          <div id="score-card-actions-root"></div>
         </div>
-        <p
-          class="score-card-hint"
-          id="score-card-hint"
-          role="button"
-          tabindex="0"
-          style="cursor: pointer"
-        >
-          <!-- Two copies, one visible at a time. CSS in legacy.css
-               hides the keyboard hint when body.gamepad-connected
-               is set and vice-versa, so the copy the player sees
-               always matches the device they're holding. Symbols
-               are vendor-neutral (● = any face button, same as the
-               pause-menu footer row). -->
-          <span class="kbd-hint">Press <kbd>Enter</kbd> to restart</span>
-          <span class="pad-hint"><kbd class="gp-select">●</kbd> to restart</span>
-        </p>
+        <!-- Portal target for the restart hint rendered by React. -->
+        <div id="score-card-hint-root"></div>
       </div>
     </div>
 
@@ -819,219 +680,71 @@
          iframe avoids any fetch/parse failure modes (the earlier
          approach had Cloudflare email-obfuscation rewriting the HTML
          in ways that broke DOMParser extraction). -->
+    <!-- Imprint overlay — rendered by the React <IframeOverlay>
+         component (src/ui/react/IframeOverlay.tsx). The outer
+         .imprint-overlay wrapper keeps the backdrop + .open class
+         toggle plumbing working. -->
     <div
       id="imprint-overlay"
       class="imprint-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Imprint and legal notice"
-    >
-      <div class="imprint-sheet">
-        <button id="imprint-close" class="imprint-close" aria-label="Close">
-          ×
-        </button>
-        <iframe
-          id="imprint-iframe"
-          title="Imprint"
-          src="about:blank"
-          loading="lazy"
-        ></iframe>
-      </div>
-    </div>
+    ></div>
 
-    <!-- Credits overlay — static, in-app content (no iframe). Unlike
-         the imprint overlay this doesn't depend on a separate HTML
-         file being bundled, so it works identically on web, desktop
-         Electron, and Capacitor. Legal links (Imprint, Privacy) at
-         the bottom point at the website so the full legally-required
-         text lives in one canonical place and gets indexed. -->
+    <!-- Credits overlay — static content rendered by the React
+         <Credits> component (src/ui/react/Credits.tsx). The component
+         reads ATTRIBUTION_SECTIONS from src/credits.ts at runtime, so
+         the build-time injection that the creditsBuildInjectPlugin
+         still runs for imprint.html is no-op here. Works identically
+         on web, Electron, and Capacitor. -->
     <div
       id="credits-overlay"
       class="imprint-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Credits"
-    >
-      <div class="imprint-sheet credits-sheet">
-        <button id="credits-close" class="imprint-close" aria-label="Close">
-          ×
-        </button>
-        <div class="credits-scroll">
-          <h1 class="credits-heading" tabindex="-1">Credits</h1>
-          <section class="credits-section">
-            <h2>Game</h2>
-            <p>
-              Design, code, and everything else by
-              <a href="https://portfolio.trebeljahr.com" target="_blank" rel="noopener"
-                >Rico Trebeljahr</a
-              >.
-            </p>
-          </section>
+    ></div>
 
-          <!-- Art / Music / Sound effects / Engine — injected at BUILD
-               time from src/credits.ts by the creditsBuildInjectPlugin
-               in vite.config.ts. Same data also powers imprint.html,
-               so the two can't drift out of sync. Static HTML — no
-               runtime mount needed. -->
-          <div id="credits-attribution-sections"></div>
-
-          <section class="credits-section">
-            <h2>Homage</h2>
-            <p>
-              A love letter to the Chrome "No Internet" dinosaur game,
-              extended with a full day/night cycle, a rotating
-              starfield, and the occasional visit from something
-              weirder.
-            </p>
-          </section>
-
-          <section class="credits-section">
-            <h2>Writing &amp; more</h2>
-            <ul class="credits-links">
-              <li>
-                <a href="https://ricos.site/newsletters" target="_blank" rel="noopener"
-                  >Rico's writing at ricos.site</a
-                >
-              </li>
-              <li>
-                <a href="https://github.com/trebeljahr/velociraptor" target="_blank" rel="noopener"
-                  >Source on GitHub</a
-                >
-              </li>
-            </ul>
-          </section>
-
-          <section class="credits-section credits-legal">
-            <h2>Legal</h2>
-            <ul class="credits-links">
-              <li>
-                <a href="https://raptor.trebeljahr.com/imprint.html" target="_blank" rel="noopener"
-                  >Imprint / Impressum</a
-                >
-              </li>
-              <li>
-                <a href="https://raptor.trebeljahr.com/imprint.html#privacy" target="_blank" rel="noopener"
-                  >Privacy policy</a
-                >
-              </li>
-            </ul>
-          </section>
-        </div>
-      </div>
-    </div>
-
-    <!-- About overlay — loads about.html in an iframe, same
-         pattern as the imprint overlay. -->
+    <!-- About overlay — rendered by the React <IframeOverlay>
+         component; iframe src flips lazily from "about:blank" to
+         about.html on first open. -->
     <div
       id="about-overlay"
       class="imprint-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="About Raptor Runner"
-    >
-      <div class="imprint-sheet">
-        <button id="about-close" class="imprint-close" aria-label="Close">
-          ×
-        </button>
-        <iframe
-          id="about-iframe"
-          title="About Raptor Runner"
-          src="about:blank"
-          loading="lazy"
-        ></iframe>
-      </div>
-    </div>
+    ></div>
 
     <!-- Shop overlay — full-screen modal listing buyable cosmetics.
-         Opens from the "Shop" menu button; items grid is populated
-         by ui.ts renderShop() so adding a cosmetic to the registry
-         doesn't require HTML changes. -->
+         Opens from the "Shop" menu button. The outer wrapper stays
+         here so the existing .imprint-overlay backdrop / open-state
+         CSS and the ui.ts open/close class toggle continue to work;
+         the sheet contents (close button + balance + items grid) are
+         rendered by the React <Shop> component — see
+         src/ui/react/Shop.tsx and src/ui/react/mountShop.ts. -->
     <div
       id="shop-overlay"
       class="imprint-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Shop"
-    >
-      <div class="imprint-sheet shop-sheet">
-        <button
-          id="shop-close"
-          class="imprint-close"
-          aria-label="Close"
-        >
-          ×
-        </button>
-        <div class="shop-scroll">
-          <h1 class="shop-heading" tabindex="-1">Shop</h1>
-          <p class="shop-balance">
-            <span class="shop-balance-label">Coins</span>
-            <span class="shop-balance-value">
-              <span id="shop-balance-value">0</span>
-              <img
-                src="assets/coin.png"
-                alt=""
-                class="coin-icon"
-                aria-hidden="true"
-              />
-            </span>
-          </p>
-          <div id="shop-items" class="shop-items">
-            <!-- Populated by ui.ts renderShop() when the overlay opens. -->
-          </div>
-          <p id="shop-empty-hint" class="shop-empty-hint" hidden>
-            Collect coins on the flower fields to spend them here.
-          </p>
-        </div>
-      </div>
-    </div>
+    ></div>
 
     <!-- Achievements overlay — rendered in the parent window
          (no iframe) because the list is data-driven from the
-         Game API. -->
+         Game API. The sheet content is rendered by the React
+         <Achievements> component (src/ui/react/Achievements.tsx);
+         this outer div keeps the .imprint-overlay backdrop and
+         the .open class toggle in ui.ts working unchanged. -->
     <div
       id="achievements-overlay"
       class="imprint-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Achievements"
-    >
-      <div class="imprint-sheet achievements-sheet">
-        <button
-          id="achievements-close"
-          class="imprint-close"
-          aria-label="Close"
-        >
-          ×
-        </button>
-        <div class="achievements-scroll">
-          <h1 class="achievements-heading" tabindex="-1">Achievements</h1>
-          <p id="achievements-progress" class="achievements-progress">
-            0 / 0 unlocked
-          </p>
-          <button
-            id="achievements-steam-link"
-            class="achievements-steam-link desktop-only"
-            type="button"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <polygon points="10 8 16 12 10 16 10 8"></polygon>
-            </svg>
-            View on Steam
-          </button>
-          <ul id="achievements-list" class="achievements-list"></ul>
-        </div>
-      </div>
-    </div>
+    ></div>
 
     <!-- Reset-progress confirmation dialog -->
     <div
@@ -1086,93 +799,11 @@
             </svg>
             Sound Settings
           </summary>
-          <div class="sound-settings-body">
-            <button id="menu-sound-toggle" class="menu-item" type="button">
-              <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                </svg>
-                <span id="menu-sound-label">Sound: off</span>
-              </span>
-            </button>
-            <button id="menu-music-toggle" class="menu-item" type="button">
-              <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M9 18V5l12-2v13"></path>
-                  <circle cx="6" cy="18" r="3"></circle>
-                  <circle cx="18" cy="16" r="3"></circle>
-                </svg>
-                <span id="menu-music-label">Music: on</span>
-              </span>
-            </button>
-            <button id="menu-jump-toggle" class="menu-item" type="button">
-              <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polyline points="17 1 21 5 17 9"></polyline>
-                  <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                  <polyline points="7 23 3 19 7 15"></polyline>
-                  <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                </svg>
-                <span id="menu-jump-label">Jump sound: on</span>
-              </span>
-            </button>
-            <button id="menu-rain-sound-toggle" class="menu-item" type="button">
-              <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
-                  <path d="M16 14v6"></path>
-                  <path d="M8 14v6"></path>
-                  <path d="M12 16v6"></path>
-                </svg>
-                <span id="menu-rain-sound-label">Rain sound: on</span>
-              </span>
-            </button>
-            <button id="menu-thunder-toggle" class="menu-item" type="button">
-              <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                </svg>
-                <span id="menu-thunder-label">Thunder: on</span>
-              </span>
-            </button>
-            <button id="menu-footsteps-toggle" class="menu-item" type="button">
-              <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M8.5 3a2.5 2.5 0 0 1 2.5 2.5v3A2.5 2.5 0 0 1 8.5 11 2.5 2.5 0 0 1 6 8.5v-3A2.5 2.5 0 0 1 8.5 3z"></path>
-                  <path d="M6.5 13h4a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2h-1l-1 3H6l.5-3H6a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2z"></path>
-                  <path d="M15.5 9a2.5 2.5 0 0 1 2.5 2.5v3a2.5 2.5 0 1 1-5 0v-3A2.5 2.5 0 0 1 15.5 9z"></path>
-                </svg>
-                <span id="menu-footsteps-label">Footsteps: on</span>
-              </span>
-            </button>
-            <button id="menu-coins-sound-toggle" class="menu-item" type="button">
-              <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="9"></circle>
-                  <path d="M12 7v10M9 10h5a2 2 0 0 1 0 4H9"></path>
-                </svg>
-                <span id="menu-coins-sound-label">Coins: on</span>
-              </span>
-            </button>
-            <button id="menu-ui-sound-toggle" class="menu-item" type="button">
-              <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M9 11V7a3 3 0 0 1 6 0v4"></path>
-                  <rect x="5" y="11" width="14" height="10" rx="2"></rect>
-                </svg>
-                <span id="menu-ui-sound-label">UI clicks: on</span>
-              </span>
-            </button>
-            <button id="menu-events-sound-toggle" class="menu-item" type="button">
-              <span class="inner">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polygon points="12 2 15 9 22 9 17 14 19 21 12 17 5 21 7 14 2 9 9 9 12 2"></polygon>
-                </svg>
-                <span id="menu-events-sound-label">Rare events: on</span>
-              </span>
-            </button>
-          </div>
+          <!-- Sound toggle rows are rendered by the React
+               <SoundSettings> component (src/ui/react/SoundSettings.tsx).
+               The <details> wrapper and its <summary> above stay
+               vanilla — only the body inside is React. -->
+          <div class="sound-settings-body"></div>
         </details>
 
         <!-- Shop — opens the full-screen shop overlay. Label shows
@@ -1211,11 +842,14 @@
             </svg>
             Cosmetics
           </summary>
-          <div class="cosmetics-body menu-group-body" id="cosmetics-list">
-            <!-- Populated by ui.ts renderCosmeticsMenu() on every
-                 menu-open. Each slot renders as a subsection with
-                 equip buttons for owned items + a "None" row. -->
-          </div>
+          <!-- Populated by the React <CosmeticsMenu> component
+               (src/ui/react/CosmeticsMenu.tsx) on every menu-open and
+               after any equip change. One subsection per owned slot
+               with equip buttons + a "None" row. The outer <details>
+               and #cosmetics-list host div stay here so the
+               hidden-attribute gating in ui.ts's renderCosmeticsMenu
+               keeps working. -->
+          <div class="cosmetics-body menu-group-body" id="cosmetics-list"></div>
         </details>
 
         <!-- Debug (collapsible). Only shown when body[data-debug="true"]
@@ -1229,403 +863,21 @@
             </svg>
             Debug
           </summary>
-          <ul class="debug-settings-body menu-group-body">
-            <li class="in-game-only">
-              <button id="menu-hitboxes-toggle" class="menu-item" type="button">
-                <span class="inner">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-dasharray="3 3"></rect>
-                  </svg>
-                  <span id="menu-hitboxes-label">Hitboxes: on</span>
-                </span>
-              </button>
-            </li>
-            <li class="in-game-only">
-              <button id="menu-rain-toggle" class="menu-item" type="button">
-                <span class="inner">🌧️ <span id="menu-rain-label">Toggle Rain</span></span>
-              </button>
-            </li>
-            <li class="in-game-only">
-              <button id="menu-nocollisions-toggle" class="menu-item" type="button">
-                <span class="inner">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-                  </svg>
-                  <span id="menu-nocollisions-label">Collisions: on</span>
-                </span>
-              </button>
-            </li>
-            <li class="in-game-only">
-              <button id="menu-perf-toggle" class="menu-item" type="button">
-                <span class="inner">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                  </svg>
-                  <span id="menu-perf-label">Perf overlay: on</span>
-                </span>
-              </button>
-            </li>
-            <li class="in-game-only menu-score-editor">
-              <label class="menu-item menu-score-editor-label" for="menu-score-input">
-                <span class="inner">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M12 20h9"></path>
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                  </svg>
-                  <span>Score</span>
-                  <input id="menu-score-input" type="number" min="0" step="1" value="0" class="menu-score-input" />
-                </span>
-              </label>
-            </li>
-            <li class="in-game-only">
-              <button id="menu-event-ufo" class="menu-item" type="button">
-                <span class="inner">🛸 <span>Trigger UFO</span></span>
-              </button>
-            </li>
-            <li class="in-game-only">
-              <button id="menu-event-santa" class="menu-item" type="button">
-                <span class="inner">🎅 <span>Trigger Santa</span></span>
-              </button>
-            </li>
-            <li class="in-game-only">
-              <button id="menu-event-tumbleweed" class="menu-item" type="button">
-                <span class="inner">🌾 <span>Trigger Tumbleweed</span></span>
-              </button>
-            </li>
-            <li class="in-game-only">
-              <button id="menu-event-comet" class="menu-item" type="button">
-                <span class="inner">☄️ <span>Trigger Comet</span></span>
-              </button>
-            </li>
-            <li class="in-game-only">
-              <button id="menu-event-meteor" class="menu-item" type="button">
-                <span class="inner">💥 <span>Trigger Meteor</span></span>
-              </button>
-            </li>
-            <li class="in-game-only">
-              <button id="menu-advance-moon" class="menu-item" type="button">
-                <span class="inner">🌙 <span>Advance Moon Phase</span></span>
-              </button>
-            </li>
-            <li class="in-game-only">
-              <button id="menu-force-breather" class="menu-item" type="button">
-                <span class="inner">🌼 <span>Trigger Flower Field</span></span>
-              </button>
-            </li>
-            <li class="in-game-only">
-              <button id="menu-spawn-pterodactyl" class="menu-item" type="button">
-                <span class="inner">🦅 <span>Trigger Pterodactyl</span></span>
-              </button>
-            </li>
-          </ul>
+          <!-- Rows rendered by the React <DebugSettings> component —
+               see src/ui/react/DebugSettings.tsx. Outer <details>
+               + data-debug="true" gating keeps production builds
+               from ever showing this section. -->
+          <ul class="debug-settings-body menu-group-body"></ul>
         </details>
 
-        <ul>
-          <li class="in-game-only">
-            <button id="menu-home" class="menu-item" type="button">
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M3 12L12 3l9 9"></path>
-                  <path d="M5 10v10h14V10"></path>
-                </svg>
-                <span>Back to home screen</span>
-              </span>
-            </button>
-          </li>
-          <li>
-            <button id="menu-achievements" class="menu-item" type="button">
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M8 21h8" />
-                  <path d="M12 17v4" />
-                  <path d="M7 4h10v5a5 5 0 0 1-10 0V4z" />
-                  <path d="M7 6H4a2 2 0 0 0-2 2v1a3 3 0 0 0 3 3h2" />
-                  <path d="M17 6h3a2 2 0 0 1 2 2v1a3 3 0 0 1-3 3h-2" />
-                </svg>
-                <span>Achievements</span>
-              </span>
-            </button>
-          </li>
-          <li class="pre-game-only">
-            <button id="menu-jumpsreset-toggle" class="menu-item" type="button">
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M3 12a9 9 0 1 0 3-6.7"></path>
-                  <polyline points="3 4 3 10 9 10"></polyline>
-                </svg>
-                <span>Reset all progress</span>
-              </span>
-            </button>
-          </li>
-          <li id="menu-install-li" class="web-only" style="display: none">
-            <button id="menu-install" class="menu-item" type="button">
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                <span>Install App</span>
-              </span>
-            </button>
-          </li>
-          <li>
-            <a class="menu-item" href="about.html">
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="16" x2="12" y2="12"></line>
-                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                </svg>
-                <span>About</span>
-              </span>
-            </a>
-          </li>
-          <li>
-            <button id="menu-credits" class="menu-item" type="button">
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
-                  ></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                <span>Credits</span>
-              </span>
-            </button>
-          </li>
-          <li id="menu-imprint-li" class="web-only">
-            <a class="menu-item" href="imprint.html">
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                  ></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                  <polyline points="10 9 9 9 8 9"></polyline>
-                </svg>
-                <span>Imprint</span>
-              </span>
-            </a>
-          </li>
-          <li id="menu-github-li" class="web-only">
-            <a
-              class="menu-item"
-              href="https://github.com/trebeljahr/velociraptor"
-              target="_blank"
-            >
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M12 .5C5.648.5.5 5.648.5 12c0 5.082 3.292 9.393 7.862 10.917.575.106.787-.25.787-.556 0-.275-.01-1.002-.015-1.966-3.198.695-3.874-1.542-3.874-1.542-.522-1.326-1.275-1.679-1.275-1.679-1.044-.714.079-.699.079-.699 1.154.081 1.762 1.185 1.762 1.185 1.025 1.757 2.689 1.249 3.344.955.104-.742.401-1.249.729-1.537-2.553-.29-5.238-1.277-5.238-5.683 0-1.256.45-2.282 1.185-3.087-.119-.29-.513-1.46.112-3.045 0 0 .966-.309 3.164 1.179a11.02 11.02 0 0 1 2.88-.388c.978.004 1.962.132 2.881.388 2.197-1.488 3.16-1.179 3.16-1.179.627 1.585.233 2.755.114 3.045.738.805 1.184 1.831 1.184 3.087 0 4.418-2.69 5.39-5.252 5.674.413.356.78 1.058.78 2.133 0 1.541-.014 2.783-.014 3.162 0 .308.208.668.792.555C20.21 21.39 23.5 17.08 23.5 12c0-6.352-5.148-11.5-11.5-11.5z"
-                  />
-                </svg>
-                <span>GitHub</span>
-              </span>
-            </a>
-          </li>
-          <li class="desktop-only">
-            <button id="menu-steam-store" class="menu-item" type="button">
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
-                  <line x1="3" y1="6" x2="21" y2="6"></line>
-                  <path d="M16 10a4 4 0 0 1-8 0"></path>
-                </svg>
-                <span>View on Steam Store</span>
-              </span>
-            </button>
-          </li>
-          <li class="desktop-only">
-            <button id="menu-steam-friends" class="menu-item" type="button">
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="9" cy="7" r="4"></circle>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-                <span>Friends on Steam</span>
-              </span>
-            </button>
-          </li>
-          <li class="desktop-only">
-            <button id="menu-fullscreen-toggle" class="menu-item" type="button">
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
-                  <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
-                  <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
-                  <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
-                </svg>
-                <span id="menu-fullscreen-label">Fullscreen: on</span>
-              </span>
-            </button>
-          </li>
-          <li class="desktop-only">
-            <button id="menu-quit" class="menu-item" type="button">
-              <span class="inner">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                  <polyline points="16 17 21 12 16 7"></polyline>
-                  <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                <span>Quit</span>
-              </span>
-            </button>
-          </li>
-        </ul>
-        <div class="close-hint in-game-only">
-          <button id="menu-close" type="button">Resume game</button>
-        </div>
-        <p class="menu-hint">Press <kbd>Esc</kbd> to close</p>
-        <!-- Gamepad hint row — only visible when (a) a gamepad is
-             connected (body.gamepad-connected, toggled by the
-             gamepadconnected / gamepaddisconnected listeners in
-             src/main.ts) AND (b) we're not inside a Capacitor shell
-             (body.cap). On mobile the row would waste vertical space
-             when nobody plugs in a controller.
-
-             Labels are vendor-neutral on purpose: Xbox "A" and
-             Nintendo "A" sit at opposite positions on the face
-             cluster, so lettered hints actively mislead half our
-             players. ● stands for "any face button" (the poller
-             accepts all four) and ☰ for "any system / menu button"
-             (Start, Back, Home, Plus, Minus — any works). -->
-        <p class="menu-gamepad-hint">
-          <span><kbd>↕</kbd> Navigate</span>
-          <span><kbd class="gp-select">A</kbd> Select</span>
-          <span><kbd class="gp-back">B</kbd> Back</span>
-          <span><kbd class="gp-back">☰</kbd> Close</span>
-        </p>
-        <p class="made-by in-game-only web-only">
-          Made with
-          <svg
-            class="heart"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"
-            />
-          </svg>
-          by
-          <a href="https://portfolio.trebeljahr.com" target="_blank"
-            >Rico Trebeljahr</a
-          >
-          ·
-          <a href="https://ricos.site/newsletters" target="_blank"
-            >Writing at ricos.site</a
-          >
-        </p>
+        <!-- Main menu navigation list + footer rows (Resume game
+             hint, "Press Esc", gamepad hint, made-by paragraph) are
+             rendered by the React <MenuList> component — see
+             src/ui/react/MenuList.tsx. The outer .menu-panel wrapper
+             and the <h2 id="menu-title"> above stay vanilla so the
+             open-class backdrop styling and gamepad-focus querying
+             keep working against the rendered .menu-item buttons. -->
+        <div id="menu-list-root"></div>
       </div>
     </div>
 

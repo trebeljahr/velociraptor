@@ -162,79 +162,87 @@ html,
         width: 90px;
         opacity: 0.85;
       }
+      /* ───────── Phase 2.1 redesign — start-screen chrome ─────────
+       * Display type + in-game palette. No text-shadow haloes, no
+       * pill buttons, no soft drop shadows. Highscore badge + kbd
+       * chips share the same flat sand-on-dune panel treatment so
+       * the start screen reads as one cohesive piece.
+       */
       .start-content {
         position: relative;
         z-index: 2;
         text-align: center;
-        color: #2a1d13;
+        color: var(--color-dune);
         padding: 2rem;
+        font-family: var(--font-display);
+        font-weight: 500;
       }
       .start-content h1 {
         font-size: clamp(2rem, 6vw, 4rem);
         margin: 0 0 0.5rem;
         font-weight: 800;
         letter-spacing: -0.02em;
-        text-shadow: 0 2px 12px rgba(255, 255, 255, 0.4);
       }
       .start-content .subtitle {
         font-size: clamp(0.9rem, 1.5vw, 1.1rem);
         margin: 0 0 0.35rem;
-        color: #2a1d13;
+        font-weight: 600;
       }
       .start-content .homage {
         font-size: clamp(0.72rem, 1.1vw, 0.85rem);
         margin: 0 0 1.4rem;
-        color: #2a1d13;
-        font-style: italic;
+        font-weight: 500;
         opacity: 0.85;
       }
       .start-highscore {
-        display: block;
-        width: fit-content;
+        display: inline-block;
         margin: 0 auto 1.4rem;
-        padding: 0.4rem 1rem;
-        border: 1px solid rgba(42, 29, 19, 0.25);
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.35);
-        color: #2a1d13;
+        padding: 0.35rem 1rem;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
+        color: var(--color-dune);
         font-size: 0.85rem;
-        font-weight: 600;
+        font-weight: 700;
         letter-spacing: 0.02em;
       }
       .start-highscore[hidden] {
         display: none;
       }
+      /* Start button: sand fill + thick dune border. Hover swaps the
+       * fill to sky-teal (same palette as the in-game sky). Pressing
+       * nudges the button down 2px (physical-key feel) instead of
+       * lifting it — the "web app button floats" idiom is exactly
+       * what we're backing away from here. */
       .start-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 0.75rem;
         min-width: 220px;
-        padding: 1rem 2rem;
-        background: #2a1d13;
-        color: #fff;
-        border: none;
-        border-radius: 999px;
-        font: inherit;
+        padding: 0.9rem 2rem;
+        background: var(--color-sand-contrast);
+        color: var(--color-dune);
+        border: 4px solid var(--color-dune);
+        border-radius: 6px;
+        font-family: inherit;
         font-size: 1.1rem;
-        font-weight: 600;
+        font-weight: 700;
+        letter-spacing: 0.01em;
         cursor: pointer;
-        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
         transition:
-          transform 0.15s,
-          box-shadow 0.15s,
-          opacity 0.2s;
+          background-color 0.12s ease,
+          color 0.12s ease,
+          transform 0.06s ease;
       }
-      .start-btn:not(:disabled):hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      .start-btn:not(:disabled):hover,
+      .start-btn:not(:disabled):focus-visible {
+        background: var(--color-sky);
+        color: var(--color-dune);
       }
-      /* Click feedback now uses the shared .tapped class + the
-         menu-item-tap keyframes defined elsewhere in this file —
-         same sound (audio.playMenuTap) and same wiggle as every
-         other activation in the menu UI. Intentionally no custom
-         :active / wiggling rules here: the shared system owns the
-         press treatment. */
+      .start-btn:not(:disabled):active {
+        transform: translateY(2px);
+      }
       .start-btn:disabled {
         opacity: 0.75;
         cursor: wait;
@@ -243,8 +251,8 @@ html,
         display: none;
         width: 16px;
         height: 16px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-top-color: #fff;
+        border: 3px solid rgba(42, 29, 19, 0.25);
+        border-top-color: var(--color-dune);
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
       }
@@ -262,7 +270,8 @@ html,
       .start-hint {
         margin-top: 2.75rem;
         font-size: 0.8rem;
-        color: #2a1d13;
+        color: var(--color-dune);
+        font-weight: 500;
         opacity: 0.9;
       }
       /* Desktop: show keyboard hint, hide touch + gamepad hints.
@@ -298,36 +307,46 @@ html,
       .start-hint kbd {
         display: inline-block;
         padding: 1px 6px;
-        border: 1px solid rgba(107, 77, 42, 0.35);
-        border-radius: 4px;
-        background: rgba(255, 255, 255, 0.5);
-        font: inherit;
+        border: 2px solid var(--color-dune);
+        border-radius: 3px;
+        background: var(--color-sand-contrast);
+        font-family: var(--font-display);
+        font-weight: 700;
         font-size: 0.75rem;
+        color: var(--color-dune);
       }
       /* Byline pinned to the bottom of the start screen. Two explicit
          links so high-intent visitors can pick between the portfolio
          (lead capture) and the newsletter on ricos.site (writing). */
+      /* React-mount root. Set to display:contents so its children
+       * (.start-content + .start-byline) become direct flex items
+       * of .start-screen — otherwise the .start-byline auto-margin
+       * below has nothing to push against and the byline sticks to
+       * the content instead of the bottom of the viewport. */
+      #start-content-root {
+        display: contents;
+      }
       .start-byline {
-        margin: auto 0 1.2rem;
+        margin: auto 0 1rem;
         padding: 0 1rem;
-        font-size: 0.78rem;
-        color: #2a1d13;
+        font-family: var(--font-display);
+        font-size: 0.68rem;
+        font-weight: 500;
+        color: var(--color-dune);
         text-align: center;
-        opacity: 0.8;
+        opacity: 0.85;
         z-index: 3;
       }
       .start-byline a {
         color: inherit;
         text-decoration: underline;
         text-underline-offset: 2px;
-        text-decoration-thickness: 1px;
-        text-decoration-color: rgba(42, 29, 19, 0.35);
-        transition:
-          text-decoration-color 0.15s,
-          opacity 0.15s;
+        text-decoration-thickness: 2px;
+        text-decoration-color: var(--color-dune);
+        transition: color 0.15s;
       }
       .start-byline a:hover {
-        text-decoration-color: rgba(42, 29, 19, 0.9);
+        color: var(--color-sky-dim);
       }
       .start-byline .dot {
         display: inline-block;
@@ -423,29 +442,24 @@ html,
         width: auto;
         max-width: min(92vw, 420px);
       }
+      /* Achievement unlock toast: was a frosted-white capsule with
+       * a blur backdrop — the most glassmorphism-adjacent thing on
+       * screen. Swap for the same flat sand-on-dune language every
+       * other panel uses; coin-gold fill signals 'unlocked' the
+       * same way it does inside the Achievements list. */
       .achievement-toast {
         display: flex;
         align-items: center;
         gap: 0.75rem;
         padding: 0.55rem 1.1rem 0.55rem 0.55rem;
-        /* Frosted-white capsule — same visual language as the
-           top-right icon cluster and the score pill. */
-        background: rgba(255, 255, 255, 0.82);
-        color: #222;
-        border: 1px solid rgba(255, 255, 255, 0.65);
-        border-radius: 999px;
-        box-shadow: 0 10px 28px rgba(20, 30, 60, 0.18);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        font-family: inherit;
+        background: var(--color-coin);
+        color: var(--color-dune);
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        font-family: var(--font-display);
         min-width: 240px;
         max-width: 92vw;
         pointer-events: auto;
-        /* Transition-based entry rather than @keyframes, because
-           CSS animations can stall in throttled / backgrounded
-           tabs and the toast would never become visible. A
-           transition on opacity + transform runs reliably the
-           moment a class swap happens. */
         opacity: 1;
         transform: translateY(0) scale(1);
         transition:
@@ -458,21 +472,23 @@ html,
       }
       .achievement-toast-icon {
         flex: 0 0 auto;
+        box-sizing: border-box;
         width: 44px;
         height: 44px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.9);
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+        padding: 4px;
+        border: 2px solid var(--color-dune);
+        border-radius: 5px;
+        background: var(--color-sand-contrast);
       }
       .achievement-toast-icon svg,
       .achievement-toast-icon img.achievement-icon-image {
-        width: 28px;
-        height: 28px;
+        width: 100%;
+        height: 100%;
         display: block;
+        object-fit: contain;
       }
       /* Party-hat / thug-glasses sprites are pixel-art; keep the
          crisp blocky look instead of letting the browser blur
@@ -493,18 +509,20 @@ html,
         font-size: 0.62rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: rgba(0, 0, 0, 0.5);
+        color: var(--color-dune-dim);
         font-weight: 700;
       }
       .achievement-toast-title {
-        font-size: 0.98rem;
+        font-size: 0.95rem;
         font-weight: 800;
-        color: #1a1a1a;
+        color: var(--color-dune);
         letter-spacing: -0.005em;
       }
       .achievement-toast-desc {
-        font-size: 0.8rem;
-        color: rgba(0, 0, 0, 0.6);
+        font-size: 0.78rem;
+        color: var(--color-dune);
+        opacity: 0.85;
+        font-weight: 500;
       }
       @media (prefers-reduced-motion: reduce) {
         .achievement-toast,
@@ -513,8 +531,12 @@ html,
         }
       }
 
-      /* Top-left score pill. Same visual language as the top-right
-         icon cluster: frosted white capsule, subtle shadow. */
+      /* Top-left score pill: matches the HUD icon cluster in the
+       * top-right. Flat sand-contrast panel + 3px dune border, no
+       * blur, no drop shadow — the thing reads as a stamped tag
+       * welded onto the game view rather than a floating
+       * notification. Sharp corners keep the pixel-art-adjacent
+       * feel of the rest of the chrome. */
       .score-display {
         position: fixed;
         top: calc(14px + env(safe-area-inset-top, 0px));
@@ -523,19 +545,15 @@ html,
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.55rem 1.1rem;
-        background: rgba(255, 255, 255, 0.72);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        border-radius: 999px;
-        color: #222;
-        font: inherit;
+        padding: 0.35rem 0.85rem;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
+        color: var(--color-dune);
+        font-family: var(--font-display);
         font-weight: 700;
-        font-size: 1.05rem;
+        font-size: 1rem;
         letter-spacing: 0.01em;
-        box-shadow:
-          0 2px 6px rgba(0, 0, 0, 0.12),
-          inset 0 1px 0 rgba(255, 255, 255, 0.6);
         user-select: none;
         cursor: default;
       }
@@ -545,7 +563,7 @@ html,
       .score-display .trophy-icon {
         width: 20px;
         height: 20px;
-        color: #222;
+        color: var(--color-dune);
         transform-origin: 50% 80%;
         transition: transform 0.2s ease;
       }
@@ -553,7 +571,7 @@ html,
         animation: trophy-wiggle 0.6s ease-in-out;
       }
       .score-display .score-value {
-        color: #222;
+        color: var(--color-dune);
         font-variant-numeric: tabular-nums;
         min-width: 1.5ch;
         text-align: right;
@@ -694,29 +712,44 @@ html,
       }
       .score-card-heading {
         margin: 0;
-        /* Scales with both viewport width AND height, so it
-           shrinks on short mobile-landscape viewports instead of
-           pushing the card image off-screen. */
+        font-family: var(--font-display);
         font-size: clamp(1.4rem, min(5vw, 6vh), 3.2rem);
         font-weight: 800;
-        color: #ffffff;
+        color: var(--color-sand-contrast);
         letter-spacing: -0.02em;
-        text-shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
+        /* Layered dark outline in place of the soft white halo —
+         * keeps "Game Over" readable against the game canvas
+         * without bringing a web-app glow to the hero moment. */
+        text-shadow:
+          -2px -2px 0 var(--color-dune),
+          2px -2px 0 var(--color-dune),
+          -2px 2px 0 var(--color-dune),
+          2px 2px 0 var(--color-dune),
+          0 4px 0 var(--color-dune);
       }
       .score-card-hint {
         margin: 0.6rem 0 0;
-        color: rgba(255, 255, 255, 0.8);
+        color: var(--color-sand-contrast);
+        font-family: var(--font-display);
+        font-weight: 500;
         font-size: clamp(0.72rem, min(1.8vw, 2.2vh), 0.9rem);
-        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+        text-shadow:
+          -1px -1px 0 var(--color-dune),
+          1px -1px 0 var(--color-dune),
+          -1px 1px 0 var(--color-dune),
+          1px 1px 0 var(--color-dune);
       }
       .score-card-hint kbd {
         display: inline-block;
         padding: 1px 6px;
-        border: 1px solid rgba(255, 255, 255, 0.4);
-        border-radius: 4px;
-        background: rgba(255, 255, 255, 0.12);
-        font: inherit;
-        font-size: 0.8rem;
+        border: 2px solid var(--color-dune);
+        border-radius: 3px;
+        background: var(--color-sand-contrast);
+        color: var(--color-dune);
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-size: 0.78rem;
+        text-shadow: none;
       }
       /* Device-adaptive restart hint. Default (no gamepad): show
          keyboard copy. Gamepad attached: swap to the controller-
@@ -732,33 +765,23 @@ html,
         display: inline;
       }
 
-      /* Shiny share-your-score button: a thin animated blue→green
-         gradient RING wrapping a solid black interior. The outer
-         element has padding that lets the gradient show through
-         around the inner pill. */
+      /* Share-your-score button: was a shimmer-gradient ring around
+       * a black pill — hard to miss, but exactly the web-app-looking
+       * thing we're backing away from. Swap for the same flat
+       * sand-on-dune language every other action in the UI uses,
+       * with teal colour-swap on hover and press-down on active. */
       .share-score-btn {
-        position: relative;
         display: none;
-        padding: 3px;
-        border: none;
-        border-radius: 999px;
-        background: linear-gradient(
-          120deg,
-          #1aa3ff 0%,
-          #15d8a1 25%,
-          #1aa3ff 50%,
-          #15d8a1 75%,
-          #1aa3ff 100%
-        );
-        background-size: 300% 100%;
-        animation: share-btn-shimmer 4.5s linear infinite;
+        padding: 0;
+        border: 4px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
+        color: var(--color-dune);
         cursor: pointer;
-        box-shadow:
-          0 0 24px rgba(21, 216, 161, 0.3),
-          0 8px 20px rgba(0, 0, 0, 0.3);
         transition:
-          transform 0.15s ease,
-          box-shadow 0.2s ease;
+          background-color 0.12s ease,
+          color 0.12s ease,
+          transform 0.06s ease;
       }
       .score-card-panel.visible .share-score-btn {
         display: inline-block;
@@ -767,24 +790,19 @@ html,
         display: flex;
         align-items: center;
         gap: 0.65rem;
-        padding: clamp(0.55rem, 1.6vh, 0.85rem) clamp(1.1rem, 3.2vh, 1.75rem);
-        background: #0a0b12;
-        color: #ffffff;
-        border-radius: 999px;
-        font: inherit;
-        font-size: clamp(0.85rem, min(2.2vw, 2.6vh), 1.02rem);
+        padding: clamp(0.5rem, 1.5vh, 0.75rem) clamp(1rem, 3vh, 1.5rem);
+        color: inherit;
+        font-family: var(--font-display);
+        font-size: clamp(0.85rem, min(2.2vw, 2.6vh), 1rem);
         font-weight: 700;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.01em;
         white-space: nowrap;
       }
       .share-score-btn:hover {
-        transform: translateY(-2px) scale(1.02);
-        box-shadow:
-          0 0 44px rgba(21, 216, 161, 0.55),
-          0 16px 40px rgba(0, 0, 0, 0.6);
+        background: var(--color-sky);
       }
       .share-score-btn:active {
-        transform: translateY(0) scale(0.98);
+        transform: translateY(2px);
       }
 
       /* Body wrapper: holds the card slot + the action row. By
@@ -858,59 +876,61 @@ html,
          pair, time-limited offer. Dark translucent palette to match
          the rest of the score-card UI, amber accent for the
          "coin-sink" signalling (border tint, coin icon, drain bar). */
+      /* Revive button: coin-gold fill signals 'this is the
+       * coin-sink action' without needing the amber halo the
+       * previous black-glass version relied on. Same 4px dune
+       * border / 6px corners / press-down idiom as the other
+       * score-card actions. */
       .revive-btn {
         position: relative;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        padding: clamp(0.55rem, 1.5vh, 0.8rem) clamp(1rem, 3vh, 1.6rem);
-        border: 1px solid rgba(251, 191, 36, 0.55);
-        border-radius: 999px;
-        background: rgba(0, 0, 0, 0.35);
-        color: #ffffff;
-        font: inherit;
-        font-size: clamp(0.85rem, min(2.3vw, 2.7vh), 1.05rem);
+        padding: clamp(0.5rem, 1.5vh, 0.75rem) clamp(1rem, 3vh, 1.5rem);
+        border: 4px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-coin);
+        color: var(--color-dune);
+        font-family: var(--font-display);
+        font-size: clamp(0.85rem, min(2.3vw, 2.7vh), 1rem);
         font-weight: 700;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.01em;
         cursor: pointer;
         white-space: nowrap;
         overflow: hidden;
         transition:
-          background 0.15s ease,
-          transform 0.15s ease,
-          border-color 0.15s ease,
-          box-shadow 0.2s ease;
-        box-shadow: 0 0 0 rgba(251, 191, 36, 0);
+          background-color 0.12s ease,
+          transform 0.06s ease;
       }
       .revive-btn:hover:not(:disabled) {
-        background: rgba(0, 0, 0, 0.5);
-        border-color: rgba(251, 191, 36, 0.9);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 18px rgba(251, 191, 36, 0.3);
+        background: var(--color-sky);
       }
       .revive-btn:active:not(:disabled) {
-        transform: translateY(0) scale(0.97);
+        transform: translateY(2px);
       }
       .revive-btn[hidden] {
         display: none;
       }
-      /* "Poor" / unaffordable state: greyed out, no click, no
-         amber accents. Still shows the cost + drain bar so the
-         player knows the option exists and what it would take. */
+      /* "Poor" / unaffordable state: the button stays in the DOM so
+       * the player can see the option + their balance, but it
+       * renders desaturated and non-interactive. Switching the fill
+       * to sand-dim instead of full-opacity grey keeps the coin-
+       * currency context intact while still signalling "can't
+       * afford this right now". */
       .revive-btn.poor,
       .revive-btn:disabled {
         cursor: not-allowed;
-        opacity: 0.5;
-        border-color: rgba(255, 255, 255, 0.2);
+        background: var(--color-sand-dim);
+        color: var(--color-dune-dim);
       }
       .revive-btn.poor .coin-icon,
       .revive-btn:disabled .coin-icon {
-        filter: grayscale(0.6);
+        filter: grayscale(0.5) opacity(0.7);
       }
       .revive-btn.poor .revive-btn-progress,
       .revive-btn:disabled .revive-btn-progress {
-        background: rgba(255, 255, 255, 0.35);
+        background: var(--color-dune-dim);
       }
       .revive-btn-inner {
         display: inline-flex;
@@ -920,7 +940,6 @@ html,
       .revive-btn .coin-icon {
         width: 1.15em;
         height: 1.15em;
-        filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.55));
       }
       /* Drain bar along the bottom edge. Runs a fresh keyframe
          animation each time .draining is applied — a keyframe
@@ -932,8 +951,8 @@ html,
         left: 0;
         right: 0;
         bottom: 0;
-        height: 3px;
-        background: linear-gradient(to right, #fbbf24, #f59e0b);
+        height: 4px;
+        background: var(--color-dune);
         transform: scaleX(0);
         transform-origin: left center;
         pointer-events: none;
@@ -956,17 +975,26 @@ html,
         margin: 0 auto;
       }
       /* Wallet hint under the revive button. Shown whenever the
-         revive offer is visible so the player can see whether they
-         have enough coins for the NEXT revive without dismissing. */
+       * revive offer is visible so the player can see whether they
+       * have enough coins for the NEXT revive without dismissing.
+       * Rendered in the sand-on-dune display face like the rest of
+       * the score-card chrome, with a dune outline so it stays
+       * readable over the canvas. */
       .revive-balance {
         margin: -0.1rem auto 0;
         display: inline-flex;
         align-items: center;
         gap: 0.3rem;
-        font-size: clamp(0.72rem, min(1.9vw, 2.3vh), 0.88rem);
-        color: rgba(255, 255, 255, 0.72);
-        font-weight: 500;
+        font-family: var(--font-display);
+        font-size: clamp(0.72rem, min(1.9vw, 2.3vh), 0.85rem);
+        color: var(--color-sand-contrast);
+        font-weight: 600;
         letter-spacing: 0.01em;
+        text-shadow:
+          -1px -1px 0 var(--color-dune),
+          1px -1px 0 var(--color-dune),
+          -1px 1px 0 var(--color-dune),
+          1px 1px 0 var(--color-dune);
       }
       .revive-balance[hidden] {
         display: none;
@@ -974,35 +1002,31 @@ html,
       .revive-balance .coin-icon {
         width: 1em;
         height: 1em;
-        filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.45));
       }
       .play-again-btn {
         display: inline-flex;
         align-items: center;
         gap: 0.55rem;
-        padding: clamp(0.6rem, 1.6vh, 0.85rem) clamp(1rem, 3vh, 1.55rem);
-        border: 1px solid rgba(255, 255, 255, 0.4);
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.1);
-        color: #ffffff;
-        font: inherit;
+        padding: clamp(0.5rem, 1.5vh, 0.75rem) clamp(1rem, 3vh, 1.5rem);
+        border: 4px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
+        color: var(--color-dune);
+        font-family: var(--font-display);
         font-size: clamp(0.82rem, min(2.2vw, 2.6vh), 1rem);
         font-weight: 700;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.01em;
         cursor: pointer;
         white-space: nowrap;
         transition:
-          background 0.15s ease,
-          transform 0.15s ease,
-          border-color 0.15s ease;
+          background-color 0.12s ease,
+          transform 0.06s ease;
       }
       .play-again-btn:hover {
-        background: rgba(255, 255, 255, 0.18);
-        border-color: rgba(255, 255, 255, 0.7);
-        transform: translateY(-1px);
+        background: var(--color-sky);
       }
       .play-again-btn:active {
-        transform: translateY(0) scale(0.97);
+        transform: translateY(2px);
       }
       .play-again-btn svg {
         width: 16px;
@@ -1033,21 +1057,29 @@ html,
           animation: none;
         }
       }
+      /* Top-right HUD icons (sound, fullscreen, cog). Same flat
+       * sand-on-dune panel treatment as the start-screen buttons +
+       * kbd chips so the whole UI reads as one cohesive language
+       * instead of pairing frosted-glass circles with blocky
+       * redesigned buttons. Square-ish corners deliberately — the
+       * prior border-radius: 50% was the most web-app-leaning thing
+       * on screen. */
       .icon-btn {
-        width: 44px;
-        height: 44px;
+        width: 40px;
+        height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border: none;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.65);
-        color: #333;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
+        color: var(--color-dune);
         cursor: pointer;
         padding: 0;
         transition:
-          background 0.15s,
-          transform 0.2s;
+          background-color 0.12s ease,
+          color 0.12s ease,
+          transform 0.06s ease;
         /* Eliminate tap delay + disable double-tap zoom on mobile. */
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
@@ -1063,20 +1095,26 @@ html,
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
       }
-      .icon-btn:hover {
-        background: rgba(255, 255, 255, 0.95);
+      .icon-btn:hover,
+      .icon-btn:focus-visible {
+        background: var(--color-sky);
+        color: var(--color-dune);
+      }
+      .icon-btn:active {
+        transform: translateY(2px);
       }
       .icon-btn:focus-visible {
-        outline: 2px solid #3498db;
+        outline: 3px solid var(--color-dune);
         outline-offset: 2px;
       }
       .icon-btn svg {
-        width: 22px;
-        height: 22px;
+        width: 20px;
+        height: 20px;
       }
-      .settings-cog:hover {
-        transform: rotate(30deg);
-      }
+      /* The prior .settings-cog:hover rotate(30deg) trick was a
+       * web-app flourish that paired with the frosted circle but
+       * fights the press-down idiom of the redesigned panel. Drop
+       * it — the colour-swap to teal is feedback enough. */
 
       /* Fullscreen button: toggles between an "enter" (four corners
          pointing outward) and an "exit" (four corners pointing in)
@@ -1199,14 +1237,17 @@ html,
       }
 
       /* ───────── Menu overlay ───────── */
+      /* ───────── Phase 2.2 redesign — pause menu shell ─────────
+       * Flat opaque panel with a thick dune border instead of a
+       * web-app floating card. The backdrop dims less aggressively
+       * (rgba 0.35 vs 0.55) so the game canvas is visible behind
+       * the menu, reinforcing "this is a pause, not a modal".
+       */
       .menu-overlay {
         position: fixed;
         inset: 0;
-        /* Above everything except toasts (2800) and the rotate
-           prompt (3000). Same tier as the imprint/about/achievements
-           overlays so they all layer predictably. */
         z-index: 2700;
-        background: rgba(0, 0, 0, 0.55);
+        background: rgba(42, 29, 19, 0.35);
         display: none;
         align-items: center;
         justify-content: center;
@@ -1224,22 +1265,17 @@ html,
         }
       }
       .menu-panel {
-        background: #ffffff;
-        color: #222;
-        border-radius: 12px;
-        padding: 1.75rem 1.75rem 1.5rem;
-        /* Scales across mobile to desktop: at least 320px, prefers
-           420px, never more than 92% of the viewport width. The 420px
-           target sits comfortably inside every phone-in-landscape
-           width (smallest common: iPhone SE at 667×375 = 667px wide
-           in landscape, leaving ~250px of margin around a 420px
-           panel). */
+        background: var(--color-sand);
+        color: var(--color-dune);
+        border: 4px solid var(--color-dune);
+        border-radius: 8px;
+        padding: 1.5rem 1.5rem 1.25rem;
         width: clamp(320px, 420px, 92vw);
         max-height: 80vh;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
         text-align: center;
+        font-family: var(--font-display);
       }
       /* Short mobile screens: tighter menu so it doesn't press
          against the top/bottom edges. */
@@ -1276,6 +1312,8 @@ html,
       .menu-panel h2 {
         margin: 0 0 1rem;
         font-size: 1.4rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
       }
       .menu-panel ul {
         list-style: none;
@@ -1291,39 +1329,49 @@ html,
       /* Buttons fill the panel's content width so every item is the
          same size, with the icon + text left-aligned inside. Wraps
          are disabled so labels like "Back to home screen" and
-         "Thug glasses: off" always sit on a single line. */
+         "Thug glasses: off" always sit on a single line.
+         Phase 2.2: sand-contrast fill + thick dune border so each
+         row reads as a physical key. Hover colour-swaps to sky-teal
+         and active nudges down 2px — same language as the start
+         button and HUD icons. */
       .menu-panel .menu-item {
         display: flex;
         width: 100%;
         box-sizing: border-box;
         align-items: center;
-        padding: 0.7rem 1rem;
-        background: #f4f6f8;
-        border: none;
-        border-radius: 8px;
-        color: #222;
+        padding: 0.65rem 0.9rem;
+        background: var(--color-sand-contrast);
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        color: var(--color-dune);
         text-decoration: none;
         font: inherit;
-        font-size: 0.95rem;
+        font-family: var(--font-display);
+        font-size: 0.9rem;
+        font-weight: 600;
         cursor: pointer;
         white-space: nowrap;
         transition:
-          background 0.1s,
-          color 0.1s;
+          background-color 0.12s ease,
+          color 0.12s ease,
+          transform 0.06s ease;
       }
       .menu-panel .menu-item:hover {
-        background: #e8ecf0;
+        background: var(--color-sky);
+      }
+      .menu-panel .menu-item:active {
+        transform: translateY(2px);
       }
       /* Keyboard + gamepad focus ring. :focus-visible fires on
          tab-navigation and programmatic focus (which is what
          window.__rrMenuFocusNext/Prev use), but NOT on plain mouse
          clicks, so mouse users don't get a stuck outline after every
-         tap. 3px solid is emphatic enough to read from 10ft away
-         when the player is holding a controller in their lap. */
+         tap. Same dune-dark colour as the border, just thicker, so
+         the focus ring reads as "this is the same button, louder". */
       .menu-panel .menu-item:focus-visible {
-        outline: 3px solid #50b4cd;
+        outline: 3px solid var(--color-sky-dim);
         outline-offset: 2px;
-        background: #e8ecf0;
+        background: var(--color-sky);
       }
       .menu-panel .menu-item .inner {
         display: inline-flex;
@@ -1383,8 +1431,9 @@ html,
         display: revert;
       }
       .menu-panel .menu-hint {
-        color: #888;
-        font-size: 0.8rem;
+        color: var(--color-dune-dim);
+        font-size: 0.75rem;
+        font-weight: 500;
         margin-top: 0.5rem;
       }
       /* Gamepad attached: the dedicated .menu-gamepad-hint row takes
@@ -1462,19 +1511,28 @@ html,
       .menu-panel .close-hint {
         margin-top: 1rem;
       }
+      /* Resume-game button: same sand panel + dune border as the
+       * other menu items, slightly more compact so it reads as a
+       * secondary / utility action rather than another row. */
       .menu-panel .close-hint button {
-        background: none;
-        border: 1px solid #ccc;
-        color: #666;
-        padding: 0.4rem 1.1rem;
+        background: var(--color-sand-contrast);
+        border: 3px solid var(--color-dune);
+        color: var(--color-dune);
+        padding: 0.35rem 1.1rem;
         border-radius: 6px;
         cursor: pointer;
-        font: inherit;
+        font-family: var(--font-display);
         font-size: 0.85rem;
+        font-weight: 600;
+        transition:
+          background-color 0.12s ease,
+          transform 0.06s ease;
       }
       .menu-panel .close-hint button:hover {
-        background: #f4f6f8;
-        color: #222;
+        background: var(--color-sky);
+      }
+      .menu-panel .close-hint button:active {
+        transform: translateY(2px);
       }
       /* Hide "Back to home" + "Resume game" when the menu is opened
          from the start screen — those actions only make sense once
@@ -1537,13 +1595,13 @@ html,
         display: block;
         width: fit-content;
         margin: -0.25rem auto 1rem;
-        padding: 0.45rem 1rem;
-        border: 1px solid rgba(42, 29, 19, 0.18);
-        border-radius: 999px;
-        background: rgba(255, 236, 170, 0.45);
-        color: #2a1d13;
-        font-size: 0.9rem;
-        font-weight: 600;
+        padding: 0.35rem 0.9rem;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-coin);
+        color: var(--color-dune);
+        font-size: 0.85rem;
+        font-weight: 700;
         letter-spacing: 0.01em;
       }
       .menu-panel .menu-highscore[hidden] {
@@ -1575,14 +1633,18 @@ html,
         display: flex;
         align-items: center;
         gap: 0.7rem;
-        padding: 0.7rem 1rem;
-        font-size: 0.95rem;
-        font-weight: 600;
+        padding: 0.6rem 0.9rem;
+        font-family: var(--font-display);
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--color-dune);
         cursor: pointer;
         list-style: none;
         user-select: none;
-        border-radius: 8px;
-        transition: background 0.1s;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
+        transition: background-color 0.12s ease;
       }
       .sound-settings-summary::-webkit-details-marker {
         display: none;
@@ -1590,27 +1652,28 @@ html,
       .sound-settings-summary::after {
         content: "";
         margin-left: auto;
-        width: 6px;
-        height: 6px;
-        border-right: 2px solid #888;
-        border-bottom: 2px solid #888;
+        width: 8px;
+        height: 8px;
+        border-right: 3px solid var(--color-dune);
+        border-bottom: 3px solid var(--color-dune);
         transform: rotate(-45deg);
         transition: transform 0.15s;
         flex-shrink: 0;
+      }
+      .sound-settings[open] > .sound-settings-summary {
+        border-radius: 6px 6px 0 0;
+        border-bottom: none;
       }
       .sound-settings[open] > .sound-settings-summary::after {
         transform: rotate(45deg);
       }
       .sound-settings-summary:hover {
-        background: #e8ecf0;
+        background: var(--color-sky);
       }
-      /* Match the same 3px cyan focus ring .menu-item:focus-visible
-         uses so the summary doesn't paint a browser-default orange
-         ring that looks out of place against the cool blue accents. */
       .sound-settings-summary:focus-visible {
-        outline: 3px solid #50b4cd;
+        outline: 3px solid var(--color-sky-dim);
         outline-offset: 2px;
-        background: #e8ecf0;
+        background: var(--color-sky);
       }
       .sound-settings-summary svg {
         width: 18px;
@@ -1620,14 +1683,12 @@ html,
       .sound-settings-body {
         display: flex;
         flex-direction: column;
-        gap: 0.35rem;
-        padding: 0.45rem 0.5rem 0.6rem;
-      }
-      .sound-settings-body .menu-item {
-        background: #ebeef1;
-      }
-      .sound-settings-body .menu-item:hover {
-        background: #dde1e6;
+        gap: 0.3rem;
+        padding: 0.45rem;
+        border: 3px solid var(--color-dune);
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        background: var(--color-sand-dim);
       }
 
       /* ── Collapsible group blocks (cosmetics, debug) ──────
@@ -1641,26 +1702,27 @@ html,
        * groups. */
       .menu-panel .menu-group {
         margin: 0 0 0.75rem;
-        border-radius: 8px;
-        background: #f4f6f8;
       }
       .menu-panel .menu-group[open] > .menu-group-summary {
-        /* When open, square off the bottom so the summary butts
-           flush against the body below without a visible seam. */
-        border-radius: 8px 8px 0 0;
+        border-radius: 6px 6px 0 0;
+        border-bottom: none;
       }
       .menu-panel .menu-group-summary {
         display: flex;
         align-items: center;
         gap: 0.7rem;
-        padding: 0.7rem 1rem;
-        font-size: 0.95rem;
-        font-weight: 600;
+        padding: 0.6rem 0.9rem;
+        font-family: var(--font-display);
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--color-dune);
         cursor: pointer;
         list-style: none;
         user-select: none;
-        border-radius: 8px;
-        transition: background 0.1s;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
+        transition: background-color 0.12s ease;
       }
       .menu-panel .menu-group-summary::-webkit-details-marker {
         display: none;
@@ -1668,10 +1730,10 @@ html,
       .menu-panel .menu-group-summary::after {
         content: "";
         margin-left: auto;
-        width: 6px;
-        height: 6px;
-        border-right: 2px solid #888;
-        border-bottom: 2px solid #888;
+        width: 8px;
+        height: 8px;
+        border-right: 3px solid var(--color-dune);
+        border-bottom: 3px solid var(--color-dune);
         transform: rotate(-45deg);
         transition: transform 0.15s;
         flex-shrink: 0;
@@ -1680,12 +1742,12 @@ html,
         transform: rotate(45deg);
       }
       .menu-panel .menu-group-summary:hover {
-        background: #e8ecf0;
+        background: var(--color-sky);
       }
       .menu-panel .menu-group-summary:focus-visible {
-        outline: 3px solid #50b4cd;
+        outline: 3px solid var(--color-sky-dim);
         outline-offset: 2px;
-        background: #e8ecf0;
+        background: var(--color-sky);
       }
       .menu-panel .menu-group-summary svg {
         width: 18px;
@@ -1700,11 +1762,20 @@ html,
         list-style: none;
         margin: 0;
       }
-      .menu-panel .menu-group-body .menu-item {
-        background: #ebeef1;
+      .menu-panel .menu-group-body {
+        border: 3px solid var(--color-dune);
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        background: var(--color-sand-dim);
       }
-      .menu-panel .menu-group-body .menu-item:hover {
-        background: #dde1e6;
+      /* Inside an open disclosure, the rows live inside a sand-dim
+       * body. Shrink the rows a little and drop their outer border
+       * so they don't make a double-border sandwich with the body. */
+      .menu-panel .menu-group-body .menu-item,
+      .menu-panel .sound-settings-body .menu-item {
+        border-width: 2px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
       }
 
       /* ── Shop button in the menu ──────────────────────────
@@ -1728,8 +1799,13 @@ html,
         display: inline-flex;
         align-items: center;
         gap: 0.3rem;
-        font-weight: 600;
-        color: #b45309; /* amber-700 — matches coin tone */
+        padding: 0.15rem 0.5rem;
+        border: 2px solid var(--color-dune);
+        border-radius: 4px;
+        background: var(--color-coin);
+        font-weight: 700;
+        font-size: 0.8rem;
+        color: var(--color-dune);
       }
       .menu-panel .menu-shop .menu-shop-coin {
         font-size: 1.05rem;
@@ -1749,32 +1825,22 @@ html,
        * per-slot groupings read as distinct blocks instead of
        * one long merged list of options. */
       .menu-panel .cosmetic-slot {
-        border-left: 3px solid transparent;
-        border-radius: 6px;
-        padding-left: 0.1rem;
-        background: #fafafa;
-      }
-      .menu-panel .cosmetic-slot[data-slot="head"] {
-        border-left-color: #d97706;
-      }
-      .menu-panel .cosmetic-slot[data-slot="eyes"] {
-        border-left-color: #1f2937;
-      }
-      .menu-panel .cosmetic-slot[data-slot="neck"] {
-        border-left-color: #b91c1c;
+        background: transparent;
       }
       .menu-panel .cosmetic-slot-label {
-        /* Tiny, uppercase-y slot heading. Non-interactive — it's
-         * just a label so the per-slot groupings are named. The
-         * tinted left border on the parent already carries the
-         * slot colour cue. */
+        /* Tiny uppercase slot heading in the display face. The
+         * earlier slot-tinted left border was pulled — the label
+         * alone carries the grouping cue without a decorative
+         * stripe that didn't earn its keep. */
         margin: 0;
-        padding: 0.35rem 0.6rem 0.1rem;
-        font-size: 0.72rem;
-        letter-spacing: 0.04em;
+        padding: 0.25rem 0 0.35rem;
+        font-family: var(--font-display);
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #6b7280;
-        font-weight: 600;
+        color: var(--color-dune-dim);
+        font-weight: 700;
+        text-align: center;
       }
       /* Option rows inside a slot's body. Each row has a small
          thumbnail + item name; currently-equipped row gets the
@@ -1788,33 +1854,36 @@ html,
       .menu-panel .cosmetic-equip-btn .inner {
         gap: 0.6rem;
       }
+      /* Thumb sits behind a real 2px dune border, with a little
+       * inner padding so the <img inside doesn't crop against the
+       * border's content edge. The previous inset-box-shadow
+       * approach painted the border ON TOP of the image, which
+       * made hat brims and other edge-hugging sprites look like
+       * they were popping out of the box. */
       .cosmetic-option-thumb {
         flex: 0 0 auto;
-        width: 28px;
-        height: 28px;
+        box-sizing: border-box;
+        width: 32px;
+        height: 32px;
+        padding: 2px;
+        border: 2px solid var(--color-dune);
         border-radius: 5px;
         display: flex;
         align-items: center;
         justify-content: center;
         overflow: hidden;
+        background: var(--color-sand);
       }
       .cosmetic-option-thumb img {
         width: 100%;
         height: 100%;
         object-fit: contain;
       }
-      .cosmetic-option-thumb.cosmetic-slot-thumb-sprite {
-        background: #ffffff;
-        box-shadow: inset 0 0 0 1px #d1d5db;
-      }
-      /* "None" option: crossed-out circle in neutral grey, so
-       * the empty-slot choice doesn't look like a slot-coloured
-       * cosmetic of its own. */
+      /* "None" option thumb: same panel, just with a
+       * crossed-out-circle icon drawn centrally. */
       .cosmetic-option-thumb.cosmetic-slot-thumb-none,
       .cosmetic-slot-thumb.cosmetic-slot-thumb-none {
-        background: #f3f4f6;
-        box-shadow: inset 0 0 0 1px #d1d5db;
-        color: #6b7280;
+        color: var(--color-dune);
       }
       .cosmetic-none-icon {
         width: 70%;
@@ -1823,21 +1892,35 @@ html,
       .cosmetic-option-name {
         flex: 1 1 auto;
       }
+      /* Currently-equipped row: cactus-green fill so "this is on"
+       * reads louder than the default sand, without abandoning the
+       * flat-border aesthetic. Same 3px border so the row doesn't
+       * resize between pressed and not. */
       .menu-panel .cosmetic-equip-btn[aria-pressed="true"] {
-        background: #d1e7dd;
-        box-shadow: inset 0 0 0 1px #34d399;
+        background: var(--color-cactus);
+        color: var(--color-sand-contrast);
       }
       .menu-panel .cosmetic-equip-btn[aria-pressed="true"]:hover {
-        background: #bfe0cc;
+        background: var(--color-cactus);
+      }
+      /* Keep the thumb's dune-black border on the equipped row —
+       * earlier version swapped it to sand and it read as a white
+       * halo against the cactus-green fill. */
+      .menu-panel .cosmetic-equip-btn[aria-pressed="true"] .cosmetic-option-thumb {
+        border-color: var(--color-dune);
       }
       .cosmetic-equip-badge {
         margin-left: auto;
-        font-size: 0.72rem;
-        font-weight: 600;
+        font-family: var(--font-display);
+        font-size: 0.65rem;
+        font-weight: 700;
         padding: 0.1rem 0.5rem;
-        border-radius: 999px;
-        background: #10b981;
-        color: #fff;
+        border: 2px solid var(--color-sand-contrast);
+        border-radius: 3px;
+        background: var(--color-dune);
+        color: var(--color-sand-contrast);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
       }
 
       /* ── Shop overlay ─────────────────────────────────────
@@ -1861,25 +1944,34 @@ html,
         padding: 1.2rem 1.4rem 1.6rem;
       }
       .shop-heading {
-        margin: 0 0 0.5rem;
+        margin: 0 0 0.75rem;
         font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
       }
       .shop-balance {
         margin: 0 0 1rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 0.55rem 0.9rem;
-        border-radius: 8px;
-        background: #fef3c7; /* soft amber panel */
-        color: #92400e;
-        font-weight: 600;
+        padding: 0.5rem 0.9rem;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-coin);
+        color: var(--color-dune);
+        font-weight: 700;
+      }
+      .shop-balance-label {
+        font-size: 0.9rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
       }
       .shop-balance-value {
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
+        font-weight: 800;
       }
       .shop-items {
         display: flex;
@@ -1888,34 +1980,38 @@ html,
       }
       .shop-item {
         display: grid;
-        grid-template-columns: 48px 1fr auto;
+        grid-template-columns: 52px 1fr auto;
         align-items: center;
-        gap: 0.8rem;
+        gap: 0.9rem;
         padding: 0.55rem 0.8rem;
-        border-radius: 8px;
-        background: #f4f6f8;
-      }
-      .shop-item-thumb {
-        width: 48px;
-        height: 48px;
+        border: 3px solid var(--color-dune);
         border-radius: 6px;
+        background: var(--color-sand-contrast);
+      }
+      /* Thumb: real dune border + box-sizing so the sprite img
+       * sits cleanly inside — same fix as the menu cosmetics
+       * thumbnails. The previous inset-shadow painted the border
+       * on top of the image and made hats clip. */
+      .shop-item-thumb {
+        box-sizing: border-box;
+        width: 52px;
+        height: 52px;
+        padding: 4px;
+        border: 2px solid var(--color-dune);
+        border-radius: 5px;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-family: var(--font-display);
         font-size: 0.85rem;
         font-weight: 700;
-        color: #fff;
+        color: var(--color-dune);
         letter-spacing: 0.05em;
         overflow: hidden;
+        background: var(--color-sand);
       }
       .shop-item-thumb.shop-item-thumb-sprite {
-        /* When a sprite is injected, ditch the slot-tint placeholder
-           colour and show the art on a neutral white panel so the
-           transparent PNGs read well. Pad inside so the tightly-
-           bounded PNGs don't brush the container edge. */
-        background: #ffffff !important;
-        box-shadow: inset 0 0 0 1px #d1d5db;
-        padding: 5px;
+        background: var(--color-sand) !important;
       }
       .shop-item-thumb img {
         width: 100%;
@@ -1923,53 +2019,70 @@ html,
         object-fit: contain;
       }
       .shop-item-info {
-        min-width: 0; /* so flex-ellipsis truncation works */
+        min-width: 0;
       }
       .shop-item-name {
-        font-weight: 600;
+        font-weight: 700;
         font-size: 0.95rem;
+        color: var(--color-dune);
       }
       .shop-item-meta-row {
         display: flex;
         align-items: center;
         gap: 0.4rem;
-        margin-top: 0.1rem;
+        margin-top: 0.15rem;
       }
       .shop-item-slot {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #6b7280;
-      }
-      .shop-item-owned-pill {
+        font-family: var(--font-display);
         font-size: 0.65rem;
         font-weight: 700;
         text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--color-dune-dim);
+      }
+      /* 'OWNED' pill in the shop row: same dune stamp idiom as the
+       * menu cosmetics 'EQUIPPED' badge so the two chrome surfaces
+       * read as one language. */
+      .shop-item-owned-pill {
+        font-family: var(--font-display);
+        font-size: 0.6rem;
+        font-weight: 700;
+        text-transform: uppercase;
         letter-spacing: 0.06em;
-        padding: 0.1rem 0.45rem;
-        border-radius: 999px;
-        background: #10b981;
-        color: #fff;
+        padding: 0.1rem 0.4rem;
+        border: 2px solid var(--color-sand-contrast);
+        border-radius: 3px;
+        background: var(--color-dune);
+        color: var(--color-sand-contrast);
         line-height: 1.2;
       }
       .shop-item-description {
-        font-size: 0.8rem;
-        color: #4b5563;
+        font-size: 0.78rem;
+        color: var(--color-dune-dim);
         margin-top: 0.25rem;
+        font-weight: 500;
       }
+      /* Action buttons match the start / menu idiom: sand-contrast
+       * fill + 3px dune border, colour-swap on hover, press-down on
+       * active. Three state variants (buy-affordable / buy-poor /
+       * already-equipped) differentiate on fill, not on shape. */
       .shop-item-action {
-        border: none;
+        border: 3px solid var(--color-dune);
         border-radius: 6px;
-        background: #3b82f6;
-        color: #fff;
-        padding: 0.45rem 0.85rem;
-        font-weight: 600;
-        font-size: 0.85rem;
+        background: var(--color-sky);
+        color: var(--color-dune);
+        padding: 0.4rem 0.75rem;
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-size: 0.8rem;
         cursor: pointer;
         white-space: nowrap;
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
+        transition:
+          background-color 0.12s ease,
+          transform 0.06s ease;
       }
       .coin-icon {
         width: 1em;
@@ -1980,39 +2093,47 @@ html,
         vertical-align: -0.15em;
       }
       .shop-item-action:hover:not(:disabled) {
-        background: #2563eb;
+        background: var(--color-sky-dim);
+      }
+      .shop-item-action:active:not(:disabled) {
+        transform: translateY(2px);
       }
       .shop-item-action:disabled {
         cursor: default;
       }
       .shop-item-action-poor {
-        background: #9ca3af;
-        color: #f3f4f6;
+        background: var(--color-sand-dim);
+        color: var(--color-dune-dim);
+        opacity: 0.9;
       }
       .shop-item-action-equipped {
-        background: #10b981;
+        background: var(--color-cactus);
+        color: var(--color-sand-contrast);
       }
       .shop-empty-hint {
-        color: #6b7280;
+        color: var(--color-dune-dim);
         font-size: 0.85rem;
         margin-top: 1rem;
-        font-style: italic;
+        font-weight: 500;
+        text-align: center;
       }
       .menu-panel .made-by {
-        margin-top: 1.25rem;
-        padding-top: 1rem;
-        border-top: 1px solid #eee;
-        color: #888;
-        font-size: 0.78rem;
+        margin-top: 1rem;
+        padding-top: 0.75rem;
+        border-top: 2px solid var(--color-dune);
+        color: var(--color-dune-dim);
+        font-family: var(--font-display);
+        font-size: 0.68rem;
+        font-weight: 500;
       }
       .menu-panel .made-by a {
-        color: #555;
-        text-decoration: none;
-        border-bottom: 1px dotted #bbb;
+        color: var(--color-dune);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        text-decoration-thickness: 1.5px;
       }
       .menu-panel .made-by a:hover {
-        color: #222;
-        border-bottom-color: #555;
+        color: var(--color-sky-dim);
       }
       .menu-panel .made-by .heart {
         display: inline-block;
@@ -2042,15 +2163,17 @@ html,
         }
       }
 
-      /* ───────── Imprint overlay (opens inline so music keeps playing) ───────── */
+      /* ───────── Imprint overlay (shared shell for shop / achievements /
+       * credits / about / imprint) ─────────
+       * Phase 2.3 redesign: sand panel with thick dune border
+       * replaces the white rounded-card + soft-shadow look. Backdrop
+       * drops to a dune-tint dim so the game stays visible behind
+       * the sheet — same "pause, not modal" idiom as the menu. */
       .imprint-overlay {
         position: fixed;
         inset: 0;
-        /* Above everything except toasts + rotate prompt, so any
-           overlay (imprint, about, achievements) renders on top of
-           the score-card panel and the menu. */
         z-index: 2700;
-        background: rgba(0, 0, 0, 0.6);
+        background: rgba(42, 29, 19, 0.4);
         display: none;
       }
       .imprint-overlay.open {
@@ -2060,10 +2183,6 @@ html,
         padding: 3rem 1.5rem;
         animation: fadeIn 0.2s ease-out;
       }
-      /* On short landscape screens the 3rem × 2 top+bottom padding
-         (96 px) eats a huge chunk of a 375 px-tall iPhone SE. Drop
-         to something safe-area-aware so the sheet can use almost
-         the whole viewport. */
       @media (max-height: 500px) {
         .imprint-overlay.open {
           padding: 0.5rem 1rem;
@@ -2075,11 +2194,12 @@ html,
         max-width: 720px;
         height: calc(100vh - 6rem);
         max-height: 900px;
-        background: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
-        color: #222;
+        background: var(--color-sand);
+        border: 4px solid var(--color-dune);
+        border-radius: 8px;
+        color: var(--color-dune);
         overflow: hidden;
+        font-family: var(--font-display);
       }
       @media (max-height: 500px) {
         .imprint-sheet {
@@ -2099,8 +2219,10 @@ html,
          inner div instead of an iframe. */
       /* Achievements overlay inherits z-index 2700 from
          .imprint-overlay — no per-ID override needed. */
+      /* Inherits the sand sheet from .imprint-sheet — no local
+       * override needed beyond scroll / padding. */
       .achievements-sheet {
-        background: #ffffff;
+        background: var(--color-sand);
       }
       .achievements-scroll {
         width: 100%;
@@ -2108,21 +2230,22 @@ html,
         overflow-y: auto;
         padding: 2.25rem 1.75rem 2rem;
         box-sizing: border-box;
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-        color: #333;
+        font-family: var(--font-display);
+        color: var(--color-dune);
       }
       .achievements-heading {
         font-size: 2rem;
         margin: 0 0 0.25rem;
-        color: #222;
+        color: var(--color-dune);
         letter-spacing: -0.02em;
+        font-weight: 800;
       }
       .achievements-progress {
         margin: 0 0 1.4rem;
-        color: #777;
+        color: var(--color-dune-dim);
         font-size: 0.9rem;
-        font-weight: 600;
+        font-weight: 700;
+        letter-spacing: 0.02em;
       }
       .achievements-list {
         list-style: none;
@@ -2130,68 +2253,71 @@ html,
         padding: 0;
         display: flex;
         flex-direction: column;
-        gap: 0.7rem;
+        gap: 0.5rem;
       }
+      /* Achievement row: flat sand-contrast card with dune border.
+       * Icon + body stack horizontally. Locked rows fade the icon
+       * (filter) and dim the title; unlocked rows swap the icon
+       * background to coin-gold so the unlock state jumps off the
+       * list without needing a soft glow or frosted pill. */
       .achievement-item {
         display: flex;
         align-items: center;
-        gap: 1rem;
-        padding: 0.7rem 1rem 0.7rem 0.7rem;
-        /* Same frosted-white capsule as the top-right buttons,
-           the score pill, and the unlock toast — one cohesive
-           visual language across every overlay surface. */
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.85);
-        border: 1px solid rgba(20, 30, 60, 0.08);
-        box-shadow: 0 4px 12px rgba(20, 30, 60, 0.08);
+        gap: 0.9rem;
+        padding: 0.55rem 0.9rem 0.55rem 0.55rem;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
       }
       .achievement-item.unlocked {
-        background: rgba(255, 255, 255, 0.96);
-        border-color: rgba(247, 209, 72, 0.6);
-        box-shadow:
-          0 4px 14px rgba(20, 30, 60, 0.1),
-          inset 0 0 0 1px rgba(247, 209, 72, 0.35);
+        background: var(--color-coin);
       }
       .achievement-item .icon {
         flex: 0 0 auto;
-        width: 52px;
-        height: 52px;
+        box-sizing: border-box;
+        width: 48px;
+        height: 48px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.95);
-        border: 1px solid rgba(20, 30, 60, 0.08);
+        padding: 4px;
+        border: 2px solid var(--color-dune);
+        border-radius: 5px;
+        background: var(--color-sand);
       }
       .achievement-item.unlocked .icon {
-        background: #ffffff;
-        border-color: rgba(247, 209, 72, 0.55);
-        box-shadow: 0 2px 6px rgba(247, 178, 30, 0.22);
+        background: var(--color-sand-contrast);
       }
       .achievement-item .icon svg,
       .achievement-item .icon img.achievement-icon-image {
-        width: 32px;
-        height: 32px;
+        width: 100%;
+        height: 100%;
         display: block;
+        object-fit: contain;
       }
       .achievement-item .body {
         display: flex;
         flex-direction: column;
-        gap: 0.15rem;
+        gap: 0.1rem;
         min-width: 0;
+        text-align: left;
       }
       .achievement-item .title {
-        font-size: 1rem;
-        font-weight: 800;
-        color: #1a1a1a;
-        letter-spacing: -0.005em;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--color-dune);
       }
       .achievement-item.locked .title {
-        color: #6e7a88;
+        color: var(--color-dune-dim);
       }
       .achievement-item .desc {
-        font-size: 0.86rem;
-        color: rgba(0, 0, 0, 0.55);
+        font-size: 0.78rem;
+        color: var(--color-dune-dim);
+        font-weight: 500;
+      }
+      .achievement-item.unlocked .desc {
+        color: var(--color-dune);
+        opacity: 0.85;
       }
       .achievement-item.locked .icon {
         filter: grayscale(0.8) opacity(0.55);
@@ -2205,7 +2331,7 @@ html,
        * standalone imprint.html being bundled) stays web + desktop
        * only. */
       .credits-sheet {
-        background: #ffffff;
+        background: var(--color-sand);
       }
       .credits-scroll {
         width: 100%;
@@ -2214,9 +2340,8 @@ html,
         -webkit-overflow-scrolling: touch;
         padding: 2rem 1.75rem 1.75rem;
         box-sizing: border-box;
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-        color: #333;
+        font-family: var(--font-display);
+        color: var(--color-dune);
       }
 
       /* ─── Custom scrollbars ─────────────────────────────────
@@ -2269,35 +2394,46 @@ html,
       .credits-heading {
         font-size: 2rem;
         margin: 0 0 1rem;
-        color: #222;
+        color: var(--color-dune);
         letter-spacing: -0.02em;
+        font-weight: 800;
       }
       .credits-section {
         margin: 0 0 1.25rem;
       }
       .credits-section h2 {
-        margin: 0 0 0.35rem;
-        font-size: 0.78rem;
+        margin: 0 0 0.4rem;
+        font-family: var(--font-display);
+        font-size: 0.72rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: #6e7a88;
+        color: var(--color-dune);
+        padding-bottom: 0.3rem;
+        border-bottom: 2px solid var(--color-dune);
       }
       .credits-section p {
         margin: 0;
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         line-height: 1.5;
-        color: #333;
+        color: var(--color-dune);
+        font-weight: 500;
       }
       .credits-section a {
-        color: #3a6c8c;
+        color: var(--color-sky-dim);
         text-decoration: underline;
         text-underline-offset: 2px;
-        text-decoration-thickness: 1px;
-        text-decoration-color: rgba(58, 108, 140, 0.4);
+        text-decoration-thickness: 2px;
       }
       .credits-section a:hover {
-        text-decoration-color: currentColor;
+        color: var(--color-dune);
+      }
+      .credits-section code {
+        background: var(--color-sand-contrast);
+        border: 1px solid var(--color-dune);
+        border-radius: 3px;
+        padding: 0 0.25rem;
+        font-size: 0.82em;
       }
       .credits-links {
         list-style: none;
@@ -2305,11 +2441,12 @@ html,
         padding: 0;
       }
       .credits-links li {
-        margin: 0.35rem 0;
-        font-size: 0.95rem;
+        margin: 0.4rem 0;
+        font-size: 0.9rem;
+        line-height: 1.5;
       }
       .credits-legal h2 {
-        color: #a06060;
+        color: var(--color-dune);
       }
       /* Compact layout when the overlay has to fit a short landscape
          phone. The imprint-sheet already shrinks via max-height:
@@ -2392,35 +2529,33 @@ html,
         top: 0.75rem;
         right: 0.75rem;
         z-index: 10;
-        background: #fff;
-        border: 1px solid #ddd;
+        background: var(--color-sand-contrast);
+        border: 3px solid var(--color-dune);
         width: 36px;
         height: 36px;
-        border-radius: 50%;
+        border-radius: 6px;
         cursor: pointer;
         font-size: 20px;
+        font-weight: 700;
         line-height: 1;
-        color: #666;
+        color: var(--color-dune);
         display: flex;
         align-items: center;
         justify-content: center;
         transition:
-          background 0.15s,
-          color 0.15s;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+          background-color 0.12s ease,
+          transform 0.06s ease;
       }
       .imprint-close:hover {
-        background: #f4f6f8;
-        color: #222;
+        background: var(--color-sky);
       }
-      /* Match the cyan focus ring used everywhere else in the
-         menu system. Without this, keyboard/gamepad focus on
-         the × close button painted the browser-default orange
-         which looks out of place. */
+      .imprint-close:active {
+        transform: translateY(2px);
+      }
       .imprint-close:focus-visible {
-        outline: 3px solid #50b4cd;
+        outline: 3px solid var(--color-sky-dim);
         outline-offset: 2px;
-        background: #f4f6f8;
+        background: var(--color-sky);
       }
 
       /* ───────── Game canvas ───────── */

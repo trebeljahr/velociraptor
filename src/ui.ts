@@ -28,6 +28,20 @@
 // @ts-nocheck
 /* eslint-disable */
 
+import { refreshShop } from "./ui/react/mountShop";
+import { refreshAchievements } from "./ui/react/mountAchievements";
+import { refreshScoreCardActions } from "./ui/react/mountScoreCardActions";
+import { refreshSoundSettings } from "./ui/react/mountSoundSettings";
+import { refreshCosmeticsMenu } from "./ui/react/mountCosmeticsMenu";
+import { refreshMenuList } from "./ui/react/mountMenuList";
+import { refreshDebugSettings } from "./ui/react/mountDebugSettings";
+import { refreshStartScreen } from "./ui/react/mountStartScreen";
+import { refreshCredits } from "./ui/react/mountCredits";
+import {
+  refreshAboutOverlay,
+  refreshImprintOverlay,
+} from "./ui/react/mountIframeOverlay";
+
 // Desktop "challenge a friend" store-link. Sourced from a Vite env
 // var; falls back to the web URL when not set. The env name is
 // store-neutral now — use VITE_DESKTOP_STORE_URL pointing at whichever
@@ -41,154 +55,110 @@ const STEAM_STORE_URL: string =
 
 const cog = document.getElementById("settings-cog");
 const overlay = document.getElementById("menu-overlay");
-const closeBtn = document.getElementById("menu-close");
-// Desktop-only: open the Steam overlay directly to the Friends
-// panel. Note: on macOS the Steam overlay is flaky/unreliable
-// for Electron apps (Valve limitation), so this click may be
-// a no-op visually. Windows and Linux fully support it.
-const steamFriendsBtn = document.getElementById("menu-steam-friends");
-if (steamFriendsBtn) {
-  steamFriendsBtn.addEventListener("click", () => {
-    if (
-      window.electronAPI &&
-      typeof window.electronAPI.openSteamOverlay === "function"
-    ) {
-      window.electronAPI.openSteamOverlay("Friends");
-    }
-  });
-}
-// Desktop-only: open the Steam overlay to the store page for
-// this game. Uses the same STEAM_STORE_URL that the share/
-// challenge invite text uses (declared above) so there's one
-// knob to turn when the real AppID ships.
-const steamStoreBtn = document.getElementById("menu-steam-store");
-if (steamStoreBtn) {
-  steamStoreBtn.addEventListener("click", () => {
-    if (
-      window.electronAPI &&
-      typeof window.electronAPI.openSteamOverlayUrl === "function"
-    ) {
-      window.electronAPI.openSteamOverlayUrl(STEAM_STORE_URL);
-    }
-  });
-}
-// Desktop-only: "View on Steam" button inside the achievements
-// overlay. Opens the Steam overlay to the Achievements dialog
-// for this game — player sees the canonical cross-platform
-// achievement list right next to our in-game version.
-const achievementsSteamLink = document.getElementById(
-  "achievements-steam-link",
-);
-if (achievementsSteamLink) {
-  achievementsSteamLink.addEventListener("click", () => {
-    if (
-      window.electronAPI &&
-      typeof window.electronAPI.openSteamOverlay === "function"
-    ) {
-      window.electronAPI.openSteamOverlay("Achievements");
-    }
-  });
-}
-const quitBtn = document.getElementById("menu-quit");
-// Wire Quit (desktop only). Safe no-op in browser since the
-// <li class="desktop-only"> is display:none and the element
-// is still in the DOM.
-//
-// stopPropagation so the click doesn't bubble to the overlay
-// backdrop handler (that one only fires on e.target === overlay,
-// but defensive anyway). Then fire the IPC, and if it rejects —
-// or if electronAPI is absent for some reason — fall through to
-// window.close() which the window-all-closed handler in
-// electron/main.ts catches on Linux/Windows (macOS quits via
-// app.quit() from the main-process side).
-if (quitBtn) {
-  quitBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.electronAPI && typeof window.electronAPI.quit === "function") {
-      window.electronAPI.quit().catch((err: unknown) => {
-        console.warn("Quit IPC failed:", err);
-        try {
-          window.close();
-        } catch {
-          /* noop */
-        }
-      });
-      return;
-    }
-    try {
-      window.close();
-    } catch {
-      /* noop */
-    }
-  });
-}
-// Desktop-only fullscreen toggle. The top-right fullscreen
-// button is hidden on desktop (it's redundant — the window
-// opens fullscreen by default), but players still want an
-// opt-out. The Electron main process owns the window state
-// and persists it across launches via prefs.json in
-// userData. We ask it for the current state each time the
-// menu opens so the label stays honest even if the player
-// toggled via ESC on macOS Spaces fullscreen.
-const fullscreenToggle = document.getElementById("menu-fullscreen-toggle");
-const fullscreenLabel = document.getElementById("menu-fullscreen-label");
-let fullscreenState = true; // mirror of win state
-function syncFullscreenLabel() {
-  if (!fullscreenLabel) return;
-  fullscreenLabel.textContent =
-    "Fullscreen: " + (fullscreenState ? "on" : "off");
-}
+
+// The top block of menu-item buttons — Steam Friends, Steam Store,
+// Quit, Fullscreen — all live inside the React <MenuList> component
+// now. Their click handlers are defined below in MENU_LIST_CALLBACKS
+// and routed through the callback props. The fullscreen label state
+// lives in this module so the Electron main-process IPC round-trip
+// stays synchronous from the React component's POV: the label reads
+// a local cache that refreshFullscreenState() updates on menu-open.
+
+let fullscreenState = true; // mirror of Electron window state
 async function refreshFullscreenState() {
-  if (!window.electronAPI || typeof window.electronAPI.isFullscreen !== "function") {
+  if (
+    !window.electronAPI ||
+    typeof window.electronAPI.isFullscreen !== "function"
+  ) {
     return;
   }
   try {
     fullscreenState = !!(await window.electronAPI.isFullscreen());
-    syncFullscreenLabel();
+    syncMenuList();
   } catch (_) {}
 }
-if (fullscreenToggle && window.electronAPI) {
-  fullscreenToggle.addEventListener("click", async () => {
-    if (typeof window.electronAPI.setFullscreen !== "function") return;
-    try {
-      fullscreenState = !!(await window.electronAPI.setFullscreen(
-        !fullscreenState,
-      ));
-      syncFullscreenLabel();
-      // The fullscreen transition churns the window and on
-      // some Electron versions silently drops focus to
-      // <body>. That stranded the gamepad / keyboard user
-      // outside the menu until they clicked back in.
-      // Explicitly refocus the button after the awaited
-      // IPC round-trip settles. requestAnimationFrame
-      // ensures the window-resize layout pass has finished
-      // so the button is visible + focusable.
-      requestAnimationFrame(() => {
-        if (document.activeElement !== fullscreenToggle) {
-          fullscreenToggle.focus();
-        }
-      });
-    } catch (_) {}
-  });
-  refreshFullscreenState();
+
+function handleQuitClick() {
+  if (window.electronAPI && typeof window.electronAPI.quit === "function") {
+    window.electronAPI.quit().catch((err: unknown) => {
+      console.warn("Quit IPC failed:", err);
+      try {
+        window.close();
+      } catch {
+        /* noop */
+      }
+    });
+    return;
+  }
+  try {
+    window.close();
+  } catch {
+    /* noop */
+  }
+}
+
+async function handleFullscreenClick() {
+  if (
+    !window.electronAPI ||
+    typeof window.electronAPI.setFullscreen !== "function"
+  ) {
+    return;
+  }
+  try {
+    fullscreenState = !!(await window.electronAPI.setFullscreen(
+      !fullscreenState,
+    ));
+    syncMenuList();
+    // The fullscreen transition churns the window and on some
+    // Electron versions silently drops focus to <body>. Restore
+    // focus to the rendered button so the gamepad / keyboard user
+    // keeps their menu position. Look the button up by label text
+    // because React may have remounted the element during the
+    // syncMenuList() above — caching a stale reference would leak
+    // into nothing.
+    requestAnimationFrame(() => {
+      const btn = Array.from(
+        document.querySelectorAll<HTMLElement>(".menu-panel .menu-item"),
+      ).find((el) => el.textContent?.includes("Fullscreen"));
+      btn?.focus();
+    });
+  } catch (_) {}
 }
 const topSoundBtn = document.getElementById("sound-toggle");
 const fullscreenBtn = document.getElementById("fullscreen-toggle");
 const imprintOverlay = document.getElementById("imprint-overlay");
 const aboutOverlay = document.getElementById("about-overlay");
-const aboutCloseBtn = document.getElementById("about-close");
-const aboutIframe = document.getElementById("about-iframe");
+// Iframe src is lazily flipped from "about:blank" on first open —
+// ui.ts holds the flag, the React component reads the current value
+// via the iframeSrc prop.
+let aboutIframeSrc: string = "about:blank";
+let imprintIframeSrc: string = "about:blank";
 let aboutLoaded = false;
 const achievementsOverlay = document.getElementById("achievements-overlay");
-const achievementsCloseBtn = document.getElementById("achievements-close");
-const achievementsList = document.getElementById("achievements-list");
-const achievementsProgress = document.getElementById("achievements-progress");
-const imprintCloseBtn = document.getElementById("imprint-close");
-const imprintIframe = document.getElementById("imprint-iframe");
 const startScreen = document.getElementById("start-screen");
-const startBtn = document.getElementById("start-btn");
 let imprintLoaded = false;
 let assetsReady = false;
+
+// The start button lives inside the React <StartScreen> component, so
+// we look it up by id whenever we need to touch it (the rendered
+// element is stable across re-renders because the id doesn't change,
+// but capturing a module-level reference at parse time would race
+// the React mount). Used by the tap-animation toggle + the initial
+// boot sync so keyboard / click paths both replay the same keyframes.
+function getStartBtn() {
+  return document.getElementById("start-btn");
+}
+
+const START_SCREEN_CALLBACKS = {
+  onStart: () => triggerStart(),
+  getHighScore: () =>
+    (window.Game?.getHighScore && window.Game.getHighScore()) || 0,
+  getAssetsReady: () => assetsReady,
+};
+
+function syncStartScreen() {
+  refreshStartScreen(START_SCREEN_CALLBACKS);
+}
 
 // ───────── Boot splash fade-out ─────────
 function hideBootSplash() {
@@ -207,21 +177,10 @@ function hideBootSplash() {
 function onGameReady() {
   assetsReady = true;
   hideBootSplash();
-  startBtn.classList.remove("loading");
-  startBtn.disabled = false;
-  startBtn.querySelector(".label").textContent = "Start Game";
-
-  // Show the saved personal best (if any) as a badge above
-  // the Start Game button so returning players see their
-  // previous record immediately.
-  const hs =
-    (window.Game.getHighScore && window.Game.getHighScore()) || 0;
-  const hsEl = document.getElementById("start-highscore");
-  const hsVal = document.getElementById("start-highscore-value");
-  if (hs > 0 && hsEl && hsVal) {
-    hsVal.textContent = String(hs);
-    hsEl.hidden = false;
-  }
+  // Flip the React <StartScreen> from loading to ready. The button's
+  // label / disabled / class all follow assetsReady + getHighScore()
+  // — no imperative label poke needed.
+  syncStartScreen();
 
   // Wire the share panel to the game's onGameOver /
   // onGameReset events now that the API is ready.
@@ -353,14 +312,23 @@ function triggerStart() {
   if (!assetsReady || window.Game.isStarted()) return;
   if (window.Game && window.Game.playMenuTap) window.Game.playMenuTap();
   // Retrigger-safe: remove + force reflow + re-add so rapid
-  // keyboard repeats still replay the animation cleanly.
-  startBtn.classList.remove("tapped");
-  void startBtn.offsetWidth;
-  startBtn.classList.add("tapped");
-  window.setTimeout(() => startBtn.classList.remove("tapped"), 200);
+  // keyboard repeats still replay the animation cleanly. The
+  // button is rendered by React, so look it up fresh each call
+  // instead of capturing a stale reference.
+  const btn = getStartBtn();
+  if (btn) {
+    btn.classList.remove("tapped");
+    void btn.offsetWidth;
+    btn.classList.add("tapped");
+    window.setTimeout(() => {
+      const b = getStartBtn();
+      b?.classList.remove("tapped");
+    }, 200);
+  }
   startGame();
 }
-startBtn.addEventListener("click", triggerStart);
+// The start button's own onClick goes through the React component
+// (StartScreen.tsx) and delegates to triggerStart via START_SCREEN_CALLBACKS.
 // Expose a hook so the main.ts keydown handler can trigger
 // Start Game from Space/Enter on the start screen.
 window.__onStartKey = triggerStart;
@@ -383,26 +351,20 @@ window.addEventListener("resize", refreshRotateGuard);
 window.addEventListener("orientationchange", refreshRotateGuard);
 
 // ───────── Imprint overlay ─────────
-// Loaded as an iframe pointing at the standalone imprint.html
-// page. The page detects iframe embedding via window.self !==
-// window.top and hides its own "Back to the game" link, so
-// only the overlay's close button is usable.
+// The sheet is rendered by <IframeOverlay>. Lazy iframe src: the
+// page isn't fetched until the user actually wants to see it.
 function openImprint() {
-  // Set the iframe src lazily on first open so the legal page
-  // isn't fetched until the user actually wants to see it.
   if (!imprintLoaded) {
-    imprintIframe.src = "imprint.html";
+    imprintIframeSrc = "imprint.html";
     imprintLoaded = true;
   }
+  refreshImprintOverlay({
+    callbacks: { onClose: closeImprint },
+    iframeSrc: imprintIframeSrc,
+  });
   imprintOverlay.classList.add("open");
-  // Focus the × button, not the iframe heading — gives the
-  // gamepad / keyboard user an immediately actionable target
-  // (Activate = close) and keeps the focus ring INSIDE the
-  // overlay even when the iframe hasn't loaded yet.
-  if (imprintCloseBtn) imprintCloseBtn.focus();
   window.Game.pause();
 }
-
 function closeImprint() {
   imprintOverlay.classList.remove("open");
   // Every path into the imprint overlay goes through the
@@ -413,13 +375,7 @@ function closeImprint() {
   // side-effect, so no explicit resume is needed here.
   openMenu();
 }
-
-imprintCloseBtn.addEventListener("click", (e) => {
-  e.stopPropagation();
-  closeImprint();
-});
 imprintOverlay.addEventListener("click", (e) => {
-  // Click on the dark backdrop closes the overlay.
   if (e.target === imprintOverlay) closeImprint();
 });
 
@@ -429,13 +385,14 @@ imprintOverlay.addEventListener("click", (e) => {
 // pauses the game while visible.
 function openAbout() {
   if (!aboutLoaded) {
-    aboutIframe.src = "about.html";
+    aboutIframeSrc = "about.html";
     aboutLoaded = true;
   }
+  refreshAboutOverlay({
+    callbacks: { onClose: closeAbout },
+    iframeSrc: aboutIframeSrc,
+  });
   aboutOverlay.classList.add("open");
-  // Focus the × button so gamepad / keyboard immediately
-  // target the canonical "back" action. See openImprint.
-  if (aboutCloseBtn) aboutCloseBtn.focus();
   if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
     window.Game.pause();
   }
@@ -446,12 +403,6 @@ function closeAbout() {
   // pause gating (no-op when the game isn't started).
   openMenu();
 }
-if (aboutCloseBtn) {
-  aboutCloseBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeAbout();
-  });
-}
 if (aboutOverlay) {
   aboutOverlay.addEventListener("click", (e) => {
     if (e.target === aboutOverlay) closeAbout();
@@ -459,23 +410,13 @@ if (aboutOverlay) {
 }
 
 // ───────── Credits overlay ─────────
-// Static content (no iframe) so it works identically on
-// every platform including Capacitor, where standalone HTML
-// files in the build root aren't bundled.
+// Rendered by <Credits> — static content pulled from src/credits.ts
+// at runtime, so works identically on web, Electron, and Capacitor.
 const creditsOverlay = document.getElementById("credits-overlay");
-const creditsCloseBtn = document.getElementById("credits-close");
-const creditsBtn = document.getElementById("menu-credits");
 function openCredits() {
   if (!creditsOverlay) return;
+  refreshCredits({ onClose: closeCredits });
   creditsOverlay.classList.add("open");
-  // Focus the × button instead of the heading. The heading
-  // is a non-interactive h1 — focusing it trapped the
-  // gamepad user on an element whose Activate did nothing,
-  // and keyboard Tab then had to cycle past it to reach the
-  // actual content. The close button is the universal
-  // "back" affordance; focus lands on something you can
-  // act on.
-  if (creditsCloseBtn) creditsCloseBtn.focus();
   if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
     window.Game.pause();
   }
@@ -488,19 +429,6 @@ function closeCredits() {
   // player on the menu they came from, not the live game.
   openMenu();
 }
-if (creditsBtn) {
-  creditsBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeMenu();
-    openCredits();
-  });
-}
-if (creditsCloseBtn) {
-  creditsCloseBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeCredits();
-  });
-}
 if (creditsOverlay) {
   creditsOverlay.addEventListener("click", (e) => {
     if (e.target === creditsOverlay) closeCredits();
@@ -508,84 +436,19 @@ if (creditsOverlay) {
 }
 
 // ───────── Achievements overlay ─────────
-function renderAchievementsList() {
-  if (
-    !achievementsList ||
-    !window.Game ||
-    !window.Game.getAchievements
-  ) {
-    return;
-  }
-  const list = window.Game.getAchievements();
-  // Clear previous content safely.
-  while (achievementsList.firstChild) {
-    achievementsList.removeChild(achievementsList.firstChild);
-  }
-  let unlockedCount = 0;
-  for (const a of list) {
-    if (a.unlocked) unlockedCount += 1;
-    const li = document.createElement("li");
-    li.className =
-      "achievement-item " + (a.unlocked ? "unlocked" : "locked");
-    const isHidden = a.secret && !a.unlocked;
-    const iconDiv = document.createElement("div");
-    iconDiv.className = "icon";
-    if (isHidden) {
-      // Show a "?" icon for undiscovered secrets
-      const qSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      qSvg.setAttribute("viewBox", "0 0 24 24");
-      qSvg.innerHTML = '<text x="12" y="17" text-anchor="middle" font-size="16" fill="#aaa">?</text>';
-      iconDiv.appendChild(qSvg);
-    } else {
-      iconDiv.appendChild(buildAchievementIconNode(a));
-    }
-    li.appendChild(iconDiv);
-
-    const body = document.createElement("div");
-    body.className = "body";
-    const title = document.createElement("div");
-    title.className = "title";
-    title.textContent = isHidden ? "???" : a.title;
-    const desc = document.createElement("div");
-    desc.className = "desc";
-    desc.textContent = isHidden ? "Keep playing to discover this secret..." : a.desc;
-    body.appendChild(title);
-    body.appendChild(desc);
-    li.appendChild(body);
-
-    achievementsList.appendChild(li);
-  }
-  if (achievementsProgress) {
-    achievementsProgress.textContent =
-      unlockedCount + " / " + list.length + " unlocked";
-  }
-}
-
 function openAchievements() {
-  _achievementsPriorFocus = document.activeElement;
-  renderAchievementsList();
+  refreshAchievements({ onClose: closeAchievements });
   if (achievementsOverlay) achievementsOverlay.classList.add("open");
-  // Focus the × button (same rationale as openCredits /
-  // openAbout / openImprint). The previous heading-focus
-  // target was a non-interactive h1 that broke gamepad nav.
-  if (achievementsCloseBtn) achievementsCloseBtn.focus();
   if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
     window.Game.pause();
   }
 }
 function closeAchievements() {
   if (achievementsOverlay) achievementsOverlay.classList.remove("open");
-  _achievementsPriorFocus = null;
   // Always route back to the menu — that's where every
   // entry into this overlay originates, and the "back"
   // affordance is expected to retrace steps.
   openMenu();
-}
-if (achievementsCloseBtn) {
-  achievementsCloseBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeAchievements();
-  });
 }
 if (achievementsOverlay) {
   achievementsOverlay.addEventListener("click", (e) => {
@@ -594,58 +457,77 @@ if (achievementsOverlay) {
 }
 
 // ───────── Sound button ─────────
-const menuSoundToggle = document.getElementById("menu-sound-toggle");
-const menuSoundLabel = document.getElementById("menu-sound-label");
-const menuMusicToggle = document.getElementById("menu-music-toggle");
-const menuMusicLabel = document.getElementById("menu-music-label");
-const menuJumpToggle = document.getElementById("menu-jump-toggle");
-const menuJumpLabel = document.getElementById("menu-jump-label");
-const menuRainSoundToggle = document.getElementById("menu-rain-sound-toggle");
-const menuRainSoundLabel = document.getElementById("menu-rain-sound-label");
-const menuThunderToggle = document.getElementById("menu-thunder-toggle");
-const menuThunderLabel = document.getElementById("menu-thunder-label");
-const menuFootstepsToggle = document.getElementById("menu-footsteps-toggle");
-const menuFootstepsLabel = document.getElementById("menu-footsteps-label");
-const menuCoinsSoundToggle = document.getElementById("menu-coins-sound-toggle");
-const menuCoinsSoundLabel = document.getElementById("menu-coins-sound-label");
-const menuUiSoundToggle = document.getElementById("menu-ui-sound-toggle");
-const menuUiSoundLabel = document.getElementById("menu-ui-sound-label");
-const menuEventsSoundToggle = document.getElementById("menu-events-sound-toggle");
-const menuEventsSoundLabel = document.getElementById("menu-events-sound-label");
+// The per-channel toggle rows inside the pause menu's sound settings
+// are rendered by the React <SoundSettings> component — see
+// src/ui/react/SoundSettings.tsx. Labels read live muted state from
+// window.Game on every render. We still own the click → Game API
+// setter → sync refresh chain here so the component stays a dumb
+// renderer and the refresh is centralised (topSoundBtn outside the
+// menu also updates on every change).
 
-/**
- * Small helper so every channel label follows the same
- * "<name>: on|off" pattern. Falls through quietly when the label
- * element doesn't exist (e.g. a view where the sound settings
- * block is stripped out).
- */
-function _setChannelLabel(
-  el: HTMLElement | null,
-  name: string,
-  muted: boolean | undefined,
-) {
-  if (!el) return;
-  el.textContent = `${name}: ${muted ? "off" : "on"}`;
-}
+/** Callbacks passed to <SoundSettings>. Each toggles one channel's
+ *  muted flag through the Game API then triggers syncSoundUI() so
+ *  every surface that displays that state (the React tree + the
+ *  top-right mute button) repaints from the new value. */
+const SOUND_SETTINGS_CALLBACKS = {
+  onToggleSound: () => {
+    if (!window.Game || !window.Game.setMuted) return;
+    window.Game.setMuted(!window.Game.isMuted());
+    syncSoundUI();
+  },
+  onToggleMusic: () => {
+    if (!window.Game || !window.Game.setMusicMuted) return;
+    window.Game.setMusicMuted(!window.Game.isMusicMuted());
+    syncSoundUI();
+  },
+  onToggleJumpSound: () => {
+    if (!window.Game || !window.Game.setJumpMuted) return;
+    window.Game.setJumpMuted(!window.Game.isJumpMuted());
+    syncSoundUI();
+  },
+  onToggleRainSound: () => {
+    if (!window.Game || !window.Game.setRainMuted) return;
+    window.Game.setRainMuted(!window.Game.isRainMuted());
+    syncSoundUI();
+  },
+  onToggleThunder: () => {
+    if (!window.Game) return;
+    window.Game.setThunderMuted?.(!window.Game.isThunderMuted?.());
+    syncSoundUI();
+  },
+  onToggleFootsteps: () => {
+    if (!window.Game) return;
+    window.Game.setFootstepsMuted?.(!window.Game.isFootstepsMuted?.());
+    syncSoundUI();
+  },
+  onToggleCoinsSound: () => {
+    if (!window.Game) return;
+    window.Game.setCoinsMuted?.(!window.Game.isCoinsMuted?.());
+    syncSoundUI();
+  },
+  onToggleUiSound: () => {
+    if (!window.Game) return;
+    window.Game.setUiMuted?.(!window.Game.isUiMuted?.());
+    syncSoundUI();
+  },
+  onToggleEventsSound: () => {
+    if (!window.Game) return;
+    window.Game.setEventsMuted?.(!window.Game.isEventsMuted?.());
+    syncSoundUI();
+  },
+};
 
-function refreshSoundUI() {
+function syncSoundUI() {
   const muted = window.Game ? window.Game.isMuted() : true;
   topSoundBtn.classList.toggle("muted", muted);
   topSoundBtn.setAttribute("aria-pressed", String(!muted));
   topSoundBtn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
-  if (menuSoundLabel) {
-    menuSoundLabel.textContent = "Sound: " + (muted ? "off" : "on");
-  }
-  // Per-channel labels. Each getter is optional-chained because
-  // the Game API shim may not be fully wired yet on first paint.
-  _setChannelLabel(menuMusicLabel, "Music", window.Game?.isMusicMuted?.());
-  _setChannelLabel(menuJumpLabel, "Jump sound", window.Game?.isJumpMuted?.());
-  _setChannelLabel(menuRainSoundLabel, "Rain sound", window.Game?.isRainMuted?.());
-  _setChannelLabel(menuThunderLabel, "Thunder", window.Game?.isThunderMuted?.());
-  _setChannelLabel(menuFootstepsLabel, "Footsteps", window.Game?.isFootstepsMuted?.());
-  _setChannelLabel(menuCoinsSoundLabel, "Coins", window.Game?.isCoinsMuted?.());
-  _setChannelLabel(menuUiSoundLabel, "UI clicks", window.Game?.isUiMuted?.());
-  _setChannelLabel(menuEventsSoundLabel, "Rare events", window.Game?.isEventsMuted?.());
+  refreshSoundSettings(SOUND_SETTINGS_CALLBACKS);
+}
+
+// Kept for external callers (e.g. the top-right HUD mute button).
+function refreshSoundUI() {
+  syncSoundUI();
 }
 
 function toggleSound() {
@@ -653,78 +535,8 @@ function toggleSound() {
   // Ensure Web Audio context is unlocked on this user gesture
   if (window.Game.unlockAudio) window.Game.unlockAudio();
   window.Game.setMuted(!window.Game.isMuted());
-  refreshSoundUI();
+  syncSoundUI();
 }
-
-if (menuSoundToggle) {
-  menuSoundToggle.addEventListener("click", () => {
-    if (!window.Game || !window.Game.setMuted) return;
-    window.Game.setMuted(!window.Game.isMuted());
-    refreshSoundUI();
-  });
-}
-if (menuMusicToggle) {
-  menuMusicToggle.addEventListener("click", () => {
-    if (!window.Game || !window.Game.setMusicMuted) return;
-    window.Game.setMusicMuted(!window.Game.isMusicMuted());
-    refreshSoundUI();
-  });
-}
-if (menuJumpToggle) {
-  menuJumpToggle.addEventListener("click", () => {
-    if (!window.Game || !window.Game.setJumpMuted) return;
-    window.Game.setJumpMuted(!window.Game.isJumpMuted());
-    refreshSoundUI();
-  });
-}
-if (menuRainSoundToggle) {
-  menuRainSoundToggle.addEventListener("click", () => {
-    if (!window.Game || !window.Game.setRainMuted) return;
-    window.Game.setRainMuted(!window.Game.isRainMuted());
-    refreshSoundUI();
-  });
-}
-// The finer SFX channels each follow the same
-// "toggle + refresh" pattern. One tiny helper below keeps the
-// wiring code proportional to the number of channels rather
-// than repeating the same 5-line block for each.
-function _wireChannelToggle(
-  btn: HTMLElement | null,
-  getter: () => boolean | undefined,
-  setter: (m: boolean) => void,
-) {
-  if (!btn) return;
-  btn.addEventListener("click", () => {
-    if (!window.Game) return;
-    setter(!getter());
-    refreshSoundUI();
-  });
-}
-_wireChannelToggle(
-  menuThunderToggle,
-  () => window.Game?.isThunderMuted?.(),
-  (m) => window.Game?.setThunderMuted?.(m),
-);
-_wireChannelToggle(
-  menuFootstepsToggle,
-  () => window.Game?.isFootstepsMuted?.(),
-  (m) => window.Game?.setFootstepsMuted?.(m),
-);
-_wireChannelToggle(
-  menuCoinsSoundToggle,
-  () => window.Game?.isCoinsMuted?.(),
-  (m) => window.Game?.setCoinsMuted?.(m),
-);
-_wireChannelToggle(
-  menuUiSoundToggle,
-  () => window.Game?.isUiMuted?.(),
-  (m) => window.Game?.setUiMuted?.(m),
-);
-_wireChannelToggle(
-  menuEventsSoundToggle,
-  () => window.Game?.isEventsMuted?.(),
-  (m) => window.Game?.setEventsMuted?.(m),
-);
 
 // ───────── Fullscreen button ─────────
 function isFullscreen() {
@@ -803,7 +615,6 @@ function refreshMenuHighscore() {
 // Track the element that had focus before an overlay opened,
 // so we can restore it when the overlay closes.
 let _menuPriorFocus = null;
-let _achievementsPriorFocus = null;
 
 function openMenuBase() {
   _menuPriorFocus = document.activeElement;
@@ -817,6 +628,9 @@ function openMenuBase() {
   refreshEasterEggUI();
   refreshScoreEditor();
   refreshMenuHighscore();
+  // Re-render the React menu list so it re-reads live state
+  // (install-availability, fullscreen label, etc.).
+  syncMenuList();
   // Refresh the fullscreen toggle label so it's honest if the
   // player hit ESC or Cmd-Ctrl-F outside the menu. No-op on web.
   refreshFullscreenState();
@@ -1124,7 +938,6 @@ window.addEventListener("focus", () => {
   focusMenuIndex(currentMenuFocusIdx());
 });
 
-closeBtn.addEventListener("click", closeMenu);
 overlay.addEventListener("click", (e) => {
   // Click outside the panel closes the menu.
   if (e.target === overlay) closeMenu();
@@ -1132,79 +945,84 @@ overlay.addEventListener("click", (e) => {
 
 // "Back to home screen" — reset the game, close the menu, and
 // re-show the start screen with its current personal-best badge.
-const homeBtn = document.getElementById("menu-home");
-if (homeBtn) {
-  homeBtn.addEventListener("click", () => {
-    if (window.Game && window.Game.returnToHome) {
-      window.Game.returnToHome();
-    }
-    // Close menu without a Game.resume() side-effect, since we
-    // just moved the game back to its paused pre-start state.
-    overlay.classList.remove("open");
-    cog.setAttribute("aria-expanded", "false");
-    // Re-show the start screen. Refresh its high-score badge in
-    // case the player just set a new personal best this run.
-    startScreen.classList.remove("hidden");
-    onGameReady();
-    hideScoreDisplay();
-  });
-}
-
-// Intercept the menu's imprint link so it opens as an inline
-// overlay (music keeps playing) instead of navigating away.
-const menuImprintLink = overlay.querySelector('a[href="imprint.html"]');
-if (menuImprintLink) {
-  menuImprintLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    closeMenu();
-    openImprint();
-  });
-}
-// Same for the about link.
-const menuAboutLink = overlay.querySelector('a[href="about.html"]');
-if (menuAboutLink) {
-  menuAboutLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    closeMenu();
-    openAbout();
-  });
-}
-// Achievements button.
-const menuAchievementsBtn = document.getElementById("menu-achievements");
-if (menuAchievementsBtn) {
-  menuAchievementsBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeMenu();
-    openAchievements();
-  });
+function handleHomeClick() {
+  if (window.Game && window.Game.returnToHome) {
+    window.Game.returnToHome();
+  }
+  // Close menu without a Game.resume() side-effect, since we
+  // just moved the game back to its paused pre-start state.
+  overlay.classList.remove("open");
+  cog.setAttribute("aria-expanded", "false");
+  // Re-show the start screen. Refresh its high-score badge in
+  // case the player just set a new personal best this run.
+  startScreen.classList.remove("hidden");
+  onGameReady();
+  hideScoreDisplay();
 }
 
 // ───────── PWA Install button ─────────
-let deferredInstallPrompt = null;
-const installLi = document.getElementById("menu-install-li");
-const installBtn = document.getElementById("menu-install");
+let deferredInstallPrompt: any = null;
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredInstallPrompt = e;
-  if (installLi) installLi.style.display = "";
+  syncMenuList();
 });
-if (installBtn) {
-  installBtn.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    if (!deferredInstallPrompt) return;
-    deferredInstallPrompt.prompt();
-    const { outcome } = await deferredInstallPrompt.userChoice;
-    deferredInstallPrompt = null;
-    if (installLi) installLi.style.display = "none";
-    if (outcome === "accepted") closeMenu();
-  });
-}
 window.addEventListener("appinstalled", () => {
   deferredInstallPrompt = null;
-  if (installLi) installLi.style.display = "none";
+  syncMenuList();
 });
+async function handleInstallClick() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  syncMenuList();
+  if (outcome === "accepted") closeMenu();
+}
+
+// Steam overlay IPC helpers — desktop-only but the call is safe
+// no-op elsewhere (electronAPI is undefined on web and mobile).
+function handleSteamStoreClick() {
+  if (
+    window.electronAPI &&
+    typeof window.electronAPI.openSteamOverlayUrl === "function"
+  ) {
+    window.electronAPI.openSteamOverlayUrl(STEAM_STORE_URL);
+  }
+}
+function handleSteamFriendsClick() {
+  if (
+    window.electronAPI &&
+    typeof window.electronAPI.openSteamOverlay === "function"
+  ) {
+    window.electronAPI.openSteamOverlay("Friends");
+  }
+}
+
+// Callbacks table for the React <MenuList>. Each entry is either a
+// direct open-overlay / close-menu delegation or a thin wrapper
+// around a Game-API / electron IPC call.
+const MENU_LIST_CALLBACKS = {
+  onClose: () => closeMenu(),
+  onHome: handleHomeClick,
+  onAchievements: () => { closeMenu(); openAchievements(); },
+  onResetProgress: () => openResetConfirm(),
+  onInstall: handleInstallClick,
+  onAbout: () => { closeMenu(); openAbout(); },
+  onCredits: () => { closeMenu(); openCredits(); },
+  onImprint: () => { closeMenu(); openImprint(); },
+  onSteamStore: handleSteamStoreClick,
+  onSteamFriends: handleSteamFriendsClick,
+  onFullscreen: handleFullscreenClick,
+  onQuit: handleQuitClick,
+  getInstallAvailable: () => deferredInstallPrompt != null,
+  getFullscreenLabel: () =>
+    "Fullscreen: " + (fullscreenState ? "on" : "off"),
+};
+
+function syncMenuList() {
+  refreshMenuList(MENU_LIST_CALLBACKS);
+}
 
 cog.addEventListener("click", (e) => {
   e.stopPropagation();
@@ -1215,141 +1033,91 @@ topSoundBtn.addEventListener("click", (e) => {
   toggleSound();
 });
 
-// ───────── Debug: hitbox toggle (only visible in ?debug=true) ─────────
-const hitboxesBtn = document.getElementById("menu-hitboxes-toggle");
-const hitboxesLabel = document.getElementById("menu-hitboxes-label");
+// ───────── Debug body (only visible under body[data-debug="true"]) ─────────
+// All rows inside the <details id="debug-settings"> are rendered by
+// the React <DebugSettings> component — see
+// src/ui/react/DebugSettings.tsx. ui.ts keeps the action handlers
+// in a single callbacks table + a syncDebugSettings() dispatcher so
+// the component re-renders any time a toggle flips.
 
-function refreshHitboxesUI() {
-  if (!hitboxesLabel || !window.Game) return;
-  hitboxesLabel.textContent = window.Game.isShowingHitboxes()
-    ? "Hitboxes: on"
-    : "Hitboxes: off";
-}
-
-if (hitboxesBtn) {
-  hitboxesBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    window.Game.toggleShowHitboxes();
-    refreshHitboxesUI();
-  });
-}
-
-// ───────── Debug: rain toggle ─────────
-const rainBtn = document.getElementById("menu-rain-toggle");
-const rainLabel = document.getElementById("menu-rain-label");
-
-function refreshRainUI() {
-  if (!rainLabel || !window.Game || !window.Game.isRaining) return;
-  rainLabel.textContent = window.Game.isRaining()
-    ? "Rain: on"
-    : "Rain: off";
-}
-
-if (rainBtn) {
-  rainBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.Game && window.Game.toggleRain) {
+const DEBUG_SETTINGS_CALLBACKS = {
+  onToggleHitboxes: () => {
+    window.Game?.toggleShowHitboxes?.();
+    syncDebugSettings();
+  },
+  onToggleRain: () => {
+    if (window.Game?.toggleRain) {
       window.Game.toggleRain();
       closeMenu();
     }
-  });
-}
-
-// ───────── Debug: no-collisions toggle ─────────
-const noCollBtn = document.getElementById("menu-nocollisions-toggle");
-const noCollLabel = document.getElementById("menu-nocollisions-label");
-
-function refreshNoCollisionsUI() {
-  if (!noCollLabel || !window.Game || !window.Game.isNoCollisions) return;
-  noCollLabel.textContent = window.Game.isNoCollisions()
-    ? "Collisions: off"
-    : "Collisions: on";
-}
-
-if (noCollBtn) {
-  noCollBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.Game && window.Game.toggleNoCollisions) {
+  },
+  onToggleNoCollisions: () => {
+    if (window.Game?.toggleNoCollisions) {
       window.Game.toggleNoCollisions();
-      refreshNoCollisionsUI();
+      syncDebugSettings();
     }
-  });
-}
-
-// ───────── Debug: perf overlay toggle ─────────
-const perfBtn = document.getElementById("menu-perf-toggle");
-const perfLabel = document.getElementById("menu-perf-label");
-
-function refreshPerfUI() {
-  if (!perfLabel || !window.Game || !window.Game.isPerfOverlay) return;
-  perfLabel.textContent = window.Game.isPerfOverlay()
-    ? "Perf overlay: on"
-    : "Perf overlay: off";
-}
-
-if (perfBtn) {
-  perfBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.Game && window.Game.togglePerfOverlay) {
+  },
+  onTogglePerf: () => {
+    if (window.Game?.togglePerfOverlay) {
       window.Game.togglePerfOverlay();
-      refreshPerfUI();
+      syncDebugSettings();
     }
-  });
-}
-
-// ───────── Debug: rare event triggers ─────────
-const eventIds = ["ufo", "santa", "tumbleweed", "comet", "meteor"];
-for (const eid of eventIds) {
-  const btn = document.getElementById("menu-event-" + eid);
-  if (btn) {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (window.Game && window.Game.triggerEvent) {
-        window.Game.triggerEvent(eid);
-        closeMenu();
-      }
-    });
-  }
-}
-
-// Debug: advance moon phase
-const moonBtn = document.getElementById("menu-advance-moon");
-if (moonBtn) {
-  moonBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.Game && window.Game.advanceMoonPhase) {
+  },
+  onScoreInputChange: (raw: string) => {
+    if (!window.Game?.setScore) return;
+    const n = Math.max(0, Math.floor(Number(raw) || 0));
+    window.Game.setScore(n);
+    // Sync the HUD's displayed value so it snaps to the
+    // new number instead of slowly tweening up.
+    if (scoreValueEl) scoreValueEl.textContent = String(n);
+    displayedScore = n;
+  },
+  onTriggerUfo: () => {
+    if (window.Game?.triggerEvent) { window.Game.triggerEvent("ufo"); closeMenu(); }
+  },
+  onTriggerSanta: () => {
+    if (window.Game?.triggerEvent) { window.Game.triggerEvent("santa"); closeMenu(); }
+  },
+  onTriggerTumbleweed: () => {
+    if (window.Game?.triggerEvent) { window.Game.triggerEvent("tumbleweed"); closeMenu(); }
+  },
+  onTriggerComet: () => {
+    if (window.Game?.triggerEvent) { window.Game.triggerEvent("comet"); closeMenu(); }
+  },
+  onTriggerMeteor: () => {
+    if (window.Game?.triggerEvent) { window.Game.triggerEvent("meteor"); closeMenu(); }
+  },
+  onAdvanceMoon: () => {
+    if (window.Game?.advanceMoonPhase) {
       window.Game.advanceMoonPhase();
       closeMenu();
     }
-  });
-}
-
-// Debug: force a flower-field breather on the next frame so we can
-// eyeball the rest-area layout (coin density, buffer symmetry, etc.)
-// without waiting ~40 cacti for the counter to roll.
-const flowerFieldBtn = document.getElementById("menu-force-breather");
-if (flowerFieldBtn) {
-  flowerFieldBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.Game && window.Game._forceBreather) {
+  },
+  onForceBreather: () => {
+    if (window.Game?._forceBreather) {
       window.Game._forceBreather();
       closeMenu();
     }
-  });
-}
-
-// Debug: spawn a pterodactyl as the next obstacle — replaces the
-// natural 12% roll so flyers can be tested without waiting.
-const pterodactylBtn = document.getElementById("menu-spawn-pterodactyl");
-if (pterodactylBtn) {
-  pterodactylBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.Game && window.Game._spawnPterodactyl) {
+  },
+  onSpawnPterodactyl: () => {
+    if (window.Game?._spawnPterodactyl) {
       window.Game._spawnPterodactyl();
       closeMenu();
     }
-  });
+  },
+};
+
+function syncDebugSettings() {
+  refreshDebugSettings(DEBUG_SETTINGS_CALLBACKS);
 }
+
+// Thin wrappers kept for the openMenuBase call sites that still
+// trigger per-area refreshes. Each now just pings the React tree
+// to re-read the current Game-API state.
+function refreshHitboxesUI() { syncDebugSettings(); }
+function refreshRainUI() { syncDebugSettings(); }
+function refreshNoCollisionsUI() { syncDebugSettings(); }
+function refreshPerfUI() { syncDebugSettings(); }
 
 // ───────── Accessory toggles (party hat / thug glasses) ─────────
 // Both entries are hidden in the markup by default and only
@@ -1362,11 +1130,6 @@ const menuShopBalanceValue = document.getElementById(
   "menu-shop-balance-value",
 );
 const shopOverlay = document.getElementById("shop-overlay");
-const shopCloseBtn = document.getElementById("shop-close");
-const shopItemsEl = document.getElementById("shop-items");
-const shopBalanceValue = document.getElementById("shop-balance-value");
-const shopEmptyHint = document.getElementById("shop-empty-hint");
-const jumpsResetBtn = document.getElementById("menu-jumpsreset-toggle");
 
 // Start-screen raptor stage. Each <img class="start-raptor-cosmetic">
 // has a data-slot attribute; refreshStartRaptorCosmetics() reads
@@ -1512,465 +1275,70 @@ function _spriteUrlForId(id: string): string | null {
   return map[def.spriteKey] ?? null;
 }
 
-// Slot data used to render the per-slot sections in the cosmetics
-// menu. Order here is the order the sections stack top-to-bottom.
-const COSMETIC_SLOT_UI: Array<{
-  slot: "head" | "eyes" | "neck";
-  label: string;
-}> = [
-  { slot: "head", label: "Head" },
-  { slot: "eyes", label: "Eyes" },
-  { slot: "neck", label: "Neck" },
-];
-
 function refreshEasterEggUI() {
   if (!window.Game) return;
   renderCosmeticsMenu();
-  refreshShopBalance();
+  refreshShopMenuBalance();
   refreshStartRaptorCosmetics();
 }
 
+/** Callbacks passed to <CosmeticsMenu>. Equip / unequip fire the
+ *  Game API mutation then trigger renderCosmeticsMenu() to repaint
+ *  the React tree and refreshStartRaptorCosmetics() to update the
+ *  (non-React) start-screen raptor preview. */
+const COSMETICS_MENU_CALLBACKS = {
+  onEquipCosmetic: (id: string) => {
+    window.Game?.equipCosmetic?.(id);
+    renderCosmeticsMenu();
+    refreshStartRaptorCosmetics();
+  },
+  onUnequipSlot: (slot: "head" | "eyes" | "neck") => {
+    window.Game?.unequipSlot?.(slot);
+    renderCosmeticsMenu();
+    refreshStartRaptorCosmetics();
+  },
+};
+
 /**
- * Rebuild the cosmetics section of the menu from scratch. Called
- * on every menu-open and after any equip change so the dropdowns
- * stay in sync with the latest state.
+ * Rebuild the cosmetics section of the menu. Called on every
+ * menu-open and after any equip change so the React tree stays in
+ * sync with the latest state.
  *
- * Layout: one row per slot the player owns at least one item in.
- * Each row is a "[Slot label] [Select]" pair — the select lists
- * "None" plus every owned cosmetic in that slot, and changing it
- * equips/unequips immediately. A slot with nothing owned in it
- * is hidden entirely so the menu doesn't fill up with empty
- * Back/Eyes/Neck rows before the player has any options.
- *
- * The outer <details class="cosmetics"> stays hidden until at
- * least one cosmetic is owned — no empty header at the start of
- * a fresh save.
+ * The outer <details id="cosmetics"> stays hidden until at least
+ * one cosmetic is owned — no empty header at the start of a fresh
+ * save. Per-slot sections, option buttons, thumbnails, and the
+ * "None" row are all rendered by <CosmeticsMenu> in React.
  */
 function renderCosmeticsMenu() {
-  if (!cosmeticsList || !cosmeticsGroup || !window.Game) return;
+  if (!cosmeticsGroup || !window.Game) return;
   const all = window.Game.getAllCosmetics?.() ?? [];
   const owned = all.filter((c: { id: string }) =>
     window.Game.ownsCosmetic?.(c.id),
   );
-  if (owned.length === 0) {
-    cosmeticsGroup.hidden = true;
-    cosmeticsList.innerHTML = "";
-    return;
-  }
-  cosmeticsGroup.hidden = false;
-  // Before we blow the list away and rebuild, remember which
-  // per-slot <details> elements were open so we can reopen them
-  // afterward. Otherwise clicking an option inside an open slot
-  // re-renders and snaps the slot closed — which reads as "the
-  // equip didn't take" when actually the state just got hidden.
-  const previouslyOpen = new Set<string>();
-  cosmeticsList
-    .querySelectorAll<HTMLDetailsElement>("details.cosmetic-slot[open]")
-    .forEach((el) => {
-      if (el.dataset.slot) previouslyOpen.add(el.dataset.slot);
-    });
-  const frag = document.createDocumentFragment();
-  for (const { slot, label } of COSMETIC_SLOT_UI) {
-    const ownedInSlot = owned.filter(
-      (c: { slot: string }) => c.slot === slot,
-    );
-    if (ownedInSlot.length === 0) continue;
-    const equippedId = window.Game.getEquippedCosmetic?.(slot) ?? null;
-    const row = _buildCosmeticSlotRow({
-      slot,
-      label,
-      equippedId,
-      options: ownedInSlot,
-    });
-    if (previouslyOpen.has(slot)) row.setAttribute("open", "");
-    frag.appendChild(row);
-  }
-  cosmeticsList.innerHTML = "";
-  cosmeticsList.appendChild(frag);
-}
-
-function _buildCosmeticSlotRow(opts: {
-  slot: "head" | "eyes" | "neck";
-  label: string;
-  equippedId: string | null;
-  options: Array<{ id: string; name: string; spriteKey?: string }>;
-}): HTMLElement {
-  // Flat per-slot section — no <details>, no collapse. Every
-  // option is always visible so the player can scan+pick in one
-  // motion instead of fold→expand→click. The slot-tinted left
-  // border (CSS [data-slot]) keeps Head/Eyes/Neck visually
-  // distinct without needing a clickable header to separate them.
-  const section = document.createElement("div");
-  section.className = "cosmetic-slot";
-  section.dataset.slot = opts.slot;
-
-  const header = document.createElement("h3");
-  header.className = "cosmetic-slot-label";
-  header.textContent = opts.label;
-  section.appendChild(header);
-
-  const body = document.createElement("ul");
-  body.className = "menu-group-body cosmetic-slot-body";
-
-  const addOption = (id: string | "", name: string) => {
-    const li = document.createElement("li");
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "menu-item cosmetic-equip-btn";
-    const isEquipped =
-      (id === "" && opts.equippedId == null) || id === opts.equippedId;
-    btn.setAttribute("aria-pressed", isEquipped ? "true" : "false");
-    const inner = document.createElement("span");
-    inner.className = "inner";
-    const optThumb = document.createElement("div");
-    optThumb.className = "cosmetic-option-thumb";
-    _setThumbForId(optThumb, id === "" ? null : id, opts.slot);
-    inner.appendChild(optThumb);
-    const nameSpan = document.createElement("span");
-    nameSpan.className = "cosmetic-option-name";
-    nameSpan.textContent = name;
-    inner.appendChild(nameSpan);
-    if (isEquipped) {
-      const badge = document.createElement("span");
-      badge.className = "cosmetic-equip-badge";
-      badge.textContent = "Equipped";
-      inner.appendChild(badge);
-    }
-    btn.appendChild(inner);
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      window.Game?.playMenuTap?.();
-      if (id === "") {
-        window.Game.unequipSlot?.(opts.slot);
-      } else {
-        window.Game.equipCosmetic?.(id);
-      }
-      renderCosmeticsMenu();
-      refreshStartRaptorCosmetics();
-    });
-    li.appendChild(btn);
-    body.appendChild(li);
-  };
-
-  addOption("", "None");
-  for (const opt of opts.options) addOption(opt.id, opt.name);
-
-  section.appendChild(body);
-  return section;
-}
-
-/** Paint the given thumbnail div either as a sprite preview
- *  (when an owned item with art is equipped) or as a neutral
- *  slot-tinted placeholder (None, or an item without art yet). */
-function _setThumbForId(
-  el: HTMLDivElement,
-  id: string | null,
-  slot: "head" | "eyes" | "neck",
-): void {
-  const slotColor: Record<string, string> = {
-    head: "#d97706",
-    eyes: "#1f2937",
-    neck: "#b91c1c",
-  };
-  const spriteUrl = id ? _spriteUrlForId(id) : null;
-  el.innerHTML = "";
-  el.classList.toggle("cosmetic-slot-thumb-sprite", spriteUrl != null);
-  el.classList.toggle("cosmetic-slot-thumb-none", id == null);
-  if (spriteUrl) {
-    el.style.background = "";
-    el.appendChild(_buildCosmeticThumbImg(spriteUrl));
-  } else if (id == null) {
-    // "None" option: crossed-out circle so it reads as
-    // "nothing equipped" rather than a slot-coloured block
-    // that looks like yet another cosmetic.
-    el.style.background = "";
-    el.appendChild(_buildNoneIcon());
-  } else {
-    el.style.background = slotColor[slot] ?? "#555";
-  }
-}
-
-function _buildCosmeticThumbImg(src: string): HTMLImageElement {
-  const img = document.createElement("img");
-  img.src = src;
-  img.alt = "";
-  return img;
-}
-
-function _buildNoneIcon(): SVGSVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "2");
-  svg.setAttribute("stroke-linecap", "round");
-  svg.setAttribute("aria-hidden", "true");
-  svg.classList.add("cosmetic-none-icon");
-  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-  circle.setAttribute("cx", "12");
-  circle.setAttribute("cy", "12");
-  circle.setAttribute("r", "9");
-  svg.appendChild(circle);
-  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  line.setAttribute("x1", "5.6");
-  line.setAttribute("y1", "5.6");
-  line.setAttribute("x2", "18.4");
-  line.setAttribute("y2", "18.4");
-  svg.appendChild(line);
-  return svg;
+  cosmeticsGroup.hidden = owned.length === 0;
+  refreshCosmeticsMenu(COSMETICS_MENU_CALLBACKS);
 }
 
 // ───────── Shop ─────────
-/** Small inline coin icon — reuses the in-game coin.png asset so the
- *  shop prices read as "same currency you collected on the field". */
-function makeCoinIcon(): HTMLImageElement {
-  const img = document.createElement("img");
-  img.src = "assets/coin.png";
-  img.alt = "";
-  img.className = "coin-icon";
-  img.setAttribute("aria-hidden", "true");
-  return img;
-}
-
-/** Update the "💰 N" chip on the Shop menu button AND the balance
- *  line inside the shop overlay. Called after any purchase and on
- *  every menu-open. */
-function refreshShopBalance() {
+/** Update the coin chip on the main menu's Shop button. The shop
+ *  overlay itself is rendered by the React <Shop> component
+ *  (src/ui/react/Shop.tsx), which reads the balance on each render.
+ *  This function covers the chip that lives OUTSIDE the shop, so the
+ *  menu button shows the right number even when the shop's closed. */
+function refreshShopMenuBalance() {
   if (!window.Game) return;
   const n = window.Game.getCoinsBalance?.() ?? 0;
   if (menuShopBalanceValue) menuShopBalanceValue.textContent = String(n);
-  if (shopBalanceValue) shopBalanceValue.textContent = String(n);
 }
 
-/** Build the shop grid from the current inventory. Each card shows
- *  the name, price, and a state-aware action button:
- *    • "Buy"      — not owned, can afford (click purchases + refreshes)
- *    • "Costs N"  — not owned, can't afford (disabled)
- *    • "Equip"    — owned but another item in its slot is equipped
- *    • "Equipped" — currently worn (disabled)
- *
- *  Thumbnail is a slot-coloured rectangle with the item's initials
- *  — same pattern as the raptor's placeholder rendering, so the
- *  shop preview and the in-game preview match until final art
- *  lands. */
-function renderShop() {
-  if (!shopItemsEl || !window.Game) return;
-  const inventory = window.Game.getShopInventory?.() ?? [];
-  shopItemsEl.innerHTML = "";
-  if (inventory.length === 0) {
-    if (shopEmptyHint) shopEmptyHint.hidden = false;
-    return;
-  }
-  if (shopEmptyHint) shopEmptyHint.hidden = true;
-  const balance = window.Game.getCoinsBalance?.() ?? 0;
-  const slotColor: Record<string, string> = {
-    head: "#d97706",
-    eyes: "#1f2937",
-    neck: "#b91c1c",
-    back: "#7c3aed",
-  };
-  const slotLabel: Record<string, string> = {
-    head: "Head",
-    eyes: "Eyes",
-    neck: "Neck",
-    back: "Back",
-  };
-  // Uses the module-level _spriteUrlForId helper so the shop
-  // grid, the equip menu, and the start-raptor-stage all agree
-  // on which sprite URL to load for a given cosmetic id.
-  for (const def of inventory) {
-    const card = document.createElement("div");
-    card.className = "shop-item";
-    card.dataset.id = def.id;
-
-    const thumb = document.createElement("div");
-    thumb.className = "shop-item-thumb";
-    const thumbUrl = _spriteUrlForId(def.id);
-    if (thumbUrl) {
-      // Real sprite — transparent PNG on a neutral panel so the
-      // art reads well regardless of slot colour.
-      thumb.classList.add("shop-item-thumb-sprite");
-      const img = document.createElement("img");
-      img.src = thumbUrl;
-      img.alt = "";
-      img.loading = "lazy";
-      thumb.appendChild(img);
-    } else {
-      // Placeholder: slot-tinted square with the item's initials.
-      thumb.style.background = slotColor[def.slot] ?? "#555";
-      thumb.textContent = def.name.slice(0, 2).toUpperCase();
-    }
-    card.appendChild(thumb);
-
-    const owned = window.Game.ownsCosmetic?.(def.id) === true;
-    const equipped = window.Game.isCosmeticEquipped?.(def.id) === true;
-
-    const info = document.createElement("div");
-    info.className = "shop-item-info";
-    const name = document.createElement("div");
-    name.className = "shop-item-name";
-    name.textContent = def.name;
-    info.appendChild(name);
-    const metaRow = document.createElement("div");
-    metaRow.className = "shop-item-meta-row";
-    const slotTag = document.createElement("div");
-    slotTag.className = "shop-item-slot";
-    slotTag.textContent = slotLabel[def.slot] ?? def.slot;
-    metaRow.appendChild(slotTag);
-    if (owned) {
-      const pill = document.createElement("span");
-      pill.className = "shop-item-owned-pill";
-      pill.textContent = "Owned";
-      metaRow.appendChild(pill);
-    }
-    info.appendChild(metaRow);
-    if (def.description) {
-      const desc = document.createElement("div");
-      desc.className = "shop-item-description";
-      desc.textContent = def.description;
-      info.appendChild(desc);
-    }
-    card.appendChild(info);
-
-    const action = document.createElement("button");
-    action.type = "button";
-    action.className = "shop-item-action";
-    if (equipped) {
-      action.textContent = "Equipped";
-      action.disabled = true;
-      action.classList.add("shop-item-action-equipped");
-    } else if (owned) {
-      action.textContent = "Equip";
-      action.addEventListener("click", (e) => {
-        e.stopPropagation();
-        window.Game?.playMenuTap?.();
-        window.Game.equipCosmetic?.(def.id);
-        renderShop();
-        refreshStartRaptorCosmetics();
-      });
-    } else if (balance >= def.price || window.Game.isDebug?.()) {
-      // Normal purchase path — or the debug-mode free grab the
-      // Game API allows regardless of balance. Either way the
-      // click handler is the same (buyCosmetic short-circuits
-      // the coin deduction when debug is on).
-      const isDebugFree =
-        window.Game.isDebug?.() === true && balance < def.price;
-      const priceLabel = document.createElement("span");
-      priceLabel.className = "shop-item-price";
-      priceLabel.textContent = isDebugFree
-        ? `Buy · ${def.price} (debug)`
-        : `Buy · ${def.price}`;
-      action.appendChild(priceLabel);
-      action.appendChild(makeCoinIcon());
-      action.addEventListener("click", (e) => {
-        e.stopPropagation();
-        // Capture the button's screen position BEFORE buyCosmetic
-        // → renderShop() rebuilds every card and detaches the
-        // clicked button. getBoundingClientRect on a detached
-        // element returns all zeros, which previously threw the
-        // confetti burst into the top-left corner of the viewport.
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const res = window.Game.buyCosmetic?.(def.id);
-        if (res === "ok") {
-          refreshShopBalance();
-          renderShop();
-          refreshStartRaptorCosmetics();
-          // Celebratory feedback: "level up" chime + a DOM confetti
-          // burst emitted from the buy-button's screen position, so
-          // the player gets a clear "that worked" signal that isn't
-          // hidden under the shop overlay (canvas-based confetti
-          // would draw behind the dim backdrop).
-          window.Game.playShopPurchase?.();
-          spawnShopConfetti(cx, cy);
-        }
-      });
-    } else {
-      const priceLabel = document.createElement("span");
-      priceLabel.className = "shop-item-price";
-      priceLabel.textContent = String(def.price);
-      action.appendChild(priceLabel);
-      action.appendChild(makeCoinIcon());
-      action.disabled = true;
-      action.classList.add("shop-item-action-poor");
-    }
-    card.appendChild(action);
-
-    shopItemsEl.appendChild(card);
-  }
-}
-
-// DOM confetti used only by the shop — the canvas-based
-// spawnConfettiBurst would render behind the 60%-black shop backdrop,
-// so we need real DOM elements on top. Kept deliberately small and
-// self-contained: ~24 absolutely-positioned divs with randomised
-// velocity + rotation, driven by a single rAF loop, cleaned up when
-// every particle has faded. Colours mirror the canvas confetti
-// palette so the two effects read as one language.
-const SHOP_CONFETTI_COLORS = [
-  "#ff4d6d", "#ffb703", "#06d6a0", "#118ab2",
-  "#8338ec", "#ffd60a", "#ff7b00", "#ef476f",
-];
-function spawnShopConfetti(originX: number, originY: number) {
-  // Container sits over EVERYTHING (above the shop overlay at 2700).
-  // One container per burst — removed once the last particle expires.
-  const layer = document.createElement("div");
-  layer.style.cssText =
-    "position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:3000;";
-  document.body.appendChild(layer);
-  interface P { el: HTMLElement; x: number; y: number; vx: number; vy: number; rot: number; vrot: number; age: number; life: number; }
-  const particles: P[] = [];
-  for (let i = 0; i < 24; i++) {
-    const el = document.createElement("div");
-    const color = SHOP_CONFETTI_COLORS[i % SHOP_CONFETTI_COLORS.length];
-    const size = 6 + Math.random() * 5;
-    el.style.cssText =
-      `position:absolute;left:${originX}px;top:${originY}px;` +
-      `width:${size}px;height:${size * 0.6}px;` +
-      `background:${color};border-radius:1px;will-change:transform,opacity;`;
-    layer.appendChild(el);
-    // Radial burst — fan outward, slight upward bias so it feels
-    // celebratory rather than a gravity-dominated drop.
-    const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.4;
-    const speed = 220 + Math.random() * 280;
-    particles.push({
-      el,
-      x: originX, y: originY,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      rot: Math.random() * Math.PI * 2,
-      vrot: (Math.random() - 0.5) * 10,
-      age: 0,
-      life: 0.9 + Math.random() * 0.6,
-    });
-  }
-  let lastT = performance.now();
-  function step(now: number) {
-    const dt = Math.min(0.05, (now - lastT) / 1000);
-    lastT = now;
-    let alive = 0;
-    for (const p of particles) {
-      if (p.age >= p.life) continue;
-      p.age += dt;
-      p.vy += 780 * dt; // gravity
-      p.vx *= 0.99;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.rot += p.vrot * dt;
-      const t = p.age / p.life;
-      const alpha = t < 0.8 ? 1 : Math.max(0, 1 - (t - 0.8) / 0.2);
-      p.el.style.transform = `translate(${p.x - originX}px, ${p.y - originY}px) rotate(${p.rot}rad)`;
-      p.el.style.opacity = String(alpha);
-      if (p.age < p.life) alive++;
-    }
-    if (alive > 0) {
-      requestAnimationFrame(step);
-    } else {
-      layer.remove();
-    }
-  }
-  requestAnimationFrame(step);
+/** Called from the React <Shop> component whenever a buy or equip
+ *  succeeds. Updates the bits of UI that live OUTSIDE the shop:
+ *  the main menu's Shop-button coin chip and the start-screen
+ *  raptor preview (so a just-equipped cosmetic shows up on the
+ *  raptor behind the overlay). */
+function onShopChange() {
+  refreshShopMenuBalance();
+  refreshStartRaptorCosmetics();
 }
 
 function openShop() {
@@ -1981,8 +1349,8 @@ function openShop() {
   // or (b) direct hotkey opens from gameplay. Either way pause is
   // the right move.
   try { window.Game?.pause?.(); } catch {}
-  refreshShopBalance();
-  renderShop();
+  refreshShopMenuBalance();
+  refreshShop({ onClose: closeShop, onShopChange });
   shopOverlay.classList.add("open");
 }
 function closeShop() {
@@ -1998,12 +1366,6 @@ if (menuShopBtn) {
     e.stopPropagation();
     closeMenu();
     openShop();
-  });
-}
-if (shopCloseBtn) {
-  shopCloseBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeShop();
   });
 }
 if (shopOverlay) {
@@ -2038,22 +1400,15 @@ function doReset() {
     achievementsOverlay &&
     achievementsOverlay.classList.contains("open")
   ) {
-    renderAchievementsList();
+    refreshAchievements({ onClose: closeAchievements });
   }
   const pbEl = document.getElementById("personal-best");
   if (pbEl) pbEl.textContent = "Personal best: 0";
-  const startHsEl = document.getElementById("start-highscore");
-  const startHsVal = document.getElementById("start-highscore-value");
-  if (startHsVal) startHsVal.textContent = "0";
-  if (startHsEl) startHsEl.hidden = true;
+  // High-score badge on the start screen is inside <StartScreen>
+  // and reads getHighScore() each render, so a sync is enough.
+  syncStartScreen();
   closeResetConfirm();
   closeMenu();
-}
-if (jumpsResetBtn) {
-  jumpsResetBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    openResetConfirm();
-  });
 }
 if (resetYes) resetYes.addEventListener("click", doReset);
 if (resetNo) resetNo.addEventListener("click", closeResetConfirm);
@@ -2063,30 +1418,12 @@ if (resetOverlay) {
   });
 }
 
-// Debug: live-editable score input. Typing a new number
-// overwrites state.score on the fly so testers can hop
-// the raptor past the high-score / unlock thresholds
-// without grinding.
-const scoreInput = document.getElementById("menu-score-input");
-function refreshScoreEditor() {
-  if (!scoreInput || !window.Game || !window.Game.getScore) return;
-  // Only overwrite the input if the user isn't actively
-  // editing it, to avoid stealing focus or caret position.
-  if (document.activeElement === scoreInput) return;
-  scoreInput.value = String(window.Game.getScore() | 0);
-}
-if (scoreInput) {
-  scoreInput.addEventListener("input", () => {
-    if (!window.Game || !window.Game.setScore) return;
-    const n = Math.max(0, Math.floor(Number(scoreInput.value) || 0));
-    window.Game.setScore(n);
-    // Sync the HUD's displayed value so it snaps to the
-    // new number instead of slowly tweening up.
-    if (scoreValueEl) scoreValueEl.textContent = String(n);
-    displayedScore = n;
-  });
-  scoreInput.addEventListener("click", (e) => e.stopPropagation());
-}
+// Debug: live-editable score input — rendered inside <DebugSettings>
+// and wired through DEBUG_SETTINGS_CALLBACKS.onScoreInputChange.
+// refreshScoreEditor() stays as a thin wrapper since openMenuBase
+// still calls it; each invocation triggers a React remount so a
+// re-opened menu shows the current score.
+function refreshScoreEditor() { syncDebugSettings(); }
 
 // ───────── Keyboard ─────────
 // ESC toggles the menu (or closes imprint first if it's open).
@@ -2126,19 +1463,47 @@ document.addEventListener(
 refreshSoundUI();
 
 // ───────── Share your score ─────────
+// The PNG slot (#score-card-slot + #score-card-preview) stays vanilla
+// so the blob lifecycle can keep its imperative shape. The action
+// buttons (revive / share / play-again / hint) render through the
+// React <ScoreCardActions> component — see src/ui/react/
+// ScoreCardActions.tsx. All cross-render state lives here and is
+// pushed into React via syncScoreCardActions().
 const scoreCardOverlay = document.getElementById("score-card-overlay");
 const sharePanel = document.getElementById("score-card-panel");
 const scoreCardImg = document.getElementById("score-card-preview");
-const shareBtn = document.getElementById("share-score-btn");
-const shareBtnLabel = shareBtn
-  ? shareBtn.querySelector(".label")
-  : null;
-const originalShareLabel = shareBtnLabel
-  ? shareBtnLabel.textContent
-  : "Share your score";
+const originalShareLabel = "Share your score";
 let currentCardBlob = null;
 let currentCardUrl = null;
 let shareInFlight = false;
+let shareLabel = originalShareLabel;
+let reviveCost: number | null = null;
+// The player's current coin balance, shown under the revive button
+// so they can see "you have N coins" without dismissing the offer.
+// Null means the score card isn't visible (or revive is hidden).
+let reviveBalance: number | null = null;
+// True iff the player can currently afford the revive. Flips to
+// false when the 5s window elapses (expireReviveOffer) — the button
+// stays rendered, just in its disabled "poor" state.
+let reviveAffordable = false;
+// Bumped on every startReviveOffer so React remounts the revive
+// button and the CSS drain animation replays from its from-frame.
+// The vanilla code achieved the same thing with a manual
+// `void reviveBtn.offsetHeight` reflow between classList toggles.
+let reviveKey = 0;
+
+function syncScoreCardActions() {
+  refreshScoreCardActions({
+    reviveCost,
+    reviveBalance,
+    reviveAffordable,
+    reviveKey,
+    shareLabel,
+    onRevive: handleReviveClick,
+    onShare: handleShareClick,
+    onRestart: doRestart,
+  });
+}
 
 function clearCard() {
   if (currentCardUrl) {
@@ -2161,7 +1526,7 @@ function showScoreCard() {
   if (scoreCardSlot) scoreCardSlot.classList.remove("loaded");
   sharePanel.classList.add("visible");
   if (scoreCardOverlay) scoreCardOverlay.classList.add("visible");
-  if (shareBtnLabel) shareBtnLabel.textContent = originalShareLabel;
+  shareLabel = originalShareLabel;
   startReviveOffer();
   // Defer card generation by two animation frames so the
   // death snapshot is captured in render() before the
@@ -2267,22 +1632,23 @@ function hideScoreCard() {
   if (scoreCardSlot) scoreCardSlot.classList.remove("loaded");
   clearCard();
   shareInFlight = false;
-  if (shareBtnLabel) shareBtnLabel.textContent = originalShareLabel;
+  shareLabel = originalShareLabel;
   hideReviveOffer();
+  syncScoreCardActions();
 }
 
 // ─── Revive offer ─────────────────────────────────────────
 // The revive button sits above the Share/Play-again row. Always
 // visible on game-over so the option is discoverable — but the
-// button renders as a disabled "poor" state (greyed out, no click)
+// button renders in a disabled "poor" state (desaturated, no click)
 // when the player can't afford the current cost. A drain bar along
 // the bottom signals the 5-second offer window. Click → spend coins
 // → dismiss the score card and hand control back to the game loop
 // (main.ts then runs a ~1s invulnerability grace period).
-const reviveBtn = document.getElementById("revive-btn");
-const reviveBtnCost = document.getElementById("revive-btn-cost");
-const reviveBalanceHint = document.getElementById("revive-balance");
-const reviveBalanceAmount = document.getElementById("revive-balance-amount");
+//
+// All state flows through syncScoreCardActions() into the React
+// <ScoreCardActions> component — reviveCost / reviveAffordable /
+// reviveBalance / reviveKey drive the rendered button.
 const REVIVE_OFFER_MS = 5000;
 let reviveExpireTimer: number | null = null;
 
@@ -2294,65 +1660,53 @@ function hideReviveOffer() {
     clearTimeout(reviveExpireTimer);
     reviveExpireTimer = null;
   }
-  if (reviveBtn) {
-    reviveBtn.hidden = true;
-    reviveBtn.classList.remove("draining");
-    reviveBtn.classList.remove("poor");
-    (reviveBtn as HTMLButtonElement).disabled = false;
-  }
-  if (reviveBalanceHint) reviveBalanceHint.hidden = true;
+  reviveCost = null;
+  reviveBalance = null;
+  reviveAffordable = false;
 }
 
-/** Fires when the 5-second window elapses. Button stays in the DOM
- *  so the player can still see the revive option (and their coin
- *  balance), but clicking it is no longer allowed. */
+/** Fires when the 5-second window elapses. Button stays rendered
+ *  in the DOM (through the React component) so the player can
+ *  still see the revive option + their coin balance, but
+ *  reviveAffordable flips to false so clicks are ignored and the
+ *  drain bar stops. */
 function expireReviveOffer() {
   reviveExpireTimer = null;
-  if (!reviveBtn) return;
-  reviveBtn.classList.remove("draining");
-  (reviveBtn as HTMLButtonElement).disabled = true;
+  reviveAffordable = false;
+  syncScoreCardActions();
 }
 
 function startReviveOffer() {
   hideReviveOffer();
-  if (!reviveBtn || !window.Game?.isGameOver || !window.Game?.getReviveCost) {
-    return;
-  }
+  if (!window.Game?.isGameOver || !window.Game?.getReviveCost) return;
   if (!window.Game.isGameOver()) return; // No offer outside a game-over
   const cost = window.Game.getReviveCost();
   const balance = window.Game.getCoinsBalance?.() ?? 0;
-  const canAfford = balance >= cost;
-  if (reviveBtnCost) reviveBtnCost.textContent = String(cost);
-  (reviveBtn as HTMLButtonElement).disabled = !canAfford;
-  reviveBtn.classList.toggle("poor", !canAfford);
-  reviveBtn.hidden = false;
-
-  if (reviveBalanceAmount) reviveBalanceAmount.textContent = String(balance);
-  if (reviveBalanceHint) reviveBalanceHint.hidden = false;
-
-  // Drain bar only plays when the offer is actually live — i.e., the
-  // player has enough coins. A draining bar on a can't-afford button
-  // reads as "hurry up and buy" when there's nothing to buy with.
-  if (canAfford) {
-    // Force a layout reflow so the keyframe restarts from `from` on
-    // every invocation — same-task class toggles batch otherwise and
-    // the animation skips on the second revive offer.
-    void reviveBtn.offsetHeight;
-    reviveBtn.classList.add("draining");
+  reviveCost = cost;
+  reviveBalance = balance;
+  reviveAffordable = balance >= cost;
+  // Bumping the key remounts the revive button in React so the
+  // CSS .draining keyframe restarts from its from-frame on every
+  // offer — equivalent to the vanilla reflow trick.
+  reviveKey += 1;
+  syncScoreCardActions();
+  // Drain bar only plays when the offer is actually live — i.e.,
+  // the player has enough coins. A draining bar on a can't-afford
+  // button reads as "hurry up and buy" when there's nothing to buy
+  // with.
+  if (reviveAffordable) {
     reviveExpireTimer = window.setTimeout(expireReviveOffer, REVIVE_OFFER_MS);
   }
 }
 
-if (reviveBtn) {
-  reviveBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (!window.Game?.revive) return;
-    const ok = window.Game.revive();
-    if (ok) {
-      hideReviveOffer();
-      hideScoreCard();
-    }
-  });
+function handleReviveClick() {
+  if (!reviveAffordable) return;
+  if (!window.Game?.revive) return;
+  const ok = window.Game.revive();
+  if (ok) {
+    hideReviveOffer();
+    hideScoreCard();
+  }
 }
 
 // Touch/mobile heuristic — on desktop we prefer clipboard
@@ -2362,7 +1716,8 @@ const isTouchDevice =
   (navigator.maxTouchPoints || 0) > 1;
 
 function setShareLabel(text) {
-  if (shareBtnLabel) shareBtnLabel.textContent = text;
+  shareLabel = text;
+  syncScoreCardActions();
 }
 function flashShareLabel(text, duration = 1800) {
   setShareLabel(text);
@@ -2465,27 +1820,17 @@ async function handleShareClick() {
   }
 }
 
-if (shareBtn) {
-  shareBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    handleShareClick();
-  });
-}
-
-// Play again button — explicit restart action. Uses
+// Play again — explicit restart action. Uses
 // Game.restartFromGameOver which honours the short
-// death-animation cooldown built into main.ts.
+// death-animation cooldown built into main.ts. Share, Revive, Play
+// Again, and the restart hint are all rendered by the React
+// <ScoreCardActions> component; their click handlers delegate back
+// to the functions defined here (doRestart, handleShareClick,
+// handleReviveClick).
 function doRestart() {
   if (window.Game && window.Game.restartFromGameOver) {
     window.Game.restartFromGameOver();
   }
-}
-const playAgainBtn = document.getElementById("play-again-btn");
-if (playAgainBtn) {
-  playAgainBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    doRestart();
-  });
 }
 // Clicking anywhere on the game-over overlay backdrop
 // (but not the panel itself) restarts the game via mouse
@@ -2498,11 +1843,15 @@ if (scoreCardOverlay) {
     }
   });
 }
-// Make the "Press Enter to restart" hint clickable too.
-const scoreCardHint = document.getElementById("score-card-hint");
-if (scoreCardHint) {
-  scoreCardHint.addEventListener("click", (e) => {
-    e.stopPropagation();
-    doRestart();
-  });
-}
+// Seed an initial render so the React trees exist before the
+// panels first open. The score-card hint renders immediately;
+// revive stays hidden until startReviveOffer flips reviveCost to
+// a number. The menu list seeds so the first openMenu() paints
+// instantly rather than waiting on the subsequent refresh.
+syncScoreCardActions();
+syncMenuList();
+// Paint the start screen immediately with the loading state so the
+// button has real DOM to attach the boot-splash fade-out to. onGameReady
+// later flips assetsReady and syncs again to reveal the ready state +
+// personal-best badge.
+syncStartScreen();
