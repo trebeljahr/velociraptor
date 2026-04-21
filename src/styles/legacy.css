@@ -2176,8 +2176,10 @@ html,
          inner div instead of an iframe. */
       /* Achievements overlay inherits z-index 2700 from
          .imprint-overlay — no per-ID override needed. */
+      /* Inherits the sand sheet from .imprint-sheet — no local
+       * override needed beyond scroll / padding. */
       .achievements-sheet {
-        background: #ffffff;
+        background: var(--color-sand);
       }
       .achievements-scroll {
         width: 100%;
@@ -2185,21 +2187,22 @@ html,
         overflow-y: auto;
         padding: 2.25rem 1.75rem 2rem;
         box-sizing: border-box;
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-        color: #333;
+        font-family: var(--font-display);
+        color: var(--color-dune);
       }
       .achievements-heading {
         font-size: 2rem;
         margin: 0 0 0.25rem;
-        color: #222;
+        color: var(--color-dune);
         letter-spacing: -0.02em;
+        font-weight: 800;
       }
       .achievements-progress {
         margin: 0 0 1.4rem;
-        color: #777;
+        color: var(--color-dune-dim);
         font-size: 0.9rem;
-        font-weight: 600;
+        font-weight: 700;
+        letter-spacing: 0.02em;
       }
       .achievements-list {
         list-style: none;
@@ -2207,68 +2210,71 @@ html,
         padding: 0;
         display: flex;
         flex-direction: column;
-        gap: 0.7rem;
+        gap: 0.5rem;
       }
+      /* Achievement row: flat sand-contrast card with dune border.
+       * Icon + body stack horizontally. Locked rows fade the icon
+       * (filter) and dim the title; unlocked rows swap the icon
+       * background to coin-gold so the unlock state jumps off the
+       * list without needing a soft glow or frosted pill. */
       .achievement-item {
         display: flex;
         align-items: center;
-        gap: 1rem;
-        padding: 0.7rem 1rem 0.7rem 0.7rem;
-        /* Same frosted-white capsule as the top-right buttons,
-           the score pill, and the unlock toast — one cohesive
-           visual language across every overlay surface. */
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.85);
-        border: 1px solid rgba(20, 30, 60, 0.08);
-        box-shadow: 0 4px 12px rgba(20, 30, 60, 0.08);
+        gap: 0.9rem;
+        padding: 0.55rem 0.9rem 0.55rem 0.55rem;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
       }
       .achievement-item.unlocked {
-        background: rgba(255, 255, 255, 0.96);
-        border-color: rgba(247, 209, 72, 0.6);
-        box-shadow:
-          0 4px 14px rgba(20, 30, 60, 0.1),
-          inset 0 0 0 1px rgba(247, 209, 72, 0.35);
+        background: var(--color-coin);
       }
       .achievement-item .icon {
         flex: 0 0 auto;
-        width: 52px;
-        height: 52px;
+        box-sizing: border-box;
+        width: 48px;
+        height: 48px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.95);
-        border: 1px solid rgba(20, 30, 60, 0.08);
+        padding: 4px;
+        border: 2px solid var(--color-dune);
+        border-radius: 5px;
+        background: var(--color-sand);
       }
       .achievement-item.unlocked .icon {
-        background: #ffffff;
-        border-color: rgba(247, 209, 72, 0.55);
-        box-shadow: 0 2px 6px rgba(247, 178, 30, 0.22);
+        background: var(--color-sand-contrast);
       }
       .achievement-item .icon svg,
       .achievement-item .icon img.achievement-icon-image {
-        width: 32px;
-        height: 32px;
+        width: 100%;
+        height: 100%;
         display: block;
+        object-fit: contain;
       }
       .achievement-item .body {
         display: flex;
         flex-direction: column;
-        gap: 0.15rem;
+        gap: 0.1rem;
         min-width: 0;
+        text-align: left;
       }
       .achievement-item .title {
-        font-size: 1rem;
-        font-weight: 800;
-        color: #1a1a1a;
-        letter-spacing: -0.005em;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--color-dune);
       }
       .achievement-item.locked .title {
-        color: #6e7a88;
+        color: var(--color-dune-dim);
       }
       .achievement-item .desc {
-        font-size: 0.86rem;
-        color: rgba(0, 0, 0, 0.55);
+        font-size: 0.78rem;
+        color: var(--color-dune-dim);
+        font-weight: 500;
+      }
+      .achievement-item.unlocked .desc {
+        color: var(--color-dune);
+        opacity: 0.85;
       }
       .achievement-item.locked .icon {
         filter: grayscale(0.8) opacity(0.55);
