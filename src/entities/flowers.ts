@@ -19,6 +19,7 @@
 import { state } from "../state";
 import { IMAGES } from "../images";
 import { FLOWER_KEYS } from "../images";
+import { compactInPlace } from "../helpers";
 import {
   FLOWER_PATCH_MIN_COUNT,
   FLOWER_PATCH_MAX_COUNT,
@@ -87,7 +88,7 @@ export function updateFlowerPatches(frameScale: number): void {
   const dx =
     state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * frameScale;
   for (const p of state.flowerPatches) p.x -= dx;
-  state.flowerPatches = state.flowerPatches.filter((p) => p.x + p.w > -20);
+  compactInPlace(state.flowerPatches, (p) => p.x + p.w > -20);
 }
 
 /** Blit every patch. Runs inside the foreground pass so the grass

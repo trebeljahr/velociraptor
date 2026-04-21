@@ -37,7 +37,7 @@ import { audio } from "../audio";
 import { IMAGES } from "../images";
 import { saveTotalJumps } from "../persistence";
 import { hapticJump } from "../haptic";
-import { clamp, lerp, shrinkPolygon, Polygon } from "../helpers";
+import { clamp, lerp, Polygon } from "../helpers";
 import {
   COSMETICS,
   COSMETICS_BY_ID,
@@ -62,8 +62,15 @@ export class Raptor {
 
   // Cached collision polygon — rebuilt once per update() call rather
   // than each time the collision code asks for it, and reused across
-  // the two call sites (collision test + debug draw).
+  // the two call sites (collision test + debug draw). The buffer
+  // itself (`_polyBuffer`) is allocated once to the maximum vertex
+  // count across all frames and its `.length` is adjusted per call,
+  // so writing into it doesn't allocate per-frame {x,y} objects.
   private _polyCache: Polygon | null = null;
+  private _polyBuffer: Polygon = Array.from(
+    { length: Math.max(...RAPTOR_COLLISION.map((f) => f.length)) },
+    () => ({ x: 0, y: 0 }),
+  );
   private _jumpBufferedAt: number = 0;
   private _wasAirborne: boolean = false;
 
@@ -385,20 +392,51 @@ export class Raptor {
    *  world size and shrunk by RAPTOR_COLLISION_INSET px for forgiveness.
    *  Locked to the idle frame while airborne — matches the sprite the
    *  draw() path picks, so the hit box and the visible body always
-   *  line up. Cached per update() call. */
+   *  line up. Writes into the pre-allocated `_polyBuffer` so steady
+   *  state is allocation-free; only called when the broad-phase AABB
+   *  check fires anyway. */
   collisionPolygon(): Polygon {
     if (this._polyCache) return this._polyCache;
     const f = this.y === this.ground ? this.frame : RAPTOR_IDLE_FRAME;
     const norm = RAPTOR_COLLISION[f];
+    const n = norm.length;
     const x = this.x;
     const y = this.y;
     const w = this.w;
     const h = this.h;
-    const raw: Polygon = new Array(norm.length);
-    for (let i = 0; i < norm.length; i++) {
-      raw[i] = { x: x + norm[i][0] * w, y: y + norm[i][1] * h };
+    const buf = this._polyBuffer;
+    buf.length = n;
+    // Pass 1: world-space points + centroid accumulator.
+    let cx = 0;
+    let cy = 0;
+    for (let i = 0; i < n; i++) {
+      const px = x + norm[i][0] * w;
+      const py = y + norm[i][1] * h;
+      const p = buf[i];
+      p.x = px;
+      p.y = py;
+      cx += px;
+      cy += py;
     }
-    this._polyCache = shrinkPolygon(raw, RAPTOR_COLLISION_INSET);
-    return this._polyCache;
+    cx /= n;
+    cy /= n;
+    // Pass 2: pull each vertex toward the centroid by the inset
+    // amount (inlined shrinkPolygon — avoids the .map() allocation).
+    const inset = RAPTOR_COLLISION_INSET;
+    if (inset > 0) {
+      for (let i = 0; i < n; i++) {
+        const p = buf[i];
+        const dx = cx - p.x;
+        const dy = cy - p.y;
+        const len = Math.hypot(dx, dy);
+        if (len >= 1e-6) {
+          const t = inset / len > 1 ? 1 : inset / len;
+          p.x += dx * t;
+          p.y += dy * t;
+        }
+      }
+    }
+    this._polyCache = buf;
+    return buf;
   }
 }
