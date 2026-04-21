@@ -62,15 +62,21 @@ export class Raptor {
 
   // Cached collision polygon — rebuilt once per update() call rather
   // than each time the collision code asks for it, and reused across
-  // the two call sites (collision test + debug draw). The buffer
-  // itself (`_polyBuffer`) is allocated once to the maximum vertex
-  // count across all frames and its `.length` is adjusted per call,
-  // so writing into it doesn't allocate per-frame {x,y} objects.
+  // the two call sites (collision test + debug draw).
+  //
+  // Two-array pool so the polygon is allocation-free in steady state:
+  // `_polyPool` always holds MAX Point2D objects and is never shrunk
+  // (JS arrays lose their backing slots on shrink-then-grow, so
+  // `pool.length = n` with a later grow would leave empty slots).
+  // `_polyView` is a cheap reference array whose length we set per
+  // call — shrinking it is safe because the objects it pointed at
+  // are still anchored in `_polyPool`.
   private _polyCache: Polygon | null = null;
-  private _polyBuffer: Polygon = Array.from(
+  private _polyPool: Polygon = Array.from(
     { length: Math.max(...RAPTOR_COLLISION.map((f) => f.length)) },
     () => ({ x: 0, y: 0 }),
   );
+  private _polyView: Polygon = [];
   private _jumpBufferedAt: number = 0;
   private _wasAirborne: boolean = false;
 
@@ -392,9 +398,9 @@ export class Raptor {
    *  world size and shrunk by RAPTOR_COLLISION_INSET px for forgiveness.
    *  Locked to the idle frame while airborne — matches the sprite the
    *  draw() path picks, so the hit box and the visible body always
-   *  line up. Writes into the pre-allocated `_polyBuffer` so steady
-   *  state is allocation-free; only called when the broad-phase AABB
-   *  check fires anyway. */
+   *  line up. Writes into the stable `_polyPool` and returns a
+   *  resized view so steady state is allocation-free; only called
+   *  when the broad-phase AABB check fires anyway. */
   collisionPolygon(): Polygon {
     if (this._polyCache) return this._polyCache;
     const f = this.y === this.ground ? this.frame : RAPTOR_IDLE_FRAME;
@@ -404,20 +410,25 @@ export class Raptor {
     const y = this.y;
     const w = this.w;
     const h = this.h;
-    const buf = this._polyBuffer;
-    buf.length = n;
-    // Pass 1: world-space points + centroid accumulator.
+    const pool = this._polyPool;
+    const view = this._polyView;
+    // Pass 1: fill pool objects, mirror them into the view, accumulate
+    // centroid. Writing `view[i] = pool[i]` each iteration is what
+    // makes the pool/view split safe — `view.length` can shrink and
+    // re-grow freely because the objects are always live in `pool`.
     let cx = 0;
     let cy = 0;
     for (let i = 0; i < n; i++) {
       const px = x + norm[i][0] * w;
       const py = y + norm[i][1] * h;
-      const p = buf[i];
+      const p = pool[i];
       p.x = px;
       p.y = py;
+      view[i] = p;
       cx += px;
       cy += py;
     }
+    view.length = n;
     cx /= n;
     cy /= n;
     // Pass 2: pull each vertex toward the centroid by the inset
@@ -425,7 +436,7 @@ export class Raptor {
     const inset = RAPTOR_COLLISION_INSET;
     if (inset > 0) {
       for (let i = 0; i < n; i++) {
-        const p = buf[i];
+        const p = pool[i];
         const dx = cx - p.x;
         const dy = cy - p.y;
         const len = Math.hypot(dx, dy);
@@ -436,7 +447,7 @@ export class Raptor {
         }
       }
     }
-    this._polyCache = buf;
-    return buf;
+    this._polyCache = view;
+    return view;
   }
 }

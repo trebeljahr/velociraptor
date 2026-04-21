@@ -82,10 +82,12 @@ export class Pterodactyl {
   private _lastAdvance: number = 0;
   img: HTMLImageElement | undefined;
   private _polyCache: Polygon | null = null;
-  /** Buffer sized to the longest per-frame polygon so flap-cycle
-   *  frame switches don't reallocate. length is re-set per call to
-   *  match the active frame's vertex count. */
-  private _polyBuffer: Polygon = Array.from(
+  /** Stable object pool — MAX-sized, never shrunk. Paired with
+   *  `_polyView` (a resized reference array) so flap-cycle frame
+   *  switches across varying vertex counts stay allocation-free
+   *  without hitting the JS "shrink-then-grow leaves empty slots"
+   *  trap. */
+  private _polyPool: Polygon = Array.from(
     {
       length: Math.max(
         ...PTERODACTYL_COLLISION.map((f) => f.length),
@@ -93,6 +95,7 @@ export class Pterodactyl {
     },
     () => ({ x: 0, y: 0 }),
   );
+  private _polyView: Polygon = [];
 
   constructor(private raptor: Raptor) {
     this.img = IMAGES.pterodactylSprite;
@@ -132,15 +135,17 @@ export class Pterodactyl {
     const y = this.y;
     const w = this.w;
     const h = this.h;
-    const buf = this._polyBuffer;
-    buf.length = n;
+    const pool = this._polyPool;
+    const view = this._polyView;
     for (let i = 0; i < n; i++) {
-      const p = buf[i];
+      const p = pool[i];
       p.x = x + norm[i][0] * w;
       p.y = y + norm[i][1] * h;
+      view[i] = p;
     }
-    this._polyCache = buf;
-    return buf;
+    view.length = n;
+    this._polyCache = view;
+    return view;
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
