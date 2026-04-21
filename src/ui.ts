@@ -2268,7 +2268,7 @@ function hideScoreCard() {
   clearCard();
   shareInFlight = false;
   if (shareBtnLabel) shareBtnLabel.textContent = originalShareLabel;
-  stopReviveOffer();
+  hideReviveOffer();
 }
 
 // ─── Revive offer ─────────────────────────────────────────
@@ -2281,10 +2281,15 @@ function hideScoreCard() {
 // (main.ts then runs a ~1s invulnerability grace period).
 const reviveBtn = document.getElementById("revive-btn");
 const reviveBtnCost = document.getElementById("revive-btn-cost");
+const reviveBalanceHint = document.getElementById("revive-balance");
+const reviveBalanceAmount = document.getElementById("revive-balance-amount");
 const REVIVE_OFFER_MS = 5000;
 let reviveExpireTimer: number | null = null;
 
-function stopReviveOffer() {
+/** Hide the button AND the balance hint. Only used when the whole
+ *  score card closes (restart / revive success) — expiry uses
+ *  expireReviveOffer() below, which keeps the button visible. */
+function hideReviveOffer() {
   if (reviveExpireTimer !== null) {
     clearTimeout(reviveExpireTimer);
     reviveExpireTimer = null;
@@ -2295,10 +2300,21 @@ function stopReviveOffer() {
     reviveBtn.classList.remove("poor");
     (reviveBtn as HTMLButtonElement).disabled = false;
   }
+  if (reviveBalanceHint) reviveBalanceHint.hidden = true;
+}
+
+/** Fires when the 5-second window elapses. Button stays in the DOM
+ *  so the player can still see the revive option (and their coin
+ *  balance), but clicking it is no longer allowed. */
+function expireReviveOffer() {
+  reviveExpireTimer = null;
+  if (!reviveBtn) return;
+  reviveBtn.classList.remove("draining");
+  (reviveBtn as HTMLButtonElement).disabled = true;
 }
 
 function startReviveOffer() {
-  stopReviveOffer();
+  hideReviveOffer();
   if (!reviveBtn || !window.Game?.isGameOver || !window.Game?.getReviveCost) {
     return;
   }
@@ -2310,14 +2326,21 @@ function startReviveOffer() {
   (reviveBtn as HTMLButtonElement).disabled = !canAfford;
   reviveBtn.classList.toggle("poor", !canAfford);
   reviveBtn.hidden = false;
-  // Force a layout reflow between the class-remove (in stopReviveOffer)
-  // and the class-add below, so the browser restarts the keyframe
-  // animation from its `from` state on every invocation — otherwise
-  // same-task class toggles are batched and the animation doesn't
-  // re-play on the second revive offer.
-  void reviveBtn.offsetHeight;
-  reviveBtn.classList.add("draining");
-  reviveExpireTimer = window.setTimeout(stopReviveOffer, REVIVE_OFFER_MS);
+
+  if (reviveBalanceAmount) reviveBalanceAmount.textContent = String(balance);
+  if (reviveBalanceHint) reviveBalanceHint.hidden = false;
+
+  // Drain bar only plays when the offer is actually live — i.e., the
+  // player has enough coins. A draining bar on a can't-afford button
+  // reads as "hurry up and buy" when there's nothing to buy with.
+  if (canAfford) {
+    // Force a layout reflow so the keyframe restarts from `from` on
+    // every invocation — same-task class toggles batch otherwise and
+    // the animation skips on the second revive offer.
+    void reviveBtn.offsetHeight;
+    reviveBtn.classList.add("draining");
+    reviveExpireTimer = window.setTimeout(expireReviveOffer, REVIVE_OFFER_MS);
+  }
 }
 
 if (reviveBtn) {
@@ -2326,7 +2349,7 @@ if (reviveBtn) {
     if (!window.Game?.revive) return;
     const ok = window.Game.revive();
     if (ok) {
-      stopReviveOffer();
+      hideReviveOffer();
       hideScoreCard();
     }
   });
