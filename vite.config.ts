@@ -1,6 +1,7 @@
 import { defineConfig, Plugin } from "vite";
 import { resolve } from "path";
 import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import {
   ATTRIBUTION_SECTIONS,
@@ -116,6 +117,7 @@ export default defineConfig({
   },
   plugins: [
     creditsBuildInjectPlugin(),
+    react(),
     tailwindcss(),
     // The PWA service worker is web-only. Skipped on Capacitor to
     // avoid a Workbox navigateFallback vs. capacitor:// scheme
