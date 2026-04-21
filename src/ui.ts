@@ -34,6 +34,7 @@ import { refreshScoreCardActions } from "./ui/react/mountScoreCardActions";
 import { refreshSoundSettings } from "./ui/react/mountSoundSettings";
 import { refreshCosmeticsMenu } from "./ui/react/mountCosmeticsMenu";
 import { refreshMenuList } from "./ui/react/mountMenuList";
+import { refreshDebugSettings } from "./ui/react/mountDebugSettings";
 
 // Desktop "challenge a friend" store-link. Sourced from a Vite env
 // var; falls back to the web URL when not set. The env name is
@@ -1039,141 +1040,91 @@ topSoundBtn.addEventListener("click", (e) => {
   toggleSound();
 });
 
-// ───────── Debug: hitbox toggle (only visible in ?debug=true) ─────────
-const hitboxesBtn = document.getElementById("menu-hitboxes-toggle");
-const hitboxesLabel = document.getElementById("menu-hitboxes-label");
+// ───────── Debug body (only visible under body[data-debug="true"]) ─────────
+// All rows inside the <details id="debug-settings"> are rendered by
+// the React <DebugSettings> component — see
+// src/ui/react/DebugSettings.tsx. ui.ts keeps the action handlers
+// in a single callbacks table + a syncDebugSettings() dispatcher so
+// the component re-renders any time a toggle flips.
 
-function refreshHitboxesUI() {
-  if (!hitboxesLabel || !window.Game) return;
-  hitboxesLabel.textContent = window.Game.isShowingHitboxes()
-    ? "Hitboxes: on"
-    : "Hitboxes: off";
-}
-
-if (hitboxesBtn) {
-  hitboxesBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    window.Game.toggleShowHitboxes();
-    refreshHitboxesUI();
-  });
-}
-
-// ───────── Debug: rain toggle ─────────
-const rainBtn = document.getElementById("menu-rain-toggle");
-const rainLabel = document.getElementById("menu-rain-label");
-
-function refreshRainUI() {
-  if (!rainLabel || !window.Game || !window.Game.isRaining) return;
-  rainLabel.textContent = window.Game.isRaining()
-    ? "Rain: on"
-    : "Rain: off";
-}
-
-if (rainBtn) {
-  rainBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.Game && window.Game.toggleRain) {
+const DEBUG_SETTINGS_CALLBACKS = {
+  onToggleHitboxes: () => {
+    window.Game?.toggleShowHitboxes?.();
+    syncDebugSettings();
+  },
+  onToggleRain: () => {
+    if (window.Game?.toggleRain) {
       window.Game.toggleRain();
       closeMenu();
     }
-  });
-}
-
-// ───────── Debug: no-collisions toggle ─────────
-const noCollBtn = document.getElementById("menu-nocollisions-toggle");
-const noCollLabel = document.getElementById("menu-nocollisions-label");
-
-function refreshNoCollisionsUI() {
-  if (!noCollLabel || !window.Game || !window.Game.isNoCollisions) return;
-  noCollLabel.textContent = window.Game.isNoCollisions()
-    ? "Collisions: off"
-    : "Collisions: on";
-}
-
-if (noCollBtn) {
-  noCollBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.Game && window.Game.toggleNoCollisions) {
+  },
+  onToggleNoCollisions: () => {
+    if (window.Game?.toggleNoCollisions) {
       window.Game.toggleNoCollisions();
-      refreshNoCollisionsUI();
+      syncDebugSettings();
     }
-  });
-}
-
-// ───────── Debug: perf overlay toggle ─────────
-const perfBtn = document.getElementById("menu-perf-toggle");
-const perfLabel = document.getElementById("menu-perf-label");
-
-function refreshPerfUI() {
-  if (!perfLabel || !window.Game || !window.Game.isPerfOverlay) return;
-  perfLabel.textContent = window.Game.isPerfOverlay()
-    ? "Perf overlay: on"
-    : "Perf overlay: off";
-}
-
-if (perfBtn) {
-  perfBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.Game && window.Game.togglePerfOverlay) {
+  },
+  onTogglePerf: () => {
+    if (window.Game?.togglePerfOverlay) {
       window.Game.togglePerfOverlay();
-      refreshPerfUI();
+      syncDebugSettings();
     }
-  });
-}
-
-// ───────── Debug: rare event triggers ─────────
-const eventIds = ["ufo", "santa", "tumbleweed", "comet", "meteor"];
-for (const eid of eventIds) {
-  const btn = document.getElementById("menu-event-" + eid);
-  if (btn) {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (window.Game && window.Game.triggerEvent) {
-        window.Game.triggerEvent(eid);
-        closeMenu();
-      }
-    });
-  }
-}
-
-// Debug: advance moon phase
-const moonBtn = document.getElementById("menu-advance-moon");
-if (moonBtn) {
-  moonBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.Game && window.Game.advanceMoonPhase) {
+  },
+  onScoreInputChange: (raw: string) => {
+    if (!window.Game?.setScore) return;
+    const n = Math.max(0, Math.floor(Number(raw) || 0));
+    window.Game.setScore(n);
+    // Sync the HUD's displayed value so it snaps to the
+    // new number instead of slowly tweening up.
+    if (scoreValueEl) scoreValueEl.textContent = String(n);
+    displayedScore = n;
+  },
+  onTriggerUfo: () => {
+    if (window.Game?.triggerEvent) { window.Game.triggerEvent("ufo"); closeMenu(); }
+  },
+  onTriggerSanta: () => {
+    if (window.Game?.triggerEvent) { window.Game.triggerEvent("santa"); closeMenu(); }
+  },
+  onTriggerTumbleweed: () => {
+    if (window.Game?.triggerEvent) { window.Game.triggerEvent("tumbleweed"); closeMenu(); }
+  },
+  onTriggerComet: () => {
+    if (window.Game?.triggerEvent) { window.Game.triggerEvent("comet"); closeMenu(); }
+  },
+  onTriggerMeteor: () => {
+    if (window.Game?.triggerEvent) { window.Game.triggerEvent("meteor"); closeMenu(); }
+  },
+  onAdvanceMoon: () => {
+    if (window.Game?.advanceMoonPhase) {
       window.Game.advanceMoonPhase();
       closeMenu();
     }
-  });
-}
-
-// Debug: force a flower-field breather on the next frame so we can
-// eyeball the rest-area layout (coin density, buffer symmetry, etc.)
-// without waiting ~40 cacti for the counter to roll.
-const flowerFieldBtn = document.getElementById("menu-force-breather");
-if (flowerFieldBtn) {
-  flowerFieldBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.Game && window.Game._forceBreather) {
+  },
+  onForceBreather: () => {
+    if (window.Game?._forceBreather) {
       window.Game._forceBreather();
       closeMenu();
     }
-  });
-}
-
-// Debug: spawn a pterodactyl as the next obstacle — replaces the
-// natural 12% roll so flyers can be tested without waiting.
-const pterodactylBtn = document.getElementById("menu-spawn-pterodactyl");
-if (pterodactylBtn) {
-  pterodactylBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (window.Game && window.Game._spawnPterodactyl) {
+  },
+  onSpawnPterodactyl: () => {
+    if (window.Game?._spawnPterodactyl) {
       window.Game._spawnPterodactyl();
       closeMenu();
     }
-  });
+  },
+};
+
+function syncDebugSettings() {
+  refreshDebugSettings(DEBUG_SETTINGS_CALLBACKS);
 }
+
+// Thin wrappers kept for the openMenuBase call sites that still
+// trigger per-area refreshes. Each now just pings the React tree
+// to re-read the current Game-API state.
+function refreshHitboxesUI() { syncDebugSettings(); }
+function refreshRainUI() { syncDebugSettings(); }
+function refreshNoCollisionsUI() { syncDebugSettings(); }
+function refreshPerfUI() { syncDebugSettings(); }
 
 // ───────── Accessory toggles (party hat / thug glasses) ─────────
 // Both entries are hidden in the markup by default and only
@@ -1475,30 +1426,12 @@ if (resetOverlay) {
   });
 }
 
-// Debug: live-editable score input. Typing a new number
-// overwrites state.score on the fly so testers can hop
-// the raptor past the high-score / unlock thresholds
-// without grinding.
-const scoreInput = document.getElementById("menu-score-input");
-function refreshScoreEditor() {
-  if (!scoreInput || !window.Game || !window.Game.getScore) return;
-  // Only overwrite the input if the user isn't actively
-  // editing it, to avoid stealing focus or caret position.
-  if (document.activeElement === scoreInput) return;
-  scoreInput.value = String(window.Game.getScore() | 0);
-}
-if (scoreInput) {
-  scoreInput.addEventListener("input", () => {
-    if (!window.Game || !window.Game.setScore) return;
-    const n = Math.max(0, Math.floor(Number(scoreInput.value) || 0));
-    window.Game.setScore(n);
-    // Sync the HUD's displayed value so it snaps to the
-    // new number instead of slowly tweening up.
-    if (scoreValueEl) scoreValueEl.textContent = String(n);
-    displayedScore = n;
-  });
-  scoreInput.addEventListener("click", (e) => e.stopPropagation());
-}
+// Debug: live-editable score input — rendered inside <DebugSettings>
+// and wired through DEBUG_SETTINGS_CALLBACKS.onScoreInputChange.
+// refreshScoreEditor() stays as a thin wrapper since openMenuBase
+// still calls it; each invocation triggers a React remount so a
+// re-opened menu shows the current score.
+function refreshScoreEditor() { syncDebugSettings(); }
 
 // ───────── Keyboard ─────────
 // ESC toggles the menu (or closes imprint first if it's open).
