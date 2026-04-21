@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@fontsource-variable/unbounded";
 @import "./legacy.css";
 
 /*
@@ -8,4 +9,28 @@
  * into legacy.css. It's imported here so Vite processes it alongside
  * Tailwind. As sections are migrated to Tailwind utility classes,
  * their rules are deleted from legacy.css.
+ *
+ * Phase-2 design system is defined in the @theme block below —
+ * palette variables pulled from the in-game colours (sand, sky-teal,
+ * dune-dark, coin-gold, cactus-green) and a single display face
+ * (Unbounded Variable, self-hosted via @fontsource-variable for
+ * offline compatibility on Electron and Capacitor).
  */
+
+@theme {
+  /* In-game palette. Sand / sky-teal / dune-dark already show up on
+   * the canvas (ground, sky gradient, silhouettes, Start button
+   * border); pulling them into the menu chrome is what ties the UI
+   * to the world instead of to a generic web app. */
+  --color-sand: #f5dcaa;
+  --color-sand-dim: #e8c98e;
+  --color-sand-contrast: #fbebc6;
+  --color-sky: #50b4cd;
+  --color-sky-dim: #3a8fa5;
+  --color-dune: #2a1d13;
+  --color-dune-dim: #4a3526;
+  --color-coin: #fbbf24;
+  --color-cactus: #4a7c3a;
+
+  --font-display: "Unbounded Variable", system-ui, sans-serif;
+}
