@@ -162,79 +162,87 @@ html,
         width: 90px;
         opacity: 0.85;
       }
+      /* ───────── Phase 2.1 redesign — start-screen chrome ─────────
+       * Display type + in-game palette. No text-shadow haloes, no
+       * pill buttons, no soft drop shadows. Highscore badge + kbd
+       * chips share the same flat sand-on-dune panel treatment so
+       * the start screen reads as one cohesive piece.
+       */
       .start-content {
         position: relative;
         z-index: 2;
         text-align: center;
-        color: #2a1d13;
+        color: var(--color-dune);
         padding: 2rem;
+        font-family: var(--font-display);
+        font-weight: 500;
       }
       .start-content h1 {
         font-size: clamp(2rem, 6vw, 4rem);
         margin: 0 0 0.5rem;
         font-weight: 800;
         letter-spacing: -0.02em;
-        text-shadow: 0 2px 12px rgba(255, 255, 255, 0.4);
       }
       .start-content .subtitle {
         font-size: clamp(0.9rem, 1.5vw, 1.1rem);
         margin: 0 0 0.35rem;
-        color: #2a1d13;
+        font-weight: 600;
       }
       .start-content .homage {
         font-size: clamp(0.72rem, 1.1vw, 0.85rem);
         margin: 0 0 1.4rem;
-        color: #2a1d13;
-        font-style: italic;
+        font-weight: 500;
         opacity: 0.85;
       }
       .start-highscore {
-        display: block;
-        width: fit-content;
+        display: inline-block;
         margin: 0 auto 1.4rem;
-        padding: 0.4rem 1rem;
-        border: 1px solid rgba(42, 29, 19, 0.25);
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.35);
-        color: #2a1d13;
+        padding: 0.35rem 1rem;
+        border: 3px solid var(--color-dune);
+        border-radius: 6px;
+        background: var(--color-sand-contrast);
+        color: var(--color-dune);
         font-size: 0.85rem;
-        font-weight: 600;
+        font-weight: 700;
         letter-spacing: 0.02em;
       }
       .start-highscore[hidden] {
         display: none;
       }
+      /* Start button: sand fill + thick dune border. Hover swaps the
+       * fill to sky-teal (same palette as the in-game sky). Pressing
+       * nudges the button down 2px (physical-key feel) instead of
+       * lifting it — the "web app button floats" idiom is exactly
+       * what we're backing away from here. */
       .start-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 0.75rem;
         min-width: 220px;
-        padding: 1rem 2rem;
-        background: #2a1d13;
-        color: #fff;
-        border: none;
-        border-radius: 999px;
-        font: inherit;
+        padding: 0.9rem 2rem;
+        background: var(--color-sand-contrast);
+        color: var(--color-dune);
+        border: 4px solid var(--color-dune);
+        border-radius: 6px;
+        font-family: inherit;
         font-size: 1.1rem;
-        font-weight: 600;
+        font-weight: 700;
+        letter-spacing: 0.01em;
         cursor: pointer;
-        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
         transition:
-          transform 0.15s,
-          box-shadow 0.15s,
-          opacity 0.2s;
+          background-color 0.12s ease,
+          color 0.12s ease,
+          transform 0.06s ease;
       }
-      .start-btn:not(:disabled):hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      .start-btn:not(:disabled):hover,
+      .start-btn:not(:disabled):focus-visible {
+        background: var(--color-sky);
+        color: var(--color-dune);
       }
-      /* Click feedback now uses the shared .tapped class + the
-         menu-item-tap keyframes defined elsewhere in this file —
-         same sound (audio.playMenuTap) and same wiggle as every
-         other activation in the menu UI. Intentionally no custom
-         :active / wiggling rules here: the shared system owns the
-         press treatment. */
+      .start-btn:not(:disabled):active {
+        transform: translateY(2px);
+      }
       .start-btn:disabled {
         opacity: 0.75;
         cursor: wait;
@@ -243,8 +251,8 @@ html,
         display: none;
         width: 16px;
         height: 16px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-top-color: #fff;
+        border: 3px solid rgba(42, 29, 19, 0.25);
+        border-top-color: var(--color-dune);
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
       }
@@ -262,7 +270,8 @@ html,
       .start-hint {
         margin-top: 2.75rem;
         font-size: 0.8rem;
-        color: #2a1d13;
+        color: var(--color-dune);
+        font-weight: 500;
         opacity: 0.9;
       }
       /* Desktop: show keyboard hint, hide touch + gamepad hints.
@@ -298,11 +307,13 @@ html,
       .start-hint kbd {
         display: inline-block;
         padding: 1px 6px;
-        border: 1px solid rgba(107, 77, 42, 0.35);
-        border-radius: 4px;
-        background: rgba(255, 255, 255, 0.5);
-        font: inherit;
+        border: 2px solid var(--color-dune);
+        border-radius: 3px;
+        background: var(--color-sand-contrast);
+        font-family: var(--font-display);
+        font-weight: 700;
         font-size: 0.75rem;
+        color: var(--color-dune);
       }
       /* Byline pinned to the bottom of the start screen. Two explicit
          links so high-intent visitors can pick between the portfolio
@@ -310,24 +321,24 @@ html,
       .start-byline {
         margin: auto 0 1.2rem;
         padding: 0 1rem;
+        font-family: var(--font-display);
         font-size: 0.78rem;
-        color: #2a1d13;
+        font-weight: 500;
+        color: var(--color-dune);
         text-align: center;
-        opacity: 0.8;
+        opacity: 0.85;
         z-index: 3;
       }
       .start-byline a {
         color: inherit;
         text-decoration: underline;
         text-underline-offset: 2px;
-        text-decoration-thickness: 1px;
-        text-decoration-color: rgba(42, 29, 19, 0.35);
-        transition:
-          text-decoration-color 0.15s,
-          opacity 0.15s;
+        text-decoration-thickness: 2px;
+        text-decoration-color: var(--color-dune);
+        transition: color 0.15s;
       }
       .start-byline a:hover {
-        text-decoration-color: rgba(42, 29, 19, 0.9);
+        color: var(--color-sky-dim);
       }
       .start-byline .dot {
         display: inline-block;
