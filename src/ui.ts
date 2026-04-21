@@ -31,6 +31,7 @@
 import { refreshShop } from "./ui/react/mountShop";
 import { refreshAchievements } from "./ui/react/mountAchievements";
 import { refreshScoreCardActions } from "./ui/react/mountScoreCardActions";
+import { refreshSoundSettings } from "./ui/react/mountSoundSettings";
 
 // Desktop "challenge a friend" store-link. Sourced from a Vite env
 // var; falls back to the web URL when not set. The env name is
@@ -516,58 +517,77 @@ if (achievementsOverlay) {
 }
 
 // ───────── Sound button ─────────
-const menuSoundToggle = document.getElementById("menu-sound-toggle");
-const menuSoundLabel = document.getElementById("menu-sound-label");
-const menuMusicToggle = document.getElementById("menu-music-toggle");
-const menuMusicLabel = document.getElementById("menu-music-label");
-const menuJumpToggle = document.getElementById("menu-jump-toggle");
-const menuJumpLabel = document.getElementById("menu-jump-label");
-const menuRainSoundToggle = document.getElementById("menu-rain-sound-toggle");
-const menuRainSoundLabel = document.getElementById("menu-rain-sound-label");
-const menuThunderToggle = document.getElementById("menu-thunder-toggle");
-const menuThunderLabel = document.getElementById("menu-thunder-label");
-const menuFootstepsToggle = document.getElementById("menu-footsteps-toggle");
-const menuFootstepsLabel = document.getElementById("menu-footsteps-label");
-const menuCoinsSoundToggle = document.getElementById("menu-coins-sound-toggle");
-const menuCoinsSoundLabel = document.getElementById("menu-coins-sound-label");
-const menuUiSoundToggle = document.getElementById("menu-ui-sound-toggle");
-const menuUiSoundLabel = document.getElementById("menu-ui-sound-label");
-const menuEventsSoundToggle = document.getElementById("menu-events-sound-toggle");
-const menuEventsSoundLabel = document.getElementById("menu-events-sound-label");
+// The per-channel toggle rows inside the pause menu's sound settings
+// are rendered by the React <SoundSettings> component — see
+// src/ui/react/SoundSettings.tsx. Labels read live muted state from
+// window.Game on every render. We still own the click → Game API
+// setter → sync refresh chain here so the component stays a dumb
+// renderer and the refresh is centralised (topSoundBtn outside the
+// menu also updates on every change).
 
-/**
- * Small helper so every channel label follows the same
- * "<name>: on|off" pattern. Falls through quietly when the label
- * element doesn't exist (e.g. a view where the sound settings
- * block is stripped out).
- */
-function _setChannelLabel(
-  el: HTMLElement | null,
-  name: string,
-  muted: boolean | undefined,
-) {
-  if (!el) return;
-  el.textContent = `${name}: ${muted ? "off" : "on"}`;
-}
+/** Callbacks passed to <SoundSettings>. Each toggles one channel's
+ *  muted flag through the Game API then triggers syncSoundUI() so
+ *  every surface that displays that state (the React tree + the
+ *  top-right mute button) repaints from the new value. */
+const SOUND_SETTINGS_CALLBACKS = {
+  onToggleSound: () => {
+    if (!window.Game || !window.Game.setMuted) return;
+    window.Game.setMuted(!window.Game.isMuted());
+    syncSoundUI();
+  },
+  onToggleMusic: () => {
+    if (!window.Game || !window.Game.setMusicMuted) return;
+    window.Game.setMusicMuted(!window.Game.isMusicMuted());
+    syncSoundUI();
+  },
+  onToggleJumpSound: () => {
+    if (!window.Game || !window.Game.setJumpMuted) return;
+    window.Game.setJumpMuted(!window.Game.isJumpMuted());
+    syncSoundUI();
+  },
+  onToggleRainSound: () => {
+    if (!window.Game || !window.Game.setRainMuted) return;
+    window.Game.setRainMuted(!window.Game.isRainMuted());
+    syncSoundUI();
+  },
+  onToggleThunder: () => {
+    if (!window.Game) return;
+    window.Game.setThunderMuted?.(!window.Game.isThunderMuted?.());
+    syncSoundUI();
+  },
+  onToggleFootsteps: () => {
+    if (!window.Game) return;
+    window.Game.setFootstepsMuted?.(!window.Game.isFootstepsMuted?.());
+    syncSoundUI();
+  },
+  onToggleCoinsSound: () => {
+    if (!window.Game) return;
+    window.Game.setCoinsMuted?.(!window.Game.isCoinsMuted?.());
+    syncSoundUI();
+  },
+  onToggleUiSound: () => {
+    if (!window.Game) return;
+    window.Game.setUiMuted?.(!window.Game.isUiMuted?.());
+    syncSoundUI();
+  },
+  onToggleEventsSound: () => {
+    if (!window.Game) return;
+    window.Game.setEventsMuted?.(!window.Game.isEventsMuted?.());
+    syncSoundUI();
+  },
+};
 
-function refreshSoundUI() {
+function syncSoundUI() {
   const muted = window.Game ? window.Game.isMuted() : true;
   topSoundBtn.classList.toggle("muted", muted);
   topSoundBtn.setAttribute("aria-pressed", String(!muted));
   topSoundBtn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
-  if (menuSoundLabel) {
-    menuSoundLabel.textContent = "Sound: " + (muted ? "off" : "on");
-  }
-  // Per-channel labels. Each getter is optional-chained because
-  // the Game API shim may not be fully wired yet on first paint.
-  _setChannelLabel(menuMusicLabel, "Music", window.Game?.isMusicMuted?.());
-  _setChannelLabel(menuJumpLabel, "Jump sound", window.Game?.isJumpMuted?.());
-  _setChannelLabel(menuRainSoundLabel, "Rain sound", window.Game?.isRainMuted?.());
-  _setChannelLabel(menuThunderLabel, "Thunder", window.Game?.isThunderMuted?.());
-  _setChannelLabel(menuFootstepsLabel, "Footsteps", window.Game?.isFootstepsMuted?.());
-  _setChannelLabel(menuCoinsSoundLabel, "Coins", window.Game?.isCoinsMuted?.());
-  _setChannelLabel(menuUiSoundLabel, "UI clicks", window.Game?.isUiMuted?.());
-  _setChannelLabel(menuEventsSoundLabel, "Rare events", window.Game?.isEventsMuted?.());
+  refreshSoundSettings(SOUND_SETTINGS_CALLBACKS);
+}
+
+// Kept for external callers (e.g. the top-right HUD mute button).
+function refreshSoundUI() {
+  syncSoundUI();
 }
 
 function toggleSound() {
@@ -575,78 +595,8 @@ function toggleSound() {
   // Ensure Web Audio context is unlocked on this user gesture
   if (window.Game.unlockAudio) window.Game.unlockAudio();
   window.Game.setMuted(!window.Game.isMuted());
-  refreshSoundUI();
+  syncSoundUI();
 }
-
-if (menuSoundToggle) {
-  menuSoundToggle.addEventListener("click", () => {
-    if (!window.Game || !window.Game.setMuted) return;
-    window.Game.setMuted(!window.Game.isMuted());
-    refreshSoundUI();
-  });
-}
-if (menuMusicToggle) {
-  menuMusicToggle.addEventListener("click", () => {
-    if (!window.Game || !window.Game.setMusicMuted) return;
-    window.Game.setMusicMuted(!window.Game.isMusicMuted());
-    refreshSoundUI();
-  });
-}
-if (menuJumpToggle) {
-  menuJumpToggle.addEventListener("click", () => {
-    if (!window.Game || !window.Game.setJumpMuted) return;
-    window.Game.setJumpMuted(!window.Game.isJumpMuted());
-    refreshSoundUI();
-  });
-}
-if (menuRainSoundToggle) {
-  menuRainSoundToggle.addEventListener("click", () => {
-    if (!window.Game || !window.Game.setRainMuted) return;
-    window.Game.setRainMuted(!window.Game.isRainMuted());
-    refreshSoundUI();
-  });
-}
-// The finer SFX channels each follow the same
-// "toggle + refresh" pattern. One tiny helper below keeps the
-// wiring code proportional to the number of channels rather
-// than repeating the same 5-line block for each.
-function _wireChannelToggle(
-  btn: HTMLElement | null,
-  getter: () => boolean | undefined,
-  setter: (m: boolean) => void,
-) {
-  if (!btn) return;
-  btn.addEventListener("click", () => {
-    if (!window.Game) return;
-    setter(!getter());
-    refreshSoundUI();
-  });
-}
-_wireChannelToggle(
-  menuThunderToggle,
-  () => window.Game?.isThunderMuted?.(),
-  (m) => window.Game?.setThunderMuted?.(m),
-);
-_wireChannelToggle(
-  menuFootstepsToggle,
-  () => window.Game?.isFootstepsMuted?.(),
-  (m) => window.Game?.setFootstepsMuted?.(m),
-);
-_wireChannelToggle(
-  menuCoinsSoundToggle,
-  () => window.Game?.isCoinsMuted?.(),
-  (m) => window.Game?.setCoinsMuted?.(m),
-);
-_wireChannelToggle(
-  menuUiSoundToggle,
-  () => window.Game?.isUiMuted?.(),
-  (m) => window.Game?.setUiMuted?.(m),
-);
-_wireChannelToggle(
-  menuEventsSoundToggle,
-  () => window.Game?.isEventsMuted?.(),
-  (m) => window.Game?.setEventsMuted?.(m),
-);
 
 // ───────── Fullscreen button ─────────
 function isFullscreen() {
