@@ -1,15 +1,14 @@
 <!--
-  Default cursor — classic arrow silhouette in the game's desert
-  palette (cream body, dark-umber outline). 24×24 viewBox with the
-  tip at (2, 2); set hotspot to 2 2 in CSS so clicks land at the tip.
-  Kept flat-shaded and 1 px outline — reads well at cursor scale on
-  every background the game renders (sky, sand, night, rain).
+  Default cursor — chunky pixel-art arrow in the game's desert palette.
+  32×32 viewBox, drawn with 45°/90° segments and a 2.5 px outline so the
+  silhouette reads as blocky, not vector-slick. Tip at (3, 3); set the
+  CSS hotspot to 3 3 so clicks land at the tip.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-  <path d="M2 2 L2 18 L6.2 14.2 L9.4 20.6 L12.2 19.4 L9.2 13.2 L15 13.2 Z"
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <path d="M3 3 L3 23 L9 18 L13 27 L17 25 L13 17 L21 17 Z"
         fill="#f4e4c1"
         stroke="#3d2817"
-        stroke-width="1.4"
-        stroke-linejoin="round"
-        stroke-linecap="round"/>
+        stroke-width="2.5"
+        stroke-linejoin="miter"
+        stroke-linecap="square"/>
 </svg>

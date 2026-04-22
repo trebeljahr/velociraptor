@@ -22,12 +22,12 @@ html,
         /* Lock the background color so a rubber-band overscroll on
            iOS shows sky-blue instead of white. */
         background: #50b4cd;
-        /* Custom cursor: cream-and-umber arrow matching the desert
-           palette. Hotspot at (2, 2) aligns with the SVG's tip. `auto`
-           is the fallback for environments that don't support SVG
-           cursors (ancient Safari, some Electron builds) — they get
-           the system arrow, which is the safe default. */
-        cursor: url("/assets/cursors/cursor-default.svg") 2 2, auto;
+        /* Custom cursor: chunky cream-and-umber arrow in the game's
+           desert palette. 32×32 pixel-art style, hotspot at (3, 3)
+           aligns with the SVG's tip. `auto` is the fallback for
+           environments that don't support SVG cursors (ancient
+           Safari, some Electron builds) — they get the system arrow. */
+        cursor: url("/assets/cursors/cursor-default.svg") 3 3, auto;
       }
       /* Pointer cursor on every interactive affordance. Uses the
          raptor-footprint silhouette from the "first-run" achievement
