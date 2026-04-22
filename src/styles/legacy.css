@@ -2183,10 +2183,29 @@ html,
       .shop-item-action:active:not(:disabled):not([aria-disabled="true"]) {
         transform: translateY(2px);
       }
-      .shop-item-action:focus-visible {
-        outline: 3px solid var(--color-sky-dim);
-        outline-offset: 2px;
-        background: var(--color-sky);
+      /* Keyboard / gamepad focus on a buy button — darker sky fill
+       * + sand text so the selected card stands out two steps
+       * clearer than :hover (which uses sky-dim). Applies on both
+       * :focus-visible (native keyboard/gamepad focus) and the
+       * .kbd-focus class stamped by focusKbd() in ui.ts, so the
+       * highlight survives programmatic focus events (D-pad nav,
+       * fullscreen restore) that don't always trip :focus-visible. */
+      .shop-item-action:focus-visible,
+      .shop-item-action.kbd-focus {
+        outline: none;
+        background: var(--color-sky-deep);
+        color: var(--color-sand-contrast);
+      }
+      /* Poor / unavailable focus state — keep the non-actionable
+       * look (dashed border, low opacity) but bump opacity so the
+       * player can see that d-pad nav landed on a locked row. No
+       * sky-deep fill because the button still doesn't do
+       * anything on press. */
+      .shop-item-action[aria-disabled="true"]:focus-visible,
+      .shop-item-action[aria-disabled="true"].kbd-focus {
+        opacity: 0.85;
+        border-style: solid;
+        background: var(--color-sand-dim);
       }
       .shop-item-action:disabled {
         cursor: default;
@@ -2211,13 +2230,16 @@ html,
         background: var(--color-cactus);
         color: var(--color-sand-contrast);
       }
-      /* Equipped action on focus: swap to sky like other focused
-       * shop buttons so the "currently on" row stops winning over
-       * :focus-visible via specificity. Click unequips, which is
-       * consistent with the cosmetics drawer. */
-      .shop-item-action-equipped:focus-visible {
-        background: var(--color-sky);
-        color: var(--color-dune);
+      /* Equipped action on focus: swap to the same sky-deep fill as
+       * any other focused shop button so the "currently on" row
+       * stops winning over :focus-visible via specificity, and the
+       * selected state reads identically across buy / equipped /
+       * unavailable variants. Click unequips, matching the
+       * cosmetics drawer. */
+      .shop-item-action-equipped:focus-visible,
+      .shop-item-action-equipped.kbd-focus {
+        background: var(--color-sky-deep);
+        color: var(--color-sand-contrast);
       }
       .shop-empty-hint {
         color: var(--color-dune-dim);
