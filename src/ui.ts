@@ -1787,6 +1787,15 @@ function currentScoreCardFocusIdx(): number {
   const btn = btns[currentScoreCardFocusIdx()];
   btn?.click();
 };
+(window as any).__rrScoreCardHome = function () {
+  if (!isScoreCardOpen()) return;
+  // Close the score card AND return to the start screen — this is
+  // the controller "B / Circle" path off game-over (and the
+  // keyboard Escape path). Shares the home-screen re-entry logic
+  // with the in-menu "Back to home screen" row.
+  hideScoreCard();
+  handleHomeClick();
+};
 (window as any).__rrScoreCardFocusInitial = function () {
   if (!isScoreCardOpen()) return;
   // Prefer the revive button when it's offered (most interesting

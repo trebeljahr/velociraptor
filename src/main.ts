@@ -1737,22 +1737,23 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     if (state.paused) return;
 
     // ── Game-over score card: keyboard navigation ─────────────
-    // Left/Right cycle across [Revive · Share · Play again].
-    // Enter/Space activate the focused button — not a blanket
-    // restart anymore, since the focused button might be Revive
-    // or Share. ArrowUp still jumps in-game but on the card it
-    // delegates to the selected button so the player's thumb
-    // position on a one-handed mobile controller isn't punished.
+    // Arrow keys cycle focus across [Revive · Share · Play again]
+    // — explicitly never activate anything. Enter / Space / W
+    // activate the focused button. Escape goes to the home screen
+    // (same destination as the gamepad B / Circle path). The old
+    // "any jump key instantly restarts" shortcut cut right past
+    // the Revive offer — the arrow keys now only navigate so the
+    // player has to pick an action, not fall into restart.
     if (state.gameOver) {
       const w = window as any;
-      if (e.code === "ArrowLeft") {
+      if (e.code === "ArrowLeft" || e.code === "ArrowUp") {
         if (w.__rrScoreCardFocusPrev) {
           e.preventDefault();
           w.__rrScoreCardFocusPrev();
           return;
         }
       }
-      if (e.code === "ArrowRight") {
+      if (e.code === "ArrowRight" || e.code === "ArrowDown") {
         if (w.__rrScoreCardFocusNext) {
           e.preventDefault();
           w.__rrScoreCardFocusNext();
@@ -1765,10 +1766,15 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         else maybeResetAfterGameOver();
         return;
       }
-      if (e.code === "Space" || e.code === "KeyW" || e.code === "ArrowUp") {
+      if (e.code === "Space" || e.code === "KeyW") {
         e.preventDefault();
         if (w.__rrScoreCardSelect) w.__rrScoreCardSelect();
         else maybeResetAfterGameOver();
+        return;
+      }
+      if (e.code === "Escape") {
+        e.preventDefault();
+        if (w.__rrScoreCardHome) w.__rrScoreCardHome();
         return;
       }
     }
@@ -2830,6 +2836,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       __rrScoreCardFocusPrev?: () => void;
       __rrScoreCardSelect?: () => void;
       __rrScoreCardFocusInitial?: () => void;
+      __rrScoreCardHome?: () => void;
       __rrSubOverlayOpen?: () => boolean;
       __rrActiveScrollable?: () => {
         scrollBy(dx: number, dy: number): void;
@@ -2965,11 +2972,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       if (anyJustPressed(selectButtons)) {
         w.__rrScoreCardSelect?.();
       }
-      // Back / cancel (B / Circle / etc.) — direct restart, keeping
-      // the "cancel away from this screen" muscle memory for
-      // players who don't want to revive or share.
+      // Back / cancel (B / Circle / etc.) returns to the start
+      // screen — matches console convention where B is the
+      // "leave this screen" button, not the "restart this level"
+      // shortcut. Players who want to restart can either press A
+      // on the already-focused Play Again button, or jump back in
+      // from the start screen.
       if (anyJustPressed(backButtons)) {
-        maybeResetAfterGameOver();
+        w.__rrScoreCardHome?.();
       }
       // System buttons still open the main menu from the card.
       if (anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS)) {
