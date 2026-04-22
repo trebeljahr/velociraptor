@@ -1767,7 +1767,15 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     _achievementCbs: [] as GameCallback[],
 
     onReady(cb: GameCallback) {
-      if (this._ready) cb();
+      // Defer to a microtask so the callback never fires synchronously
+      // from inside the consumer's module init. ui.ts calls
+      // Game.onReady(onGameReady) during its top-level execution; if
+      // main.ts has already flipped _ready=true by that point, a
+      // synchronous invocation here would run onGameReady before
+      // ui.ts's remaining const declarations have been reached —
+      // tripping a ReferenceError/TDZ on any module-level const
+      // referenced downstream (startRaptorStage, SOUND_SETTINGS_CALLBACKS).
+      if (this._ready) queueMicrotask(cb);
       else this._readyCb = cb;
     },
 
