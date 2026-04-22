@@ -38,6 +38,11 @@ export interface GameState {
   /** How many times the player has revived in the current run.
    *  Drives the escalating cost (base * 2^n). Reset on resetGame. */
   revivesUsedThisRun: number;
+  /** Coins picked up in the current run. Drives the HUD counter
+   *  (separate from the persistent `coinsBalance`) and the
+   *  "this run → total" fill animation on the game-over card.
+   *  Reset on resetGame. */
+  runCoins: number;
   /** The frame number at which post-revive invulnerability ends.
    *  Collision checks short-circuit while state.frame < this value. */
   invulnerableUntilFrame: number;
@@ -195,6 +200,7 @@ export const state: GameState = {
   paused: true,
   frame: 0,
   revivesUsedThisRun: 0,
+  runCoins: 0,
   invulnerableUntilFrame: 0,
   currentSky: [...SKY_COLORS[0]],
   lastSkyScore: -1,

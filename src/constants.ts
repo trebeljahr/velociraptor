@@ -270,9 +270,12 @@ export const GAME_OVER_FADE_RATE = 0.01;
 export const DELTA_TIME_CLAMP = 1 / 20;
 
 // ── Revive ─────────────────────────────────────────────────
-// First-revive price; doubles per subsequent revive within the
-// same run (250 → 500 → 1000 → 2000 …).
-export const REVIVE_BASE_COST = 250;
+// Revive price curve (per run): first revive is cheap, second
+// marks up 2.5×, then doubles from there. 50 → 125 → 250 → 500 →
+// 1000 … Cheap first revive keeps the option friendly for new
+// players; the step-up at revive #2 signals "this stacks fast".
+export const REVIVE_FIRST_COST = 50;
+export const REVIVE_SECOND_COST = 125;
 // ~1 second at 60fps. Long enough to phase past the killing
 // obstacle without being long enough to cheese the next one.
 export const REVIVE_INVULN_FRAMES = 60;

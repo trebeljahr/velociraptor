@@ -262,11 +262,13 @@ function scoreLoop() {
       lastAriaCoins = coinsForLabel;
     }
   }
-  // Coin balance — tween independently so a pickup pop reads as a
-  // quick count-up instead of snapping. Updates only when the real
-  // value changes (pickup or revive spend), not every frame.
-  if (window.Game && window.Game.getCoinsBalance && scoreCoinValueEl) {
-    const target = window.Game.getCoinsBalance();
+  // HUD coin counter — per-run coins collected (reset at run start).
+  // The persistent balance lives on the game-over card and the shop;
+  // the HUD shows what you earned THIS run so the number feels owned
+  // by the current attempt. Tweens independently from the score so a
+  // pickup pop reads as a quick count-up instead of snapping.
+  if (window.Game && window.Game.getRunCoins && scoreCoinValueEl) {
+    const target = window.Game.getRunCoins();
     const diff = target - displayedCoins;
     if (Math.abs(diff) > 0.01) {
       displayedCoins += diff * 0.22;
@@ -276,7 +278,7 @@ function scoreLoop() {
     if (target !== lastAriaCoins && scoreDisplay && lastAriaScore >= 0) {
       scoreDisplay.setAttribute(
         "aria-label",
-        `Score: ${lastAriaScore} meters, ${target} coins`,
+        `Score: ${lastAriaScore} meters, ${target} coins this run`,
       );
       lastAriaCoins = target;
     }
@@ -285,7 +287,9 @@ function scoreLoop() {
 }
 function showScoreDisplay() {
   displayedScore = 0;
-  displayedCoins = window.Game?.getCoinsBalance?.() ?? 0;
+  // Per-run coins start at 0 each run — HUD opens on 0 and ticks
+  // up with pickups, no stale carry-over from the prior attempt.
+  displayedCoins = window.Game?.getRunCoins?.() ?? 0;
   if (scoreValueEl) scoreValueEl.textContent = "0";
   if (scoreCoinValueEl) scoreCoinValueEl.textContent = String(displayedCoins);
   if (scoreDisplay) scoreDisplay.hidden = false;
@@ -1583,6 +1587,13 @@ function showScoreCard() {
   if (scoreCardOverlay) scoreCardOverlay.classList.add("visible");
   shareLabel = originalShareLabel;
   startReviveOffer();
+  // Land initial focus on the most-interesting button — Revive when
+  // offered, otherwise Play Again. Deferred to the next frame so
+  // React has mounted the buttons into the DOM by the time we try
+  // to focus one.
+  requestAnimationFrame(() => {
+    (window as any).__rrScoreCardFocusInitial?.();
+  });
   // Defer card generation by two animation frames so the
   // death snapshot is captured in render() before the
   // worker asks for it.
@@ -1715,9 +1726,113 @@ function hideReviveOffer() {
     clearTimeout(reviveExpireTimer);
     reviveExpireTimer = null;
   }
+  if (coinFillRaf !== null) {
+    cancelAnimationFrame(coinFillRaf);
+    coinFillRaf = null;
+  }
   reviveCost = null;
   reviveBalance = null;
   reviveAffordable = false;
+}
+
+// Coin-fill tween handle. Nulled while no fill animation is running.
+let coinFillRaf: number | null = null;
+
+// ─── Score-card focus (Revive / Share / Play again) ─────
+// Mini-menu on the game-over card: the three action buttons are
+// navigable with D-pad ←/→ (gamepad), keyboard ←/→, and activate on
+// face-A / Enter. Revive is skipped when not offered (null cost) or
+// disabled (can't afford + expiry). Mirrors the main menu's
+// getNavigableMenuItems / focusKbd pattern so keyboard and gamepad
+// share the exact same code path.
+let _scoreCardFocusIdx = 0;
+function isScoreCardOpen(): boolean {
+  return !!sharePanel && sharePanel.classList.contains("visible");
+}
+function getNavigableScoreCardButtons(): HTMLElement[] {
+  if (!sharePanel) return [];
+  const list: HTMLElement[] = [];
+  const rev = sharePanel.querySelector<HTMLButtonElement>(".revive-btn");
+  if (rev && !rev.hidden && !rev.disabled) list.push(rev);
+  const share = sharePanel.querySelector<HTMLButtonElement>(".share-score-btn");
+  if (share && !share.hidden) list.push(share);
+  const play = sharePanel.querySelector<HTMLButtonElement>(".play-again-btn");
+  if (play && !play.hidden) list.push(play);
+  return list;
+}
+function focusScoreCardIndex(idx: number) {
+  const btns = getNavigableScoreCardButtons();
+  if (!btns.length) return;
+  _scoreCardFocusIdx = ((idx % btns.length) + btns.length) % btns.length;
+  focusKbd(btns[_scoreCardFocusIdx]);
+}
+function currentScoreCardFocusIdx(): number {
+  const btns = getNavigableScoreCardButtons();
+  if (!btns.length) return 0;
+  const idx = btns.indexOf(document.activeElement as HTMLElement);
+  if (idx !== -1) return idx;
+  return Math.min(Math.max(0, _scoreCardFocusIdx), btns.length - 1);
+}
+(window as any).__rrScoreCardFocusNext = function () {
+  if (!isScoreCardOpen()) return;
+  focusScoreCardIndex(currentScoreCardFocusIdx() + 1);
+};
+(window as any).__rrScoreCardFocusPrev = function () {
+  if (!isScoreCardOpen()) return;
+  focusScoreCardIndex(currentScoreCardFocusIdx() - 1);
+};
+(window as any).__rrScoreCardSelect = function () {
+  if (!isScoreCardOpen()) return;
+  const btns = getNavigableScoreCardButtons();
+  const btn = btns[currentScoreCardFocusIdx()];
+  btn?.click();
+};
+(window as any).__rrScoreCardFocusInitial = function () {
+  if (!isScoreCardOpen()) return;
+  // Prefer the revive button when it's offered (most interesting
+  // choice the player just opened the card for). Otherwise land on
+  // Play Again — the default restart path on mobile / no-revive
+  // runs. Share is intentionally not the initial focus; it's an
+  // opt-in for players who actually want to share.
+  const btns = getNavigableScoreCardButtons();
+  if (!btns.length) return;
+  const revIdx = btns.findIndex((b) => b.classList.contains("revive-btn"));
+  const playIdx = btns.findIndex((b) => b.classList.contains("play-again-btn"));
+  const startIdx =
+    revIdx !== -1 ? revIdx : playIdx !== -1 ? playIdx : 0;
+  focusScoreCardIndex(startIdx);
+};
+/** Kick off the "coins pour into the wallet" animation on the
+ *  game-over card. Visual: the balance number tweens from
+ *  (total − runCoins) up to total over ~1.2s with an ease-out.
+ *  Audio: Game.playCoinFillAnim() plays up to 10 rising-pitch
+ *  coin chimes evenly spaced across the same window, finished
+ *  with the chain-end chord. No-op when runCoins is 0. */
+function startCoinFillAnim(total: number, runCoins: number) {
+  if (coinFillRaf !== null) {
+    cancelAnimationFrame(coinFillRaf);
+    coinFillRaf = null;
+  }
+  if (runCoins <= 0) return;
+  const startAt = Math.max(0, total - runCoins);
+  const DURATION_MS = 1200;
+  const startTime = performance.now();
+  window.Game?.playCoinFillAnim?.(runCoins, DURATION_MS);
+  const step = () => {
+    const now = performance.now();
+    const t = Math.min(1, (now - startTime) / DURATION_MS);
+    const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+    reviveBalance = Math.round(startAt + (total - startAt) * eased);
+    syncScoreCardActions();
+    if (t < 1) {
+      coinFillRaf = requestAnimationFrame(step);
+    } else {
+      coinFillRaf = null;
+      reviveBalance = total;
+      syncScoreCardActions();
+    }
+  };
+  coinFillRaf = requestAnimationFrame(step);
 }
 
 /** Fires when the 5-second window elapses. Button stays rendered
@@ -1737,14 +1852,24 @@ function startReviveOffer() {
   if (!window.Game.isGameOver()) return; // No offer outside a game-over
   const cost = window.Game.getReviveCost();
   const balance = window.Game.getCoinsBalance?.() ?? 0;
+  const runCoins = window.Game.getRunCoins?.() ?? 0;
   reviveCost = cost;
-  reviveBalance = balance;
+  // Seed the balance at the pre-run value so the fill tween has
+  // somewhere to climb from. If there are no run coins to animate,
+  // we skip the tween entirely and show the final balance.
+  reviveBalance = Math.max(0, balance - runCoins);
+  // Afford check must use the TRUE total, not the pre-tween seed —
+  // the player can always afford whatever they just collected, and
+  // we don't want the drain bar's visibility to flicker during the
+  // animation.
   reviveAffordable = balance >= cost;
   // Bumping the key remounts the revive button in React so the
   // CSS .draining keyframe restarts from its from-frame on every
   // offer — equivalent to the vanilla reflow trick.
   reviveKey += 1;
   syncScoreCardActions();
+  // Pour the run's coins into the balance visually + audibly.
+  startCoinFillAnim(balance, runCoins);
   // Drain bar only plays when the offer is actually live — i.e.,
   // the player has enough coins. A draining bar on a can't-afford
   // button reads as "hurry up and buy" when there's nothing to buy
