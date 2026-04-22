@@ -995,6 +995,39 @@ export const audio = {
     }
   },
 
+  /** Per-tick chime for the game-over coin tally. Reuses the liecio
+   *  diamond-found sample (same one the chain-end chord plays at base
+   *  pitch) so the tally has its own "rising chain → resolution"
+   *  identity that stays clear of the in-run pickup cue. `step` /
+   *  `totalSteps` shape the pitch climb so the last tick lands just
+   *  below the chord, and the per-tick gain is pulled down hard so a
+   *  full 10-tick burst doesn't dog-pile into distortion. */
+  playCoinFillTick(step: number, totalSteps: number) {
+    if (this.muted || this.coinsMuted) return;
+    if (!this._audioCtx || !this._coinChainEndBuffer) return;
+    if (this._audioCtx.state === "suspended") {
+      this._audioCtx.resume().catch(() => {});
+    }
+    try {
+      const src = this._audioCtx.createBufferSource();
+      src.buffer = this._coinChainEndBuffer;
+      // Climb from 1.0× to ~1.6× across the full burst, regardless of
+      // how many ticks there are (3-coin run, 10-coin run, …).
+      const denom = Math.max(1, totalSteps - 1);
+      src.playbackRate.value = 1 + (step / denom) * 0.6;
+      const gain = this._audioCtx.createGain();
+      gain.gain.value = 0.12;
+      src.connect(gain);
+      gain.connect(this._audioCtx.destination);
+      src.onended = () => {
+        try { src.disconnect(); gain.disconnect(); } catch {}
+      };
+      src.start(0);
+    } catch {
+      /* SFX is non-critical */
+    }
+  },
+
   // ── Shop purchase cue (rhodesmas "Level Up 01") ─────────────
   // Short "leveling up" chime played when a cosmetic is bought in
   // the shop. Sample credit: rhodesmas on Freesound.org

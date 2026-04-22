@@ -2387,11 +2387,13 @@ import { generateScoreCardBlob } from "./render/scoreCard";
      *  count so a huge haul doesn't turn into a continuous blat. */
     playCoinFillAnim(count: number, durationMs: number = 1200): void {
       if (count <= 0) return;
-      audio.resetCoinStreak();
       const ticks = Math.min(count, 10);
       const intervalMs = durationMs / ticks;
+      // Tally has its own cue (diamond-found at rising pitch) — the
+      // in-run pickup SFX stays the pause-piano. Keeps the game-over
+      // moment distinct from "I grabbed one coin" on the flower field.
       for (let i = 0; i < ticks; i++) {
-        setTimeout(() => audio.playCoinCollect(true), i * intervalMs);
+        setTimeout(() => audio.playCoinFillTick(i, ticks), i * intervalMs);
       }
       setTimeout(() => audio.playCoinChainEnd(), durationMs);
     },
