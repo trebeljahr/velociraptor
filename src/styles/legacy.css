@@ -853,9 +853,9 @@ html,
       .share-score-btn:active {
         transform: translateY(2px);
       }
-      .share-score-btn:focus-visible {
-        outline: 3px solid var(--color-sky-dim);
-        outline-offset: 2px;
+      .share-score-btn:focus-visible,
+      .share-score-btn.kbd-focus {
+        outline: none;
         background: var(--color-sky);
       }
 
@@ -963,9 +963,9 @@ html,
       .revive-btn:active:not(:disabled) {
         transform: translateY(2px);
       }
-      .revive-btn:focus-visible {
-        outline: 3px solid var(--color-sky-dim);
-        outline-offset: 2px;
+      .revive-btn:focus-visible,
+      .revive-btn.kbd-focus {
+        outline: none;
         background: var(--color-sky);
       }
       .revive-btn[hidden] {
@@ -1097,9 +1097,9 @@ html,
       .play-again-btn:active {
         transform: translateY(2px);
       }
-      .play-again-btn:focus-visible {
-        outline: 3px solid var(--color-sky-dim);
-        outline-offset: 2px;
+      .play-again-btn:focus-visible,
+      .play-again-btn.kbd-focus {
+        outline: none;
         background: var(--color-sky);
       }
       .play-again-btn svg {

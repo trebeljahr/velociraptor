@@ -3006,13 +3006,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       if (anyJustPressed(selectButtons)) {
         w.__rrScoreCardSelect?.();
       }
-      // Back / cancel (B / Circle / etc.) returns to the start
-      // screen — matches console convention where B is the
-      // "leave this screen" button, not the "restart this level"
-      // shortcut. Players who want to restart can either press A
-      // on the already-focused Play Again button, or jump back in
-      // from the start screen.
-      if (anyJustPressed(backButtons)) {
+      // Back / cancel to start screen — uses ONLY the face-B
+      // button here (Xbox/PS index 1, Nintendo index 0). The shared
+      // backButtons array includes d-pad LEFT (14), but on this
+      // card LEFT is a navigation key (wraps to the previous
+      // action), so hooking close to backButtons would make every
+      // LEFT press snap the player off the score card.
+      const faceCancel = layout === "nintendo" ? [0] : [1];
+      if (anyJustPressed(faceCancel)) {
         w.__rrScoreCardHome?.();
       }
       // System buttons still open the main menu from the card.
