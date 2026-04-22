@@ -1970,16 +1970,17 @@ html,
       .menu-panel .cosmetic-equip-btn[aria-pressed="true"]:hover {
         background: var(--color-cactus);
       }
-      /* Equipped rows keep the cactus fill when focused so the player
-       * can still tell which row is on; the ring alone signals focus.
-       * Without this rule, the menu's generic .menu-item:focus-visible
-       * would try to swap the background to sky-blue, but aria-pressed
-       * has higher specificity and wins — leaving no visible focus
-       * feedback. */
+      /* Equipped rows swap the cactus fill to sky on focus so
+       * gamepad/keyboard selection reads the same as every other
+       * focused menu item — the "Equipped" badge + aria-pressed
+       * state still signal that it's the currently-on row, and the
+       * click will unequip it. Without this override, aria-pressed
+       * wins on specificity over the generic .menu-item:focus-visible
+       * and the row stays cactus-green with no focus feedback. */
       .menu-panel .cosmetic-equip-btn[aria-pressed="true"]:focus-visible {
         outline: 3px solid var(--color-sky-dim);
         outline-offset: 2px;
-        background: var(--color-cactus);
+        background: var(--color-sky);
       }
       /* Keep the thumb's dune-black border on the equipped row —
        * earlier version swapped it to sand and it read as a white
@@ -2038,6 +2039,12 @@ html,
         background: var(--color-coin);
         color: var(--color-dune);
         font-weight: 700;
+        /* Pin to the top of the scroll area so the coin balance stays
+         * readable while the player scans down the item list. Opaque
+         * coin-yellow fill covers whatever scrolls underneath. */
+        position: sticky;
+        top: 0;
+        z-index: 1;
       }
       .shop-balance-label {
         font-size: 0.9rem;
@@ -2065,10 +2072,6 @@ html,
         border: 3px solid var(--color-dune);
         border-radius: 6px;
         background: var(--color-sand-contrast);
-      }
-      .shop-item:focus-visible {
-        outline: 3px solid var(--color-sky-dim);
-        outline-offset: 2px;
       }
       /* Thumb: real dune border + box-sizing so the sprite img
        * sits cleanly inside — same fix as the menu cosmetics
@@ -2174,27 +2177,47 @@ html,
         flex-shrink: 0;
         vertical-align: -0.15em;
       }
-      .shop-item-action:hover:not(:disabled) {
+      .shop-item-action:hover:not(:disabled):not([aria-disabled="true"]) {
         background: var(--color-sky-dim);
       }
-      .shop-item-action:active:not(:disabled) {
+      .shop-item-action:active:not(:disabled):not([aria-disabled="true"]) {
         transform: translateY(2px);
       }
       .shop-item-action:focus-visible {
         outline: 3px solid var(--color-sky-dim);
         outline-offset: 2px;
+        background: var(--color-sky);
       }
       .shop-item-action:disabled {
         cursor: default;
       }
-      .shop-item-action-poor {
-        background: var(--color-sand-dim);
+      /* Can't-afford state — clearly marked as non-actionable.
+       * Stripped background, dashed dune-dim border, and heavy
+       * opacity cut so the row reads as "informational price tag"
+       * rather than a working button. The gamepad ring (on
+       * :focus-visible above) still lands on it because the button
+       * uses aria-disabled, not disabled, so controller users can
+       * see what's locked behind what price. */
+      .shop-item-action-poor,
+      .shop-item-action[aria-disabled="true"] {
+        background: transparent;
         color: var(--color-dune-dim);
-        opacity: 0.9;
+        border-style: dashed;
+        border-color: var(--color-dune-dim);
+        opacity: 0.55;
+        cursor: not-allowed;
       }
       .shop-item-action-equipped {
         background: var(--color-cactus);
         color: var(--color-sand-contrast);
+      }
+      /* Equipped action on focus: swap to sky like other focused
+       * shop buttons so the "currently on" row stops winning over
+       * :focus-visible via specificity. Click unequips, which is
+       * consistent with the cosmetics drawer. */
+      .shop-item-action-equipped:focus-visible {
+        background: var(--color-sky);
+        color: var(--color-dune);
       }
       .shop-empty-hint {
         color: var(--color-dune-dim);

@@ -843,15 +843,11 @@ window.__rrCloseActiveSubOverlay = function () {
 function getActiveSubOverlayButtons() {
   const active = document.querySelector(".imprint-overlay.open");
   if (!active) return [];
-  // Shop: focus the whole .shop-item card rather than its action
-  // button, because the button can be disabled (can't afford) and
-  // browsers refuse to focus disabled elements — that would leave
-  // unaffordable items out of the nav ring entirely.
-  const cards = Array.from(active.querySelectorAll(".shop-item"));
-  if (cards.length) {
-    return cards.filter((c) => c.offsetParent);
-  }
-  // Button-level nav for simpler dialogs (reset-confirm).
+  // Walk the action buttons (not the cards around them) — the focus
+  // ring belongs on the button the player would actually press. Poor
+  // / can't-afford shop buttons use aria-disabled, not disabled, so
+  // they stay in the nav ring: the player can still see what's
+  // locked behind what price, pressing the face button is a no-op.
   const all = active.querySelectorAll("button:not(.imprint-close)");
   const list = [];
   for (const el of all) {
@@ -868,12 +864,6 @@ function focusSubOverlayIndex(idx) {
   _subOverlayFocusIdx =
     ((idx % items.length) + items.length) % items.length;
   const target = items[_subOverlayFocusIdx];
-  // Non-button items (shop cards) need tabindex to accept focus.
-  // -1 keeps them out of the native Tab ring while still letting
-  // .focus() land.
-  if (target.tagName !== "BUTTON" && !target.hasAttribute("tabindex")) {
-    target.setAttribute("tabindex", "-1");
-  }
   target.focus();
   target.scrollIntoView({ block: "nearest" });
 }
@@ -896,18 +886,10 @@ window.__rrSubOverlaySelect = function () {
   if (!items.length) return;
   const idx = currentSubOverlayFocusIdx();
   const target = items[idx];
-  if (!target) return;
-  // Shop cards forward the press to their enabled action button
-  // (Buy / Equip). If nothing inside is clickable (e.g. "Equipped"
-  // state, can't afford), the press silently no-ops — same as
-  // clicking the card with a mouse.
-  const clickable =
-    target.tagName === "BUTTON"
-      ? target
-      : target.querySelector("button:not(:disabled)");
-  if (clickable && typeof clickable.click === "function") {
-    clickable.click();
-  }
+  // Skip press on aria-disabled buttons (poor shop rows). Click()
+  // would fire and bubble to any parent handlers otherwise.
+  if (!target || target.getAttribute("aria-disabled") === "true") return;
+  if (typeof target.click === "function") target.click();
 };
 
 // ── Gamepad navigation ──────────────────────────────
@@ -1508,9 +1490,12 @@ function tryFocusSubOverlay(attempts) {
 function closeShop() {
   if (!shopOverlay) return;
   shopOverlay.classList.remove("open");
-  // Mirror the pause on open. Game.resume is a no-op if the run
-  // hasn't started yet, so safe on the start-screen shop entry too.
-  try { window.Game?.resume?.(); } catch {}
+  // Return to the pause menu rather than resuming the run. Shop is
+  // always reached from the menu; closing should step back one
+  // level, not skip straight back to gameplay. openMenu() re-pauses
+  // (no-op if already paused) so the game stays frozen while the
+  // menu shows.
+  openMenu();
 }
 
 if (menuShopBtn) {

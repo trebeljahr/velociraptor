@@ -150,6 +150,13 @@ function ShopItem({ def, balance, debug, onChange }: ShopItemProps) {
     onChange();
   };
 
+  const handleUnequip = (e: MouseEvent) => {
+    e.stopPropagation();
+    Game?.playMenuTap?.();
+    Game?.unequipSlot?.(def.slot);
+    onChange();
+  };
+
   const handleBuy = (e: MouseEvent) => {
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -172,11 +179,13 @@ function ShopItem({ def, balance, debug, onChange }: ShopItemProps) {
 
   let action;
   if (equipped) {
+    // Click toggles off — matches the cosmetics drawer so controller
+    // players can unequip without backing out of the shop.
     action = (
       <button
         type="button"
         className="shop-item-action shop-item-action-equipped"
-        disabled
+        onClick={handleUnequip}
       >
         Equipped
       </button>
@@ -202,11 +211,15 @@ function ShopItem({ def, balance, debug, onChange }: ShopItemProps) {
       </button>
     );
   } else {
+    // aria-disabled (not disabled) so the d-pad focus ring can still
+    // land on the row and show the player what's locked behind what
+    // price. The CSS gives it a dashed, low-opacity look so it's
+    // visibly non-actionable.
     action = (
       <button
         type="button"
         className="shop-item-action shop-item-action-poor"
-        disabled
+        aria-disabled="true"
       >
         <span className="shop-item-price">{def.price}</span>
         <img
