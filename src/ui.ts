@@ -864,7 +864,13 @@ function focusSubOverlayIndex(idx) {
   _subOverlayFocusIdx =
     ((idx % items.length) + items.length) % items.length;
   const target = items[_subOverlayFocusIdx];
-  target.focus();
+  // Route through focusKbd so the .kbd-focus class lands alongside
+  // :focus-visible. Programmatic .focus() calls don't always trip
+  // :focus-visible (Chromium drops it on certain code paths), and
+  // the new sky-deep shop-item-action focus highlight is gated on
+  // either signal — without the class fallback the selected card
+  // would render identically to an unfocused one.
+  focusKbd(target);
   target.scrollIntoView({ block: "nearest" });
 }
 function currentSubOverlayFocusIdx() {
