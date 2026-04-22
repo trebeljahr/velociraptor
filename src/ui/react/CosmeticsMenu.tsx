@@ -139,7 +139,11 @@ export function CosmeticsMenu({ callbacks: cb }: CosmeticsMenuProps) {
                 const handleClick = (e: MouseEvent) => {
                   e.stopPropagation();
                   Game?.playMenuTap?.();
-                  if (opt.id === "") cb.onUnequipSlot(slot);
+                  // "None" row and a click on the already-equipped row
+                  // both unequip the slot. The toggle lets a controller
+                  // player turn a cosmetic off without first navigating
+                  // down to the "None" row.
+                  if (opt.id === "" || isEquipped) cb.onUnequipSlot(slot);
                   else cb.onEquipCosmetic(opt.id);
                 };
                 return (
