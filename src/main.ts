@@ -1744,22 +1744,23 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     if (state.paused) return;
 
     // ── Game-over score card: keyboard navigation ─────────────
-    // Left/Right cycle across [Revive · Share · Play again].
-    // Enter/Space activate the focused button — not a blanket
-    // restart anymore, since the focused button might be Revive
-    // or Share. ArrowUp still jumps in-game but on the card it
-    // delegates to the selected button so the player's thumb
-    // position on a one-handed mobile controller isn't punished.
+    // All four arrow keys cycle [Revive · Share · Play again] —
+    // ←/↑ go previous, →/↓ go next. Matches the expectation that
+    // "arrow key" means "navigate" on a focused row regardless of
+    // axis. Enter/Space activate the focused button; the previous
+    // "ArrowUp also activates" shortcut is gone because it fought
+    // with the new up-navigation and the select path is still one
+    // key away (Enter / Space) for every thumb position.
     if (state.gameOver) {
       const w = window as any;
-      if (e.code === "ArrowLeft") {
+      if (e.code === "ArrowLeft" || e.code === "ArrowUp") {
         if (w.__rrScoreCardFocusPrev) {
           e.preventDefault();
           w.__rrScoreCardFocusPrev();
           return;
         }
       }
-      if (e.code === "ArrowRight") {
+      if (e.code === "ArrowRight" || e.code === "ArrowDown") {
         if (w.__rrScoreCardFocusNext) {
           e.preventDefault();
           w.__rrScoreCardFocusNext();
@@ -1772,7 +1773,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         else maybeResetAfterGameOver();
         return;
       }
-      if (e.code === "Space" || e.code === "KeyW" || e.code === "ArrowUp") {
+      if (e.code === "Space" || e.code === "KeyW") {
         e.preventDefault();
         if (w.__rrScoreCardSelect) w.__rrScoreCardSelect();
         else maybeResetAfterGameOver();
@@ -2978,15 +2979,22 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       }
     } else if (state.gameOver) {
       // ── Game-over score card navigation ────────────────────
-      // D-pad left/right cycle across [Revive, Share, Play again].
-      // Stick left/right mirror the D-pad direction. Face-A
-      // activates the focused button; the old "any face button =
-      // restart" shortcut used to shortcut right past the Revive
+      // Every direction cycles [Revive, Share, Play again]: D-pad
+      // left/up = previous, right/down = next, plus the left-stick
+      // Y axis (stickPress) for players who default to analog.
+      // Face-A activates the focused button; the old "any face
+      // button = restart" shortcut used to skip past the Revive
       // offer, which felt bad on controller.
-      const dpadLeft = anyJustPressed([14]);
-      const dpadRight = anyJustPressed([15]);
-      if (dpadLeft || stickPress === -1) w.__rrScoreCardFocusPrev?.();
-      if (dpadRight || stickPress === 1) w.__rrScoreCardFocusNext?.();
+      const prev =
+        anyJustPressed(GAMEPAD_MENU_LEFT_BUTTONS) ||
+        anyJustPressed(GAMEPAD_MENU_UP_BUTTONS) ||
+        stickPress === -1;
+      const next =
+        anyJustPressed(GAMEPAD_MENU_RIGHT_BUTTONS) ||
+        anyJustPressed(GAMEPAD_MENU_DOWN_BUTTONS) ||
+        stickPress === 1;
+      if (prev) w.__rrScoreCardFocusPrev?.();
+      if (next) w.__rrScoreCardFocusNext?.();
       if (anyJustPressed(selectButtons)) {
         w.__rrScoreCardSelect?.();
       }

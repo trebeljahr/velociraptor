@@ -1789,17 +1789,14 @@ function currentScoreCardFocusIdx(): number {
 };
 (window as any).__rrScoreCardFocusInitial = function () {
   if (!isScoreCardOpen()) return;
-  // Prefer the revive button when it's offered (most interesting
-  // choice the player just opened the card for). Otherwise land on
-  // Play Again — the default restart path on mobile / no-revive
-  // runs. Share is intentionally not the initial focus; it's an
-  // opt-in for players who actually want to share.
+  // Default focus sits on Play Again — it's the action most players
+  // reach for at game-over, and "Enter-to-restart" muscle memory
+  // should "just work" without an extra nav step. Revive and Share
+  // are both reachable via ←/→ or ↑/↓ one tap away.
   const btns = getNavigableScoreCardButtons();
   if (!btns.length) return;
-  const revIdx = btns.findIndex((b) => b.classList.contains("revive-btn"));
   const playIdx = btns.findIndex((b) => b.classList.contains("play-again-btn"));
-  const startIdx =
-    revIdx !== -1 ? revIdx : playIdx !== -1 ? playIdx : 0;
+  const startIdx = playIdx !== -1 ? playIdx : 0;
   focusScoreCardIndex(startIdx);
 };
 /** Kick off the "coins pour into the wallet" animation on the
