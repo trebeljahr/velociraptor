@@ -1750,7 +1750,9 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // axis. Enter/Space activate the focused button; the previous
     // "ArrowUp also activates" shortcut is gone because it fought
     // with the new up-navigation and the select path is still one
-    // key away (Enter / Space) for every thumb position.
+    // key away (Enter / Space) for every thumb position. Escape
+    // returns to the start screen — same destination as the
+    // gamepad B / Circle path below.
     if (state.gameOver) {
       const w = window as any;
       if (e.code === "ArrowLeft" || e.code === "ArrowUp") {
@@ -1777,6 +1779,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         e.preventDefault();
         if (w.__rrScoreCardSelect) w.__rrScoreCardSelect();
         else maybeResetAfterGameOver();
+        return;
+      }
+      if (e.code === "Escape") {
+        e.preventDefault();
+        if (w.__rrScoreCardHome) w.__rrScoreCardHome();
         return;
       }
     }
@@ -2856,6 +2863,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       __rrScoreCardFocusPrev?: () => void;
       __rrScoreCardSelect?: () => void;
       __rrScoreCardFocusInitial?: () => void;
+      __rrScoreCardHome?: () => void;
       __rrSubOverlayOpen?: () => boolean;
       __rrActiveScrollable?: () => {
         scrollBy(dx: number, dy: number): void;
@@ -2998,11 +3006,14 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       if (anyJustPressed(selectButtons)) {
         w.__rrScoreCardSelect?.();
       }
-      // Back / cancel (B / Circle / etc.) — direct restart, keeping
-      // the "cancel away from this screen" muscle memory for
-      // players who don't want to revive or share.
+      // Back / cancel (B / Circle / etc.) returns to the start
+      // screen — matches console convention where B is the
+      // "leave this screen" button, not the "restart this level"
+      // shortcut. Players who want to restart can either press A
+      // on the already-focused Play Again button, or jump back in
+      // from the start screen.
       if (anyJustPressed(backButtons)) {
-        maybeResetAfterGameOver();
+        w.__rrScoreCardHome?.();
       }
       // System buttons still open the main menu from the card.
       if (anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS)) {
