@@ -1396,9 +1396,16 @@ html,
          clicks, so mouse users don't get a stuck outline after every
          tap. Same dune-dark colour as the border, just thicker, so
          the focus ring reads as "this is the same button, louder". */
-      .menu-panel .menu-item:focus-visible {
-        outline: 3px solid var(--color-sky-dim);
-        outline-offset: 2px;
+      .menu-panel .menu-item:focus-visible,
+      .menu-panel .menu-item.kbd-focus {
+        /* No outline ring — the sky-blue background is already a
+           clear focus indicator, and the ring was reading as a
+           double-highlight on top of it. `.kbd-focus` is the
+           belt-and-suspenders class applied by focusKbd() in ui.ts
+           so the highlight survives transitions (e.g. Electron
+           fullscreen rebuilding the native window, which strips
+           `:focus-visible` without stripping focus itself). */
+        outline: none;
         background: var(--color-sky);
       }
       .menu-panel .menu-item .inner {
@@ -1698,9 +1705,9 @@ html,
       .sound-settings-summary:hover {
         background: var(--color-sky);
       }
-      .sound-settings-summary:focus-visible {
-        outline: 3px solid var(--color-sky-dim);
-        outline-offset: 2px;
+      .sound-settings-summary:focus-visible,
+      .sound-settings-summary.kbd-focus {
+        outline: none;
         background: var(--color-sky);
       }
       .sound-settings-summary svg {
@@ -1772,9 +1779,9 @@ html,
       .menu-panel .menu-group-summary:hover {
         background: var(--color-sky);
       }
-      .menu-panel .menu-group-summary:focus-visible {
-        outline: 3px solid var(--color-sky-dim);
-        outline-offset: 2px;
+      .menu-panel .menu-group-summary:focus-visible,
+      .menu-panel .menu-group-summary.kbd-focus {
+        outline: none;
         background: var(--color-sky);
       }
       .menu-panel .menu-group-summary svg {
