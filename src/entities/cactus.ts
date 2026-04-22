@@ -20,8 +20,7 @@ import {
   CACTUS_SPAWN_GAP_SPEED_FACTOR,
   CACTUS_SPAWN_GAP_RANDOM_MAX,
   CACTUS_SPAWN_GAP_RANDOM_SHRINK,
-  CACTUS_BREATHER_MIN_COUNT,
-  CACTUS_BREATHER_MAX_COUNT,
+  CACTUS_BREATHER_INTERVAL_METERS,
   CACTUS_BREATHER_MIN_SECONDS,
   CACTUS_BREATHER_MAX_SECONDS,
   FLOWER_PATCH_WIDTH_PX,
@@ -149,17 +148,13 @@ export class Cactuses {
   }
 
   private _rollNextGap(): void {
-    if (state._cactiSinceBreather >= state._nextBreatherAt) {
+    if (state.score >= state._nextBreatherAtScore) {
       // ── BREATHER ──
-      // Reset counter + pick when the NEXT breather should fire.
-      state._cactiSinceBreather = 0;
-      state._nextBreatherAt =
-        CACTUS_BREATHER_MIN_COUNT +
-        Math.floor(
-          Math.random() *
-            (CACTUS_BREATHER_MAX_COUNT - CACTUS_BREATHER_MIN_COUNT + 1),
-        );
-
+      // Next flower field fires CACTUS_BREATHER_INTERVAL_METERS after
+      // this one. Score-gated (not count-gated) so the cadence stays
+      // ~1 per 500 meters regardless of bgVelocity.
+      state._nextBreatherAtScore =
+        state.score + CACTUS_BREATHER_INTERVAL_METERS;
       this._queueBreather();
       return;
     }
@@ -210,9 +205,12 @@ export class Cactuses {
     this._nextGap = fieldEndX + bufferPx;
   }
 
-  /** Debug helper — arm the counter so the next spawn is a breather. */
+  /** Debug helper — arm the threshold so the next spawn is a breather. */
   forceBreather(): void {
-    state._cactiSinceBreather = state._nextBreatherAt;
+    state._nextBreatherAtScore = Math.min(
+      state._nextBreatherAtScore,
+      state.score,
+    );
     // Force the gap-to-next "already elapsed" so spawn fires next frame.
     this._scrollSinceLastSpawn = Math.max(
       this._scrollSinceLastSpawn,
@@ -235,10 +233,8 @@ export class Cactuses {
     if (pteroRoll) {
       this.pterodactyls.spawn();
       this._scrollSinceLastSpawn = 0;
-      // Still counts toward the next breather — a flyer is pacing-
-      // equivalent to a cactus in terms of "thing the player had
-      // to clear", and ignoring it would delay the rest area.
-      state._cactiSinceBreather = (state._cactiSinceBreather ?? 0) + 1;
+      // Breather cadence is score-gated now — no per-obstacle counter
+      // to bump here, the gate in _rollNextGap does the work.
       this._rollNextGap();
       return;
     }
@@ -257,10 +253,7 @@ export class Cactuses {
     const isLarge = variant.heightScale >= 0.85;
     spawnCoinAboveCactus(cactus.x, cactus.y, cactus.w, this.raptor, isLarge);
     this._scrollSinceLastSpawn = 0;
-    // Counts toward the next breather.
-    state._cactiSinceBreather = (state._cactiSinceBreather ?? 0) + 1;
-    // Decide the gap to the cactus after this one. Has to happen AFTER
-    // the counter increment so _rollNextGap sees the fresh count.
+    // Decide the gap to the cactus after this one.
     this._rollNextGap();
   }
 

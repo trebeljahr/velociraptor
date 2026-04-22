@@ -13,7 +13,6 @@ import { saveCoinsBalance } from "../persistence";
 import { pointInPolygon, Polygon, compactInPlace } from "../helpers";
 import {
   VELOCITY_SCALE_DIVISOR,
-  COIN_SCORE_VALUE,
   COIN_BANK_REWARD,
   COIN_SIZE_RATIO,
   COIN_BASE_Y_ABOVE_GROUND_RATIO,
@@ -221,9 +220,9 @@ export function collectCoins(
     }
     c.collected = true;
     c.collectFrame = state.frame;
-    state.score += COIN_SCORE_VALUE;
-    // Bank immediately — "picked up = yours" even if the player
-    // dies later in the field.
+    // Score is distance-based now — coin pickups fill the wallet
+    // instead of bumping the meter count. Bank immediately:
+    // "picked up = yours" even if the player dies later in the field.
     state.coinsBalance += COIN_BANK_REWARD;
     saveCoinsBalance(state.coinsBalance);
     onCollect(c, c.x + c.w / 2, cy + c.h / 2);

@@ -48,8 +48,8 @@ import {
   MAX_BG_VELOCITY,
   CACTUS_SPAWN_GAP_BASE,
   CACTUS_SPAWN_GAP_SPEED_FACTOR,
-  CACTUS_BREATHER_MIN_COUNT,
-  CACTUS_BREATHER_MAX_COUNT,
+  CACTUS_BREATHER_INTERVAL_METERS,
+  METERS_PER_BG_UNIT_PER_FRAME,
   JUMP_BUFFER_MS,
   JUMP_VIBRATION_MS,
   FRAME_DELAY_SPEED_RANGE,
@@ -683,10 +683,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     }
     state._wasInNight = state.isNight;
 
-    if (
-      state.frame % SKY_UPDATE_INTERVAL_FRAMES === 0 ||
-      state.score !== state.lastSkyScore
-    ) {
+    if (state.frame % SKY_UPDATE_INTERVAL_FRAMES === 0) {
+      // Throttled to every N frames — distance-based score no longer
+      // gates this (it changes every frame now, which would defeat
+      // the throttle); SKY_UPDATE_INTERVAL_FRAMES is low enough that
+      // band transitions still read as smooth.
       let target = lerpColor(
         SKY_COLORS[bandIndex],
         SKY_COLORS[nextBand],
@@ -718,6 +719,46 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     if (!state.gameOver) updateRareEvent(dtSec);
 
     if (!state.gameOver) {
+      // Distance score: meters run. Accumulates every frame, scaled
+      // by bgVelocity so a faster raptor earns score faster (but the
+      // same meters-per-cactus ratio, since the cactus spawn gap is
+      // also velocity-linked). Threshold crossings fire achievement
+      // and cosmetic unlocks using the pre/post floor comparison so
+      // integer boundaries (e.g. 1000) trip exactly once per run.
+      const prevScoreFloor = Math.floor(state.score);
+      state.score +=
+        state.bgVelocity * frameScale * METERS_PER_BG_UNIT_PER_FRAME;
+      const currScoreFloor = Math.floor(state.score);
+      if (currScoreFloor !== prevScoreFloor) {
+        const crossed = (n: number): boolean =>
+          prevScoreFloor < n && currScoreFloor >= n;
+        if (crossed(25)) unlockAchievement("score-25");
+        if (crossed(PARTY_HAT_SCORE_THRESHOLD)) {
+          unlockAchievement("party-time");
+          if (!state.ownedCosmetics["party-hat"]) {
+            grantCosmetic("party-hat", { forceEquip: true });
+            const crown = raptor.currentCrownPoint();
+            spawnConfettiBurst(crown.x, crown.y);
+          }
+        }
+        if (crossed(BOW_TIE_SCORE_THRESHOLD)) {
+          unlockAchievement("dinosaurs-forever");
+          if (!state.ownedCosmetics["bow-tie"]) {
+            grantCosmetic("bow-tie", { forceEquip: true });
+            const crown = raptor.currentCrownPoint();
+            spawnConfettiBurst(crown.x, crown.y);
+          }
+        }
+        if (crossed(THUG_GLASSES_SCORE_THRESHOLD)) {
+          unlockAchievement("score-250");
+          if (!state.ownedCosmetics["thug-glasses"]) {
+            grantCosmetic("thug-glasses", { forceEquip: true });
+            const crown = raptor.currentCrownPoint();
+            spawnConfettiBurst(crown.x, crown.y);
+          }
+        }
+      }
+
       raptor.update(now, frameScale);
       cactuses.update(now, frameScale);
       // Flowers scroll at ground speed like cacti. Spawn happens
@@ -750,52 +791,6 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         state.coinsCollected = (state.coinsCollected ?? 0) + 1;
         saveCoinsCollected(state.coinsCollected);
         if (state.coinsCollected >= 1000) unlockAchievement("coin-hoarder");
-        // Score progression lives here now — coins are the sole
-        // score source in the coins-only model. Exact-equality
-        // checks (`score === N`) are safe because
-        // COIN_SCORE_VALUE === 1 and pickups are processed one at
-        // a time. Mirrors the cactus.ts block that used to fire
-        // these at the same cadence when cactus-pass bumped score.
-        if (state.score === 1) unlockAchievement("first-jump");
-        if (state.score === 25) unlockAchievement("score-25");
-        if (state.score === 100) unlockAchievement("party-time");
-        if (state.score === BOW_TIE_SCORE_THRESHOLD)
-          unlockAchievement("dinosaurs-forever");
-        if (state.score === THUG_GLASSES_SCORE_THRESHOLD)
-          unlockAchievement("score-250");
-        // Cosmetic unlocks — party hat at 100, thug glasses and
-        // bow tie at their thresholds. grantCosmetic is idempotent;
-        // forceEquip: true swaps the new item onto the raptor even
-        // if the slot is already occupied so the player sees the
-        // reward at the moment they earn it (the displaced item
-        // stays owned and can be re-equipped from the shop). No-op
-        // on later runs because the ownership guard above skips
-        // the whole block. Confetti bursts off the raptor's head so
-        // the player actually notices.
-        if (
-          !state.ownedCosmetics["party-hat"] &&
-          state.score >= PARTY_HAT_SCORE_THRESHOLD
-        ) {
-          grantCosmetic("party-hat", { forceEquip: true });
-          const crown = raptor.currentCrownPoint();
-          spawnConfettiBurst(crown.x, crown.y);
-        }
-        if (
-          !state.ownedCosmetics["thug-glasses"] &&
-          state.score >= THUG_GLASSES_SCORE_THRESHOLD
-        ) {
-          grantCosmetic("thug-glasses", { forceEquip: true });
-          const crown = raptor.currentCrownPoint();
-          spawnConfettiBurst(crown.x, crown.y);
-        }
-        if (
-          !state.ownedCosmetics["bow-tie"] &&
-          state.score >= BOW_TIE_SCORE_THRESHOLD
-        ) {
-          grantCosmetic("bow-tie", { forceEquip: true });
-          const crown = raptor.currentCrownPoint();
-          spawnConfettiBurst(crown.x, crown.y);
-        }
       });
       // Grass-field spans scroll at the same rate as the foreground
       // (ground speed), then fall off the left edge once they've
@@ -1530,16 +1525,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     clearCoins();
     audio.resetCoinStreak();
     state.grassFields = [];
-    // Reset the breather counter so each new run starts a fresh
-    // cadence. Pick a new random target within the configured
-    // window so two consecutive runs don't land on the same rhythm.
-    state._cactiSinceBreather = 0;
-    state._nextBreatherAt =
-      CACTUS_BREATHER_MIN_COUNT +
-      Math.floor(
-        Math.random() *
-          (CACTUS_BREATHER_MAX_COUNT - CACTUS_BREATHER_MIN_COUNT + 1),
-      );
+    // First breather of the new run fires at ~INTERVAL meters. The
+    // gate is score-based now, so just re-anchor the next-at marker
+    // to the start-of-run score (0).
+    state._nextBreatherAtScore = CACTUS_BREATHER_INTERVAL_METERS;
     if (hard) {
       // Full reset — tear down the ambient cycle too.
       state.currentSky = [...SKY_COLORS[0]];
@@ -1944,9 +1933,9 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       return state.debug;
     },
 
-    /** Current run's score. */
+    /** Current run's score — meters run, as a floored integer. */
     getScore() {
-      return state.score;
+      return Math.floor(state.score);
     },
 
     /** Debug helper — overwrite the current run's score. Used by
@@ -1959,9 +1948,9 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       // Fire any score-threshold achievements the player just
       // skipped over so debug-setting the score to e.g. 6000
       // unlocks everything in one go.
-      if (next >= 1) unlockAchievement("first-jump");
       if (next >= 25) unlockAchievement("score-25");
-      if (next >= 100) unlockAchievement("party-time");
+      if (next >= PARTY_HAT_SCORE_THRESHOLD)
+        unlockAchievement("party-time");
       if (next >= BOW_TIE_SCORE_THRESHOLD)
         unlockAchievement("dinosaurs-forever");
       if (next >= THUG_GLASSES_SCORE_THRESHOLD) unlockAchievement("score-250");
@@ -3087,6 +3076,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         );
       },
       () => {
+        // First-jump achievement fires here now that score is
+        // distance-based (a fresh run crosses 1 m almost immediately,
+        // so gating off the score was effectively a no-op). Idempotent
+        // — safe to call every jump.
+        unlockAchievement("first-jump");
         maybeSpawnRareEvent();
       },
       (foot) => {
@@ -3178,6 +3172,30 @@ import { generateScoreCardBlob } from "./render/scoreCard";
           c.restore();
         }
       }
+
+      // Pre-bake the rainbow bitmap. The rainbow cache allocates a
+      // full-screen canvas + a 7-stop radial gradient; paying that
+      // on the first post-rain frame was producing a visible hitch
+      // exactly when the rainbow was supposed to appear. Bake it at
+      // init so the first actual use is a cached drawImage.
+      ensureRainbowCache();
+
+      // Warm a 3-stop gradient-stroke on a bezier curve — matches
+      // the comet tail shape. First strokeStyle-with-gradient on a
+      // curved path compiles a Skia shader; without this warm, the
+      // first comet spawn drops a frame right as the tail appears.
+      ctx.save();
+      const cometWarmGrad = ctx.createLinearGradient(-300, -300, -100, -300);
+      cometWarmGrad.addColorStop(0, "rgba(200,225,255,0.75)");
+      cometWarmGrad.addColorStop(0.35, "rgba(130,180,250,0.3)");
+      cometWarmGrad.addColorStop(1, "rgba(70,120,210,0)");
+      ctx.strokeStyle = cometWarmGrad;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(-300, -300);
+      ctx.bezierCurveTo(-250, -280, -200, -320, -100, -300);
+      ctx.stroke();
+      ctx.restore();
     }
 
     canvas.addEventListener("pointerdown", onPointerDown);

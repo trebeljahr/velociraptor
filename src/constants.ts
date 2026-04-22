@@ -39,16 +39,21 @@ export const CACTUS_SPAWN_GAP_RANDOM_SHRINK = 0.58;
 // ── Cactus-spawn breathers (designed rest areas) ──────────
 // Periodically the spawner skips a normal gap for a long empty
 // stretch filled with a flower field — a designed rest area.
-// Counter-driven (after N cacti the next gap is a breather) with N
-// randomised in [MIN_COUNT, MAX_COUNT] so arrivals aren't metronomic
-// but can't crowd or starve each other. 40–55 ≈ one rest every
-// 1½–2 minutes at current pacing.
-export const CACTUS_BREATHER_MIN_COUNT = 40;
-export const CACTUS_BREATHER_MAX_COUNT = 55;
+// Distance-driven: a breather fires every N meters of score so
+// the cadence stays stable even as bgVelocity ramps up.
+export const CACTUS_BREATHER_INTERVAL_METERS = 500;
 // Length of each rest area in seconds-of-travel (measured against
 // bgVelocity so it feels consistent at any speed).
 export const CACTUS_BREATHER_MIN_SECONDS = 4;
 export const CACTUS_BREATHER_MAX_SECONDS = 6;
+
+// ── Score / distance scoring ──────────────────────────────
+// Score is "meters run" — a continuous distance counter that grows
+// proportionally to bgVelocity. One meter ≈ one unit of bgVelocity
+// over one 60 fps second. Derived so that at the default ~1.7w
+// cactus gap and 1000 px reference width, ≈10 meters elapse per
+// cactus passed (so 100 cacti cleared ≈ 1000 m).
+export const METERS_PER_BG_UNIT_PER_FRAME = 1 / 60;
 export const JUMP_BUFFER_MS = 100;
 export const JUMP_VIBRATION_MS = 15;
 export const FRAME_DELAY_SPEED_RANGE = 15;
@@ -308,9 +313,12 @@ export const OWNED_COSMETICS_KEY = "raptor-runner:ownedCosmetics";
 export const EQUIPPED_COSMETICS_KEY = "raptor-runner:equippedCosmetics";
 
 // ── Cosmetic unlock thresholds (single-run scores) ─────────
-export const PARTY_HAT_SCORE_THRESHOLD = 100;
-export const BOW_TIE_SCORE_THRESHOLD = 150;
-export const THUG_GLASSES_SCORE_THRESHOLD = 200;
+// Thresholds are in meters (score-as-distance). ≈1000 m is a
+// comfortable early-run goal (100 cacti at the default spacing),
+// with 1500 / 2000 stepping the reward ladder further.
+export const PARTY_HAT_SCORE_THRESHOLD = 1000;
+export const BOW_TIE_SCORE_THRESHOLD = 1500;
+export const THUG_GLASSES_SCORE_THRESHOLD = 2000;
 
 // ── Raptor sprite sheet ────────────────────────────────────
 export const RAPTOR_NATIVE_W = 578;

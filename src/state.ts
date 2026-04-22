@@ -148,11 +148,10 @@ export interface GameState {
   grassFields: { startX: number; endX: number }[];
 
   // ── Breather / rest-area pacing ────────────────────
-  /** Cacti spawned since the last breather. Reset when one fires. */
-  _cactiSinceBreather: number;
-  /** Target cactus count for the next breather, rerolled inside
-   *  [MIN_COUNT, MAX_COUNT] each trigger. */
-  _nextBreatherAt: number;
+  /** Score (meters) at which the next breather fires — bumped by
+   *  CACTUS_BREATHER_INTERVAL_METERS whenever one triggers. Lets
+   *  the cadence stay stable even as bgVelocity ramps up. */
+  _nextBreatherAtScore: number;
 
   // ── Rain weather ───────────────────────────────────
   totalDayCycles: number;
@@ -237,9 +236,9 @@ export const state: GameState = {
   coins: [],
   coinSparks: [],
   grassFields: [],
-  _cactiSinceBreather: 0,
-  // Seed value — rerolled on every resetGame from the breather window.
-  _nextBreatherAt: 40,
+  // First breather fires at CACTUS_BREATHER_INTERVAL_METERS meters;
+  // reset to the same value at the start of each run via resetGame.
+  _nextBreatherAtScore: 500,
   totalDayCycles: 0,
   lastCycleIndex: -1,
   isRaining: false,
