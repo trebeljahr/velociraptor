@@ -120,7 +120,7 @@ async function handleFullscreenClick() {
       const btn = Array.from(
         document.querySelectorAll<HTMLElement>(".menu-panel .menu-item"),
       ).find((el) => el.textContent?.includes("Fullscreen"));
-      btn?.focus();
+      if (btn) focusKbd(btn);
     });
   } catch (_) {}
 }
@@ -853,7 +853,7 @@ window.__rrCloseActiveSubOverlay = function () {
 // player couldn't fold it open/closed with a controller.
 function getNavigableMenuItems() {
   const all = overlay.querySelectorAll(
-    ".menu-item, .sound-settings-summary",
+    ".menu-item, .sound-settings-summary, .menu-group-summary",
   );
   const list = [];
   for (const el of all) {
@@ -876,13 +876,35 @@ function getNavigableMenuItems() {
   return list;
 }
 let _menuFocusIdx = 0;
+/** Focus an element and force the keyboard-focus highlight.
+ *  Programmatic `.focus()` doesn't always trip `:focus-visible`
+ *  (most notably: after an Electron fullscreen transition rebuilds
+ *  the native window, the element gets `:focus` but not
+ *  `:focus-visible`, and the blue highlight never comes back).
+ *  The `focusVisible: true` option fixes it on modern browsers;
+ *  the `.kbd-focus` class covers everywhere else. The class is
+ *  cleared on blur or on the next real mouse click, so mouse
+ *  users don't see a stuck highlight. */
+function focusKbd(target) {
+  try {
+    target.focus({ focusVisible: true });
+  } catch {
+    target.focus();
+  }
+  target.classList.add("kbd-focus");
+  const clearOnBlur = () => {
+    target.classList.remove("kbd-focus");
+    target.removeEventListener("blur", clearOnBlur);
+  };
+  target.addEventListener("blur", clearOnBlur);
+}
 function focusMenuIndex(idx) {
   const items = getNavigableMenuItems();
   if (!items.length) return;
   _menuFocusIdx =
     ((idx % items.length) + items.length) % items.length;
   const target = items[_menuFocusIdx];
-  target.focus();
+  focusKbd(target);
   target.scrollIntoView({ block: "nearest" });
 }
 /**
@@ -940,7 +962,9 @@ window.__rrMenuSelect = function () {
 // lives here so it's uniform and can't drift per-item.
 overlay.addEventListener("click", (e) => {
   const t = e.target && e.target.closest
-    ? e.target.closest(".menu-item, .sound-settings-summary")
+    ? e.target.closest(
+        ".menu-item, .sound-settings-summary, .menu-group-summary",
+      )
     : null;
   if (!t) return;
   const items = getNavigableMenuItems();
