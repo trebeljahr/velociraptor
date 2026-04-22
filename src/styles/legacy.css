@@ -1638,25 +1638,11 @@ html,
       }
 
       /* ─── Sound Settings (collapsible <details>) ─── */
+      /* Wrapper is visually invisible — no background, no radius.
+       * The summary pill and body each own their own shape, matching
+       * the .menu-group pattern used by the cosmetics drawer. */
       .sound-settings {
         margin: 0 0 0.75rem;
-        border-radius: 8px;
-        background: #f4f6f8;
-        /* NO overflow: hidden here. Was clipping the summary's
-           :focus-visible outline ring (it sits 2px outside the
-           summary box via outline-offset, and anything past the
-           parent's padding box gets chopped off when overflow
-           is hidden). The summary has its own border-radius to
-           handle the closed-state rounding; when open, the
-           [open] > summary rule below trims to top corners only
-           so the body's bottom corners inherit the parent's
-           radius cleanly. */
-      }
-      .sound-settings[open] > .sound-settings-summary {
-        /* When the dropdown is folded open, square off the bottom
-           of the summary so it butts flush against the body below
-           without a visible seam. */
-        border-radius: 8px 8px 0 0;
       }
       .sound-settings-summary {
         display: flex;
@@ -2017,6 +2003,10 @@ html,
         border-radius: 6px;
         background: var(--color-sand-contrast);
       }
+      .shop-item:focus-visible {
+        outline: 3px solid var(--color-sky-dim);
+        outline-offset: 2px;
+      }
       /* Thumb: real dune border + box-sizing so the sprite img
        * sits cleanly inside — same fix as the menu cosmetics
        * thumbnails. The previous inset-shadow painted the border
@@ -2126,6 +2116,10 @@ html,
       }
       .shop-item-action:active:not(:disabled) {
         transform: translateY(2px);
+      }
+      .shop-item-action:focus-visible {
+        outline: 3px solid var(--color-sky-dim);
+        outline-offset: 2px;
       }
       .shop-item-action:disabled {
         cursor: default;
@@ -2543,6 +2537,10 @@ html,
       }
       .reset-confirm-btn:hover {
         background: #e8ecf0;
+      }
+      .reset-confirm-btn:focus-visible {
+        outline: 3px solid var(--color-sky-dim);
+        outline-offset: 2px;
       }
       .reset-confirm-danger {
         background: #e53935;

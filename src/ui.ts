@@ -828,6 +828,84 @@ window.__rrCloseActiveSubOverlay = function () {
   return false;
 };
 
+// ── Gamepad nav inside button-driven sub-overlays ─────
+// Shop (buy / equip) and reset-confirm (yes / no) have
+// interactive buttons rather than scrollable content, so the
+// gamepad poller routes d-pad/face-button presses to focus-walk
+// helpers instead of the scroll path used by credits/achievements.
+// The .imprint-close ✕ is excluded from the ring because the
+// "cancel" face button already closes the overlay; including it
+// would steal a d-pad slot for no gain.
+function getActiveSubOverlayButtons() {
+  const active = document.querySelector(".imprint-overlay.open");
+  if (!active) return [];
+  // Shop: focus the whole .shop-item card rather than its action
+  // button, because the button can be disabled (can't afford) and
+  // browsers refuse to focus disabled elements — that would leave
+  // unaffordable items out of the nav ring entirely.
+  const cards = Array.from(active.querySelectorAll(".shop-item"));
+  if (cards.length) {
+    return cards.filter((c) => c.offsetParent);
+  }
+  // Button-level nav for simpler dialogs (reset-confirm).
+  const all = active.querySelectorAll("button:not(.imprint-close)");
+  const list = [];
+  for (const el of all) {
+    if (el.disabled) continue;
+    if (!el.offsetParent) continue;
+    list.push(el);
+  }
+  return list;
+}
+let _subOverlayFocusIdx = 0;
+function focusSubOverlayIndex(idx) {
+  const items = getActiveSubOverlayButtons();
+  if (!items.length) return;
+  _subOverlayFocusIdx =
+    ((idx % items.length) + items.length) % items.length;
+  const target = items[_subOverlayFocusIdx];
+  // Non-button items (shop cards) need tabindex to accept focus.
+  // -1 keeps them out of the native Tab ring while still letting
+  // .focus() land.
+  if (target.tagName !== "BUTTON" && !target.hasAttribute("tabindex")) {
+    target.setAttribute("tabindex", "-1");
+  }
+  target.focus();
+  target.scrollIntoView({ block: "nearest" });
+}
+function currentSubOverlayFocusIdx() {
+  const items = getActiveSubOverlayButtons();
+  if (!items.length) return 0;
+  const active = document.activeElement;
+  const matchIdx = items.indexOf(active);
+  if (matchIdx !== -1) return matchIdx;
+  return Math.min(Math.max(0, _subOverlayFocusIdx), items.length - 1);
+}
+window.__rrSubOverlayFocusNext = function () {
+  focusSubOverlayIndex(currentSubOverlayFocusIdx() + 1);
+};
+window.__rrSubOverlayFocusPrev = function () {
+  focusSubOverlayIndex(currentSubOverlayFocusIdx() - 1);
+};
+window.__rrSubOverlaySelect = function () {
+  const items = getActiveSubOverlayButtons();
+  if (!items.length) return;
+  const idx = currentSubOverlayFocusIdx();
+  const target = items[idx];
+  if (!target) return;
+  // Shop cards forward the press to their enabled action button
+  // (Buy / Equip). If nothing inside is clickable (e.g. "Equipped"
+  // state, can't afford), the press silently no-ops — same as
+  // clicking the card with a mouse.
+  const clickable =
+    target.tagName === "BUTTON"
+      ? target
+      : target.querySelector("button:not(:disabled)");
+  if (clickable && typeof clickable.click === "function") {
+    clickable.click();
+  }
+};
+
 // ── Gamepad navigation ──────────────────────────────
 // Walks the focus ring across the menu's visible buttons/
 // links. The three filters here together define "visible
@@ -1383,6 +1461,21 @@ function openShop() {
   refreshShopMenuBalance();
   refreshShop({ onClose: closeShop, onShopChange });
   shopOverlay.classList.add("open");
+  // Land gamepad/keyboard focus on the first shop card so d-pad has
+  // something to step from. React's root.render() commits async, so
+  // poll for up to a few frames until the cards appear.
+  _subOverlayFocusIdx = 0;
+  tryFocusSubOverlay(6);
+}
+function tryFocusSubOverlay(attempts) {
+  const items = getActiveSubOverlayButtons();
+  if (items.length) {
+    focusSubOverlayIndex(0);
+    return;
+  }
+  if (attempts > 0) {
+    requestAnimationFrame(() => tryFocusSubOverlay(attempts - 1));
+  }
 }
 function closeShop() {
   if (!shopOverlay) return;
@@ -1420,6 +1513,8 @@ const resetNo = document.getElementById("reset-confirm-no");
 
 function openResetConfirm() {
   if (resetOverlay) resetOverlay.classList.add("open");
+  _subOverlayFocusIdx = 0;
+  tryFocusSubOverlay(3);
 }
 function closeResetConfirm() {
   if (resetOverlay) resetOverlay.classList.remove("open");
