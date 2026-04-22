@@ -117,7 +117,8 @@ import {
   RAINBOW_MAX_OPACITY,
   RAINBOW_SPAWN_CHANCE,
   GAME_OVER_FADE_RATE,
-  REVIVE_BASE_COST,
+  REVIVE_FIRST_COST,
+  REVIVE_SECOND_COST,
   REVIVE_INVULN_FRAMES,
   DELTA_TIME_CLAMP,
   HIGH_SCORE_KEY,
@@ -1470,6 +1471,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     state.runShootingStars = 0;
     state._wasInNight = false;
     state.revivesUsedThisRun = 0;
+    state.runCoins = 0;
     state.invulnerableUntilFrame = 0;
     // Rainy Day achievement: gate on whether the player witnessed
     // the rain START during this run. A continuation run that begins
@@ -1741,15 +1743,48 @@ import { generateScoreCardBlob } from "./render/scoreCard";
 
     if (state.paused) return;
 
+    // ── Game-over score card: keyboard navigation ─────────────
+    // Left/Right cycle across [Revive · Share · Play again].
+    // Enter/Space activate the focused button — not a blanket
+    // restart anymore, since the focused button might be Revive
+    // or Share. ArrowUp still jumps in-game but on the card it
+    // delegates to the selected button so the player's thumb
+    // position on a one-handed mobile controller isn't punished.
+    if (state.gameOver) {
+      const w = window as any;
+      if (e.code === "ArrowLeft") {
+        if (w.__rrScoreCardFocusPrev) {
+          e.preventDefault();
+          w.__rrScoreCardFocusPrev();
+          return;
+        }
+      }
+      if (e.code === "ArrowRight") {
+        if (w.__rrScoreCardFocusNext) {
+          e.preventDefault();
+          w.__rrScoreCardFocusNext();
+          return;
+        }
+      }
+      if (e.code === "Enter" || e.code === "NumpadEnter") {
+        e.preventDefault();
+        if (w.__rrScoreCardSelect) w.__rrScoreCardSelect();
+        else maybeResetAfterGameOver();
+        return;
+      }
+      if (e.code === "Space" || e.code === "KeyW" || e.code === "ArrowUp") {
+        e.preventDefault();
+        if (w.__rrScoreCardSelect) w.__rrScoreCardSelect();
+        else maybeResetAfterGameOver();
+        return;
+      }
+    }
+
     const isJumpKey =
       e.code === "Space" || e.code === "KeyW" || e.code === "ArrowUp";
     if (isJumpKey) {
       e.preventDefault();
-      if (state.gameOver) {
-        maybeResetAfterGameOver();
-      } else {
-        if (!raptor.jump()) raptor.bufferJump(performance.now());
-      }
+      if (!raptor.jump()) raptor.bufferJump(performance.now());
       return;
     }
 
@@ -2016,11 +2051,13 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       maybeResetAfterGameOver();
     },
 
-    /** Current coin cost of a mid-run revive. Base price doubles
-     *  each time the player has already revived this run — cheap
-     *  first pull, punishing the eighth. */
+    /** Current coin cost of a mid-run revive. Starts cheap, marks
+     *  up to REVIVE_SECOND_COST on the second pull, then doubles
+     *  from there: 50 → 125 → 250 → 500 → 1000 … */
     getReviveCost(): number {
-      return REVIVE_BASE_COST * Math.pow(2, state.revivesUsedThisRun);
+      const n = state.revivesUsedThisRun;
+      if (n === 0) return REVIVE_FIRST_COST;
+      return REVIVE_SECOND_COST * Math.pow(2, n - 1);
     },
 
     /** True iff the player is currently dead and can afford the
@@ -2326,6 +2363,29 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     /** Current persistent coin balance (buys come out of this). */
     getCoinsBalance() {
       return state.coinsBalance;
+    },
+
+    /** Coins picked up during the current run. Resets on resetGame.
+     *  Drives the top-left HUD counter and the game-over card's
+     *  "this run → total" fill animation. */
+    getRunCoins() {
+      return state.runCoins;
+    },
+
+    /** Fire the "coins pouring into the wallet" audio sequence used
+     *  by the game-over card while the balance number tweens up.
+     *  Plays up to 10 rising-pitch coin chimes evenly spaced over
+     *  durationMs, then a completion chord at the end. Caps the tick
+     *  count so a huge haul doesn't turn into a continuous blat. */
+    playCoinFillAnim(count: number, durationMs: number = 1200): void {
+      if (count <= 0) return;
+      audio.resetCoinStreak();
+      const ticks = Math.min(count, 10);
+      const intervalMs = durationMs / ticks;
+      for (let i = 0; i < ticks; i++) {
+        setTimeout(() => audio.playCoinCollect(true), i * intervalMs);
+      }
+      setTimeout(() => audio.playCoinChainEnd(), durationMs);
     },
 
     /** Every cosmetic ever declared, in registry order. UI pairs
@@ -2791,6 +2851,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       __rrMenuFocusNext?: () => void;
       __rrMenuFocusPrev?: () => void;
       __rrMenuSelect?: () => void;
+      __rrScoreCardFocusNext?: () => void;
+      __rrScoreCardFocusPrev?: () => void;
+      __rrScoreCardSelect?: () => void;
+      __rrScoreCardFocusInitial?: () => void;
       __rrSubOverlayOpen?: () => boolean;
       __rrActiveScrollable?: () => {
         scrollBy(dx: number, dy: number): void;
@@ -2912,14 +2976,36 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       if (anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS)) {
         w.__rrCloseMenu?.();
       }
+    } else if (state.gameOver) {
+      // ── Game-over score card navigation ────────────────────
+      // D-pad left/right cycle across [Revive, Share, Play again].
+      // Stick left/right mirror the D-pad direction. Face-A
+      // activates the focused button; the old "any face button =
+      // restart" shortcut used to shortcut right past the Revive
+      // offer, which felt bad on controller.
+      const dpadLeft = anyJustPressed([14]);
+      const dpadRight = anyJustPressed([15]);
+      if (dpadLeft || stickPress === -1) w.__rrScoreCardFocusPrev?.();
+      if (dpadRight || stickPress === 1) w.__rrScoreCardFocusNext?.();
+      if (anyJustPressed(selectButtons)) {
+        w.__rrScoreCardSelect?.();
+      }
+      // Back / cancel (B / Circle / etc.) — direct restart, keeping
+      // the "cancel away from this screen" muscle memory for
+      // players who don't want to revive or share.
+      if (anyJustPressed(backButtons)) {
+        maybeResetAfterGameOver();
+      }
+      // System buttons still open the main menu from the card.
+      if (anyJustPressed(GAMEPAD_MENU_TOGGLE_BUTTONS)) {
+        w.__rrToggleMenu?.();
+      }
     } else {
       // ── Gameplay ───────────────────────────────────────────
       for (const idx of GAMEPAD_JUMP_BUTTONS) {
         if (justPressed(idx)) {
           if (!state.started) {
             w.__onStartKey?.();
-          } else if (state.gameOver) {
-            maybeResetAfterGameOver();
           } else {
             if (!raptor.jump()) raptor.bufferJump(performance.now());
           }

@@ -224,6 +224,7 @@ export function collectCoins(
     // instead of bumping the meter count. Bank immediately:
     // "picked up = yours" even if the player dies later in the field.
     state.coinsBalance += COIN_BANK_REWARD;
+    state.runCoins += COIN_BANK_REWARD;
     saveCoinsBalance(state.coinsBalance);
     onCollect(c, c.x + c.w / 2, cy + c.h / 2);
   }
