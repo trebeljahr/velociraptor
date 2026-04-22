@@ -27,6 +27,11 @@
   --color-sand-contrast: #fbebc6;
   --color-sky: #50b4cd;
   --color-sky-dim: #3a8fa5;
+  /* Deeper teal for keyboard/gamepad focus highlights. Two full
+   * steps darker than --color-sky so it reads as "definitely
+   * selected" next to the plain and :hover states of the shop
+   * buy buttons, without blowing out the desert palette. */
+  --color-sky-deep: #1f5b6b;
   --color-dune: #2a1d13;
   --color-dune-dim: #4a3526;
   --color-coin: #fbbf24;
