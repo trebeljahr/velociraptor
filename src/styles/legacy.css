@@ -823,6 +823,11 @@ html,
       .share-score-btn:active {
         transform: translateY(2px);
       }
+      .share-score-btn:focus-visible {
+        outline: 3px solid var(--color-sky-dim);
+        outline-offset: 2px;
+        background: var(--color-sky);
+      }
 
       /* Body wrapper: holds the card slot + the action row. By
          default the card is on top and the actions below (column).
@@ -927,6 +932,11 @@ html,
       }
       .revive-btn:active:not(:disabled) {
         transform: translateY(2px);
+      }
+      .revive-btn:focus-visible {
+        outline: 3px solid var(--color-sky-dim);
+        outline-offset: 2px;
+        background: var(--color-sky);
       }
       .revive-btn[hidden] {
         display: none;
@@ -1056,6 +1066,11 @@ html,
       }
       .play-again-btn:active {
         transform: translateY(2px);
+      }
+      .play-again-btn:focus-visible {
+        outline: 3px solid var(--color-sky-dim);
+        outline-offset: 2px;
+        background: var(--color-sky);
       }
       .play-again-btn svg {
         width: 16px;
@@ -1916,6 +1931,17 @@ html,
         color: var(--color-sand-contrast);
       }
       .menu-panel .cosmetic-equip-btn[aria-pressed="true"]:hover {
+        background: var(--color-cactus);
+      }
+      /* Equipped rows keep the cactus fill when focused so the player
+       * can still tell which row is on; the ring alone signals focus.
+       * Without this rule, the menu's generic .menu-item:focus-visible
+       * would try to swap the background to sky-blue, but aria-pressed
+       * has higher specificity and wins — leaving no visible focus
+       * feedback. */
+      .menu-panel .cosmetic-equip-btn[aria-pressed="true"]:focus-visible {
+        outline: 3px solid var(--color-sky-dim);
+        outline-offset: 2px;
         background: var(--color-cactus);
       }
       /* Keep the thumb's dune-black border on the equipped row —
