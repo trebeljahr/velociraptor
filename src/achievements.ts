@@ -68,9 +68,14 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
       '<polygon points="22,7 22,13 18,10" fill="#3498db"/>',
   },
   {
+    // id stays "score-25" for storage compatibility. The condition
+    // flipped with the meters-scoring rework: it now fires on cactus
+    // count (25 cleared), not meters, so the achievement still reads
+    // as a "getting a feel for the jump rhythm" milestone instead of
+    // tripping in the first few seconds of any run.
     id: "score-25",
     title: "Getting The Hang Of It",
-    desc: "Score 25 points in a single run",
+    desc: "Jump over 25 cacti in a single run",
     iconHTML:
       '<image href="assets/cactus7.png" x="3" y="2" width="13" height="22" preserveAspectRatio="xMidYMax meet"/>' +
       '<circle cx="18" cy="7" r="5" fill="#ffffff" stroke="#3498db" stroke-width="1.2"/>' +
@@ -79,22 +84,22 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
   {
     id: "party-time",
     title: "Party Time",
-    desc: "Score 100 points in a single run",
+    desc: "Run 100 meters in a single dash",
     iconImage: "assets/party-hat.png",
   },
   {
     id: "dinosaurs-forever",
     title: "Dinosaurs Forever",
-    desc: "Score 150 points in a single run",
+    desc: "Run 150 meters in a single dash",
     iconImage: "assets/bow-tie.png",
   },
   {
     // id stays "score-250" for storage compatibility — renaming would
-    // reset every existing player's unlock. The threshold moved from
-    // 500 to 200 as part of the ladder rebalance.
+    // reset every existing player's unlock. Threshold is 200 meters
+    // (rebalanced from 500 before the meters-scoring rework).
     id: "score-250",
     title: "Raptor Legend",
-    desc: "Score 200 points in a single run",
+    desc: "Run 200 meters in a single dash",
     iconImage: "assets/thug-glasses.png",
   },
   {

@@ -732,7 +732,8 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       if (currScoreFloor !== prevScoreFloor) {
         const crossed = (n: number): boolean =>
           prevScoreFloor < n && currScoreFloor >= n;
-        if (crossed(25)) unlockAchievement("score-25");
+        // score-25 now fires on cactus count — see the
+        // runCactiCleared block below cactuses.update().
         if (crossed(PARTY_HAT_SCORE_THRESHOLD)) {
           unlockAchievement("party-time");
           if (!state.ownedCosmetics["party-hat"]) {
@@ -761,6 +762,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
 
       raptor.update(now, frameScale);
       cactuses.update(now, frameScale);
+      // "Getting The Hang Of It" fires the frame the 25th cactus
+      // finishes scrolling off the left edge. Kept outside the
+      // filter loop in cactus.ts so the achievement hook stays here
+      // with the other unlock triggers.
+      if (state.runCactiCleared >= 25) unlockAchievement("score-25");
       // Flowers scroll at ground speed like cacti. Spawn happens
       // inside Cactuses' breather roll so empty stretches read as
       // a scenic break, not dead grass.
@@ -1458,6 +1464,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
    *  initialization is identical regardless of code path. */
   function initRunState() {
     state.runJumps = 0;
+    state.runCactiCleared = 0;
     state.runNightsSurvived = 0;
     state._pendingNights = 0;
     state.runShootingStars = 0;
@@ -1953,10 +1960,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     setScore(n: number) {
       const next = Math.max(0, Math.floor(Number(n) || 0));
       state.score = next;
-      // Fire any score-threshold achievements the player just
+      // Fire any meters-threshold achievements the player just
       // skipped over so debug-setting the score to e.g. 6000
-      // unlocks everything in one go.
-      if (next >= 25) unlockAchievement("score-25");
+      // unlocks everything in one go. score-25 is deliberately
+      // excluded — it's a cactus-count achievement now, not a
+      // meters one; testers can trigger it via _setRunCactiCleared.
       if (next >= PARTY_HAT_SCORE_THRESHOLD)
         unlockAchievement("party-time");
       if (next >= BOW_TIE_SCORE_THRESHOLD)
@@ -2106,6 +2114,15 @@ import { generateScoreCardBlob } from "./render/scoreCard";
      *  hoping the 12% roll hits. */
     _spawnPterodactyl() {
       if (cactuses) cactuses.forcePterodactyl();
+    },
+
+    /** Debug helper: set the current run's "cacti cleared" count
+     *  directly. score-25 fires from the meters-update path once
+     *  this reaches 25, so setting it to 25 (or higher) unlocks
+     *  the achievement on the next frame without running through
+     *  the cacti by hand. */
+    _setRunCactiCleared(n: number) {
+      state.runCactiCleared = Math.max(0, Math.floor(Number(n) || 0));
     },
 
     /** Debug helper: force a game-over immediately without needing

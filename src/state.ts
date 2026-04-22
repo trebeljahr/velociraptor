@@ -68,6 +68,13 @@ export interface GameState {
   totalJumps: number;
   /** Jumps in the current run only. Resets on resetGame(). */
   runJumps: number;
+  /** Cacti the raptor has successfully scrolled past in the current
+   *  run. Incremented when a cactus is retired off the left edge
+   *  (which only happens if it didn't collide with the raptor first).
+   *  Resets on resetGame(). Drives the "Getting The Hang Of It"
+   *  achievement at 25 cleared — a rhythm-of-jumps milestone, not a
+   *  distance one. */
+  runCactiCleared: number;
   /** Nights fully survived in the current run — incremented on
    *  night → day transitions while the raptor is still alive. */
   runNightsSurvived: number;
@@ -204,6 +211,7 @@ export const state: GameState = {
   lastNow: null,
   totalJumps: 0,
   runJumps: 0,
+  runCactiCleared: 0,
   runNightsSurvived: 0,
   _wasInNight: false,
   runShootingStars: 0,

@@ -294,11 +294,16 @@ export class Cactuses {
     for (const c of this.cacti) c.update(frameScale);
     this.pterodactyls.update(now, frameScale);
 
-    // Coins-only scoring: clearing a cactus no longer grants score
-    // or triggers achievement/cosmetic thresholds. The reward is
-    // the coin floating above the cactus (spawned in spawn()); the
-    // pickup path in main.ts handles score progression + unlocks.
+    // Retire cacti once they've fully left the screen. Every retired
+    // cactus counts as "cleared" — the collision path sets gameOver
+    // before a cactus can reach this filter, so a cactus that makes
+    // it here is one the raptor successfully jumped. Score/cosmetic
+    // thresholds still fire from the meters-based block in main.ts;
+    // this counter only drives the "25 cacti jumped" achievement.
+    const before = this.cacti.length;
     compactInPlace(this.cacti, (c) => c.x >= -c.w);
+    const retired = before - this.cacti.length;
+    if (retired > 0) state.runCactiCleared += retired;
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
