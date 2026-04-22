@@ -3041,8 +3041,17 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       }
     }
 
+    // Cursor-hide: any just-pressed pad button flips the body into
+    // "pad-active" mode, which CSS uses to hide the mouse cursor. A
+    // pointermove listener (wired in init) drops it again the moment
+    // the player reaches for the mouse — so both input devices "win"
+    // whichever was last used, no unplug needed.
     for (let i = 0; i < btns.length && i < prev.length; i++) {
-      prev[i] = btns[i].value > 0.5 || btns[i].pressed;
+      const nowPressed = btns[i].value > 0.5 || btns[i].pressed;
+      if (nowPressed && !prev[i]) {
+        document.body.classList.add("pad-active");
+      }
+      prev[i] = nowPressed;
     }
   }
 
@@ -3345,8 +3354,29 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       _gamepad.connected = false;
       _gamepad.prevButtons.fill(false);
       document.body.classList.remove("gamepad-connected");
+      // A player who unplugs the pad is switching back to mouse/keys
+      // — drop the cursor-hide class so the cursor reappears even if
+      // the user hasn't touched the mouse yet.
+      document.body.classList.remove("pad-active");
       console.log("Gamepad disconnected");
     });
+
+    // Cursor visibility arbiter: whichever input type fires LAST
+    // wins. pollGamepad() adds .pad-active on any button just-press
+    // (hides the cursor); this listener drops it on any real mouse
+    // movement (shows the cursor again). Touch events don't count —
+    // touch taps ARE pointer events but touch screens don't benefit
+    // from a visible cursor, and the auto-hide keeps the canvas
+    // clean. `passive: true` so scroll performance isn't touched.
+    window.addEventListener(
+      "pointermove",
+      (e) => {
+        if (e.pointerType === "mouse") {
+          document.body.classList.remove("pad-active");
+        }
+      },
+      { passive: true },
+    );
 
     // Click-feedback delegate: any interactive UI element the
     // player can activate gets a brief scale wiggle + synthesized
