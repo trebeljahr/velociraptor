@@ -228,8 +228,11 @@ registerReady();
 // ───────── Live score readout (DOM) ─────────
 const scoreDisplay = document.getElementById("score-display");
 const scoreValueEl = document.getElementById("score-value");
+const scoreCoinValueEl = document.getElementById("score-coin-value");
 let displayedScore = 0;
+let displayedCoins = 0;
 let lastAriaScore = -1;
+let lastAriaCoins = -1;
 let scoreLoopRunning = false;
 
 function scoreLoop() {
@@ -250,15 +253,41 @@ function scoreLoop() {
     // changes, not on every tween frame, so assistive
     // tech doesn't get spammed with intermediate values.
     if (target !== lastAriaScore && scoreDisplay) {
-      scoreDisplay.setAttribute("aria-label", "Score: " + target);
+      const coinsForLabel = window.Game.getCoinsBalance?.() ?? 0;
+      scoreDisplay.setAttribute(
+        "aria-label",
+        `Score: ${target} meters, ${coinsForLabel} coins`,
+      );
       lastAriaScore = target;
+      lastAriaCoins = coinsForLabel;
+    }
+  }
+  // Coin balance — tween independently so a pickup pop reads as a
+  // quick count-up instead of snapping. Updates only when the real
+  // value changes (pickup or revive spend), not every frame.
+  if (window.Game && window.Game.getCoinsBalance && scoreCoinValueEl) {
+    const target = window.Game.getCoinsBalance();
+    const diff = target - displayedCoins;
+    if (Math.abs(diff) > 0.01) {
+      displayedCoins += diff * 0.22;
+      if (Math.abs(target - displayedCoins) < 0.5) displayedCoins = target;
+      scoreCoinValueEl.textContent = String(Math.floor(displayedCoins));
+    }
+    if (target !== lastAriaCoins && scoreDisplay && lastAriaScore >= 0) {
+      scoreDisplay.setAttribute(
+        "aria-label",
+        `Score: ${lastAriaScore} meters, ${target} coins`,
+      );
+      lastAriaCoins = target;
     }
   }
   requestAnimationFrame(scoreLoop);
 }
 function showScoreDisplay() {
   displayedScore = 0;
+  displayedCoins = window.Game?.getCoinsBalance?.() ?? 0;
   if (scoreValueEl) scoreValueEl.textContent = "0";
+  if (scoreCoinValueEl) scoreCoinValueEl.textContent = String(displayedCoins);
   if (scoreDisplay) scoreDisplay.hidden = false;
   if (!scoreLoopRunning) {
     scoreLoopRunning = true;
@@ -268,7 +297,9 @@ function showScoreDisplay() {
 function hideScoreDisplay() {
   if (scoreDisplay) scoreDisplay.hidden = true;
   displayedScore = 0;
+  displayedCoins = 0;
   if (scoreValueEl) scoreValueEl.textContent = "0";
+  if (scoreCoinValueEl) scoreCoinValueEl.textContent = "0";
   scoreLoopRunning = false;
 }
 
