@@ -19,6 +19,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev:web", "--", "--port", "5274"],
       "port": 5274
+    },
+    {
+      "name": "icons-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "58417"],
+      "port": 58417
     }
   ]
 }

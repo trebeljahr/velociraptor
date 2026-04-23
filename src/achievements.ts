@@ -53,10 +53,28 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
     id: "first-run",
     title: "First Steps",
     desc: "Complete your first run",
-    // Classic 3-toed dinosaur footprint — wide splaying toes
-    // with pointed claw tips from a teardrop heel.
+    // Chunky three-toed raptor footprint: one wide heel pad with
+    // three bold toe-pad ellipses overlapping its top, each crowned
+    // by a triangular claw. Dune brown on sand so the silhouette
+    // reads as a stamped footprint at 48×48, with a tiny sand fleck
+    // on the heel for depth.
     iconHTML:
-      '<path d="M12 22 C9.5 22 8.5 20.5 9 18.5 L10.5 14 C9 13.5 6.5 12 5.5 9 C4.8 6.8 6 5.5 7.5 6.2 C8.8 6.8 9.5 9 10.5 12 L11.5 14.5 L11.5 9.5 C11 7 11.2 3.5 12 2 C12.8 3.5 13 7 12.5 9.5 L12.5 14.5 L13.5 12 C14.5 9 15.2 6.8 16.5 6.2 C18 5.5 19.2 6.8 18.5 9 C17.5 12 15 13.5 13.5 14 L15 18.5 C15.5 20.5 14.5 22 12 22Z" fill="#6d7580"/>',
+      // Heel pad — wide, dominates the bottom half.
+      '<ellipse cx="12" cy="18" rx="5.2" ry="3.5" fill="#2a1d13"/>' +
+      // Centre toe pad (largest, straight up).
+      '<ellipse cx="12" cy="10.5" rx="2.5" ry="4" fill="#2a1d13"/>' +
+      // Left toe pad (tilted outward).
+      '<ellipse cx="7.7" cy="12" rx="2.2" ry="3.5" transform="rotate(-20 7.7 12)" fill="#2a1d13"/>' +
+      // Right toe pad (tilted outward, mirror).
+      '<ellipse cx="16.3" cy="12" rx="2.2" ry="3.5" transform="rotate(20 16.3 12)" fill="#2a1d13"/>' +
+      // Centre claw tip.
+      '<polygon points="10.6,7 12,3 13.4,7" fill="#2a1d13"/>' +
+      // Left claw tip.
+      '<polygon points="5.6,8.4 6.8,4.5 8.3,8.2" fill="#2a1d13"/>' +
+      // Right claw tip.
+      '<polygon points="18.4,8.4 17.2,4.5 15.7,8.2" fill="#2a1d13"/>' +
+      // Heel-pad highlight — one sand fleck to catch the eye.
+      '<ellipse cx="10.5" cy="17.5" rx="1.5" ry="0.6" fill="#f5dcaa" opacity="0.55"/>',
   },
   {
     id: "first-jump",
@@ -267,54 +285,116 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
     id: "first-purchase",
     title: "Treat Yourself",
     desc: "Buy your first cosmetic from the shop",
-    // Shopping bag with a tag "1".
+    // Sand-coloured shopping bag with dune handles + outline, a
+    // single gold coin peeking out of the top. Brand palette all
+    // the way through so the icon sits in the shop strip without
+    // the old flat-orange jarring against the sand card.
     iconHTML:
-      '<path d="M5 9h14l-1.3 11.2a2 2 0 0 1-2 1.8H8.3a2 2 0 0 1-2-1.8L5 9z" fill="#ffb347" stroke="#7a4a00" stroke-width="1"/>' +
-      '<path d="M8.5 9V7a3.5 3.5 0 0 1 7 0v2" fill="none" stroke="#7a4a00" stroke-width="1.4"/>' +
-      '<circle cx="12" cy="14.5" r="3.2" fill="#fff" stroke="#7a4a00" stroke-width="0.8"/>' +
-      '<text x="12" y="16.4" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="4.2" font-weight="900" fill="#7a4a00">1</text>',
+      // Bag shadow.
+      '<ellipse cx="12" cy="21.8" rx="6" ry="0.7" fill="#2a1d13" opacity="0.25"/>' +
+      // Bag body (trapezoid narrower at the bottom).
+      '<path d="M5.8 9 L18.2 9 L17.2 20.8 C17.1 21.5 16.6 22 15.9 22 L8.1 22 C7.4 22 6.9 21.5 6.8 20.8 Z" fill="#f5dcaa" stroke="#2a1d13" stroke-width="1.2" stroke-linejoin="round"/>' +
+      // Vertical seam accents.
+      '<line x1="9.5" y1="9.5" x2="9.2" y2="21.2" stroke="#2a1d13" stroke-width="0.4" opacity="0.35"/>' +
+      '<line x1="14.5" y1="9.5" x2="14.8" y2="21.2" stroke="#2a1d13" stroke-width="0.4" opacity="0.35"/>' +
+      // Rolled-over top lip.
+      '<rect x="5.8" y="8.5" width="12.4" height="1.2" fill="#e8c98e" stroke="#2a1d13" stroke-width="1.1" stroke-linejoin="round"/>' +
+      // Handles — rope arcs anchoring to the bag top.
+      '<path d="M9 9 C9 4.8 10.5 3.5 12 3.5 C13.5 3.5 15 4.8 15 9" fill="none" stroke="#2a1d13" stroke-width="1.5" stroke-linecap="round"/>' +
+      // Gold coin peeking out of the bag.
+      '<circle cx="12" cy="13.5" r="3.8" fill="#fbbf24" stroke="#2a1d13" stroke-width="1"/>' +
+      // Inner coin rim.
+      '<circle cx="12" cy="13.5" r="2.5" fill="none" stroke="#2a1d13" stroke-width="0.7"/>' +
+      // Coin star stamp.
+      '<path d="M12 11.8 L12.55 13.1 L13.95 13.2 L12.85 14.05 L13.25 15.4 L12 14.6 L10.75 15.4 L11.15 14.05 L10.05 13.2 L11.45 13.1 Z" fill="#2a1d13"/>',
   },
   {
     id: "fully-equipped",
     title: "Jurassic Runway",
     desc: "Equip a cosmetic in every slot at the same time",
-    // Three tiny coloured squares in a row, each hinting at one
-    // slot's tint colour. Checkmark inside each square.
+    // Vertical trio of the actual cosmetic archetypes — party hat,
+    // sunglasses, bow-tie — so the icon reads as "wearing the set"
+    // at a glance instead of three abstract tick-marked rectangles.
     iconHTML:
-      '<rect x="2" y="8" width="6" height="8" rx="1.2" fill="#d97706"/>' + // head
-      '<rect x="9" y="8" width="6" height="8" rx="1.2" fill="#1f2937"/>' + // eyes
-      '<rect x="16" y="8" width="6" height="8" rx="1.2" fill="#b91c1c"/>' + // neck
-      '<path d="M3.5 12l1.2 1.2 2.1-2.2" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<path d="M10.5 12l1.2 1.2 2.1-2.2" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<path d="M17.5 12l1.2 1.2 2.1-2.2" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>',
+      // ── Party hat (top) ──
+      '<path d="M12 2 L16.5 8 L7.5 8 Z" fill="#ec4899" stroke="#2a1d13" stroke-width="1" stroke-linejoin="round"/>' +
+      // Hat stripe.
+      '<path d="M9 6 L15 6" stroke="#fbebc6" stroke-width="0.7"/>' +
+      // Hat pompom.
+      '<circle cx="12" cy="2" r="1.2" fill="#fbbf24" stroke="#2a1d13" stroke-width="0.7"/>' +
+      // ── Sunglasses (middle) ──
+      '<rect x="4.5" y="10.5" width="6" height="4" rx="1" fill="#1f2937" stroke="#2a1d13" stroke-width="0.9"/>' +
+      '<rect x="13.5" y="10.5" width="6" height="4" rx="1" fill="#1f2937" stroke="#2a1d13" stroke-width="0.9"/>' +
+      // Bridge.
+      '<line x1="10.5" y1="12.5" x2="13.5" y2="12.5" stroke="#2a1d13" stroke-width="1.2" stroke-linecap="round"/>' +
+      // Lens glare.
+      '<line x1="5.5" y1="11.5" x2="7" y2="11.5" stroke="#fbebc6" stroke-width="0.7" stroke-linecap="round" opacity="0.8"/>' +
+      '<line x1="14.5" y1="11.5" x2="16" y2="11.5" stroke="#fbebc6" stroke-width="0.7" stroke-linecap="round" opacity="0.8"/>' +
+      // ── Bow-tie (bottom) ──
+      '<path d="M3 19.5 L10.8 17 L10.8 22 Z" fill="#dc2626" stroke="#2a1d13" stroke-width="0.9" stroke-linejoin="round"/>' +
+      '<path d="M21 19.5 L13.2 17 L13.2 22 Z" fill="#dc2626" stroke="#2a1d13" stroke-width="0.9" stroke-linejoin="round"/>' +
+      // Centre knot.
+      '<rect x="10.5" y="17.5" width="3" height="4" rx="0.4" fill="#991b1b" stroke="#2a1d13" stroke-width="0.8"/>',
   },
   {
     id: "coin-hoarder",
     title: "Scrooge McRaptor",
     desc: "Pick up 1,000 coins across all your runs",
-    // Stack of three gold coins with a "1K" stamp on the top.
+    // Three-deep stack of brand-gold coins with a "1K" stamp, a
+    // ground shadow, and a corner sparkle. Top coin is the
+    // brightest so the stack reads as dimensional instead of flat.
     iconHTML:
-      '<ellipse cx="12" cy="19" rx="8" ry="2.2" fill="#b8860b"/>' +
-      '<rect x="4" y="14" width="16" height="4.5" fill="#e0a818"/>' +
-      '<ellipse cx="12" cy="14" rx="8" ry="2.2" fill="#f2c94c" stroke="#7a4a00" stroke-width="0.8"/>' +
-      '<rect x="4" y="9" width="16" height="4.5" fill="#e0a818"/>' +
-      '<ellipse cx="12" cy="9" rx="8" ry="2.2" fill="#f2c94c" stroke="#7a4a00" stroke-width="0.8"/>' +
-      '<rect x="4" y="4" width="16" height="4.5" fill="#e0a818"/>' +
-      '<ellipse cx="12" cy="4" rx="8" ry="2.2" fill="#ffd95a" stroke="#7a4a00" stroke-width="0.8"/>' +
-      '<text x="12" y="5.7" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="3.6" font-weight="900" fill="#7a4a00">1K</text>',
+      // Ground shadow.
+      '<ellipse cx="12" cy="22" rx="9" ry="0.9" fill="#2a1d13" opacity="0.3"/>' +
+      // Bottom coin — sides + disc.
+      '<rect x="4" y="17.2" width="16" height="3" fill="#d97706"/>' +
+      '<ellipse cx="12" cy="20.2" rx="8" ry="1.8" fill="#d97706"/>' +
+      '<ellipse cx="12" cy="17.2" rx="8" ry="1.8" fill="#fbbf24" stroke="#2a1d13" stroke-width="0.9"/>' +
+      // Middle coin.
+      '<rect x="4" y="11" width="16" height="3" fill="#d97706"/>' +
+      '<ellipse cx="12" cy="14" rx="8" ry="1.8" fill="#d97706"/>' +
+      '<ellipse cx="12" cy="11" rx="8" ry="1.8" fill="#fbbf24" stroke="#2a1d13" stroke-width="0.9"/>' +
+      // Top coin — brightest, carries the "1K" stamp.
+      '<rect x="4" y="4.8" width="16" height="3" fill="#d97706"/>' +
+      '<ellipse cx="12" cy="7.8" rx="8" ry="1.8" fill="#d97706"/>' +
+      '<ellipse cx="12" cy="4.8" rx="8" ry="1.8" fill="#fde68a" stroke="#2a1d13" stroke-width="0.9"/>' +
+      // Inner disc outline on the top coin — suggests a milled rim.
+      '<ellipse cx="12" cy="4.8" rx="6.2" ry="1.2" fill="none" stroke="#2a1d13" stroke-width="0.4" opacity="0.55"/>' +
+      // "1K" stamp.
+      '<text x="12" y="5.9" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="2.8" font-weight="900" fill="#2a1d13">1K</text>' +
+      // Sparkle on the upper-right to sell the shine.
+      '<path d="M21 2.5 L21.4 3.7 L22.5 4.1 L21.4 4.5 L21 5.7 L20.6 4.5 L19.5 4.1 L20.6 3.7 Z" fill="#fbebc6" stroke="#2a1d13" stroke-width="0.4" stroke-linejoin="round"/>',
   },
   {
     id: "shop-cleaned-out",
     title: "Shopkeeper\u2019s Early Retirement",
     desc: "Own every item in the shop",
-    // Empty-shelf icon: three bare shelves + a hanging "SOLD OUT" tag.
+    // Little storefront — red-striped awning, sand facade with
+    // empty shelf lines flanking a dark door, and a tilted
+    // "SOLD OUT" banner across the front. Brand palette.
     iconHTML:
-      '<rect x="3" y="4" width="18" height="16" rx="1.5" fill="none" stroke="#7a4a00" stroke-width="1.4"/>' +
-      '<line x1="3" y1="10" x2="21" y2="10" stroke="#7a4a00" stroke-width="1.2"/>' +
-      '<line x1="3" y1="15" x2="21" y2="15" stroke="#7a4a00" stroke-width="1.2"/>' +
-      '<path d="M13 2l6 4-2 2.8a1 1 0 0 1-1.4.2L9 4.6a1 1 0 0 1 .2-1.4z" fill="#e85f5c" stroke="#7a4a00" stroke-width="0.8"/>' +
-      '<circle cx="14.2" cy="4.4" r="0.7" fill="#fff"/>' +
-      '<text x="15" y="8.3" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="2.8" font-weight="900" fill="#fff">SOLD</text>',
+      // Awning (striped triangular bunting below the rooftop).
+      '<path d="M3 6 L21 6 L19.5 10 L4.5 10 Z" fill="#dc2626" stroke="#2a1d13" stroke-width="1" stroke-linejoin="round"/>' +
+      // Awning stripes.
+      '<line x1="7.5" y1="6" x2="6.8" y2="10" stroke="#fbebc6" stroke-width="0.7" stroke-linecap="round"/>' +
+      '<line x1="12" y1="6" x2="12" y2="10" stroke="#fbebc6" stroke-width="0.7" stroke-linecap="round"/>' +
+      '<line x1="16.5" y1="6" x2="17.2" y2="10" stroke="#fbebc6" stroke-width="0.7" stroke-linecap="round"/>' +
+      // Shop facade.
+      '<rect x="4.5" y="10" width="15" height="11" fill="#f5dcaa" stroke="#2a1d13" stroke-width="1.1"/>' +
+      // Door.
+      '<rect x="10" y="14" width="4" height="7" fill="#4a3526" stroke="#2a1d13" stroke-width="0.7"/>' +
+      // Door handle.
+      '<circle cx="13.2" cy="17.8" r="0.4" fill="#fbbf24"/>' +
+      // Empty shelf lines flanking the door.
+      '<line x1="5.5" y1="14" x2="9.2" y2="14" stroke="#2a1d13" stroke-width="0.9" stroke-linecap="round"/>' +
+      '<line x1="5.5" y1="18" x2="9.2" y2="18" stroke="#2a1d13" stroke-width="0.9" stroke-linecap="round"/>' +
+      '<line x1="14.8" y1="14" x2="18.5" y2="14" stroke="#2a1d13" stroke-width="0.9" stroke-linecap="round"/>' +
+      '<line x1="14.8" y1="18" x2="18.5" y2="18" stroke="#2a1d13" stroke-width="0.9" stroke-linecap="round"/>' +
+      // "SOLD OUT" banner, tilted.
+      '<g transform="rotate(-10 12 12.5)">' +
+      '<rect x="2" y="11" width="20" height="3.3" fill="#fbbf24" stroke="#2a1d13" stroke-width="1"/>' +
+      '<text x="12" y="13.4" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif" font-size="2.6" font-weight="900" fill="#2a1d13">SOLD OUT</text>' +
+      "</g>",
   },
 ];
 
