@@ -558,8 +558,6 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       saveTotalDayCycles(state.totalDayCycles);
       // Moon phase: realistic ~29.5 day synodic month
       state.moonPhase = moonPhaseFromCycles(state.totalDayCycles);
-      if (Math.abs(state.moonPhase - 0.5) < 0.02)
-        unlockAchievement("full-moon");
       // Start rain at cycle boundaries; duration is 0.3–1.2 day cycles
       if (!state.isRaining && shouldRainForCycle(state.totalDayCycles)) {
         state.isRaining = true;
@@ -570,6 +568,20 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       }
     }
     state.lastCycleIndex = cycleIndex;
+
+    // Full-moon achievement fires at the moon's zenith — the player
+    // should actually see the moon overhead, not just be in a cycle
+    // where it happens to be full. smoothPhase grows monotonically,
+    // so floor(smoothPhase - MOON_PHASE_CENTER) is a counter that
+    // increments once each time the moon crests.
+    const moonZenithCycle = Math.floor(state.smoothPhase - MOON_PHASE_CENTER);
+    if (
+      moonZenithCycle > state.lastMoonZenithCycle &&
+      Math.abs(state.moonPhase - 0.5) < 0.02
+    ) {
+      unlockAchievement("full-moon");
+    }
+    state.lastMoonZenithCycle = moonZenithCycle;
 
     // End rain when duration expires. Only grant the achievement if
     // the storm actually started during the current run — continuing
@@ -1548,6 +1560,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       state.rainEndPhase = 0;
       state.rainbow = null;
       state.lastCycleIndex = -1;
+      state.lastMoonZenithCycle = -1;
       audio.stopRain();
       // Cloud density reroll: 20% cloudless, 50% normal, 30% extra cloudy
       const cdRoll = Math.random();
@@ -2294,11 +2307,13 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       state.totalDayCycles += 1;
       saveTotalDayCycles(state.totalDayCycles);
       state.moonPhase = moonPhaseFromCycles(state.totalDayCycles);
-      // Jump to the start of night (band 6 of 12 = phase 0.5)
-      state.smoothPhase = Math.floor(state.smoothPhase) + 0.5;
+      // Jump to the moon zenith so the debug view immediately shows
+      // the moon overhead — and the normal zenith-crossing detector
+      // below will fire the achievement on the next frame.
+      state.smoothPhase = Math.floor(state.smoothPhase) + MOON_PHASE_CENTER;
       state.lastCycleIndex = Math.floor(state.smoothPhase);
-      if (Math.abs(state.moonPhase - 0.5) < 0.02)
-        unlockAchievement("full-moon");
+      state.lastMoonZenithCycle =
+        Math.floor(state.smoothPhase - MOON_PHASE_CENTER) - 1;
       return state.moonPhase;
     },
 

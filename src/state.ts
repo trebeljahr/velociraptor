@@ -168,6 +168,12 @@ export interface GameState {
   // ── Rain weather ───────────────────────────────────
   totalDayCycles: number;
   lastCycleIndex: number;
+  /** Cycle whose moon-zenith we've already credited for the
+   *  "Lunar Glory" achievement. Increments each time smoothPhase
+   *  crosses MOON_PHASE_CENTER, so the unlock fires when the player
+   *  actually sees the full moon overhead — not at the cycle
+   *  boundary, when it's still below the horizon. */
+  lastMoonZenithCycle: number;
   isRaining: boolean;
   rainIntensity: number;
   rainEndPhase: number;
@@ -255,6 +261,7 @@ export const state: GameState = {
   _nextBreatherAtScore: 500,
   totalDayCycles: 0,
   lastCycleIndex: -1,
+  lastMoonZenithCycle: -1,
   isRaining: false,
   rainIntensity: 0,
   rainEndPhase: 0,
