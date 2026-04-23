@@ -289,7 +289,9 @@ import {
 import {
   _isNightBand,
   _isDayBand,
+  _isMagentaBand,
   isNightPhase,
+  isRainbowPhase,
   tintStrength,
   tintFactor,
   celestialArc,
@@ -608,8 +610,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     updateRain(dtSec);
     updateLightning(frameScale, now);
 
-    // Rainbow: rare chance after rain fades out during daytime.
-    // Never on the first storm, ~30% chance thereafter.
+    // Rainbow: rare chance after rain fades out during daytime /
+    // golden hour. isRainbowPhase() excludes night, blue-hour, AND
+    // the magenta sunset/sunrise bands — an arc spawned against the
+    // warm red transition reads as muddy, so we cap the window at
+    // golden hour (band 5 pre-sunset, band 15 post-sunrise).
     if (
       !state.gameOver &&
       !raining &&
@@ -618,8 +623,10 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       !state.rainbow
     ) {
       const phase = ((state.smoothPhase % 1) + 1) % 1;
-      const bi = Math.floor(phase * SKY_COLORS.length);
-      if (!_isNightBand[bi] && !_isNightBand[(bi + 1) % SKY_COLORS.length]) {
+      const bandF = phase * SKY_COLORS.length;
+      const bi = Math.floor(bandF);
+      const bandT = bandF - bi;
+      if (isRainbowPhase(bi, bandT)) {
         // Debug rain stop: always rainbow. Natural: 50% chance.
         if (state._debugRainStop || Math.random() < RAINBOW_SPAWN_CHANCE) {
           state.rainbow = { age: 0, life: RAINBOW_LIFETIME_SEC };
@@ -628,10 +635,21 @@ import { generateScoreCardBlob } from "./render/scoreCard";
         state._debugRainStop = false;
       }
     }
-    // Update rainbow
+    // Update rainbow — age it, AND kill it immediately if the sky
+    // phase leaves the rainbow-friendly zone (e.g. sunset red creeps
+    // in while an arc is still on screen). Prevents the "rainbow
+    // hanging in a magenta sky" look the user called out.
     if (state.rainbow) {
       state.rainbow.age += dtSec;
-      if (state.rainbow.age >= state.rainbow.life) state.rainbow = null;
+      if (state.rainbow.age >= state.rainbow.life) {
+        state.rainbow = null;
+      } else {
+        const phase = ((state.smoothPhase % 1) + 1) % 1;
+        const bandF = phase * SKY_COLORS.length;
+        const bi = Math.floor(bandF);
+        const bandT = bandF - bi;
+        if (!isRainbowPhase(bi, bandT)) state.rainbow = null;
+      }
     }
 
     // Rain audio: fade volume with intensity
@@ -772,6 +790,18 @@ import { generateScoreCardBlob } from "./render/scoreCard";
           }
         }
       }
+
+      // Compute the shared integer scroll delta for THIS frame BEFORE
+      // any entity updates. Every world-scrolling entity reads the
+      // same state._frameScrollDx so they move in lockstep — no
+      // per-entity round-off means no inter-cactus "dance" as the
+      // sub-pixel remainders drift in and out of phase.
+      const _rawScrollDx =
+        state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * frameScale;
+      state._scrollResidualX += _rawScrollDx;
+      const _intScrollDx = Math.round(state._scrollResidualX);
+      state._scrollResidualX -= _intScrollDx;
+      state._frameScrollDx = _intScrollDx;
 
       raptor.update(now, frameScale);
       cactuses.update(now, frameScale);
@@ -1458,8 +1488,15 @@ import { generateScoreCardBlob } from "./render/scoreCard";
    *  the stored personal best and, if so, saves it and flags the
    *  run for celebration on the game-over overlay. */
   function commitRunScore() {
-    if (state.score > state.highScore) {
-      state.highScore = state.score;
+    // Floor before comparing + saving — state.score is a continuous
+    // meter counter that carries fractional-meter precision the
+    // display side doesn't care about. Persisting the raw float
+    // surfaced as an ugly "2183.4567 m" on the menu's personal-best
+    // line; keeping the stored value integer matches the HUD which
+    // already Math.floor's the live score.
+    const floored = Math.floor(state.score);
+    if (floored > state.highScore) {
+      state.highScore = floored;
       state.newHighScore = true;
       saveHighScore(state.highScore);
     } else {
@@ -2302,7 +2339,11 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       return RARE_EVENTS.map((e) => e.id);
     },
 
-    /** Debug: advance to next day cycle and update moon phase. */
+    /** Debug: advance to next day cycle and update moon phase. Jump
+     *  the sky phase to the moon's zenith so the full-moon gate in
+     *  the main loop can fire this same cycle without the player
+     *  having to wait half a day for the sky to catch up to the
+     *  phase anchor. */
     advanceMoonPhase() {
       state.totalDayCycles += 1;
       saveTotalDayCycles(state.totalDayCycles);
@@ -3386,11 +3427,38 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // touch taps ARE pointer events but touch screens don't benefit
     // from a visible cursor, and the auto-hide keeps the canvas
     // clean. `passive: true` so scroll performance isn't touched.
+    //
+    // Idle-hide: after `MOUSE_IDLE_HIDE_MS` without real mouse motion
+    // we add `body.mouse-idle` so the cursor fades into the canvas
+    // while the player is actively running (one fewer distraction on
+    // the scrolling ground). The next pointermove / pointerdown
+    // clears it. Touch pointerType never triggers the timer; touch
+    // devices don't render a cursor in the first place.
+    const MOUSE_IDLE_HIDE_MS = 1500;
+    let _mouseIdleTimer: ReturnType<typeof setTimeout> | null = null;
+    const armMouseIdle = () => {
+      if (_mouseIdleTimer !== null) clearTimeout(_mouseIdleTimer);
+      _mouseIdleTimer = setTimeout(() => {
+        document.body.classList.add("mouse-idle");
+      }, MOUSE_IDLE_HIDE_MS);
+    };
     window.addEventListener(
       "pointermove",
       (e) => {
         if (e.pointerType === "mouse") {
           document.body.classList.remove("pad-active");
+          document.body.classList.remove("mouse-idle");
+          armMouseIdle();
+        }
+      },
+      { passive: true },
+    );
+    window.addEventListener(
+      "pointerdown",
+      (e) => {
+        if (e.pointerType === "mouse") {
+          document.body.classList.remove("mouse-idle");
+          armMouseIdle();
         }
       },
       { passive: true },

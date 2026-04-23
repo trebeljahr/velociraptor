@@ -650,7 +650,7 @@ function refreshMenuHighscore() {
   const hsVal = document.getElementById("menu-highscore-value");
   if (!hsEl || !hsVal || !window.Game || !window.Game.getHighScore)
     return;
-  const hs = window.Game.getHighScore() || 0;
+  const hs = Math.floor(window.Game.getHighScore() || 0);
   if (hs > 0) {
     hsVal.textContent = String(hs);
     hsEl.hidden = false;

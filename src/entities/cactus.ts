@@ -25,13 +25,18 @@ import {
   CACTUS_BREATHER_MAX_SECONDS,
   FLOWER_PATCH_WIDTH_PX,
   PTERODACTYL_SPAWN_CHANCE,
+  PTERODACTYL_LOW_FLIGHT_CHANCE,
 } from "../constants";
 import { state } from "../state";
 import { IMAGES } from "../images";
 import { CACTUS_VARIANTS, CactusVariant } from "../cactusVariants";
 import { Polygon, compactInPlace } from "../helpers";
 import { makeFlowerPatch } from "./flowers";
-import { spawnCoinsInRange, spawnCoinAboveCactus } from "./coins";
+import {
+  spawnCoinsInRange,
+  spawnCoinAboveCactus,
+  spawnCoinUnderPterodactyl,
+} from "./coins";
 import { Raptor } from "./raptor";
 import { Pterodactyls } from "./pterodactyl";
 
@@ -71,9 +76,11 @@ export class Cactus {
     this._polyCache = null;
   }
 
-  update(frameScale = 1): void {
-    this.x -=
-      state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * frameScale;
+  update(_frameScale = 1): void {
+    // Shared integer dx computed once per frame in main.ts —
+    // eliminates inter-entity rounding drift that made back-to-back
+    // cacti appear to "dance" as their sub-pixel phases differed.
+    this.x -= state._frameScrollDx;
     this._polyCache = null;
   }
 
@@ -222,17 +229,43 @@ export class Cactuses {
    *  of derived from the last cactus' x) so the spawn check survives
    *  a breather that empties the cacti array before the next spawn. */
   private _scrollSinceLastSpawn = 0;
+  /** True if the previous spawn was a pterodactyl. We use this to
+   *  force at least one cactus between back-to-back flyers so they
+   *  don't arrive as a "two-ptero wall" that the player can't clear
+   *  without a perfectly-timed double jump they haven't learned yet. */
+  private _prevSpawnWasPtero = false;
 
   spawn(): void {
-    // Roll to replace this spawn with a pterodactyl. No coin above a
-    // flyer — the reward-ladder lives on cactus tops, and lifting a
-    // coin to the pterodactyl's flight height would drag it into the
-    // jump-peak envelope where it'd collide with the flyer itself.
-    const pteroRoll = this._forcePteroNext || Math.random() < PTERODACTYL_SPAWN_CHANCE;
+    // Roll to replace this spawn with a pterodactyl. Always force a
+    // cactus (not another flyer) immediately after a pterodactyl so
+    // the player gets at least one ground obstacle to reset their
+    // rhythm — two pteros back-to-back leaves no space to recover
+    // from a misread flap cycle. Exception: the debug force-spawn
+    // (_forcePteroNext) still honours the request.
+    let pteroRoll = this._forcePteroNext;
+    if (!pteroRoll && !this._prevSpawnWasPtero) {
+      pteroRoll = Math.random() < PTERODACTYL_SPAWN_CHANCE;
+    }
     this._forcePteroNext = false;
     if (pteroRoll) {
-      this.pterodactyls.spawn();
+      // ~35% of pterodactyls spawn at the LOW (coin-height) flight
+      // band instead of the default tall one. Low flyers force a
+      // duck-style "stay on the ground and time it" read; the tall
+      // ones stay the "jump-over" threat players already know. A
+      // coin rides directly beneath the flyer (centred on its x
+      // when it reaches the raptor) so the choice to avoid the
+      // ptero doubles as a coin-grab opportunity.
+      const isLow = Math.random() < PTERODACTYL_LOW_FLIGHT_CHANCE;
+      const p = this.pterodactyls.spawn(isLow);
+      // One coin below the flyer, positioned at ground-hover height
+      // so the raptor collects it by running underneath without
+      // jumping. skipped when the flyer itself is low — the body
+      // would overlap the coin and turn a pickup into a death.
+      if (!isLow) {
+        spawnCoinUnderPterodactyl(p.x, p.w, this.raptor);
+      }
       this._scrollSinceLastSpawn = 0;
+      this._prevSpawnWasPtero = true;
       // Breather cadence is score-gated now — no per-obstacle counter
       // to bump here, the gate in _rollNextGap does the work.
       this._rollNextGap();
@@ -242,6 +275,7 @@ export class Cactuses {
       CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
     const cactus = new Cactus(variant, this.raptor);
     this.cacti.push(cactus);
+    this._prevSpawnWasPtero = false;
     // Under the coins-only scoring model, clearing a cactus no longer
     // grants points directly — the reward is the coin sitting in the
     // jump arc above it. Spawn that coin here, using the cactus's
@@ -269,13 +303,11 @@ export class Cactuses {
   }
 
   update(now: number, frameScale = 1): void {
-    // Accumulate this frame's scroll BEFORE the spawn check. Must
-    // match the per-frame scroll that Cactus.update applies to each
-    // cactus (and that updateFlowerPatches applies to flower patches)
-    // so the gap check here and the visible motion stay in lockstep.
-    const dx =
-      state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * frameScale;
-    this._scrollSinceLastSpawn += dx;
+    // Accumulate this frame's scroll BEFORE the spawn check. Uses
+    // the shared integer dx so the spawn timing stays in lockstep
+    // with the visible entity motion — both sides drained from the
+    // same residual in main.ts.
+    this._scrollSinceLastSpawn += state._frameScrollDx;
 
     if (this._scrollSinceLastSpawn >= this._nextGap) {
       const isFirstSpawn =

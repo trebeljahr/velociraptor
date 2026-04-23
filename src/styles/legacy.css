@@ -22,17 +22,22 @@ html,
         /* Lock the background color so a rubber-band overscroll on
            iOS shows sky-blue instead of white. */
         background: #50b4cd;
-        /* Custom cursor: chunky cream-and-umber arrow in the game's
-           desert palette. 32×32 pixel-art style, hotspot at (3, 3)
-           aligns with the SVG's tip. `auto` is the fallback for
-           environments that don't support SVG cursors (ancient
-           Safari, some Electron builds) — they get the system arrow. */
-        cursor: url("/assets/cursors/cursor-default.svg") 3 3, auto;
+      }
+      /* Custom cursor applied on every element, not just `body`, so
+         a custom cursor set on a specific element never regresses us
+         to the system arrow. The browser would otherwise fall back
+         to the OS default when a focused/hovered element has no
+         cursor rule — e.g. the top-right icon buttons near the screen
+         edge where the SVG clips. */
+      html,
+      body,
+      body * {
+        cursor: url("/assets/cursors/cursor-default.svg") 2 2, auto;
       }
       /* Pointer cursor on every interactive affordance. Uses the
          raptor-footprint silhouette from the "first-run" achievement
          icon so the visual language stays coherent between cursor
-         and UI art. Hotspot at (14, 3) — top of the middle toe, i.e.
+         and UI art. Hotspot at (19, 0) — top of the middle toe, i.e.
          the "pointing" tip. */
       a,
       button,
@@ -40,23 +45,96 @@ html,
       [role="button"],
       [role="menuitem"],
       .menu-item,
-      .cursor-pointer {
+      .cursor-pointer,
+      a *,
+      button *,
+      summary *,
+      [role="button"] *,
+      [role="menuitem"] *,
+      .menu-item *,
+      .cursor-pointer * {
         cursor: url("/assets/cursors/cursor-pointer.png") 19 0, pointer;
+      }
+      /* Pressed state — inverted-palette arrow so a click reads as
+         "pushed in". Applied on active pointer-down for all
+         interactive targets plus the canvas (tap-to-jump). */
+      a:active,
+      button:active,
+      summary:active,
+      [role="button"]:active,
+      [role="menuitem"]:active,
+      .menu-item:active,
+      .cursor-pointer:active,
+      canvas:active {
+        cursor: url("/assets/cursors/cursor-tap.svg") 2 2, pointer;
+      }
+      /* Disabled state — red-slash overlay so it's clear the control
+         is not interactive. Overrides the pointer rule on the same
+         element (more specific selector). */
+      a[aria-disabled="true"],
+      button:disabled,
+      [role="button"][aria-disabled="true"],
+      .cursor-not-allowed,
+      a[aria-disabled="true"] *,
+      button:disabled *,
+      [role="button"][aria-disabled="true"] *,
+      .cursor-not-allowed * {
+        cursor: url("/assets/cursors/cursor-not-allowed.svg") 2 2,
+          not-allowed;
       }
       /* Hide the cursor when the last input was a gamepad button —
          the player's using the pad, so a floating mouse pointer is
          visual noise on top of the canvas. Mouse movement flips the
          class off again (see the pointermove listener in main.ts),
          so a player who grabs the mouse gets the cursor back
-         instantly, even without unplugging the pad. */
+         instantly, even without unplugging the pad.
+         `body.mouse-idle` is the sibling idle-hide path — set by a
+         1.5s inactivity timer in main.ts, cleared on the next real
+         mousemove. */
       body.pad-active,
-      body.pad-active * {
+      body.pad-active *,
+      body.mouse-idle,
+      body.mouse-idle * {
         cursor: none !important;
       }
       body {
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
       }
+
+      /* ───────── Custom scrollbar ─────────
+       * Matches the brand palette (sand track, dune thumb) so the
+       * menu panels / credits / achievements scrollers feel like part
+       * of the game chrome on every platform. macOS hides scrollbars
+       * by default (auto-show on scroll), but Windows + Linux render
+       * a fat grey native bar that otherwise breaks the aesthetic.
+       * Firefox uses the `scrollbar-*` shorthand — the WebKit rules
+       * below cover Chrome / Edge / desktop Safari / every Electron
+       * build + the PWA on Android. */
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-dune) var(--color-sand-dim);
+      }
+      *::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      *::-webkit-scrollbar-track {
+        background: var(--color-sand-dim);
+        border-radius: 5px;
+      }
+      *::-webkit-scrollbar-thumb {
+        background: var(--color-dune);
+        border: 2px solid var(--color-sand-dim);
+        border-radius: 5px;
+      }
+      *::-webkit-scrollbar-thumb:hover {
+        background: var(--color-sky-deep);
+      }
+      *::-webkit-scrollbar-corner {
+        background: var(--color-sand-dim);
+      }
+
       @keyframes spin {
         from {
           transform: rotate(0deg);
@@ -267,9 +345,14 @@ html,
           transform 0.06s ease;
       }
       .start-btn:not(:disabled):hover,
-      .start-btn:not(:disabled):focus-visible {
+      .start-btn:not(:disabled):focus-visible,
+      .start-btn:not(:disabled).kbd-focus {
         background: var(--color-sky);
         color: var(--color-dune);
+        /* Outline off while pulse is running — the teal fill is
+         * already the highlighted state. Prevents a Firefox
+         * default focus ring from fighting the palette. */
+        outline: none;
       }
       .start-btn:not(:disabled):active {
         transform: translateY(2px);
@@ -277,6 +360,34 @@ html,
       .start-btn:disabled {
         opacity: 0.75;
         cursor: wait;
+      }
+      /* Idle attention pulse — tiny scale-up every 3.6 s so the
+       * button reads as "tap me" without becoming noisy. Runs
+       * continuously while the button is ready AND neither hovered
+       * nor focused; stops under interaction so we don't fight the
+       * hover/active state. `prefers-reduced-motion` kills it for
+       * players with vestibular sensitivity. */
+      @keyframes start-btn-pulse {
+        0%, 85%, 100% {
+          transform: scale(1);
+          box-shadow: 0 0 0 0 rgba(80, 180, 205, 0);
+        }
+        90% {
+          transform: scale(1.035);
+          box-shadow: 0 0 0 6px rgba(80, 180, 205, 0.25);
+        }
+        95% {
+          transform: scale(1.01);
+          box-shadow: 0 0 0 10px rgba(80, 180, 205, 0);
+        }
+      }
+      .start-btn:not(:disabled):not(:hover):not(:focus-visible):not(.kbd-focus) {
+        animation: start-btn-pulse 3.6s ease-in-out infinite;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .start-btn:not(:disabled):not(:hover):not(:focus-visible):not(.kbd-focus) {
+          animation: none;
+        }
       }
       .start-btn .spinner {
         display: none;
@@ -1177,9 +1288,17 @@ html,
       .icon-btn:active {
         transform: translateY(2px);
       }
-      .icon-btn:focus-visible {
-        outline: 3px solid var(--color-dune);
-        outline-offset: 2px;
+      /* No outline on focus — the sky-blue background swap is already
+         the focus indicator, matching the rest of the menu buttons
+         (.menu-panel .menu-item) instead of layering a dune-coloured
+         ring on top of the teal fill. The .kbd-focus class is kept in
+         sync with :focus-visible by ui.ts so keyboard / gamepad nav
+         still lights the button up exactly like mouse hover. */
+      .icon-btn:focus-visible,
+      .icon-btn.kbd-focus {
+        background: var(--color-sky);
+        color: var(--color-dune);
+        outline: none;
       }
       .icon-btn svg {
         width: 20px;

@@ -23,13 +23,13 @@
  */
 
 import {
-  VELOCITY_SCALE_DIVISOR,
   PTERODACTYL_SHEET_COLS,
   PTERODACTYL_FRAMES,
   PTERODACTYL_FRAME_W,
   PTERODACTYL_FRAME_H,
   PTERODACTYL_HEIGHT_SCALE,
   PTERODACTYL_FLIGHT_HEIGHT_RATIO,
+  PTERODACTYL_LOW_FLIGHT_HEIGHT_RATIO,
   PTERODACTYL_FRAME_DELAY_MS,
 } from "../constants";
 import { state } from "../state";
@@ -97,12 +97,22 @@ export class Pterodactyl {
   );
   private _polyView: Polygon = [];
 
-  constructor(private raptor: Raptor) {
+  constructor(
+    private raptor: Raptor,
+    /** True for the low-flight variant (jump-over height instead of
+     *  the default run-under height). Persisted on the instance so
+     *  resize() can recompute the same y-band after a viewport
+     *  change. */
+    public readonly isLowFlight: boolean = false,
+  ) {
     this.img = IMAGES.pterodactylSprite;
     this.h = raptor.h * PTERODACTYL_HEIGHT_SCALE;
     this.w = this.h * (PTERODACTYL_FRAME_W / PTERODACTYL_FRAME_H);
     this.x = state.width;
-    this.y = state.ground - this.h - raptor.h * PTERODACTYL_FLIGHT_HEIGHT_RATIO;
+    const heightRatio = isLowFlight
+      ? PTERODACTYL_LOW_FLIGHT_HEIGHT_RATIO
+      : PTERODACTYL_FLIGHT_HEIGHT_RATIO;
+    this.y = state.ground - this.h - raptor.h * heightRatio;
     // Randomise entry frame so two back-to-back spawns don't sync their
     // flap cycles — avoids a distracting "two metronomes" read when a
     // debug spawn fires mid-cycle.
@@ -112,14 +122,18 @@ export class Pterodactyl {
   resize(): void {
     this.h = this.raptor.h * PTERODACTYL_HEIGHT_SCALE;
     this.w = this.h * (PTERODACTYL_FRAME_W / PTERODACTYL_FRAME_H);
-    this.y =
-      state.ground - this.h - this.raptor.h * PTERODACTYL_FLIGHT_HEIGHT_RATIO;
+    const heightRatio = this.isLowFlight
+      ? PTERODACTYL_LOW_FLIGHT_HEIGHT_RATIO
+      : PTERODACTYL_FLIGHT_HEIGHT_RATIO;
+    this.y = state.ground - this.h - this.raptor.h * heightRatio;
     this._polyCache = null;
   }
 
-  update(now: number, frameScale = 1): void {
-    this.x -=
-      state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * frameScale;
+  update(now: number, _frameScale = 1): void {
+    // Uses the shared integer dx (see state._frameScrollDx) so the
+    // flyer advances in lockstep with cacti + coins, eliminating
+    // the inter-entity pixel stutter.
+    this.x -= state._frameScrollDx;
     if (now - this._lastAdvance > PTERODACTYL_FRAME_DELAY_MS) {
       this.frame = (this.frame + 1) % PTERODACTYL_FRAMES;
       this._lastAdvance = now;
@@ -179,9 +193,11 @@ export class Pterodactyls {
 
   /** Called by the cactus spawn path when a replacement roll hits —
    *  see Cactuses.spawn() in src/entities/cactus.ts. Lets the cactus
-   *  gap/breather logic stay the source of truth for pacing. */
-  spawn(): Pterodactyl {
-    const p = new Pterodactyl(this.raptor);
+   *  gap/breather logic stay the source of truth for pacing.
+   *  `isLow` picks the lower flight band (coin-height jump-over
+   *  instead of the default run-under). */
+  spawn(isLow: boolean = false): Pterodactyl {
+    const p = new Pterodactyl(this.raptor, isLow);
     this.pteros.push(p);
     return p;
   }

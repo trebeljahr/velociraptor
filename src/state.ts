@@ -66,6 +66,16 @@ export interface GameState {
    *  on pause/reset so the first post-resume frame doesn't see a
    *  huge stale delta. */
   lastNow: number | null;
+  /** Integer-pixel scroll distance applied to every world-scrolling
+   *  entity (cactus / ptero / coin / flower / dunes) on the current
+   *  frame. Computed ONCE per tick from `bgVelocity * frameScale`
+   *  with a sub-pixel residual (_scrollResidualX) carrying the
+   *  fractional remainder forward — so all entities move by the same
+   *  integer each frame, eliminating the per-entity round-off
+   *  "stutter" players saw when two cacti drifted in and out of
+   *  phase relative to each other. */
+  _frameScrollDx: number;
+  _scrollResidualX: number;
 
   // ── Career & per-run counters ──────────────────────
   /** Total jumps the player has ever performed. Persists across
@@ -221,6 +231,8 @@ export const state: GameState = {
   smoothPhase: 0,
   starRotation: 0,
   lastNow: null,
+  _frameScrollDx: 0,
+  _scrollResidualX: 0,
   totalJumps: 0,
   runJumps: 0,
   runCactiCleared: 0,

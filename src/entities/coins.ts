@@ -12,7 +12,6 @@ import { audio } from "../audio";
 import { saveCoinsBalance } from "../persistence";
 import { pointInPolygon, Polygon, compactInPlace } from "../helpers";
 import {
-  VELOCITY_SCALE_DIVISOR,
   COIN_BANK_REWARD,
   COIN_SIZE_RATIO,
   COIN_BASE_Y_ABOVE_GROUND_RATIO,
@@ -27,6 +26,8 @@ import {
   COIN_GLINT_MAX_ALPHA,
   COIN_AMBIENT_TWINKLE_COUNT,
   COIN_TWINKLE_FREQUENCY_HZ,
+  DIAMOND_SIZE_SCALE,
+  DIAMOND_BANK_REWARD,
 } from "../constants";
 
 export interface Coin {
@@ -50,6 +51,10 @@ export interface Coin {
    *  base-pitch chime — the chain is specifically a "full field"
    *  reward, not a metric for every pickup in a run. */
   fieldCoin: boolean;
+  /** True for the diamond that replaces the last coin in a flower
+   *  field. Rendered as a blue gem, worth 10× the normal bank
+   *  reward, and still triggers lastInField's chain-end chord. */
+  isDiamond: boolean;
 }
 
 interface RaptorRef {
@@ -101,19 +106,64 @@ export function spawnCoinsInRange(
   const spanPx = spacing * gaps;
   const firstCoinX = usableStartX + (fieldWidth - spanPx) / 2;
   for (let i = 0; i < COIN_COUNT_PER_FIELD; i++) {
+    const isLast = i === COIN_COUNT_PER_FIELD - 1;
+    // Last slot is a diamond — rewards the full chain grab with a
+    // juicier visual + 10× coin payout, matching the chain-end
+    // chord that already plays on pickup number 10.
+    const isDiamond = isLast;
+    const size = isDiamond ? coinSize * DIAMOND_SIZE_SCALE : coinSize;
+    // Re-centre the larger gem on the same footprint the coin
+    // would have occupied, so spacing and the pickup hit-band stay
+    // uniform across the ribbon.
+    const x = firstCoinX + spacing * i - (size - coinSize) / 2;
+    const y = baseY - (size - coinSize) / 2;
     state.coins.push({
-      x: firstCoinX + spacing * i,
-      baseY,
-      w: coinSize,
-      h: coinSize,
+      x,
+      baseY: y,
+      w: size,
+      h: size,
       phase: Math.random() * Math.PI * 2,
       collected: false,
       collectFrame: 0,
-      lastInField: i === COIN_COUNT_PER_FIELD - 1,
+      lastInField: isLast,
       fieldCoin: true,
+      isDiamond,
     });
   }
   audio.resetCoinStreak();
+}
+
+/** Spawn a single coin at chest-height under a tall-flying
+ *  pterodactyl: running under the flyer IS the pickup. Positions
+ *  the coin at the raptor's normal coin-collect band (same y as
+ *  flower-field coins) so no jump is required — the reward for
+ *  reading a tall flyer as "don't jump, keep running" is the pickup
+ *  itself. Caller passes the ptero's current x + width; we centre
+ *  the coin under the body. */
+export function spawnCoinUnderPterodactyl(
+  pteroX: number,
+  pteroW: number,
+  raptor: RaptorRef,
+): void {
+  if (!raptor || raptor.h <= 0 || raptor.w <= 0) return;
+  const coinSize = raptor.h * COIN_SIZE_RATIO;
+  state.coins = state.coins || [];
+  const baseY =
+    state.ground -
+    raptor.h * COIN_BASE_Y_ABOVE_GROUND_RATIO -
+    coinSize / 2;
+  state.coins.push({
+    x: pteroX + pteroW / 2 - coinSize / 2,
+    baseY,
+    w: coinSize,
+    h: coinSize,
+    phase: Math.random() * Math.PI * 2,
+    collected: false,
+    collectFrame: 0,
+    lastInField: false,
+    fieldCoin: false,
+    isDiamond: false,
+  });
 }
 
 /** Spawn a single coin above a cactus: clearing IS the pickup. Coin
@@ -147,6 +197,7 @@ export function spawnCoinAboveCactus(
     // rising "ding-ding-diiing" is specifically the 10-coin field
     // reward; per-cactus pickups play the flat base-pitch chime.
     fieldCoin: false,
+    isDiamond: false,
   });
 }
 
@@ -159,10 +210,11 @@ function bobPhase(c: Coin): number {
 
 /** Scroll all live coins by this frame's ground speed and drop any
  *  that scrolled off the left edge or finished their collect fade. */
-export function updateCoins(frameScale: number): void {
+export function updateCoins(_frameScale: number): void {
   if (!state.coins || state.coins.length === 0) return;
-  const dx =
-    state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * frameScale;
+  // Shared integer dx so coins stay pixel-locked to the cacti
+  // scrolling past them — see state._frameScrollDx.
+  const dx = state._frameScrollDx;
   for (const c of state.coins) c.x -= dx;
   compactInPlace(state.coins, (c) => {
     if (c.x + c.w < -20) return false;
@@ -202,18 +254,43 @@ export function collectCoins(
       const cxC = c.x + c.w / 2;
       const cyC = cy + c.h / 2;
       const r = Math.min(c.w, c.h) / 2;
+      // Disc sampled at center + 8 surrounding points (cardinals and
+      // diagonals) — the prior 5-point set left narrow concavities
+      // of the raptor silhouette (neck/tail gaps) where a coin could
+      // phase through without any sample landing inside the body.
+      // Cheap inner-radius fallback also checks polygon vertices
+      // against the coin disc: if any vertex is within the coin's
+      // radius we count the hit even when the coin's own sampled
+      // points all missed. Catches head-grazes where the coin sits
+      // just off the raptor's outline.
+      const rDiag = r * 0.707; // 1/√2 for diagonals on the same disc
       const samples = [
         { x: cxC, y: cyC },
         { x: cxC - r, y: cyC },
         { x: cxC + r, y: cyC },
         { x: cxC, y: cyC - r },
         { x: cxC, y: cyC + r },
+        { x: cxC - rDiag, y: cyC - rDiag },
+        { x: cxC + rDiag, y: cyC - rDiag },
+        { x: cxC - rDiag, y: cyC + rDiag },
+        { x: cxC + rDiag, y: cyC + rDiag },
       ];
       let hit = false;
       for (const s of samples) {
         if (pointInPolygon(s, poly)) {
           hit = true;
           break;
+        }
+      }
+      if (!hit) {
+        const r2 = r * r;
+        for (const p of poly) {
+          const dx = p.x - cxC;
+          const dy = p.y - cyC;
+          if (dx * dx + dy * dy <= r2) {
+            hit = true;
+            break;
+          }
         }
       }
       if (!hit) continue;
@@ -223,8 +300,9 @@ export function collectCoins(
     // Score is distance-based now — coin pickups fill the wallet
     // instead of bumping the meter count. Bank immediately:
     // "picked up = yours" even if the player dies later in the field.
-    state.coinsBalance += COIN_BANK_REWARD;
-    state.runCoins += COIN_BANK_REWARD;
+    const reward = c.isDiamond ? DIAMOND_BANK_REWARD : COIN_BANK_REWARD;
+    state.coinsBalance += reward;
+    state.runCoins += reward;
     saveCoinsBalance(state.coinsBalance);
     onCollect(c, c.x + c.w / 2, cy + c.h / 2);
   }
@@ -271,7 +349,7 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
       coinAlpha = 1 - t;
     }
 
-    // Coin sprite blit — runs in the base transform (no per-coin
+    // Coin / diamond blit — runs in the base transform (no per-coin
     // translate/scale; the x/y/w/h args already position + size it).
     ctx.setTransform(ba, bb, bc, bd, be, bf);
     if (coinAlpha !== lastAlpha) {
@@ -282,6 +360,23 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
     const h = c.h * scale;
     const x = c.x - (w - c.w) / 2;
     const y = cy - (h - c.h) / 2;
+    if (c.isDiamond) {
+      drawDiamondShape(
+        ctx,
+        x + w / 2,
+        y + h / 2,
+        w,
+        h,
+      );
+      // Diamond breaks out of the coin glint/twinkle loop below —
+      // its own facet highlights inside drawDiamondShape carry the
+      // "sparkly" read. Keeps the render order consistent with
+      // regular coins (no ambient star cloud drifting past the gem).
+      // fillStyleSet gets stomped by drawDiamondShape; reset so the
+      // first subsequent coin's fillStyle = "#fff" gets re-applied.
+      fillStyleSet = false;
+      continue;
+    }
     ctx.drawImage(
       img,
       Math.round(x),
@@ -412,6 +507,113 @@ function drawFourPointStar(
 }
 
 export { drawFourPointStar };
+
+/** Render a pixel-art-ish diamond gem centred at (cx, cy). Two
+ *  symmetric facets (top-tip triangle + bottom-kite) filled with a
+ *  cyan → white vertical gradient, bordered in the brand dune. A
+ *  single moving highlight rectangle on the upper-right facet reads
+ *  as the "shine" without needing a separate draw loop. Caller
+ *  handles globalAlpha + base transform. */
+function drawDiamondShape(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  w: number,
+  h: number,
+): void {
+  const halfW = w / 2;
+  const halfH = h / 2;
+  const topY = cy - halfH;
+  const bottomY = cy + halfH;
+  const leftX = cx - halfW;
+  const rightX = cx + halfW;
+  // Shoulder line — the two outer points of the classic gem
+  // silhouette sit ≈30% down from the top so the facet under them
+  // reads as a table and the lower body reads as a pavilion.
+  const shoulderY = cy - halfH * 0.4;
+  const innerInset = halfW * 0.35;
+
+  // Body gradient — deep sky-blue at the top, near-white at the
+  // bottom. Cached by canvas size (w,h) so rescans don't build a
+  // new gradient every frame on diamonds of the same size.
+  const g = _getDiamondGradient(ctx, topY, bottomY);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(cx, topY);
+  ctx.lineTo(rightX, shoulderY);
+  ctx.lineTo(cx, bottomY);
+  ctx.lineTo(leftX, shoulderY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Table facet (top slab) — lighter fill to suggest the bright
+  // top surface of a real cut.
+  ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+  ctx.beginPath();
+  ctx.moveTo(cx, topY);
+  ctx.lineTo(rightX, shoulderY);
+  ctx.lineTo(cx - innerInset + halfW * 0.4, shoulderY);
+  ctx.lineTo(cx + innerInset - halfW * 0.4, shoulderY);
+  ctx.lineTo(leftX, shoulderY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Right-upper facet highlight — tiny bright wedge that catches
+  // the eye. Animated via state.frame so the facet twinkles.
+  const tFlicker = (state.frame % 90) / 90;
+  const alpha = 0.4 + 0.4 * Math.sin(tFlicker * Math.PI * 2);
+  ctx.fillStyle = `rgba(255, 255, 255, ${alpha.toFixed(3)})`;
+  ctx.beginPath();
+  ctx.moveTo(cx + halfW * 0.15, topY + halfH * 0.1);
+  ctx.lineTo(rightX - halfW * 0.1, shoulderY - halfH * 0.05);
+  ctx.lineTo(cx + halfW * 0.3, shoulderY - halfH * 0.1);
+  ctx.closePath();
+  ctx.fill();
+
+  // Outline — same dune stroke as the start/menu chrome so the
+  // gem sits in the same visual vocabulary as the rest of the UI
+  // instead of reading as a ported-in sprite.
+  ctx.strokeStyle = "#2a1d13";
+  ctx.lineWidth = Math.max(1.5, w * 0.05);
+  ctx.lineJoin = "miter";
+  ctx.beginPath();
+  ctx.moveTo(cx, topY);
+  ctx.lineTo(rightX, shoulderY);
+  ctx.lineTo(cx, bottomY);
+  ctx.lineTo(leftX, shoulderY);
+  ctx.closePath();
+  ctx.stroke();
+  // Inner shoulder line — separates table from pavilion.
+  ctx.beginPath();
+  ctx.moveTo(leftX, shoulderY);
+  ctx.lineTo(rightX, shoulderY);
+  ctx.stroke();
+}
+
+let _diamondGradientCache: {
+  topY: number;
+  bottomY: number;
+  g: CanvasGradient;
+} | null = null;
+function _getDiamondGradient(
+  ctx: CanvasRenderingContext2D,
+  topY: number,
+  bottomY: number,
+): CanvasGradient {
+  if (
+    _diamondGradientCache &&
+    Math.abs(_diamondGradientCache.topY - topY) < 0.5 &&
+    Math.abs(_diamondGradientCache.bottomY - bottomY) < 0.5
+  ) {
+    return _diamondGradientCache.g;
+  }
+  const g = ctx.createLinearGradient(0, topY, 0, bottomY);
+  g.addColorStop(0, "#bfe8f2"); // pale sky-cyan at the top
+  g.addColorStop(0.5, "#50b4cd"); // brand sky
+  g.addColorStop(1, "#1f5b6b"); // sky-deep at the pavilion tip
+  _diamondGradientCache = { topY, bottomY, g };
+  return g;
+}
 
 export function clearCoins(): void {
   state.coins = [];

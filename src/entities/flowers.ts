@@ -26,7 +26,6 @@ import {
   FLOWER_MIN_HEIGHT_PX,
   FLOWER_MAX_HEIGHT_PX,
   FLOWER_PATCH_WIDTH_PX,
-  VELOCITY_SCALE_DIVISOR,
 } from "../constants";
 
 interface Flower {
@@ -83,10 +82,12 @@ export function makeFlowerPatch(x: number): FlowerPatch {
 }
 
 /** Advance every live patch by one frame and drop off-screen ones. */
-export function updateFlowerPatches(frameScale: number): void {
+export function updateFlowerPatches(_frameScale: number): void {
   if (!state.flowerPatches || state.flowerPatches.length === 0) return;
-  const dx =
-    state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * frameScale;
+  // Shared integer dx — see state._frameScrollDx in state.ts. Keeps
+  // the flower patches pixel-locked to the cacti + coins scrolling
+  // at the same speed.
+  const dx = state._frameScrollDx;
   for (const p of state.flowerPatches) p.x -= dx;
   compactInPlace(state.flowerPatches, (p) => p.x + p.w > -20);
 }

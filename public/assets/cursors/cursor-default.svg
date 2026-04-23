@@ -1,14 +1,15 @@
 <!--
-  Default cursor — chunky pixel-art arrow in the game's desert palette.
-  32×32 viewBox, drawn with 45°/90° segments and a 2.5 px outline so the
-  silhouette reads as blocky, not vector-slick. Tip at (3, 3); set the
-  CSS hotspot to 3 3 so clicks land at the tip.
+  Default cursor — pixel-art arrow in the game's brand palette
+  (--color-sand-contrast fill, --color-dune stroke). 20×20 viewBox
+  so the cursor feels lightweight next to the chunky raptor-footprint
+  pointer. Tip at (2, 2); set the CSS hotspot to 2 2 so clicks land
+  at the arrow tip.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-  <path d="M3 3 L3 23 L9 18 L13 27 L17 25 L13 17 L21 17 Z"
-        fill="#f4e4c1"
-        stroke="#3d2817"
-        stroke-width="2.5"
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
+  <path d="M2 2 L2 15 L6 12 L9 18 L12 17 L9 11 L14 11 Z"
+        fill="#fbebc6"
+        stroke="#2a1d13"
+        stroke-width="1.8"
         stroke-linejoin="miter"
         stroke-linecap="square"/>
 </svg>

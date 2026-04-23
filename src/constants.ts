@@ -129,6 +129,13 @@ export const COIN_STREAK_MAX_PITCH = 1.7;
  *  The real source of truth is the explicit per-field reset in
  *  spawnCoinsInRange; this just covers idle walks between fields. */
 export const COIN_STREAK_RESET_MS = 1500;
+/** Diamond (end-of-field gem) scale vs regular coin size. Big
+ *  enough to read as a separate reward at a glance, small enough
+ *  to stay within the raptor's pickup envelope. */
+export const DIAMOND_SIZE_SCALE = 1.6;
+/** Persistent bank payout for a diamond pickup. 10× COIN_BANK_REWARD
+ *  — the payoff for completing the full 10-coin chain in a field. */
+export const DIAMOND_BANK_REWARD = 10;
 
 // ── Celestial Bodies (Sun & Moon) ──────────────────────────
 // Phases expressed as band-index / SKY_COLORS.length so anchors
@@ -236,7 +243,11 @@ export const STAR_PIVOT_HEIGHT_RATIO = -1.5;
 // ── Weather (Rain & Lightning) ─────────────────────────────
 export const RAIN_SPAWN_DENSITY_DIVISOR = 300;
 export const RAIN_FADE_IN_RATE = 0.008;
-export const RAIN_FADE_OUT_RATE = 0.02;
+// Higher rate = snappier fade. 0.035 ≈ ~30 frames for 1→0 (≈500 ms
+// at 60 fps), down from ~50 frames (~850 ms) at 0.02. The drizzle
+// tail was outstaying its welcome — user feedback was that the
+// post-storm trickle lingered into the rainbow window.
+export const RAIN_FADE_OUT_RATE = 0.035;
 export const RAIN_AUDIO_MAX_VOLUME = 0.2;
 export const LIGHTNING_INTENSITY_THRESHOLD = 0.8;
 export const LIGHTNING_FLASH_PROBABILITY = 0.002;
@@ -276,9 +287,11 @@ export const DELTA_TIME_CLAMP = 1 / 20;
 // players; the step-up at revive #2 signals "this stacks fast".
 export const REVIVE_FIRST_COST = 50;
 export const REVIVE_SECOND_COST = 125;
-// ~1 second at 60fps. Long enough to phase past the killing
-// obstacle without being long enough to cheese the next one.
-export const REVIVE_INVULN_FRAMES = 60;
+// ~2 seconds at 60fps. Long enough to clear the killing obstacle
+// AND settle onto the ground before the next collision check — the
+// prior 60-frame window occasionally dropped the player right back
+// into the cactus silhouette if the revive fired mid-fall.
+export const REVIVE_INVULN_FRAMES = 120;
 
 // ── localStorage keys (namespaced under `raptor-runner:*`) ─
 export const HIGH_SCORE_KEY = "raptor-runner:highScore";
@@ -365,6 +378,15 @@ export const PTERODACTYL_FRAME_DELAY_MS = 55;
 /** Probability that a cactus spawn is replaced by a pterodactyl
  *  instead. ~12% → roughly 1 in 8 obstacles is a flyer. */
 export const PTERODACTYL_SPAWN_CHANCE = 0.12;
+/** Among flyer spawns, the chance the flyer takes the LOW flight
+ *  path — cruising at cactus-coin height so the player has to jump
+ *  OVER it instead of running underneath. Two-variant mix keeps the
+ *  obstacle vocabulary rich without adding a brand-new entity. */
+export const PTERODACTYL_LOW_FLIGHT_CHANCE = 0.35;
+/** Low flight height — roughly the same y as the coin that hovers
+ *  above a small cactus, so the low ptero sits in the same
+ *  jump-over band as the single-cactus beat. */
+export const PTERODACTYL_LOW_FLIGHT_HEIGHT_RATIO = 0.35;
 
 // Per-frame head reference points, extracted by scanning each frame
 // of assets/raptor-sheet.png for the topmost opaque pixel (crown)

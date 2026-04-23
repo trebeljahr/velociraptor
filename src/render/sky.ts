@@ -119,6 +119,33 @@ export const _isNightBand = SKY_COLORS.map(
     c[2] === NIGHT_COLOR[2],
 );
 
+/** The magenta-pink sunset/sunrise bands — `[220, 90, 120]` in the
+ *  SKY_COLORS palette. Used to gate the rainbow: once the "red"
+ *  transition hits, the rainbow reads as muddy against the warm-pink
+ *  backdrop, so we don't spawn new ones then AND we kill any live one
+ *  that outlives into the magenta. Golden hour (bands 5 / 15) remains
+ *  valid rainbow territory — bright enough to carry the arc. */
+export const _isMagentaBand = SKY_COLORS.map(
+  (c) => c[0] === 220 && c[1] === 90 && c[2] === 120,
+);
+
+/** True when the current phase is unambiguously rainbow-friendly:
+ *  pure day bands or golden hour. Excludes night, blue-hour, and
+ *  the magenta sunset/sunrise transition itself — plus the half of
+ *  each band that's already heading into magenta. */
+export function isRainbowPhase(bandIndex: number, bandT: number): boolean {
+  if (_isNightBand[bandIndex] || _isMagentaBand[bandIndex]) return false;
+  const n = SKY_COLORS.length;
+  const next = (bandIndex + 1) % n;
+  // Second half of the band is bleeding into the next one — block
+  // rainbow spawns when the next band would cancel it, so we don't
+  // briefly show a rainbow that vanishes a frame later.
+  if (bandT > 0.5 && (_isNightBand[next] || _isMagentaBand[next])) return false;
+  const prev = (bandIndex - 1 + n) % n;
+  if (bandT < 0.5 && (_isNightBand[prev] || _isMagentaBand[prev])) return false;
+  return true;
+}
+
 /** True when bandIndex (+ fractional bandT) is in the dark zone:
  *  solid-night bands, plus the dark half of each adjacent twilight. */
 export function isNightPhase(bandIndex: number, bandT: number) {

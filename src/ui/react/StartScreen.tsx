@@ -54,7 +54,7 @@ export function StartScreen({ callbacks: cb }: StartScreenProps) {
         </p>
         {showHighScore && (
           <p className="start-highscore">
-            ★ Personal best: <span>{hs}</span>
+            ★ Personal best: <span>{Math.floor(hs)}</span>
           </p>
         )}
         <button
