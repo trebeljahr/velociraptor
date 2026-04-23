@@ -234,6 +234,11 @@ let displayedCoins = 0;
 let lastAriaScore = -1;
 let lastAriaCoins = -1;
 let scoreLoopRunning = false;
+// When true, scoreLoop stops auto-tracking getRunCoins() so the
+// game-over fill animation can drain the HUD counter down to 0 in
+// sync with the end-card balance filling up. Cleared when the fill
+// completes or the HUD is next shown fresh.
+let coinDrainOverride = false;
 
 function scoreLoop() {
   if (!scoreLoopRunning) return;
@@ -267,7 +272,10 @@ function scoreLoop() {
   // the HUD shows what you earned THIS run so the number feels owned
   // by the current attempt. Tweens independently from the score so a
   // pickup pop reads as a quick count-up instead of snapping.
-  if (window.Game && window.Game.getRunCoins && scoreCoinValueEl) {
+  // Skip this chase entirely while the game-over fill is draining
+  // the HUD — that animation writes to the element directly, and
+  // re-chasing getRunCoins() would instantly undo each drain step.
+  if (!coinDrainOverride && window.Game && window.Game.getRunCoins && scoreCoinValueEl) {
     const target = window.Game.getRunCoins();
     const diff = target - displayedCoins;
     if (Math.abs(diff) > 0.01) {
@@ -290,6 +298,10 @@ function showScoreDisplay() {
   // Per-run coins start at 0 each run — HUD opens on 0 and ticks
   // up with pickups, no stale carry-over from the prior attempt.
   displayedCoins = window.Game?.getRunCoins?.() ?? 0;
+  // Fresh run → hand the HUD back to scoreLoop's auto-chase. The
+  // previous game-over's drain leaves the override pinned so the
+  // HUD stays at 0 while the card is up; this is the release point.
+  coinDrainOverride = false;
   if (scoreValueEl) scoreValueEl.textContent = "0";
   if (scoreCoinValueEl) scoreCoinValueEl.textContent = String(displayedCoins);
   if (scoreDisplay) scoreDisplay.hidden = false;
@@ -1810,6 +1822,11 @@ function hideReviveOffer() {
     cancelAnimationFrame(coinFillRaf);
     coinFillRaf = null;
   }
+  // Drop the HUD override if the fill was cut short — scoreLoop can
+  // go back to chasing getRunCoins() next frame. Next run opens on
+  // 0 anyway (showScoreDisplay resets displayedCoins), so no need to
+  // snap the HUD here.
+  coinDrainOverride = false;
   reviveCost = null;
   reviveBalance = null;
   reviveAffordable = false;
@@ -1904,17 +1921,36 @@ function startCoinFillAnim(total: number, runCoins: number) {
   const DURATION_MS = 1200;
   const startTime = performance.now();
   window.Game?.playCoinFillAnim?.(runCoins, DURATION_MS);
+  // Take over the HUD coin counter for the duration of the fill so
+  // the top-left number drains from runCoins → 0 while the card
+  // balance climbs from startAt → total. Reads as the coins "moving"
+  // out of the run pouch and into the persistent wallet.
+  coinDrainOverride = true;
   const step = () => {
     const now = performance.now();
     const t = Math.min(1, (now - startTime) / DURATION_MS);
     const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
     reviveBalance = Math.round(startAt + (total - startAt) * eased);
+    if (scoreCoinValueEl) {
+      const drained = Math.round(runCoins * (1 - eased));
+      scoreCoinValueEl.textContent = String(drained);
+      displayedCoins = drained;
+    }
     syncScoreCardActions();
     if (t < 1) {
       coinFillRaf = requestAnimationFrame(step);
     } else {
       coinFillRaf = null;
       reviveBalance = total;
+      if (scoreCoinValueEl) {
+        scoreCoinValueEl.textContent = "0";
+        displayedCoins = 0;
+      }
+      // Leave coinDrainOverride on — state.runCoins is still at the
+      // pre-drain value until the next run resets it, so un-pinning
+      // now would snap the HUD right back to 10/whatever. The flag
+      // clears in hideReviveOffer (card close) or showScoreDisplay
+      // (new run).
       syncScoreCardActions();
     }
   };
