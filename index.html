@@ -109,6 +109,17 @@
       sizes="180x180"
       href="assets/apple-touch-icon.png"
     />
+    <!--
+      Preload the boot-splash hero sprite so the fetch starts while
+      the HTML is still parsing, not when the inline CSS rule is
+      evaluated. Without this the splash paints its chrome (title,
+      ground bar, blinking dots) 100–300 ms before the running
+      raptor pops in — which reads as the splash "stalling" on slow
+      connections. Same trick would help the idle raptor on the
+      start screen but that one's cheap (~16 KB) and less load-
+      bearing, so only the sheet gets the hint here.
+    -->
+    <link rel="preload" as="image" href="assets/raptor-sheet.png" />
     <style>
       /*
        * Boot splash — inline critical CSS so this paints on the very
@@ -150,28 +161,45 @@
       /*
        * Cycle through the 12-frame sprite sheet (578×2544, 12 frames
        * stacked vertically). At a displayed width of 436px the per-
-       * frame height is 160px, so the run animation sweeps the
-       * background-position from 0 to -1920px in 12 equal steps.
-       * `steps(12)` makes the frame flips crisp — no interpolation.
+       * frame height is 160px. The inner element holds the full
+       * 436×1920 sheet and slides up via `transform: translate3d`
+       * so the animation composites on the GPU — no per-frame
+       * repaint of a large element. The prior background-position
+       * + drop-shadow combo was repainting + recomputing the shadow
+       * 12× per 0.9s, which read as jank on slower machines.
        */
       .boot-splash-raptor {
+        position: relative;
         width: 436px;
         height: 160px;
+        overflow: hidden;
+        /* No drop-shadow filter: with a 12-step transform animation
+           feeding into it, the shadow had to recompute on every
+           frame-flip — the biggest per-frame cost in the splash.
+           The raptor silhouette reads fine against the sky
+           gradient without one. */
+      }
+      .boot-splash-raptor::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 1920px;
         background-image: url(assets/raptor-sheet.png);
         background-repeat: no-repeat;
-        background-size: 100% auto;
-        background-position: 0 0;
+        background-size: 100% 100%;
         image-rendering: pixelated;
         image-rendering: -moz-crisp-edges;
-        filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.18));
+        will-change: transform;
         animation: boot-splash-run 0.9s steps(12) infinite;
       }
       @keyframes boot-splash-run {
         from {
-          background-position: 0 0;
+          transform: translate3d(0, 0, 0);
         }
         to {
-          background-position: 0 -1920px;
+          transform: translate3d(0, -1920px, 0);
         }
       }
       .boot-splash-ground {

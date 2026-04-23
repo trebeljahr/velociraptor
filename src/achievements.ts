@@ -101,22 +101,22 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
   {
     id: "party-time",
     title: "Party Time",
-    desc: "Run 100 meters in a single dash",
+    desc: "Run 1,000 meters in a single dash",
     iconImage: "assets/party-hat.png",
   },
   {
     id: "dinosaurs-forever",
     title: "Dinosaurs Forever",
-    desc: "Run 150 meters in a single dash",
+    desc: "Run 1,500 meters in a single dash",
     iconImage: "assets/bow-tie.png",
   },
   {
     // id stays "score-250" for storage compatibility — renaming would
-    // reset every existing player's unlock. Threshold is 200 meters
-    // (rebalanced from 500 before the meters-scoring rework).
+    // reset every existing player's unlock. Threshold is 2,000 meters
+    // (THUG_GLASSES_SCORE_THRESHOLD in constants).
     id: "score-250",
     title: "Raptor Legend",
-    desc: "Run 200 meters in a single dash",
+    desc: "Run 2,000 meters in a single dash",
     iconImage: "assets/thug-glasses.png",
   },
   {
