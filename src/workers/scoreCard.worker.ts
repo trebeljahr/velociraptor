@@ -117,14 +117,22 @@ self.onmessage = async function (e: MessageEvent) {
     ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
     ctx.font =
       '600 30px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    ctx.fillText("FINAL SCORE", W - 60, H - 180);
+    // Label sits at H-220 (was H-180) so the baseline of the label
+    // clears the top of the 180px score digits — the prior layout
+    // had the cap of the number sitting exactly under the label
+    // baseline with ~0px gap, which read as cramped. 40px of clear
+    // breathing room now.
+    ctx.fillText("FINAL SCORE", W - 60, H - 220);
     ctx.font =
       'bold 180px "Helvetica Neue", Helvetica, Arial, sans-serif';
     const scoreGrad = ctx.createLinearGradient(0, H - 170, 0, H - 40);
     scoreGrad.addColorStop(0, "#ffee9a");
     scoreGrad.addColorStop(1, "#e89d33");
     ctx.fillStyle = scoreGrad;
-    ctx.fillText(String(score | 0), W - 60, H - 50);
+    // " m" suffix (with leading space) so the unit reads as
+    // attached to the number — distance in meters, matching the
+    // in-game HUD's meters-based score.
+    ctx.fillText(`${score | 0} m`, W - 60, H - 50);
     ctx.restore();
 
     // ── Personal best line (bottom-left) ────────────────────────
@@ -140,7 +148,7 @@ self.onmessage = async function (e: MessageEvent) {
       ctx.fillText("\u2605 New personal best!", 60, H - 60);
     } else {
       ctx.fillStyle = "rgba(255, 255, 255, 0.82)";
-      ctx.fillText(`Personal best: ${highScore | 0}`, 60, H - 60);
+      ctx.fillText(`Personal best: ${highScore | 0} m`, 60, H - 60);
     }
     ctx.restore();
 

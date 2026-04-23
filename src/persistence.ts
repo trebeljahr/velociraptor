@@ -16,6 +16,7 @@
 import {
   HIGH_SCORE_KEY,
   TOTAL_JUMPS_KEY,
+  TOTAL_NIGHTS_KEY,
   CAREER_RUNS_KEY,
   ACHIEVEMENTS_KEY,
   TOTAL_DAY_CYCLES_KEY,
@@ -190,6 +191,7 @@ function _persistSet(key: string, value: string): void {
 const DURABLE_KEYS: string[] = [
   HIGH_SCORE_KEY,
   TOTAL_JUMPS_KEY,
+  TOTAL_NIGHTS_KEY,
   CAREER_RUNS_KEY,
   ACHIEVEMENTS_KEY,
   TOTAL_DAY_CYCLES_KEY,
@@ -295,6 +297,23 @@ export function loadTotalJumps(): number {
 
 export function saveTotalJumps(value: number): void {
   _persistSet(TOTAL_JUMPS_KEY, String(value));
+}
+
+// ── Total nights survived (career) ──────────────────────────
+
+export function loadTotalNightsSurvived(): number {
+  try {
+    const raw = _persistGet(TOTAL_NIGHTS_KEY);
+    if (raw == null) return 0;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+export function saveTotalNightsSurvived(value: number): void {
+  _persistSet(TOTAL_NIGHTS_KEY, String(value));
 }
 
 // ── Total day/night cycles witnessed ────────────────────────

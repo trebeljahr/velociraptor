@@ -175,6 +175,8 @@ import {
   loadUnlockedAchievements,
   saveUnlockedAchievements,
   loadTotalJumps,
+  loadTotalNightsSurvived,
+  saveTotalNightsSurvived,
   saveTotalJumps,
   loadTotalDayCycles,
   saveTotalDayCycles,
@@ -700,15 +702,28 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       state._pendingNights = (state._pendingNights || 0) + 1;
     }
     if ((state._pendingNights ?? 0) > 0 && _isDayBand[bandIndex] && !state.gameOver) {
-      state.runNightsSurvived += state._pendingNights!;
+      const gained = state._pendingNights!;
+      state.runNightsSurvived += gained;
+      // Career total — persisted so "Insomniac" accumulates across
+      // every run. Save is fire-and-forget; the next game-over also
+      // re-saves if it hits a higher number.
+      state.totalNightsSurvived += gained;
+      saveTotalNightsSurvived(state.totalNightsSurvived);
       state._pendingNights = 0;
       if (state.runNightsSurvived >= 1) {
         unlockAchievement("first-night");
       }
-      if (state.runNightsSurvived >= 10) {
+      // "Insomniac" moved from per-run to career: 10 nights TOTAL
+      // across all runs you've ever played.
+      if (state.totalNightsSurvived >= 10) {
         unlockAchievement("ten-nights");
       }
-      if (state.runNightsSurvived >= 20) {
+      // "Marathon Sleeper" is now a per-run challenge at 5 nights —
+      // the 20-in-one-run ask was effectively unreachable, so the
+      // bar drops to something a careful player can actually clear
+      // in one sitting. id stays "twenty-nights" for save-file
+      // compatibility.
+      if (state.runNightsSurvived >= 5) {
         unlockAchievement("twenty-nights");
       }
     }
@@ -2566,6 +2581,8 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       saveBoolFlag(WEAR_BOW_TIE_KEY, false);
       state.totalDayCycles = 0;
       saveTotalDayCycles(0);
+      state.totalNightsSurvived = 0;
+      saveTotalNightsSurvived(0);
       state._rareEventsSeen = {};
       saveRareEventsSeen({});
       // Shop state — wipe the coin balance, every owned cosmetic,
@@ -3203,6 +3220,7 @@ import { generateScoreCardBlob } from "./render/scoreCard";
     // shows up immediately; returning players get whatever they
     // last saved.
     state.totalJumps = loadTotalJumps();
+    state.totalNightsSurvived = loadTotalNightsSurvived();
     state.totalDayCycles = loadTotalDayCycles();
     // Derive the initial moon phase from saved cycle count — otherwise
     // a returning player renders at ph=0 (invisible new moon) until the

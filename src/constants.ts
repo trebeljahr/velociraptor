@@ -316,6 +316,10 @@ export const WEAR_BOW_TIE_KEY = "raptor-runner:wear:bowTie";
 export const CAREER_RUNS_KEY = "raptor-runner:careerRuns";
 export const ACHIEVEMENTS_KEY = "raptor-runner:achievements";
 export const TOTAL_DAY_CYCLES_KEY = "raptor-runner:totalDayCycles";
+/** Lifetime nights survived across ALL runs — drives the
+ *  "Insomniac" achievement (10 total), which moved from a per-run
+ *  goal to a career goal so it rewards cumulative playtime. */
+export const TOTAL_NIGHTS_KEY = "raptor-runner:totalNightsSurvived";
 export const RARE_EVENTS_SEEN_KEY = "raptor-runner:rareEventsSeen";
 // ── Coin economy ───────────────────────────────────────────
 export const COINS_BALANCE_KEY = "raptor-runner:coinsBalance";

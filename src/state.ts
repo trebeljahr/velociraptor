@@ -91,8 +91,15 @@ export interface GameState {
    *  distance one. */
   runCactiCleared: number;
   /** Nights fully survived in the current run — incremented on
-   *  night → day transitions while the raptor is still alive. */
+   *  night → day transitions while the raptor is still alive.
+   *  Drives the "Marathon Sleeper" achievement (5 nights in one
+   *  run). */
   runNightsSurvived: number;
+  /** Lifetime total of nights survived across every run ever.
+   *  Persists via TOTAL_NIGHTS_KEY. Drives the "Insomniac"
+   *  achievement (10 total nights), which was moved from a per-run
+   *  goal to a career goal so it rewards accumulated playtime. */
+  totalNightsSurvived: number;
   /** Previous-frame night flag used to detect night → day edges. */
   _wasInNight: boolean;
   runShootingStars: number;
@@ -237,6 +244,7 @@ export const state: GameState = {
   runJumps: 0,
   runCactiCleared: 0,
   runNightsSurvived: 0,
+  totalNightsSurvived: 0,
   _wasInNight: false,
   runShootingStars: 0,
   careerRuns: 0,

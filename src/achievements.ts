@@ -53,28 +53,27 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
     id: "first-run",
     title: "First Steps",
     desc: "Complete your first run",
-    // Chunky three-toed raptor footprint: one wide heel pad with
-    // three bold toe-pad ellipses overlapping its top, each crowned
-    // by a triangular claw. Dune brown on sand so the silhouette
-    // reads as a stamped footprint at 48×48, with a tiny sand fleck
-    // on the heel for depth.
+    // Three-toed dinosaur footprint: slender tapered toes with
+    // pointed claws, splaying from a small oval base. The earlier
+    // "three round pads on a heel" silhouette read as a bear paw;
+    // raptor prints are narrow and elongated, with the claws
+    // leading the shape — this version keeps that proportion.
     iconHTML:
-      // Heel pad — wide, dominates the bottom half.
-      '<ellipse cx="12" cy="18" rx="5.2" ry="3.5" fill="#2a1d13"/>' +
-      // Centre toe pad (largest, straight up).
-      '<ellipse cx="12" cy="10.5" rx="2.5" ry="4" fill="#2a1d13"/>' +
-      // Left toe pad (tilted outward).
-      '<ellipse cx="7.7" cy="12" rx="2.2" ry="3.5" transform="rotate(-20 7.7 12)" fill="#2a1d13"/>' +
-      // Right toe pad (tilted outward, mirror).
-      '<ellipse cx="16.3" cy="12" rx="2.2" ry="3.5" transform="rotate(20 16.3 12)" fill="#2a1d13"/>' +
-      // Centre claw tip.
-      '<polygon points="10.6,7 12,3 13.4,7" fill="#2a1d13"/>' +
-      // Left claw tip.
-      '<polygon points="5.6,8.4 6.8,4.5 8.3,8.2" fill="#2a1d13"/>' +
-      // Right claw tip.
-      '<polygon points="18.4,8.4 17.2,4.5 15.7,8.2" fill="#2a1d13"/>' +
-      // Heel-pad highlight — one sand fleck to catch the eye.
-      '<ellipse cx="10.5" cy="17.5" rx="1.5" ry="0.6" fill="#f5dcaa" opacity="0.55"/>',
+      // Centre toe + claw.
+      '<path d="M10.8 20 Q10.5 12 10.8 8 Q11 3.5 12 2.5 Q13 3.5 13.2 8 Q13.5 12 13.2 20 Z" fill="#2a1d13"/>' +
+      '<path d="M11.3 2.8 Q11.8 0.3 12.5 0 Q13.2 0.3 12.8 2.8 Z" fill="#2a1d13"/>' +
+      // Left toe + claw, splayed outward around the base point.
+      '<g transform="rotate(-28 12 21)">' +
+      '<path d="M10.8 20 Q10.5 12 10.8 8 Q11 3.5 12 2.5 Q13 3.5 13.2 8 Q13.5 12 13.2 20 Z" fill="#2a1d13"/>' +
+      '<path d="M11.3 2.8 Q11.8 0.3 12.5 0 Q13.2 0.3 12.8 2.8 Z" fill="#2a1d13"/>' +
+      "</g>" +
+      // Right toe + claw (mirror).
+      '<g transform="rotate(28 12 21)">' +
+      '<path d="M10.8 20 Q10.5 12 10.8 8 Q11 3.5 12 2.5 Q13 3.5 13.2 8 Q13.5 12 13.2 20 Z" fill="#2a1d13"/>' +
+      '<path d="M11.3 2.8 Q11.8 0.3 12.5 0 Q13.2 0.3 12.8 2.8 Z" fill="#2a1d13"/>' +
+      "</g>" +
+      // Small sole / heel where all three converge.
+      '<ellipse cx="12" cy="20" rx="3" ry="1.8" fill="#2a1d13"/>',
   },
   {
     id: "first-jump",
@@ -124,18 +123,17 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
     id: "stop-and-smell",
     title: "Stop and Smell the Roses",
     desc: "Run through your first flower patch",
-    // Simple SVG: a pink five-petal bloom on a green stem + leaves.
+    // Uses the real in-game flower sprite so the icon matches the
+    // patches the raptor actually runs through. flower-02 is the
+    // pink two-tier bloom — on-theme for "roses" and reads cleanly
+    // at 48×48 next to the sand background. A grass blade on each
+    // side gives the "patch" context without getting busy.
     iconHTML:
-      '<circle cx="12" cy="12" r="12" fill="#eef4e2"/>' +
-      '<path d="M12 17 L12 22" stroke="#4a7f2f" stroke-width="1.6" stroke-linecap="round"/>' +
-      '<path d="M12 19 Q10 20 8.5 19 Q10 19.2 12 18.5 Z" fill="#4a7f2f"/>' +
-      '<path d="M12 20 Q14 21 15.5 20 Q14 20.2 12 19.5 Z" fill="#4a7f2f"/>' +
-      '<circle cx="12" cy="9" r="2.6" fill="#e85f8a"/>' +
-      '<circle cx="8.4" cy="10.8" r="2.2" fill="#f08ab0"/>' +
-      '<circle cx="15.6" cy="10.8" r="2.2" fill="#f08ab0"/>' +
-      '<circle cx="9.7" cy="14.2" r="2.2" fill="#f08ab0"/>' +
-      '<circle cx="14.3" cy="14.2" r="2.2" fill="#f08ab0"/>' +
-      '<circle cx="12" cy="11.5" r="1.1" fill="#f7e26b"/>',
+      // Grass blades at the sides, anchored at the ground line.
+      '<path d="M3 22 Q3.5 17 5 15 Q4.5 18 5 22 Z" fill="#4a7c3a"/>' +
+      '<path d="M21 22 Q20.5 17 19 15 Q19.5 18 19 22 Z" fill="#4a7c3a"/>' +
+      // The actual flower sprite, centred on the ground line.
+      '<image href="assets/flower-02.png" x="4" y="1" width="16" height="21" preserveAspectRatio="xMidYMax meet"/>',
   },
   {
     id: "first-night",
@@ -148,7 +146,7 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
   {
     id: "ten-nights",
     title: "Insomniac",
-    desc: "Survive 10 nights in a single run",
+    desc: "Survive 10 nights across all your runs",
     // r=10, centre 12,12, angle = i*36° starting at 0°.
     iconHTML:
       '<circle cx="12" cy="12" r="12" fill="#1e2a44"/>' +
@@ -167,7 +165,7 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
   {
     id: "twenty-nights",
     title: "Marathon Sleeper",
-    desc: "Survive 20 nights in a single run",
+    desc: "Survive 5 nights in a single run",
     iconHTML:
       '<circle cx="8" cy="12" r="4" fill="#ffd455" stroke="#c78a12" stroke-width="0.8"/>' +
       '<g stroke="#ffd455" stroke-width="1.2" stroke-linecap="round">' +
@@ -236,8 +234,27 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
     title: "Lunar Glory",
     desc: "Witness a full moon",
     secret: true,
+    // Full moon on a night-sky disc: dark blue background with a
+    // subtle outer halo, a cream moon face with a few crater
+    // flecks, and tiny pinpoint stars in the corners so the whole
+    // thing reads as "moon at its zenith in the night sky" — which
+    // is exactly when the achievement fires.
     iconHTML:
-      '<circle cx="12" cy="12" r="8" fill="#f0e8c0" stroke="#c8b888" stroke-width="0.8"/>',
+      // Night-sky background.
+      '<circle cx="12" cy="12" r="12" fill="#1e2a44"/>' +
+      // Soft halo around the moon.
+      '<circle cx="12" cy="12" r="8.5" fill="#2a3a5c" opacity="0.5"/>' +
+      // Moon disc.
+      '<circle cx="12" cy="12" r="7" fill="#f4f0d6" stroke="#c8b888" stroke-width="0.6"/>' +
+      // Crater flecks.
+      '<circle cx="9.5" cy="10" r="1.1" fill="#d6cfaf" opacity="0.65"/>' +
+      '<circle cx="14.5" cy="13.5" r="0.9" fill="#d6cfaf" opacity="0.65"/>' +
+      '<circle cx="13" cy="9" r="0.6" fill="#d6cfaf" opacity="0.55"/>' +
+      // Corner stars for atmosphere.
+      '<circle cx="3" cy="5" r="0.5" fill="#fff"/>' +
+      '<circle cx="20" cy="4" r="0.4" fill="#fff"/>' +
+      '<circle cx="22" cy="18" r="0.5" fill="#fff"/>' +
+      '<circle cx="3" cy="20" r="0.4" fill="#fff"/>',
   },
   {
     id: "ufo-sighting",
@@ -265,10 +282,24 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
     title: "Wish Upon a Comet",
     desc: "See a comet cross the night sky",
     secret: true,
+    // Golden comet head + curved tail streaking across a night-sky
+    // disc. Two-layer tail (dim outer, bright inner) gives the
+    // streak a soft-to-sharp gradient without needing a real
+    // gradient. Three pinpoint stars add constellation context.
     iconHTML:
-      '<circle cx="8" cy="12" r="3" fill="#fffae0"/>' +
-      '<line x1="11" y1="11" x2="22" y2="8" stroke="#fffae0" stroke-width="1.5" stroke-linecap="round"/>' +
-      '<line x1="10" y1="13" x2="20" y2="12" stroke="rgba(255,250,200,0.4)" stroke-width="1"/>',
+      // Night-sky background.
+      '<circle cx="12" cy="12" r="12" fill="#1e2a44"/>' +
+      // Outer dim tail — wider, warmer.
+      '<path d="M8 16 Q14 10 22 4" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.55"/>' +
+      // Inner bright streak — narrower, yellow-cream.
+      '<path d="M9 15 Q14 11 22 5" stroke="#fde68a" stroke-width="1" stroke-linecap="round" fill="none" opacity="0.75"/>' +
+      // Comet head: gold disc with a brighter core.
+      '<circle cx="8" cy="16" r="3.2" fill="#fbbf24" stroke="#2a1d13" stroke-width="0.9"/>' +
+      '<circle cx="7.2" cy="15.5" r="1.4" fill="#fde68a"/>' +
+      // Pinpoint stars.
+      '<circle cx="3" cy="5" r="0.4" fill="#fff"/>' +
+      '<circle cx="18" cy="19" r="0.4" fill="#fff"/>' +
+      '<circle cx="21" cy="10" r="0.35" fill="#fff"/>',
   },
   {
     id: "meteor-impact",
