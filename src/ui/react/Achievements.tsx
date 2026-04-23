@@ -110,7 +110,7 @@ export function Achievements({ onClose }: AchievementsProps) {
           {unlockedCount} / {list.length} unlocked
         </p>
         <button
-          className="achievements-steam-link desktop-only"
+          className="achievements-steam-link steam-only"
           type="button"
           onClick={handleSteamClick}
         >

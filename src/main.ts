@@ -3219,6 +3219,23 @@ import { generateScoreCardBlob } from "./render/scoreCard";
       state.unlockedAchievements[id] = true;
       saveUnlockedAchievements(state.unlockedAchievements);
     });
+    // `html.has-steam` gates every Steam-specific UI row (View on
+    // Steam Store / Friends on Steam / achievements "View on Steam"
+    // button). We only add the class when Steam actually initialized
+    // — a DRM-free / Steam-unavailable desktop build stays
+    // clean instead of dangling dead menu rows. Async because
+    // isSteam() round-trips through IPC; the menu refreshes on
+    // open so the visibility flip applies without a rerender hack.
+    const electron = typeof window !== "undefined" ? window.electronAPI : undefined;
+    if (electron && typeof electron.isSteam === "function") {
+      electron.isSteam()
+        .then((ok) => {
+          if (ok) document.documentElement.classList.add("has-steam");
+        })
+        .catch(() => {
+          /* no-op — absence of the class is the correct default */
+        });
+    }
     state.unlockedPartyHat = loadBoolFlag(UNLOCKED_PARTY_HAT_KEY, false);
     state.unlockedThugGlasses = loadBoolFlag(UNLOCKED_THUG_GLASSES_KEY, false);
     state.wearPartyHat = loadBoolFlag(WEAR_PARTY_HAT_KEY, true);

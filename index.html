@@ -268,6 +268,16 @@
       html.is-desktop .web-only {
         display: none !important;
       }
+      /* Steam-specific UI (store link, friends link, achievements
+         "view on Steam" button). Hidden by default — the main.ts
+         bootstrap awaits window.electronAPI.isSteam() and, when it
+         resolves true, adds `html.has-steam`. That happens AFTER
+         first paint, so gating on this class instead of .is-desktop
+         keeps the Steam rows out of the menu on DRM-free / Steam-
+         unavailable builds even though they ship under Electron. */
+      html:not(.has-steam) .steam-only {
+        display: none !important;
+      }
 
       /* "View on Steam" link inside the achievements overlay.
          Shown only in the desktop build. Understated so it

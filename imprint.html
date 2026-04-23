@@ -14,65 +14,94 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Imprint – Raptor Runner</title>
     <style>
+      /* Brand palette — mirrors src/styles/base.css so the imprint
+         reads as the same game chrome as about.html and the in-game
+         menu, not a plain legal page. */
+      :root {
+        --color-sand: #f5dcaa;
+        --color-sand-contrast: #fbebc6;
+        --color-sand-dim: #e8c98e;
+        --color-sky: #50b4cd;
+        --color-sky-deep: #1f5b6b;
+        --color-dune: #2a1d13;
+        --color-dune-dim: #4a3526;
+      }
       * {
         box-sizing: border-box;
       }
       body {
         margin: 0;
-        padding: 2rem 1.5rem;
+        padding: 3.5rem 2rem;
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-        background: #ffffff;
-        color: #333;
-        line-height: 1.6;
+        background: var(--color-sand);
+        color: var(--color-dune);
+        line-height: 1.65;
       }
       main {
         max-width: 640px;
         margin: 0 auto;
+        background: var(--color-sand-contrast);
+        border: 3px solid var(--color-dune);
+        border-radius: 10px;
+        padding: 2.5rem 2.25rem;
       }
       .back {
         display: inline-block;
-        margin-bottom: 1.5rem;
-        color: #3498db;
+        margin-bottom: 1.75rem;
+        color: var(--color-sky-deep);
         text-decoration: none;
         font-size: 0.95rem;
+        font-weight: 600;
       }
-      .back:hover {
+      .back:hover,
+      .back:focus-visible {
         text-decoration: underline;
+        outline: none;
       }
       h1 {
         font-size: 2rem;
         margin: 0 0 1rem;
-        color: #222;
+        color: var(--color-dune);
       }
       h2 {
         font-size: 1.1rem;
-        margin: 1.75rem 0 0.4rem;
-        color: #222;
+        margin: 2rem 0 0.5rem;
+        color: var(--color-dune);
       }
       p {
-        margin: 0 0 0.75rem;
+        margin: 0 0 0.85rem;
         font-size: 0.95rem;
       }
       .intro {
-        color: #666;
+        color: var(--color-dune-dim);
         font-style: italic;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.75rem;
       }
       a {
-        color: #3498db;
+        color: var(--color-sky-deep);
+        font-weight: 600;
+        text-decoration: underline;
+        text-decoration-color: rgba(31, 91, 107, 0.35);
+        text-underline-offset: 2px;
+      }
+      a:hover,
+      a:focus-visible {
+        color: var(--color-dune);
+        text-decoration-color: currentColor;
+        outline: none;
       }
       ul {
-        padding-left: 1.2rem;
-        margin: 0.5rem 0;
+        padding-left: 1.35rem;
+        margin: 0.65rem 0 1rem;
       }
       li {
-        margin-bottom: 0.35rem;
-        font-size: 0.9rem;
+        margin-bottom: 0.4rem;
+        font-size: 0.92rem;
       }
       .muted {
-        color: #666;
-        font-size: 0.85rem;
+        color: var(--color-dune-dim);
+        font-size: 0.88rem;
       }
       /* When this page is loaded inside an iframe (as the in-game imprint
          overlay), hide the "Back to the game" link — the parent window
@@ -82,31 +111,31 @@
         display: none;
       }
       body.in-frame {
-        padding-top: 1rem;
+        padding-top: 1.25rem;
+        padding-bottom: 1.25rem;
       }
-      /* Match the in-game sub-overlay scrollbars so the imprint
-         iframe doesn't dump a bright-grey default scrollbar into
-         the corner of an otherwise warm, calm overlay. */
+      /* Brand-matched scrollbar — same palette the in-game chrome
+         uses, so this page doesn't drop a default grey bar into a
+         warm sand overlay. */
       html {
         scrollbar-width: thin;
-        scrollbar-color: rgba(109, 73, 39, 0.45) transparent;
+        scrollbar-color: var(--color-dune) var(--color-sand-dim);
       }
       ::-webkit-scrollbar {
         width: 10px;
         height: 10px;
       }
       ::-webkit-scrollbar-track {
-        background: transparent;
+        background: var(--color-sand-dim);
+        border-radius: 5px;
       }
       ::-webkit-scrollbar-thumb {
-        background: rgba(109, 73, 39, 0.35);
-        border-radius: 999px;
-        border: 2px solid transparent;
-        background-clip: padding-box;
+        background: var(--color-dune);
+        border: 2px solid var(--color-sand-dim);
+        border-radius: 5px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: rgba(109, 73, 39, 0.6);
-        background-clip: padding-box;
+        background: var(--color-sky-deep);
       }
     </style>
     <script>

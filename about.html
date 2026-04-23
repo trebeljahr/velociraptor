@@ -13,93 +13,166 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>About – Raptor Runner</title>
     <style>
+      /* Brand palette — mirrors src/styles/base.css so the iframe
+         reads as the same game chrome, not a generic article. */
+      :root {
+        --color-sand: #f5dcaa;
+        --color-sand-contrast: #fbebc6;
+        --color-sand-dim: #e8c98e;
+        --color-sky: #50b4cd;
+        --color-sky-dim: #3a8fa5;
+        --color-sky-deep: #1f5b6b;
+        --color-dune: #2a1d13;
+        --color-dune-dim: #4a3526;
+      }
       * {
         box-sizing: border-box;
       }
       body {
         margin: 0;
-        padding: 2rem 1.5rem;
+        padding: 3.5rem 2rem;
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-        background: #ffffff;
-        color: #333;
-        line-height: 1.65;
+        background: var(--color-sand);
+        color: var(--color-dune);
+        line-height: 1.7;
       }
       main {
         max-width: 680px;
         margin: 0 auto;
+        background: var(--color-sand-contrast);
+        border: 3px solid var(--color-dune);
+        border-radius: 10px;
+        padding: 2.5rem 2.25rem;
       }
       .back {
         display: inline-block;
-        margin-bottom: 1.5rem;
-        color: #3498db;
+        margin-bottom: 1.75rem;
+        color: var(--color-sky-deep);
         text-decoration: none;
         font-size: 0.95rem;
+        font-weight: 600;
       }
-      .back:hover {
+      .back:hover,
+      .back:focus-visible {
         text-decoration: underline;
+        outline: none;
       }
       h1 {
-        font-size: 2.2rem;
-        margin: 0 0 0.4rem;
-        color: #222;
+        font-size: 2.25rem;
+        margin: 0 0 0.5rem;
+        color: var(--color-dune);
         letter-spacing: -0.02em;
       }
       .tagline {
-        color: #666;
+        color: var(--color-dune-dim);
         font-style: italic;
-        margin: 0 0 2rem;
+        margin: 0 0 2.25rem;
         font-size: 1rem;
       }
       h2 {
         font-size: 1.15rem;
-        margin: 2rem 0 0.6rem;
-        color: #222;
+        margin: 2.25rem 0 0.7rem;
+        color: var(--color-dune);
       }
       p {
-        margin: 0 0 0.9rem;
+        margin: 0 0 1rem;
         font-size: 0.97rem;
       }
       a {
-        color: #3498db;
+        color: var(--color-sky-deep);
+        font-weight: 600;
+        text-decoration: underline;
+        text-decoration-color: rgba(31, 91, 107, 0.35);
+        text-underline-offset: 2px;
+      }
+      a:hover,
+      a:focus-visible {
+        color: var(--color-dune);
+        text-decoration-color: currentColor;
+        outline: none;
       }
       ul {
-        padding-left: 1.2rem;
-        margin: 0.5rem 0 1rem;
+        padding-left: 1.35rem;
+        margin: 0.65rem 0 1.25rem;
       }
       li {
-        margin-bottom: 0.35rem;
-        font-size: 0.94rem;
+        margin-bottom: 0.4rem;
+        font-size: 0.95rem;
       }
       blockquote {
-        margin: 1.25rem 0;
-        padding: 0.7rem 1.15rem;
-        border-left: 3px solid #50b4cd;
-        color: #444;
-        background: #f4f8fb;
+        margin: 1.5rem 0;
+        padding: 0.85rem 1.25rem;
+        border-left: 4px solid var(--color-sky);
+        color: var(--color-dune);
+        background: var(--color-sand);
         border-radius: 0 6px 6px 0;
-        font-size: 0.96rem;
+        font-size: 0.97rem;
       }
       .footer-links {
-        margin-top: 2.5rem;
-        padding-top: 1.25rem;
-        border-top: 1px solid #eee;
-        color: #666;
-        font-size: 0.85rem;
+        margin-top: 2.75rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid var(--color-sand-dim);
+        color: var(--color-dune-dim);
+        font-size: 0.88rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.2rem 1.25rem;
       }
       .footer-links a {
-        color: #555;
-        margin-right: 1rem;
+        color: var(--color-dune);
+      }
+      /* Support / external links block — pinned card inside the
+         page body so the "wishlist / itch / donate" CTAs read as a
+         first-class section, not a footer afterthought. */
+      .support-card {
+        margin-top: 2rem;
+        padding: 1.25rem 1.35rem;
+        background: var(--color-sand);
+        border: 2px solid var(--color-dune);
+        border-radius: 8px;
+      }
+      .support-card h2 {
+        margin-top: 0;
+      }
+      .support-card .support-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+      }
+      .support-card .support-buttons a {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.55rem 0.95rem;
+        background: var(--color-sand-contrast);
+        border: 2px solid var(--color-dune);
+        border-radius: 6px;
+        color: var(--color-dune);
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition:
+          background 0.12s ease,
+          transform 0.06s ease;
+      }
+      .support-card .support-buttons a:hover,
+      .support-card .support-buttons a:focus-visible {
+        background: var(--color-sky);
+      }
+      .support-card .support-buttons a:active {
+        transform: translateY(2px);
       }
       .muted {
-        color: #666;
-        font-size: 0.85rem;
+        color: var(--color-dune-dim);
+        font-size: 0.88rem;
       }
       body.in-frame .back {
         display: none;
       }
       body.in-frame {
-        padding-top: 1rem;
+        padding-top: 1.25rem;
+        padding-bottom: 1.25rem;
       }
       /* Desktop (Electron) gating. The parent window's inline detect
          script sets html.is-desktop on the TOP document, but about.html
@@ -108,29 +181,28 @@
       html.is-desktop .web-only {
         display: none !important;
       }
-      /* Match the in-game sub-overlay scrollbars so the iframe
-         doesn't dump a default scrollbar into an otherwise warm
-         overlay. Same palette as legacy.css. */
+      /* Brand-matched scrollbar — same palette the in-game chrome
+         uses, so this page doesn't drop a default grey bar into a
+         warm sand overlay. */
       html {
         scrollbar-width: thin;
-        scrollbar-color: rgba(109, 73, 39, 0.45) transparent;
+        scrollbar-color: var(--color-dune) var(--color-sand-dim);
       }
       ::-webkit-scrollbar {
         width: 10px;
         height: 10px;
       }
       ::-webkit-scrollbar-track {
-        background: transparent;
+        background: var(--color-sand-dim);
+        border-radius: 5px;
       }
       ::-webkit-scrollbar-thumb {
-        background: rgba(109, 73, 39, 0.35);
-        border-radius: 999px;
-        border: 2px solid transparent;
-        background-clip: padding-box;
+        background: var(--color-dune);
+        border: 2px solid var(--color-sand-dim);
+        border-radius: 5px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: rgba(109, 73, 39, 0.6);
-        background-clip: padding-box;
+        background: var(--color-sky-deep);
       }
     </style>
     <script>
@@ -272,6 +344,31 @@
           ></span
         >.
       </p>
+
+      <section class="support-card">
+        <h2>Support Raptor Runner</h2>
+        <p>
+          The game is free. If you enjoyed it, a wishlist on Steam or a
+          follow on itch.io goes a long way — the platforms surface titles
+          with early momentum, and that's what turns a side project into a
+          real release. A tip is welcome too, if you're the tipping kind.
+        </p>
+        <div class="support-buttons">
+          <a href="https://trebeljahr.itch.io/raptor-runner" target="_blank" rel="noopener">
+            View on itch.io
+          </a>
+          <a
+            href="https://store.steampowered.com/app/480/Raptor_Runner/?snr=1_wishlist_"
+            target="_blank"
+            rel="noopener"
+          >
+            Wishlist on Steam
+          </a>
+          <a href="https://ricos.site/support" target="_blank" rel="noopener">
+            Support / Donate
+          </a>
+        </div>
+      </section>
 
       <div class="footer-links">
         <a class="web-only" href="imprint.html">Imprint</a>

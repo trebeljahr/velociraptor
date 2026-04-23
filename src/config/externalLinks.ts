@@ -1,0 +1,36 @@
+/*
+ * Raptor Runner — external URL constants.
+ *
+ * Centralizes every outbound link so the marketing pages, the menu
+ * buttons, and the about / imprint pages never drift out of sync.
+ *
+ * Update a URL here and it propagates to the Donate button, the
+ * MenuList Steam / itch rows, and the About / Imprint footers.
+ */
+
+/** Itch.io store page. Standard user-page pattern — replace if the
+ *  project slug ever moves. */
+export const ITCH_STORE_URL =
+  "https://trebeljahr.itch.io/raptor-runner";
+
+/** Steam store page. Using the resolved app id from steam_appid.txt;
+ *  once a real Steamworks app id is provisioned, swap this. Until
+ *  then the link points at the current placeholder. */
+export const STEAM_STORE_URL =
+  "https://store.steampowered.com/app/480/Raptor_Runner/";
+
+/** Steam wishlist add — Steam's own "add to wishlist" flow. Opens
+ *  the same page as STEAM_STORE_URL plus the ?wishlist=1 hint that
+ *  expands the wishlist CTA. */
+export const STEAM_WISHLIST_URL = `${STEAM_STORE_URL}?snr=1_wishlist_`;
+
+/** Support / donate destination. Using the newsletter page on
+ *  ricos.site — same target the byline links to, so one tip jar to
+ *  maintain. Swap for ko-fi / buymeacoffee / Patreon if desired. */
+export const DONATE_URL = "https://ricos.site/support";
+
+/** Author's portfolio. Used in the about-page credit + byline. */
+export const PORTFOLIO_URL = "https://portfolio.trebeljahr.com";
+
+/** Public GitHub mirror. */
+export const GITHUB_URL = "https://github.com/trebeljahr/velociraptor";

@@ -20,6 +20,11 @@
  * so ui.ts can compute them once and pass the result on each render.
  */
 import { type MouseEvent } from "react";
+import {
+  DONATE_URL,
+  ITCH_STORE_URL,
+  STEAM_WISHLIST_URL,
+} from "../../config/externalLinks";
 
 export interface MenuListCallbacks {
   onClose: () => void;
@@ -150,6 +155,54 @@ export function MenuList({ callbacks: cb }: MenuListProps) {
           </a>
         </li>
         <li className="web-only">
+          <a
+            className="menu-item"
+            href={ITCH_STORE_URL}
+            target="_blank"
+            rel="noopener"
+          >
+            <span className="inner">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 9h18"></path>
+                <path d="M3 9v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9"></path>
+                <path d="M5 9l1-5h12l1 5"></path>
+              </svg>
+              <span>View on itch.io</span>
+            </span>
+          </a>
+        </li>
+        <li className="web-only">
+          <a
+            className="menu-item"
+            href={STEAM_WISHLIST_URL}
+            target="_blank"
+            rel="noopener"
+          >
+            <span className="inner">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              </svg>
+              <span>Wishlist on Steam</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a
+            className="menu-item"
+            href={DONATE_URL}
+            target="_blank"
+            rel="noopener"
+          >
+            <span className="inner">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 2v20"></path>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+              <span>Support / Donate</span>
+            </span>
+          </a>
+        </li>
+        <li className="web-only">
           <a className="menu-item" href="https://github.com/trebeljahr/velociraptor" target="_blank" rel="noopener">
             <span className="inner">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -159,7 +212,7 @@ export function MenuList({ callbacks: cb }: MenuListProps) {
             </span>
           </a>
         </li>
-        <li className="desktop-only">
+        <li className="steam-only">
           <button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onSteamStore(); }}>
             <span className="inner">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -171,7 +224,7 @@ export function MenuList({ callbacks: cb }: MenuListProps) {
             </span>
           </button>
         </li>
-        <li className="desktop-only">
+        <li className="steam-only">
           <button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onSteamFriends(); }}>
             <span className="inner">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
