@@ -22,7 +22,7 @@
  * keyboard path (window.__onStartKey) and the click path share one
  * animation pipeline.
  */
-import { type MouseEvent, useEffect, useRef } from "react";
+import type { MouseEvent } from "react";
 
 export interface StartScreenCallbacks {
   onStart: () => void;
@@ -38,33 +38,6 @@ export function StartScreen({ callbacks: cb }: StartScreenProps) {
   const ready = cb.getAssetsReady();
   const hs = cb.getHighScore();
   const showHighScore = hs > 0;
-  const btnRef = useRef<HTMLButtonElement | null>(null);
-
-  // Focus the Start Game button the frame it transitions from
-  // loading → ready so keyboard / gamepad users can hit Enter / A
-  // immediately AND the brand sky-blue highlight reads as
-  // "primary action here". We mirror ui.ts's focusKbd() helper:
-  // focus({ focusVisible: true }) on modern browsers, plus a
-  // `.kbd-focus` class that's dropped on blur so mouse users
-  // don't see a stuck halo. Gated on `ready` so the effect only
-  // fires on the enable edge, not on every re-render.
-  useEffect(() => {
-    if (!ready) return;
-    const btn = btnRef.current;
-    if (!btn || btn.disabled) return;
-    try {
-      (btn as any).focus({ focusVisible: true });
-    } catch {
-      btn.focus();
-    }
-    btn.classList.add("kbd-focus");
-    const clear = () => {
-      btn.classList.remove("kbd-focus");
-      btn.removeEventListener("blur", clear);
-    };
-    btn.addEventListener("blur", clear);
-    return () => btn.removeEventListener("blur", clear);
-  }, [ready]);
 
   const handleStart = (e: MouseEvent) => {
     e.stopPropagation();
@@ -76,9 +49,7 @@ export function StartScreen({ callbacks: cb }: StartScreenProps) {
       <div className="start-content">
         <h1>Raptor Runner</h1>
         <p className="subtitle">Jump the cacti. Don't let the raptor die.</p>
-        <p className="homage">
-          A homage to the Google "No Internet" idle game.
-        </p>
+        <p className="homage">A homage to the Google "No Internet" idle game.</p>
         {showHighScore && (
           <p className="start-highscore">
             ★ Personal best: <span>{Math.floor(hs)}</span>
@@ -86,7 +57,6 @@ export function StartScreen({ callbacks: cb }: StartScreenProps) {
         )}
         <button
           id="start-btn"
-          ref={btnRef}
           className={"start-btn" + (ready ? "" : " loading")}
           type="button"
           disabled={!ready}
@@ -113,8 +83,7 @@ export function StartScreen({ callbacks: cb }: StartScreenProps) {
         </p>
       </div>
       <p className="start-byline">
-        Made with
-        {" "}
+        Made with{" "}
         <svg
           className="heart"
           xmlns="http://www.w3.org/2000/svg"
@@ -122,20 +91,18 @@ export function StartScreen({ callbacks: cb }: StartScreenProps) {
           aria-hidden="true"
         >
           <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-        </svg>
-        {" "}
+        </svg>{" "}
         by{" "}
         <span className="web-only">
-          <a href="https://portfolio.trebeljahr.com" target="_blank" rel="noopener">
+          <a href="https://portfolio.trebeljahr.com" target="_blank" rel="noreferrer noopener">
             Rico Trebeljahr
-          </a>
-          {" "}<span className="dot">·</span>{" "}
-          <a href="https://ricos.site/newsletters" target="_blank" rel="noopener">
+          </a>{" "}
+          <span className="dot">·</span>{" "}
+          <a href="https://ricos.site/newsletters" target="_blank" rel="noreferrer noopener">
             Writing at ricos.site
-          </a>
-          {" "}<span className="dot">·</span>{" "}
-          Dino Art by{" "}
-          <a href="https://www.instagram.com/chrismasna" target="_blank" rel="noopener">
+          </a>{" "}
+          <span className="dot">·</span> Dino Art by{" "}
+          <a href="https://www.instagram.com/chrismasna" target="_blank" rel="noreferrer noopener">
             Chris Masna
           </a>
         </span>

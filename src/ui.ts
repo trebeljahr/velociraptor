@@ -28,19 +28,16 @@
 // @ts-nocheck
 /* eslint-disable */
 
-import { refreshShop } from "./ui/react/mountShop";
 import { refreshAchievements } from "./ui/react/mountAchievements";
-import { refreshScoreCardActions } from "./ui/react/mountScoreCardActions";
-import { refreshSoundSettings } from "./ui/react/mountSoundSettings";
 import { refreshCosmeticsMenu } from "./ui/react/mountCosmeticsMenu";
-import { refreshMenuList } from "./ui/react/mountMenuList";
-import { refreshDebugSettings } from "./ui/react/mountDebugSettings";
-import { refreshStartScreen } from "./ui/react/mountStartScreen";
 import { refreshCredits } from "./ui/react/mountCredits";
-import {
-  refreshAboutOverlay,
-  refreshImprintOverlay,
-} from "./ui/react/mountIframeOverlay";
+import { refreshDebugSettings } from "./ui/react/mountDebugSettings";
+import { refreshAboutOverlay, refreshImprintOverlay } from "./ui/react/mountIframeOverlay";
+import { refreshMenuList } from "./ui/react/mountMenuList";
+import { refreshScoreCardActions } from "./ui/react/mountScoreCardActions";
+import { refreshShop } from "./ui/react/mountShop";
+import { refreshSoundSettings } from "./ui/react/mountSoundSettings";
+import { refreshStartScreen } from "./ui/react/mountStartScreen";
 
 // Desktop "challenge a friend" store-link. Sourced from a Vite env
 // var; falls back to the web URL when not set. The env name is
@@ -66,10 +63,7 @@ const overlay = document.getElementById("menu-overlay");
 
 let fullscreenState = true; // mirror of Electron window state
 async function refreshFullscreenState() {
-  if (
-    !window.electronAPI ||
-    typeof window.electronAPI.isFullscreen !== "function"
-  ) {
+  if (!window.electronAPI || typeof window.electronAPI.isFullscreen !== "function") {
     return;
   }
   try {
@@ -98,16 +92,11 @@ function handleQuitClick() {
 }
 
 async function handleFullscreenClick() {
-  if (
-    !window.electronAPI ||
-    typeof window.electronAPI.setFullscreen !== "function"
-  ) {
+  if (!window.electronAPI || typeof window.electronAPI.setFullscreen !== "function") {
     return;
   }
   try {
-    fullscreenState = !!(await window.electronAPI.setFullscreen(
-      !fullscreenState,
-    ));
+    fullscreenState = !!(await window.electronAPI.setFullscreen(!fullscreenState));
     syncMenuList();
     // The fullscreen transition churns the window and on some
     // Electron versions silently drops focus to <body>. Restore
@@ -117,9 +106,9 @@ async function handleFullscreenClick() {
     // syncMenuList() above — caching a stale reference would leak
     // into nothing.
     requestAnimationFrame(() => {
-      const btn = Array.from(
-        document.querySelectorAll<HTMLElement>(".menu-panel .menu-item"),
-      ).find((el) => el.textContent?.includes("Fullscreen"));
+      const btn = Array.from(document.querySelectorAll<HTMLElement>(".menu-panel .menu-item")).find(
+        (el) => el.textContent?.includes("Fullscreen"),
+      );
       if (btn) focusKbd(btn);
     });
   } catch (_) {}
@@ -131,8 +120,8 @@ const aboutOverlay = document.getElementById("about-overlay");
 // Iframe src is lazily flipped from "about:blank" on first open —
 // ui.ts holds the flag, the React component reads the current value
 // via the iframeSrc prop.
-let aboutIframeSrc: string = "about:blank";
-let imprintIframeSrc: string = "about:blank";
+let aboutIframeSrc = "about:blank";
+let imprintIframeSrc = "about:blank";
 let aboutLoaded = false;
 const achievementsOverlay = document.getElementById("achievements-overlay");
 const startScreen = document.getElementById("start-screen");
@@ -151,8 +140,7 @@ function getStartBtn() {
 
 const START_SCREEN_CALLBACKS = {
   onStart: () => triggerStart(),
-  getHighScore: () =>
-    (window.Game?.getHighScore && window.Game.getHighScore()) || 0,
+  getHighScore: () => (window.Game?.getHighScore && window.Game.getHighScore()) || 0,
   getAssetsReady: () => assetsReady,
 };
 
@@ -181,11 +169,11 @@ function onGameReady() {
   // label / disabled / class all follow assetsReady + getHighScore()
   // — no imperative label poke needed.
   syncStartScreen();
-  // The React <StartScreen> owns the "auto-focus the button the
-  // moment it flips to ready" edge via useEffect — keeping the
-  // focus call in React avoids the rAF-before-commit race we'd
-  // hit from here (re-render is async, so an rAF here fires while
-  // the button is still disabled).
+  // No auto-focus here — the pulse animation is enough of an
+  // attention cue, and auto-focusing on launch put the button
+  // in its sky-blue hover state before the user had interacted.
+  // The button still takes keyboard focus naturally the moment
+  // the player hits Tab / Enter / Space.
 
   // Wire the share panel to the game's onGameOver /
   // onGameReset events now that the API is ready.
@@ -264,10 +252,7 @@ function scoreLoop() {
     // tech doesn't get spammed with intermediate values.
     if (target !== lastAriaScore && scoreDisplay) {
       const coinsForLabel = window.Game.getCoinsBalance?.() ?? 0;
-      scoreDisplay.setAttribute(
-        "aria-label",
-        `Score: ${target} meters, ${coinsForLabel} coins`,
-      );
+      scoreDisplay.setAttribute("aria-label", `Score: ${target} meters, ${coinsForLabel} coins`);
       lastAriaScore = target;
       lastAriaCoins = coinsForLabel;
     }
@@ -387,13 +372,10 @@ window.__onStartKey = triggerStart;
 
 // ───────── Landscape guard ─────────
 const isLikelyTouchDevice = () =>
-  window.matchMedia("(pointer: coarse)").matches ||
-  window.navigator.maxTouchPoints > 0;
+  window.matchMedia("(pointer: coarse)").matches || window.navigator.maxTouchPoints > 0;
 const isMobileDevice = () =>
-  isLikelyTouchDevice() &&
-  Math.min(window.innerWidth, window.innerHeight) <= 1200;
-const isMobilePortrait = () =>
-  isMobileDevice() && window.innerHeight > window.innerWidth;
+  isLikelyTouchDevice() && Math.min(window.innerWidth, window.innerHeight) <= 1200;
+const isMobilePortrait = () => isMobileDevice() && window.innerHeight > window.innerWidth;
 
 function refreshRotateGuard() {
   document.body.classList.toggle("needs-rotate", isMobilePortrait());
@@ -604,10 +586,7 @@ function refreshFullscreenUI() {
   const on = isFullscreen();
   fullscreenBtn.classList.toggle("is-fullscreen", on);
   fullscreenBtn.setAttribute("aria-pressed", String(on));
-  fullscreenBtn.setAttribute(
-    "aria-label",
-    on ? "Exit fullscreen" : "Enter fullscreen",
-  );
+  fullscreenBtn.setAttribute("aria-label", on ? "Exit fullscreen" : "Enter fullscreen");
 }
 async function toggleFullscreen() {
   try {
@@ -653,8 +632,7 @@ if (fullscreenBtn) {
 function refreshMenuHighscore() {
   const hsEl = document.getElementById("menu-highscore");
   const hsVal = document.getElementById("menu-highscore-value");
-  if (!hsEl || !hsVal || !window.Game || !window.Game.getHighScore)
-    return;
+  if (!hsEl || !hsVal || !window.Game || !window.Game.getHighScore) return;
   const hs = Math.floor(window.Game.getHighScore() || 0);
   if (hs > 0) {
     hsVal.textContent = String(hs);
@@ -691,11 +669,7 @@ function openMenuBase() {
   // Press Esc hint) are hidden on the start screen.
   const panel = overlay.querySelector(".menu-panel");
   if (panel) {
-    if (
-      window.Game &&
-      window.Game.isStarted &&
-      window.Game.isStarted()
-    ) {
+    if (window.Game && window.Game.isStarted && window.Game.isStarted()) {
       panel.classList.remove("pre-game");
     } else {
       panel.classList.add("pre-game");
@@ -749,9 +723,7 @@ function toggleMenu() {
 // menu code the cog button uses. Zero-cost on the web build —
 // the Capacitor bridge is only imported inside __IS_CAPACITOR__
 // guard, and the gamepad poller no-ops if no pad is attached.
-window.__rrIsMenuOpen = function () {
-  return overlay.classList.contains("open");
-};
+window.__rrIsMenuOpen = () => overlay.classList.contains("open");
 window.__rrToggleMenu = toggleMenu;
 window.__rrCloseMenu = closeMenu;
 /**
@@ -766,7 +738,7 @@ window.__rrCloseMenu = closeMenu;
  * B collapses the innermost open thing, not the entire
  * screen.
  */
-window.__rrMenuBack = function () {
+window.__rrMenuBack = () => {
   const openDetails = overlay.querySelector("details[open]");
   if (openDetails) {
     openDetails.removeAttribute("open");
@@ -798,13 +770,11 @@ window.__rrMenuBack = function () {
  * caller doesn't have to branch on element type, or null if
  * no scrollable sub-overlay is open.
  */
-window.__rrActiveScrollable = function () {
+window.__rrActiveScrollable = () => {
   const overlays = document.querySelectorAll(".imprint-overlay.open");
   if (!overlays.length) return null;
   const active = overlays[0];
-  const scroll = active.querySelector(
-    ".credits-scroll, .achievements-scroll",
-  );
+  const scroll = active.querySelector(".credits-scroll, .achievements-scroll");
   if (scroll) {
     return {
       scrollBy(dx, dy) {
@@ -832,13 +802,11 @@ window.__rrActiveScrollable = function () {
 /** True if any sub-overlay is currently open. Used by the
  *  gamepad poller to decide which nav mode to run even when
  *  the overlay has no scrollable content (e.g. reset-confirm). */
-window.__rrSubOverlayOpen = function () {
-  return !!document.querySelector(".imprint-overlay.open");
-};
+window.__rrSubOverlayOpen = () => !!document.querySelector(".imprint-overlay.open");
 /** Click the close button of the active sub-overlay. Routes
  *  through the overlay's existing click handler so any
  *  Game.resume() / state-restore hooks fire correctly. */
-window.__rrCloseActiveSubOverlay = function () {
+window.__rrCloseActiveSubOverlay = () => {
   const active = document.querySelector(".imprint-overlay.open");
   if (!active) return false;
   const closeBtn = active.querySelector(".imprint-close");
@@ -878,8 +846,7 @@ let _subOverlayFocusIdx = 0;
 function focusSubOverlayIndex(idx) {
   const items = getActiveSubOverlayButtons();
   if (!items.length) return;
-  _subOverlayFocusIdx =
-    ((idx % items.length) + items.length) % items.length;
+  _subOverlayFocusIdx = ((idx % items.length) + items.length) % items.length;
   const target = items[_subOverlayFocusIdx];
   // Route through focusKbd so the .kbd-focus class lands alongside
   // :focus-visible. Programmatic .focus() calls don't always trip
@@ -898,13 +865,13 @@ function currentSubOverlayFocusIdx() {
   if (matchIdx !== -1) return matchIdx;
   return Math.min(Math.max(0, _subOverlayFocusIdx), items.length - 1);
 }
-window.__rrSubOverlayFocusNext = function () {
+window.__rrSubOverlayFocusNext = () => {
   focusSubOverlayIndex(currentSubOverlayFocusIdx() + 1);
 };
-window.__rrSubOverlayFocusPrev = function () {
+window.__rrSubOverlayFocusPrev = () => {
   focusSubOverlayIndex(currentSubOverlayFocusIdx() - 1);
 };
-window.__rrSubOverlaySelect = function () {
+window.__rrSubOverlaySelect = () => {
   const items = getActiveSubOverlayButtons();
   if (!items.length) return;
   const idx = currentSubOverlayFocusIdx();
@@ -939,9 +906,7 @@ window.__rrSubOverlaySelect = function () {
 // skipped right past the "Sound Settings" row and the
 // player couldn't fold it open/closed with a controller.
 function getNavigableMenuItems() {
-  const all = overlay.querySelectorAll(
-    ".menu-item, .sound-settings-summary, .menu-group-summary",
-  );
+  const all = overlay.querySelectorAll(".menu-item, .sound-settings-summary, .menu-group-summary");
   const list = [];
   for (const el of all) {
     if (el.disabled) continue;
@@ -951,11 +916,7 @@ function getNavigableMenuItems() {
     // aren't reachable visually and must not appear in
     // the nav list.
     const closestDetails = el.closest("details");
-    if (
-      closestDetails &&
-      !closestDetails.open &&
-      el.tagName.toLowerCase() !== "summary"
-    ) {
+    if (closestDetails && !closestDetails.open && el.tagName.toLowerCase() !== "summary") {
       continue;
     }
     list.push(el);
@@ -988,8 +949,7 @@ function focusKbd(target) {
 function focusMenuIndex(idx) {
   const items = getNavigableMenuItems();
   if (!items.length) return;
-  _menuFocusIdx =
-    ((idx % items.length) + items.length) % items.length;
+  _menuFocusIdx = ((idx % items.length) + items.length) % items.length;
   const target = items[_menuFocusIdx];
   focusKbd(target);
   target.scrollIntoView({ block: "nearest" });
@@ -1020,13 +980,13 @@ function currentMenuFocusIdx() {
   // anymore. Clamp the stored index into the new range.
   return Math.min(Math.max(0, _menuFocusIdx), items.length - 1);
 }
-window.__rrMenuFocusNext = function () {
+window.__rrMenuFocusNext = () => {
   focusMenuIndex(currentMenuFocusIdx() + 1);
 };
-window.__rrMenuFocusPrev = function () {
+window.__rrMenuFocusPrev = () => {
   focusMenuIndex(currentMenuFocusIdx() - 1);
 };
-window.__rrMenuSelect = function () {
+window.__rrMenuSelect = () => {
   const items = getNavigableMenuItems();
   if (!items.length) return;
   const idx = currentMenuFocusIdx();
@@ -1048,11 +1008,10 @@ window.__rrMenuSelect = function () {
 // click handler stays focused on behaviour; the audio feedback
 // lives here so it's uniform and can't drift per-item.
 overlay.addEventListener("click", (e) => {
-  const t = e.target && e.target.closest
-    ? e.target.closest(
-        ".menu-item, .sound-settings-summary, .menu-group-summary",
-      )
-    : null;
+  const t =
+    e.target && e.target.closest
+      ? e.target.closest(".menu-item, .sound-settings-summary, .menu-group-summary")
+      : null;
   if (!t) return;
   const items = getNavigableMenuItems();
   const idx = items.indexOf(t);
@@ -1125,18 +1084,12 @@ async function handleInstallClick() {
 // Steam overlay IPC helpers — desktop-only but the call is safe
 // no-op elsewhere (electronAPI is undefined on web and mobile).
 function handleSteamStoreClick() {
-  if (
-    window.electronAPI &&
-    typeof window.electronAPI.openSteamOverlayUrl === "function"
-  ) {
+  if (window.electronAPI && typeof window.electronAPI.openSteamOverlayUrl === "function") {
     window.electronAPI.openSteamOverlayUrl(STEAM_STORE_URL);
   }
 }
 function handleSteamFriendsClick() {
-  if (
-    window.electronAPI &&
-    typeof window.electronAPI.openSteamOverlay === "function"
-  ) {
+  if (window.electronAPI && typeof window.electronAPI.openSteamOverlay === "function") {
     window.electronAPI.openSteamOverlay("Friends");
   }
 }
@@ -1147,19 +1100,30 @@ function handleSteamFriendsClick() {
 const MENU_LIST_CALLBACKS = {
   onClose: () => closeMenu(),
   onHome: handleHomeClick,
-  onAchievements: () => { closeMenu(); openAchievements(); },
+  onAchievements: () => {
+    closeMenu();
+    openAchievements();
+  },
   onResetProgress: () => openResetConfirm(),
   onInstall: handleInstallClick,
-  onAbout: () => { closeMenu(); openAbout(); },
-  onCredits: () => { closeMenu(); openCredits(); },
-  onImprint: () => { closeMenu(); openImprint(); },
+  onAbout: () => {
+    closeMenu();
+    openAbout();
+  },
+  onCredits: () => {
+    closeMenu();
+    openCredits();
+  },
+  onImprint: () => {
+    closeMenu();
+    openImprint();
+  },
   onSteamStore: handleSteamStoreClick,
   onSteamFriends: handleSteamFriendsClick,
   onFullscreen: handleFullscreenClick,
   onQuit: handleQuitClick,
   getInstallAvailable: () => deferredInstallPrompt != null,
-  getFullscreenLabel: () =>
-    "Fullscreen: " + (fullscreenState ? "on" : "off"),
+  getFullscreenLabel: () => "Fullscreen: " + (fullscreenState ? "on" : "off"),
 };
 
 function syncMenuList() {
@@ -1215,19 +1179,34 @@ const DEBUG_SETTINGS_CALLBACKS = {
     displayedScore = n;
   },
   onTriggerUfo: () => {
-    if (window.Game?.triggerEvent) { window.Game.triggerEvent("ufo"); closeMenu(); }
+    if (window.Game?.triggerEvent) {
+      window.Game.triggerEvent("ufo");
+      closeMenu();
+    }
   },
   onTriggerSanta: () => {
-    if (window.Game?.triggerEvent) { window.Game.triggerEvent("santa"); closeMenu(); }
+    if (window.Game?.triggerEvent) {
+      window.Game.triggerEvent("santa");
+      closeMenu();
+    }
   },
   onTriggerTumbleweed: () => {
-    if (window.Game?.triggerEvent) { window.Game.triggerEvent("tumbleweed"); closeMenu(); }
+    if (window.Game?.triggerEvent) {
+      window.Game.triggerEvent("tumbleweed");
+      closeMenu();
+    }
   },
   onTriggerComet: () => {
-    if (window.Game?.triggerEvent) { window.Game.triggerEvent("comet"); closeMenu(); }
+    if (window.Game?.triggerEvent) {
+      window.Game.triggerEvent("comet");
+      closeMenu();
+    }
   },
   onTriggerMeteor: () => {
-    if (window.Game?.triggerEvent) { window.Game.triggerEvent("meteor"); closeMenu(); }
+    if (window.Game?.triggerEvent) {
+      window.Game.triggerEvent("meteor");
+      closeMenu();
+    }
   },
   onAdvanceMoon: () => {
     if (window.Game?.advanceMoonPhase) {
@@ -1256,10 +1235,18 @@ function syncDebugSettings() {
 // Thin wrappers kept for the openMenuBase call sites that still
 // trigger per-area refreshes. Each now just pings the React tree
 // to re-read the current Game-API state.
-function refreshHitboxesUI() { syncDebugSettings(); }
-function refreshRainUI() { syncDebugSettings(); }
-function refreshNoCollisionsUI() { syncDebugSettings(); }
-function refreshPerfUI() { syncDebugSettings(); }
+function refreshHitboxesUI() {
+  syncDebugSettings();
+}
+function refreshRainUI() {
+  syncDebugSettings();
+}
+function refreshNoCollisionsUI() {
+  syncDebugSettings();
+}
+function refreshPerfUI() {
+  syncDebugSettings();
+}
 
 // ───────── Accessory toggles (party hat / thug glasses) ─────────
 // Both entries are hidden in the markup by default and only
@@ -1268,9 +1255,7 @@ function refreshPerfUI() { syncDebugSettings(); }
 const cosmeticsGroup = document.getElementById("cosmetics");
 const cosmeticsList = document.getElementById("cosmetics-list");
 const menuShopBtn = document.getElementById("menu-shop");
-const menuShopBalanceValue = document.getElementById(
-  "menu-shop-balance-value",
-);
+const menuShopBalanceValue = document.getElementById("menu-shop-balance-value");
 const shopOverlay = document.getElementById("shop-overlay");
 
 // Start-screen raptor stage. Each <img class="start-raptor-cosmetic">
@@ -1293,10 +1278,7 @@ const _IDLE_NECK_CORRECTION = { x: 0.00187, y: -0.00078 };
 // draw path in raptor.ts and use slightly smaller scales. Mirror
 // those here so party-hat/thug-glasses/bow-tie render identically
 // on the start screen.
-const _CLASSIC_DRAW: Record<
-  string,
-  { scale?: number; rotation?: number }
-> = {
+const _CLASSIC_DRAW: Record<string, { scale?: number; rotation?: number }> = {
   "party-hat": { scale: 0.25, rotation: -0.35 },
   "thug-glasses": { scale: 0.07 },
   "bow-tie": { scale: 0.06, rotation: -0.15 },
@@ -1334,9 +1316,7 @@ function _applyStartCosmeticTransform(
   slot: "head" | "eyes" | "neck",
   id: string,
 ) {
-  const def = window.Game?.getAllCosmetics?.().find(
-    (c: { id: string }) => c.id === id,
-  );
+  const def = window.Game?.getAllCosmetics?.().find((c: { id: string }) => c.id === id);
   const draw = def?.draw ?? _CLASSIC_DRAW[id] ?? {};
   let cx = 0;
   let cy = 0;
@@ -1385,8 +1365,7 @@ function _applyStartCosmeticTransform(
   img.style.transform =
     `translate(${(-apX * 100).toFixed(2)}%, ${(-apY * 100).toFixed(2)}%) ` +
     `rotate(${rot.toFixed(4)}rad)`;
-  img.style.transformOrigin =
-    `${(apX * 100).toFixed(2)}% ${(apY * 100).toFixed(2)}%`;
+  img.style.transformOrigin = `${(apX * 100).toFixed(2)}% ${(apY * 100).toFixed(2)}%`;
 }
 
 /** id → sprite URL. Kept in module scope so both the shop grid
@@ -1394,9 +1373,7 @@ function _applyStartCosmeticTransform(
  *  cosmetics whose sprite hasn't been registered yet (placeholder
  *  path kicks in). */
 function _spriteUrlForId(id: string): string | null {
-  const def = window.Game?.getAllCosmetics?.().find(
-    (c: { id: string }) => c.id === id,
-  );
+  const def = window.Game?.getAllCosmetics?.().find((c: { id: string }) => c.id === id);
   if (!def?.spriteKey) return null;
   const map: Record<string, string> = {
     partyHat: "assets/party-hat.png",
@@ -1454,9 +1431,7 @@ const COSMETICS_MENU_CALLBACKS = {
 function renderCosmeticsMenu() {
   if (!cosmeticsGroup || !window.Game) return;
   const all = window.Game.getAllCosmetics?.() ?? [];
-  const owned = all.filter((c: { id: string }) =>
-    window.Game.ownsCosmetic?.(c.id),
-  );
+  const owned = all.filter((c: { id: string }) => window.Game.ownsCosmetic?.(c.id));
   cosmeticsGroup.hidden = owned.length === 0;
   refreshCosmeticsMenu(COSMETICS_MENU_CALLBACKS);
 }
@@ -1490,7 +1465,9 @@ function openShop() {
   // but it calls Game.resume() on closeMenu just before we open),
   // or (b) direct hotkey opens from gameplay. Either way pause is
   // the right move.
-  try { window.Game?.pause?.(); } catch {}
+  try {
+    window.Game?.pause?.();
+  } catch {}
   refreshShopMenuBalance();
   refreshShop({ onClose: closeShop, onShopChange });
   shopOverlay.classList.add("open");
@@ -1558,10 +1535,7 @@ function closeResetConfirm() {
 function doReset() {
   window.Game.resetAllProgress();
   refreshEasterEggUI();
-  if (
-    achievementsOverlay &&
-    achievementsOverlay.classList.contains("open")
-  ) {
+  if (achievementsOverlay && achievementsOverlay.classList.contains("open")) {
     refreshAchievements({ onClose: closeAchievements });
   }
   const pbEl = document.getElementById("personal-best");
@@ -1585,7 +1559,9 @@ if (resetOverlay) {
 // refreshScoreEditor() stays as a thin wrapper since openMenuBase
 // still calls it; each invocation triggers a React remount so a
 // re-opened menu shows the current score.
-function refreshScoreEditor() { syncDebugSettings(); }
+function refreshScoreEditor() {
+  syncDebugSettings();
+}
 
 // ───────── Keyboard ─────────
 // ESC toggles the menu (or closes imprint first if it's open).
@@ -1596,20 +1572,11 @@ document.addEventListener(
   (e) => {
     if (e.key === "Escape") {
       e.preventDefault();
-      if (
-        achievementsOverlay &&
-        achievementsOverlay.classList.contains("open")
-      ) {
+      if (achievementsOverlay && achievementsOverlay.classList.contains("open")) {
         closeAchievements();
-      } else if (
-        creditsOverlay &&
-        creditsOverlay.classList.contains("open")
-      ) {
+      } else if (creditsOverlay && creditsOverlay.classList.contains("open")) {
         closeCredits();
-      } else if (
-        aboutOverlay &&
-        aboutOverlay.classList.contains("open")
-      ) {
+      } else if (aboutOverlay && aboutOverlay.classList.contains("open")) {
         closeAbout();
       } else if (imprintOverlay.classList.contains("open")) {
         closeImprint();
@@ -1743,10 +1710,7 @@ function buildAchievementIconNode(ach) {
     img.className = "achievement-icon-image";
     return img;
   }
-  const svg = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "svg",
-  );
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
   svg.setAttribute("aria-hidden", "true");
   svg.innerHTML = (ach && ach.iconHTML) || "";
@@ -1881,21 +1845,21 @@ function currentScoreCardFocusIdx(): number {
   if (idx !== -1) return idx;
   return Math.min(Math.max(0, _scoreCardFocusIdx), btns.length - 1);
 }
-(window as any).__rrScoreCardFocusNext = function () {
+(window as any).__rrScoreCardFocusNext = () => {
   if (!isScoreCardOpen()) return;
   focusScoreCardIndex(currentScoreCardFocusIdx() + 1);
 };
-(window as any).__rrScoreCardFocusPrev = function () {
+(window as any).__rrScoreCardFocusPrev = () => {
   if (!isScoreCardOpen()) return;
   focusScoreCardIndex(currentScoreCardFocusIdx() - 1);
 };
-(window as any).__rrScoreCardSelect = function () {
+(window as any).__rrScoreCardSelect = () => {
   if (!isScoreCardOpen()) return;
   const btns = getNavigableScoreCardButtons();
   const btn = btns[currentScoreCardFocusIdx()];
   btn?.click();
 };
-(window as any).__rrScoreCardHome = function () {
+(window as any).__rrScoreCardHome = () => {
   if (!isScoreCardOpen()) return;
   // Close the score card AND return to the start screen — this is
   // the controller "B / Circle" path off game-over (and the
@@ -1904,7 +1868,7 @@ function currentScoreCardFocusIdx(): number {
   hideScoreCard();
   handleHomeClick();
 };
-(window as any).__rrScoreCardFocusInitial = function () {
+(window as any).__rrScoreCardFocusInitial = () => {
   if (!isScoreCardOpen()) return;
   // Default focus sits on Play Again — it's the action most players
   // reach for at game-over, and "Enter-to-restart" muscle memory
@@ -2025,8 +1989,7 @@ function handleReviveClick() {
 // Touch/mobile heuristic — on desktop we prefer clipboard
 // copy, on touch we prefer the OS share sheet.
 const isTouchDevice =
-  window.matchMedia("(pointer: coarse)").matches ||
-  (navigator.maxTouchPoints || 0) > 1;
+  window.matchMedia("(pointer: coarse)").matches || (navigator.maxTouchPoints || 0) > 1;
 
 function setShareLabel(text) {
   shareLabel = text;
@@ -2056,11 +2019,7 @@ async function handleShareClick() {
   try {
     const score = window.Game.getScore ? window.Game.getScore() : 0;
     const shareText = buildShareText(score);
-    const file = new File(
-      [currentCardBlob],
-      `raptor-runner-${score}.png`,
-      { type: "image/png" },
-    );
+    const file = new File([currentCardBlob], `raptor-runner-${score}.png`, { type: "image/png" });
     // Mobile: native share sheet with the file — the OS
     // decides whether the image, the text, or both end up
     // in the target app.
@@ -2092,11 +2051,7 @@ async function handleShareClick() {
     const textBlob = new Blob([shareText], {
       type: "text/plain",
     });
-    if (
-      navigator.clipboard &&
-      window.ClipboardItem &&
-      navigator.clipboard.write
-    ) {
+    if (navigator.clipboard && window.ClipboardItem && navigator.clipboard.write) {
       try {
         await navigator.clipboard.write([
           new ClipboardItem({
@@ -2110,9 +2065,7 @@ async function handleShareClick() {
         // Some browsers reject multi-type ClipboardItems;
         // fall back to image-only.
         try {
-          await navigator.clipboard.write([
-            new ClipboardItem({ "image/png": currentCardBlob }),
-          ]);
+          await navigator.clipboard.write([new ClipboardItem({ "image/png": currentCardBlob })]);
           flashShareLabel(isDesktopApp() ? "Invite copied!" : "Copied!");
           return;
         } catch (e2) {
