@@ -25,13 +25,14 @@
  *   Game.isMuted()
  *
  * TypeScript port notes:
- *   • This is the pragmatic first pass: the 5,400-line game.js was
- *     copied here verbatim so the game runs under Vite + TS. `@ts-nocheck`
- *     is in place while the module split (into src/constants.ts,
- *     src/state.ts, src/audio.ts, src/entities/, src/effects/, etc.) is
- *     done incrementally in follow-up work. Once a file is fully typed,
- *     its code moves out of here and `@ts-nocheck` can eventually be
- *     removed.
+ *   • The original 5,400-line game.js was copied here verbatim under
+ *     `@ts-nocheck`, then split incrementally into src/constants.ts,
+ *     src/state.ts, src/audio.ts, src/entities/, src/effects/,
+ *     src/render/, etc. The split has now progressed far enough that
+ *     `@ts-nocheck` is gone — main.ts is fully typed against the
+ *     project's strict tsconfig. Further extractions still happen
+ *     when a coherent subsystem can move out without dragging the
+ *     remaining cross-cutting state with it.
  */
 import "./styles/base.css";
 import { ACHIEVEMENTS, ACHIEVEMENTS_BY_ID } from "./achievements";

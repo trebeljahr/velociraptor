@@ -12,6 +12,11 @@
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>About – Raptor Runner</title>
+    <!-- Self-hosted Unbounded display face so headings here read as
+         the same brand typography as the in-game UI instead of system
+         sans. Vite bundles the @fontsource import; CSP font-src 'self'
+         + style-src 'self' cover the emitted woff2 + stylesheet. -->
+    <link rel="stylesheet" href="/src/styles/legal-pages.css" />
     <style>
       /* Brand palette — mirrors src/styles/base.css so the iframe
          reads as the same game chrome, not a generic article. */

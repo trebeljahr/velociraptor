@@ -1,0 +1,30 @@
+/*
+ * Shared chrome for the standalone about.html and imprint.html pages.
+ *
+ * These two pages live outside the SPA — they exist as plain HTML so
+ * /about and /imprint render as crawlable static URLs even with
+ * JavaScript disabled. That keeps them out of the React tree and
+ * src/styles/legacy.css. But it also means they don't pick up the
+ * Unbounded display font the rest of the chrome uses, which made
+ * them read as system-font articles next to a brand-typed game.
+ *
+ * This file is loaded via <link rel="stylesheet"> in both pages so
+ * Vite can bundle the @fontsource @import the same way base.css
+ * does — woff2 files are emitted to dist/assets and the CSP's
+ * font-src 'self' lets them load.
+ *
+ * Body copy stays in system sans (Unbounded is too geometric for
+ * long-form prose). The display face owns headings only.
+ */
+@import "@fontsource-variable/unbounded";
+
+:root {
+  --font-display: "Unbounded Variable", system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
