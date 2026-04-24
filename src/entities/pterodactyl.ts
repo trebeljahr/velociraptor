@@ -30,6 +30,7 @@ import {
   PTERODACTYL_HEIGHT_SCALE,
   PTERODACTYL_FLIGHT_HEIGHT_RATIO,
   PTERODACTYL_LOW_FLIGHT_HEIGHT_RATIO,
+  PTERODACTYL_LOW_FLIGHT_SIZE_SCALE,
   PTERODACTYL_FRAME_DELAY_MS,
 } from "../constants";
 import { state } from "../state";
@@ -106,7 +107,8 @@ export class Pterodactyl {
     public readonly isLowFlight: boolean = false,
   ) {
     this.img = IMAGES.pterodactylSprite;
-    this.h = raptor.h * PTERODACTYL_HEIGHT_SCALE;
+    const sizeScale = isLowFlight ? PTERODACTYL_LOW_FLIGHT_SIZE_SCALE : 1;
+    this.h = raptor.h * PTERODACTYL_HEIGHT_SCALE * sizeScale;
     this.w = this.h * (PTERODACTYL_FRAME_W / PTERODACTYL_FRAME_H);
     this.x = state.width;
     const heightRatio = isLowFlight
@@ -120,7 +122,8 @@ export class Pterodactyl {
   }
 
   resize(): void {
-    this.h = this.raptor.h * PTERODACTYL_HEIGHT_SCALE;
+    const sizeScale = this.isLowFlight ? PTERODACTYL_LOW_FLIGHT_SIZE_SCALE : 1;
+    this.h = this.raptor.h * PTERODACTYL_HEIGHT_SCALE * sizeScale;
     this.w = this.h * (PTERODACTYL_FRAME_W / PTERODACTYL_FRAME_H);
     const heightRatio = this.isLowFlight
       ? PTERODACTYL_LOW_FLIGHT_HEIGHT_RATIO

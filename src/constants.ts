@@ -387,10 +387,16 @@ export const PTERODACTYL_SPAWN_CHANCE = 0.12;
  *  OVER it instead of running underneath. Two-variant mix keeps the
  *  obstacle vocabulary rich without adding a brand-new entity. */
 export const PTERODACTYL_LOW_FLIGHT_CHANCE = 0.35;
-/** Low flight height — roughly the same y as the coin that hovers
- *  above a small cactus, so the low ptero sits in the same
- *  jump-over band as the single-cactus beat. */
-export const PTERODACTYL_LOW_FLIGHT_HEIGHT_RATIO = 0.35;
+/** Low flight height — sits low enough that the wings-up frames
+ *  don't punish well-timed jumps. Lower than the coin-above-small-
+ *  cactus band so the flap cycle's tallest silhouette still clears
+ *  a normal jump arc. */
+export const PTERODACTYL_LOW_FLIGHT_HEIGHT_RATIO = 0.18;
+/** Size multiplier applied to the low-flight variant on top of
+ *  PTERODACTYL_HEIGHT_SCALE. Smaller silhouette pairs with the
+ *  lower flight band — reads as a different, nimbler flyer and
+ *  keeps wings-up frames from looming over jump arcs. */
+export const PTERODACTYL_LOW_FLIGHT_SIZE_SCALE = 0.8;
 
 // Per-frame head reference points, extracted by scanning each frame
 // of assets/raptor-sheet.png for the topmost opaque pixel (crown)
