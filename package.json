@@ -50,6 +50,7 @@
     "mobile:assets": "capacitor-assets generate --ios --android --iconBackgroundColor \"#50b4cd\" --splashBackgroundColor \"#50b4cd\""
   },
   "devDependencies": {
+    "@biomejs/biome": "1.9.4",
     "@capacitor/android": "^8.3.1",
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.3.1",
