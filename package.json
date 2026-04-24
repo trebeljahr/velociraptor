@@ -148,5 +148,14 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "steamworks.js": "^0.4.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "electron-winstaller",
+      "esbuild",
+      "sharp",
+      "@biomejs/biome"
+    ]
   }
 }
