@@ -47,13 +47,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build desktop package
         # Auto-publish is disabled via "publish": null in package.json
@@ -64,7 +68,7 @@ jobs:
         # For Steam builds, trigger this workflow with STEAM_APP_ID set
         # in the environment (via a separate workflow_dispatch input)
         # or switch to the steam-publish workflow.
-        run: npm run electron:build
+        run: pnpm run electron:build
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v7
