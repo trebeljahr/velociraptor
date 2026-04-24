@@ -27,7 +27,8 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noExplicitAny": "warn"
+        "noExplicitAny": "warn",
+        "noApproximativeNumericConstant": "off"
       },
       "style": {
         "noNonNullAssertion": "off",
@@ -35,6 +36,7 @@
         "useTemplate": "off",
         "noUnusedTemplateLiteral": "off"
       },
+
       "performance": {
         "noDelete": "off"
       },
