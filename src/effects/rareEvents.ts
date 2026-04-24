@@ -60,39 +60,43 @@ interface RareEventDefinition {
   duration: number;
 }
 
+// avgInterval is the per-jump expected interval for THIS event when
+// eligible — i.e. each unseen event rolls 1/avgInterval per jump.
+// Sized so that a player who has earned enough coins to clear the
+// shop (~1500 jumps across runs) has near-certainly seen all five.
 export const RARE_EVENTS: ReadonlyArray<RareEventDefinition> = [
   {
     id: "ufo",
     achievement: "ufo-sighting",
-    avgInterval: 400,
+    avgInterval: 250,
     condition: () => !state.isRaining && state.rainIntensity < 0.1,
     duration: 20,
   },
   {
     id: "santa",
     achievement: "santa-spotted",
-    avgInterval: 500,
+    avgInterval: 250,
     condition: () => state.isNight && state.rainIntensity < 0.1,
     duration: 6,
   },
   {
     id: "tumbleweed",
     achievement: "tumbleweed",
-    avgInterval: 300,
+    avgInterval: 200,
     condition: () => !state.isNight && state.rainIntensity < 0.1,
     duration: 25,
   },
   {
     id: "comet",
     achievement: "comet",
-    avgInterval: 600,
+    avgInterval: 300,
     condition: () => state.isNight && state.rainIntensity < 0.1,
     duration: 8,
   },
   {
     id: "meteor",
     achievement: "meteor-impact",
-    avgInterval: 500,
+    avgInterval: 250,
     condition: () => state.isNight && state.rainIntensity < 0.1,
     duration: 5,
   },
@@ -107,27 +111,23 @@ export const RARE_EVENTS: ReadonlyArray<RareEventDefinition> = [
  * the Raptor entity's `onJump` callback wired in main.ts's init.
  *
  * One event at a time. Unseen events are preferred over repeats.
- * On "shooting-star nights" (night + at least one full cycle behind
- * us), only comet and meteor are eligible so the sky stays sparse.
+ * Each candidate rolls independently against its own avgInterval —
+ * the previous "pick one then roll" path diluted every event's
+ * effective odds by the pool size, so a 2-event pool halved each
+ * event's per-jump chance.
  */
 export function maybeSpawnRareEvent(): void {
   if (state.activeRareEvent) return; // one at a time
-  // Build candidate list: prefer unseen events, then allow repeats.
-  // On shooting star nights (phase >= 1, night), only comet/meteor
-  // are allowed.
-  const shootingStarNight = state.isNight && Math.floor(state.smoothPhase) >= 1;
-  const eligible = RARE_EVENTS.filter(
-    (e) =>
-      e.avgInterval > 0 &&
-      e.condition() &&
-      (!shootingStarNight || e.id === "comet" || e.id === "meteor"),
-  );
+  const eligible = RARE_EVENTS.filter((e) => e.avgInterval > 0 && e.condition());
   if (eligible.length === 0) return;
   const unseen = eligible.filter((e) => !state._rareEventsSeen[e.id]);
   const pool = unseen.length > 0 ? unseen : eligible;
-  // Single roll against the average interval of a random candidate
-  const evt = pool[Math.floor(Math.random() * pool.length)];
-  if (Math.random() >= 1 / evt.avgInterval) return;
+  // Independent per-event rolls — avgInterval is "expected jumps
+  // between sightings of THIS event when eligible". If multiple
+  // events succeed in the same frame, pick uniformly among them.
+  const triggered = pool.filter((e) => Math.random() < 1 / e.avgInterval);
+  if (triggered.length === 0) return;
+  const evt = triggered[Math.floor(Math.random() * triggered.length)];
   state.activeRareEvent = {
     id: evt.id,
     age: 0,
