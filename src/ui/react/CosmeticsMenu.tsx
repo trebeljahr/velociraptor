@@ -22,7 +22,7 @@
  * the side-effect fanout (start-screen raptor preview refresh) via
  * the callbacks prop.
  */
-import { type MouseEvent } from "react";
+import type { MouseEvent } from "react";
 
 export interface CosmeticsMenuCallbacks {
   onEquipCosmetic: (id: string) => void;
@@ -134,8 +134,7 @@ export function CosmeticsMenu({ callbacks: cb }: CosmeticsMenuProps) {
             <h3 className="cosmetic-slot-label">{label}</h3>
             <ul className="menu-group-body cosmetic-slot-body">
               {options.map((opt) => {
-                const isEquipped =
-                  (opt.id === "" && equippedId == null) || opt.id === equippedId;
+                const isEquipped = (opt.id === "" && equippedId == null) || opt.id === equippedId;
                 const handleClick = (e: MouseEvent) => {
                   e.stopPropagation();
                   Game?.playMenuTap?.();
@@ -157,9 +156,7 @@ export function CosmeticsMenu({ callbacks: cb }: CosmeticsMenuProps) {
                       <span className="inner">
                         <OptionThumb id={opt.id || null} slot={slot} />
                         <span className="cosmetic-option-name">{opt.name}</span>
-                        {isEquipped && (
-                          <span className="cosmetic-equip-badge">Equipped</span>
-                        )}
+                        {isEquipped && <span className="cosmetic-equip-badge">Equipped</span>}
                       </span>
                     </button>
                   </li>

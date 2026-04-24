@@ -187,12 +187,9 @@ export function renderAttributionHTML(
   const H = opts.headingLevel ?? "h2";
   const wrap = opts.sectionWrap ?? true;
   const sectionClass = opts.sectionClass ?? "credits-section";
-  const listClass =
-    opts.listClass === null ? "" : (opts.listClass ?? "credits-links");
+  const listClass = opts.listClass === null ? "" : (opts.listClass ?? "credits-links");
   const listClassAttr = listClass ? ` class="${listClass}"` : "";
-  const headingStyle = opts.headingInlineStyle
-    ? ` style="${opts.headingInlineStyle}"`
-    : "";
+  const headingStyle = opts.headingInlineStyle ? ` style="${opts.headingInlineStyle}"` : "";
   const listAlways = opts.listAlways ?? false;
 
   return sections

@@ -20,7 +20,7 @@
  * callback props so the Game API calls and closeMenu() side effects
  * live in one place.
  */
-import { type MouseEvent, type ChangeEvent } from "react";
+import type { ChangeEvent, MouseEvent } from "react";
 
 export interface DebugSettingsCallbacks {
   onToggleHitboxes: () => void;
@@ -61,9 +61,25 @@ export function DebugSettings({ callbacks: cb }: DebugSettingsProps) {
   return (
     <>
       <li className="in-game-only">
-        <button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onToggleHitboxes(); }}>
+        <button
+          className="menu-item"
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            cb.onToggleHitboxes();
+          }}
+        >
           <span className="inner">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" strokeDasharray="3 3"></rect>
             </svg>
             <span>{hitboxesOn ? "Hitboxes: on" : "Hitboxes: off"}</span>
@@ -71,14 +87,39 @@ export function DebugSettings({ callbacks: cb }: DebugSettingsProps) {
         </button>
       </li>
       <li className="in-game-only">
-        <button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onToggleRain(); }}>
-          <span className="inner">🌧️ <span>{rainOn ? "Rain: on" : "Rain: off"}</span></span>
+        <button
+          className="menu-item"
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            cb.onToggleRain();
+          }}
+        >
+          <span className="inner">
+            🌧️ <span>{rainOn ? "Rain: on" : "Rain: off"}</span>
+          </span>
         </button>
       </li>
       <li className="in-game-only">
-        <button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onToggleNoCollisions(); }}>
+        <button
+          className="menu-item"
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            cb.onToggleNoCollisions();
+          }}
+        >
           <span className="inner">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
             </svg>
@@ -87,9 +128,25 @@ export function DebugSettings({ callbacks: cb }: DebugSettingsProps) {
         </button>
       </li>
       <li className="in-game-only">
-        <button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onTogglePerf(); }}>
+        <button
+          className="menu-item"
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            cb.onTogglePerf();
+          }}
+        >
           <span className="inner">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
             </svg>
             <span>{perfOn ? "Perf overlay: on" : "Perf overlay: off"}</span>
@@ -99,7 +156,16 @@ export function DebugSettings({ callbacks: cb }: DebugSettingsProps) {
       <li className="in-game-only menu-score-editor">
         <label className="menu-item menu-score-editor-label">
           <span className="inner">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
               <path d="M12 20h9"></path>
               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
             </svg>
@@ -116,14 +182,118 @@ export function DebugSettings({ callbacks: cb }: DebugSettingsProps) {
           </span>
         </label>
       </li>
-      <li className="in-game-only"><button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onTriggerUfo(); }}><span className="inner">🛸 <span>Trigger UFO</span></span></button></li>
-      <li className="in-game-only"><button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onTriggerSanta(); }}><span className="inner">🎅 <span>Trigger Santa</span></span></button></li>
-      <li className="in-game-only"><button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onTriggerTumbleweed(); }}><span className="inner">🌾 <span>Trigger Tumbleweed</span></span></button></li>
-      <li className="in-game-only"><button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onTriggerComet(); }}><span className="inner">☄️ <span>Trigger Comet</span></span></button></li>
-      <li className="in-game-only"><button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onTriggerMeteor(); }}><span className="inner">💥 <span>Trigger Meteor</span></span></button></li>
-      <li className="in-game-only"><button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onAdvanceMoon(); }}><span className="inner">🌙 <span>Advance Moon Phase</span></span></button></li>
-      <li className="in-game-only"><button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onForceBreather(); }}><span className="inner">🌼 <span>Trigger Flower Field</span></span></button></li>
-      <li className="in-game-only"><button className="menu-item" type="button" onClick={(e) => { stop(e); cb.onSpawnPterodactyl(); }}><span className="inner">🦅 <span>Trigger Pterodactyl</span></span></button></li>
+      <li className="in-game-only">
+        <button
+          className="menu-item"
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            cb.onTriggerUfo();
+          }}
+        >
+          <span className="inner">
+            🛸 <span>Trigger UFO</span>
+          </span>
+        </button>
+      </li>
+      <li className="in-game-only">
+        <button
+          className="menu-item"
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            cb.onTriggerSanta();
+          }}
+        >
+          <span className="inner">
+            🎅 <span>Trigger Santa</span>
+          </span>
+        </button>
+      </li>
+      <li className="in-game-only">
+        <button
+          className="menu-item"
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            cb.onTriggerTumbleweed();
+          }}
+        >
+          <span className="inner">
+            🌾 <span>Trigger Tumbleweed</span>
+          </span>
+        </button>
+      </li>
+      <li className="in-game-only">
+        <button
+          className="menu-item"
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            cb.onTriggerComet();
+          }}
+        >
+          <span className="inner">
+            ☄️ <span>Trigger Comet</span>
+          </span>
+        </button>
+      </li>
+      <li className="in-game-only">
+        <button
+          className="menu-item"
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            cb.onTriggerMeteor();
+          }}
+        >
+          <span className="inner">
+            💥 <span>Trigger Meteor</span>
+          </span>
+        </button>
+      </li>
+      <li className="in-game-only">
+        <button
+          className="menu-item"
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            cb.onAdvanceMoon();
+          }}
+        >
+          <span className="inner">
+            🌙 <span>Advance Moon Phase</span>
+          </span>
+        </button>
+      </li>
+      <li className="in-game-only">
+        <button
+          className="menu-item"
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            cb.onForceBreather();
+          }}
+        >
+          <span className="inner">
+            🌼 <span>Trigger Flower Field</span>
+          </span>
+        </button>
+      </li>
+      <li className="in-game-only">
+        <button
+          className="menu-item"
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            cb.onSpawnPterodactyl();
+          }}
+        >
+          <span className="inner">
+            🦅 <span>Trigger Pterodactyl</span>
+          </span>
+        </button>
+      </li>
     </>
   );
 }

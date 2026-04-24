@@ -40,10 +40,7 @@ import type { GameServicesAdapter } from "../services/gameServices";
  * backends. Used at achievement-unlock time to translate our id into
  * the platform's.
  */
-const PLATFORM_ACHIEVEMENT_IDS: Record<
-  string,
-  { android?: string; ios?: string }
-> = {
+const PLATFORM_ACHIEVEMENT_IDS: Record<string, { android?: string; ios?: string }> = {
   // Example — fill in real ids when backends are configured.
   // "first-run": {
   //   android: "CgkI__REPLACE_ME_ANDROID__",

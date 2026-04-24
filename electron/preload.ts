@@ -30,9 +30,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Batched read of Steam's unlock state for every id the renderer
   // passes in. Used once at startup to reconcile local <-> Steam.
-  getSteamAchievementStates: (
-    apiNames: string[],
-  ): Promise<Record<string, boolean>> =>
+  getSteamAchievementStates: (apiNames: string[]): Promise<Record<string, boolean>> =>
     ipcRenderer.invoke("steam:getAchievementStates", apiNames),
 
   // Quit the app. Called from the desktop-only Quit button.
@@ -40,10 +38,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Toggle fullscreen / windowed from the desktop settings menu.
   // Persists across app restarts (prefs.json in userData).
-  setFullscreen: (on: boolean): Promise<boolean> =>
-    ipcRenderer.invoke("window:setFullscreen", on),
-  isFullscreen: (): Promise<boolean> =>
-    ipcRenderer.invoke("window:isFullscreen"),
+  setFullscreen: (on: boolean): Promise<boolean> => ipcRenderer.invoke("window:setFullscreen", on),
+  isFullscreen: (): Promise<boolean> => ipcRenderer.invoke("window:isFullscreen"),
 
   // Steam overlay dialogs (Friends / Achievements / etc.). Returns
   // false if Steam isn't running or the client refuses.

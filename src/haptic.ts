@@ -25,14 +25,12 @@
  * takes over where possible.
  */
 
-type CapHaptics =
-  | {
-      impact(opts: { style: unknown }): Promise<void>;
-      notification(opts: { type: unknown }): Promise<void>;
-      ImpactStyle: { Light: unknown; Medium: unknown; Heavy: unknown };
-      NotificationType: { Success: unknown; Warning: unknown; Error: unknown };
-    }
-  | null;
+type CapHaptics = {
+  impact(opts: { style: unknown }): Promise<void>;
+  notification(opts: { type: unknown }): Promise<void>;
+  ImpactStyle: { Light: unknown; Medium: unknown; Heavy: unknown };
+  NotificationType: { Success: unknown; Warning: unknown; Error: unknown };
+} | null;
 
 let _cap: CapHaptics = null;
 let _capLoading: Promise<void> | null = null;

@@ -430,6 +430,5 @@ export const ACHIEVEMENTS: ReadonlyArray<AchievementDefinition> = [
 ];
 
 /** id → definition lookup for fast runtime dispatch. */
-export const ACHIEVEMENTS_BY_ID: { [id: string]: AchievementDefinition } =
-  Object.create(null);
+export const ACHIEVEMENTS_BY_ID: { [id: string]: AchievementDefinition } = Object.create(null);
 for (const a of ACHIEVEMENTS) ACHIEVEMENTS_BY_ID[a.id] = a;

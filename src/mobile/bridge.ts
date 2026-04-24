@@ -54,12 +54,7 @@ export async function initMobile(handlers: MobileHandlers): Promise<void> {
   initialized = true;
 
   // Import lazily so this whole block tree-shakes out of the web build.
-  const [
-    { Capacitor },
-    { App },
-    { StatusBar, Style },
-    { ScreenOrientation },
-  ] = await Promise.all([
+  const [{ Capacitor }, { App }, { StatusBar, Style }, { ScreenOrientation }] = await Promise.all([
     import("@capacitor/core"),
     import("@capacitor/app"),
     import("@capacitor/status-bar"),
@@ -85,12 +80,10 @@ export async function initMobile(handlers: MobileHandlers): Promise<void> {
   // Gameplay code's submitScore / unlockAchievement calls become
   // no-ops until the adapter's init() returns true.
   import("./gameServices").then(({ capacitorGameServicesAdapter }) => {
-    import("../services/gameServices").then(
-      ({ registerGameServices, initGameServices }) => {
-        registerGameServices(capacitorGameServicesAdapter);
-        initGameServices();
-      },
-    );
+    import("../services/gameServices").then(({ registerGameServices, initGameServices }) => {
+      registerGameServices(capacitorGameServicesAdapter);
+      initGameServices();
+    });
   });
 
   // Lock to landscape. The PWA manifest's `orientation: "landscape"`

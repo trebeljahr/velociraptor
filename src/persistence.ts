@@ -14,27 +14,27 @@
  */
 
 import {
-  HIGH_SCORE_KEY,
-  TOTAL_JUMPS_KEY,
-  TOTAL_NIGHTS_KEY,
-  CAREER_RUNS_KEY,
   ACHIEVEMENTS_KEY,
-  TOTAL_DAY_CYCLES_KEY,
-  RARE_EVENTS_SEEN_KEY,
-  MUTED_KEY,
-  MUSIC_MUTED_KEY,
-  JUMP_MUTED_KEY,
-  RAIN_MUTED_KEY,
-  UNLOCKED_PARTY_HAT_KEY,
-  UNLOCKED_THUG_GLASSES_KEY,
-  WEAR_PARTY_HAT_KEY,
-  WEAR_THUG_GLASSES_KEY,
-  UNLOCKED_BOW_TIE_KEY,
-  WEAR_BOW_TIE_KEY,
+  CAREER_RUNS_KEY,
   COINS_BALANCE_KEY,
   COINS_COLLECTED_KEY,
-  OWNED_COSMETICS_KEY,
   EQUIPPED_COSMETICS_KEY,
+  HIGH_SCORE_KEY,
+  JUMP_MUTED_KEY,
+  MUSIC_MUTED_KEY,
+  MUTED_KEY,
+  OWNED_COSMETICS_KEY,
+  RAIN_MUTED_KEY,
+  RARE_EVENTS_SEEN_KEY,
+  TOTAL_DAY_CYCLES_KEY,
+  TOTAL_JUMPS_KEY,
+  TOTAL_NIGHTS_KEY,
+  UNLOCKED_BOW_TIE_KEY,
+  UNLOCKED_PARTY_HAT_KEY,
+  UNLOCKED_THUG_GLASSES_KEY,
+  WEAR_BOW_TIE_KEY,
+  WEAR_PARTY_HAT_KEY,
+  WEAR_THUG_GLASSES_KEY,
 } from "./constants";
 import type { CosmeticSlot } from "./cosmetics";
 
@@ -75,8 +75,7 @@ function mirrorWrite(key: string, value: string): void {
   if (!__IS_CAPACITOR__) return;
   ensureMirror();
   if (_mirrorApi) _mirrorApi.mirrorSet(key, value);
-  else if (_mirrorLoading)
-    _mirrorLoading.then(() => _mirrorApi?.mirrorSet(key, value));
+  else if (_mirrorLoading) _mirrorLoading.then(() => _mirrorApi?.mirrorSet(key, value));
 }
 
 // ── Batched write queue ─────────────────────────────────────
@@ -113,10 +112,7 @@ function _scheduleFlush(): void {
     _flushPending();
   };
   const w = window as unknown as {
-    requestIdleCallback?: (
-      cb: () => void,
-      opts?: { timeout?: number },
-    ) => number;
+    requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number;
   };
   if (typeof w.requestIdleCallback === "function") {
     // timeout: 1000ms caps the deferral so a tab that never becomes
@@ -232,7 +228,7 @@ export function loadHighScore(): number {
   try {
     const raw = _persistGet(HIGH_SCORE_KEY);
     if (raw == null) return 0;
-    const n = parseInt(raw, 10);
+    const n = Number.parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   } catch (e) {
     return 0;
@@ -250,7 +246,7 @@ export function loadCareerRuns(): number {
   try {
     const raw = _persistGet(CAREER_RUNS_KEY);
     if (raw == null) return 0;
-    const n = parseInt(raw, 10);
+    const n = Number.parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   } catch (e) {
     return 0;
@@ -288,7 +284,7 @@ export function loadTotalJumps(): number {
   try {
     const raw = _persistGet(TOTAL_JUMPS_KEY);
     if (raw == null) return 0;
-    const n = parseInt(raw, 10);
+    const n = Number.parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   } catch (e) {
     return 0;
@@ -305,7 +301,7 @@ export function loadTotalNightsSurvived(): number {
   try {
     const raw = _persistGet(TOTAL_NIGHTS_KEY);
     if (raw == null) return 0;
-    const n = parseInt(raw, 10);
+    const n = Number.parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   } catch (e) {
     return 0;
@@ -322,7 +318,7 @@ export function loadTotalDayCycles(): number {
   try {
     const raw = _persistGet(TOTAL_DAY_CYCLES_KEY);
     if (raw == null) return 0;
-    const n = parseInt(raw, 10);
+    const n = Number.parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   } catch (e) {
     return 0;
@@ -372,7 +368,7 @@ export function loadCoinsBalance(): number {
   try {
     const raw = _persistGet(COINS_BALANCE_KEY);
     if (raw == null) return 0;
-    const n = parseInt(raw, 10);
+    const n = Number.parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   } catch {
     return 0;
@@ -392,7 +388,7 @@ export function loadCoinsCollected(): number {
   try {
     const raw = _persistGet(COINS_COLLECTED_KEY);
     if (raw == null) return 0;
-    const n = parseInt(raw, 10);
+    const n = Number.parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   } catch {
     return 0;

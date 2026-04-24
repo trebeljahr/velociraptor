@@ -24,10 +24,9 @@ describe("shouldRainForCycle", () => {
 
   it("every multiple of 50 after 0 rains", () => {
     for (const cycle of [50, 100, 150, 200, 500, 1000]) {
-      expect(
-        shouldRainForCycle(cycle),
-        `cycle ${cycle} should rain (50-multiple override)`,
-      ).toBe(true);
+      expect(shouldRainForCycle(cycle), `cycle ${cycle} should rain (50-multiple override)`).toBe(
+        true,
+      );
     }
   });
 
@@ -94,9 +93,7 @@ describe("shouldRainForCycle", () => {
     // slot hash + 50-override combo can't produce adjacent rainy cycles.
     for (let c = 0; c < 1000; c++) {
       if (shouldRainForCycle(c) && shouldRainForCycle(c + 1)) {
-        throw new Error(
-          `consecutive rainy cycles at ${c} and ${c + 1}`,
-        );
+        throw new Error(`consecutive rainy cycles at ${c} and ${c + 1}`);
       }
     }
   });

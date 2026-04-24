@@ -17,7 +17,7 @@
  * (authored markup with embedded <a>, <code>, etc.), so
  * dangerouslySetInnerHTML is the correct tool here.
  */
-import { useEffect, useRef, type MouseEvent } from "react";
+import { type MouseEvent, useEffect, useRef } from "react";
 import { ATTRIBUTION_SECTIONS } from "../../credits";
 
 export interface CreditsCallbacks {
@@ -42,25 +42,18 @@ export function Credits({ callbacks: cb }: CreditsProps) {
 
   return (
     <div className="imprint-sheet credits-sheet">
-      <button
-        ref={closeRef}
-        className="imprint-close"
-        aria-label="Close"
-        onClick={handleClose}
-      >
+      <button ref={closeRef} className="imprint-close" aria-label="Close" onClick={handleClose}>
         ×
       </button>
       <div className="credits-scroll">
-        <h1 className="credits-heading" tabIndex={-1}>Credits</h1>
+        <h1 className="credits-heading" tabIndex={-1}>
+          Credits
+        </h1>
         <section className="credits-section">
           <h2>Game</h2>
           <p>
             Design, code, and everything else by{" "}
-            <a
-              href="https://portfolio.trebeljahr.com"
-              target="_blank"
-              rel="noopener"
-            >
+            <a href="https://portfolio.trebeljahr.com" target="_blank" rel="noreferrer noopener">
               Rico Trebeljahr
             </a>
             .
@@ -74,10 +67,7 @@ export function Credits({ callbacks: cb }: CreditsProps) {
             ) : (
               <ul className="credits-links">
                 {s.items.map((item, i) => (
-                  <li
-                    key={i}
-                    dangerouslySetInnerHTML={{ __html: item }}
-                  />
+                  <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
                 ))}
               </ul>
             )}
@@ -86,20 +76,15 @@ export function Credits({ callbacks: cb }: CreditsProps) {
         <section className="credits-section">
           <h2>Homage</h2>
           <p>
-            A love letter to the Chrome "No Internet" dinosaur game,
-            extended with a full day/night cycle, a rotating starfield,
-            and the occasional visit from something weirder.
+            A love letter to the Chrome "No Internet" dinosaur game, extended with a full day/night
+            cycle, a rotating starfield, and the occasional visit from something weirder.
           </p>
         </section>
         <section className="credits-section">
           <h2>Writing &amp; more</h2>
           <ul className="credits-links">
             <li>
-              <a
-                href="https://ricos.site/newsletters"
-                target="_blank"
-                rel="noopener"
-              >
+              <a href="https://ricos.site/newsletters" target="_blank" rel="noreferrer noopener">
                 Rico's writing at ricos.site
               </a>
             </li>
@@ -107,7 +92,7 @@ export function Credits({ callbacks: cb }: CreditsProps) {
               <a
                 href="https://github.com/trebeljahr/velociraptor"
                 target="_blank"
-                rel="noopener"
+                rel="noreferrer noopener"
               >
                 Source on GitHub
               </a>
@@ -121,7 +106,7 @@ export function Credits({ callbacks: cb }: CreditsProps) {
               <a
                 href="https://raptor.trebeljahr.com/imprint.html"
                 target="_blank"
-                rel="noopener"
+                rel="noreferrer noopener"
               >
                 Imprint / Impressum
               </a>
@@ -130,7 +115,7 @@ export function Credits({ callbacks: cb }: CreditsProps) {
               <a
                 href="https://raptor.trebeljahr.com/imprint.html#privacy"
                 target="_blank"
-                rel="noopener"
+                rel="noreferrer noopener"
               >
                 Privacy policy
               </a>

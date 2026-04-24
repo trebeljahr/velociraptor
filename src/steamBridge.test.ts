@@ -1,9 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  pushAchievementToSteam,
-  reconcileWithSteam,
-  toSteamApiName,
-} from "./steamBridge";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { pushAchievementToSteam, reconcileWithSteam, toSteamApiName } from "./steamBridge";
 
 /*
  * The Steam bridge is a renderer-side wrapper around window.electronAPI.
@@ -18,9 +14,7 @@ describe("toSteamApiName", () => {
   it("adds ACH_ prefix, uppercases, and replaces dashes with underscores", () => {
     expect(toSteamApiName("first-run")).toBe("ACH_FIRST_RUN");
     expect(toSteamApiName("score-25")).toBe("ACH_SCORE_25");
-    expect(toSteamApiName("sound-of-silence")).toBe(
-      "ACH_SOUND_OF_SILENCE",
-    );
+    expect(toSteamApiName("sound-of-silence")).toBe("ACH_SOUND_OF_SILENCE");
   });
   it("handles already-uppercase ids without double-prefixing", () => {
     // Game ids are kebab-case lowercase in the catalog, but defensively
@@ -104,9 +98,7 @@ describe("reconcileWithSteam", () => {
   it("is a silent no-op in the browser build", async () => {
     delete window.electronAPI;
     const onRemote = vi.fn();
-    await expect(
-      reconcileWithSteam({}, onRemote),
-    ).resolves.toBeUndefined();
+    await expect(reconcileWithSteam({}, onRemote)).resolves.toBeUndefined();
     expect(onRemote).not.toHaveBeenCalled();
   });
 
@@ -150,15 +142,13 @@ describe("reconcileWithSteam", () => {
     // Steam says first-run is unlocked; local doesn't know.
     // onRemoteDiscovery("first-run") should fire; no unlock pushed back.
     const unlock = vi.fn().mockResolvedValue(true);
-    const getStates = vi
-      .fn()
-      .mockImplementation((apiNames: string[]) => {
-        const out: Record<string, boolean> = {};
-        for (const n of apiNames) {
-          out[n] = n === "ACH_FIRST_RUN";
-        }
-        return Promise.resolve(out);
-      });
+    const getStates = vi.fn().mockImplementation((apiNames: string[]) => {
+      const out: Record<string, boolean> = {};
+      for (const n of apiNames) {
+        out[n] = n === "ACH_FIRST_RUN";
+      }
+      return Promise.resolve(out);
+    });
     window.electronAPI = {
       isDesktop: true,
       isSteam: vi.fn().mockResolvedValue(true),

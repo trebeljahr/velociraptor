@@ -4,7 +4,7 @@
  * import anywhere.
  */
 
-import { MOON_SYNODIC_CYCLE, MOON_PHASE_OFFSET_DAYS } from "./constants";
+import { MOON_PHASE_OFFSET_DAYS, MOON_SYNODIC_CYCLE } from "./constants";
 
 // ── Moon phase ─────────────────────────────────────────────
 
@@ -14,8 +14,7 @@ import { MOON_SYNODIC_CYCLE, MOON_PHASE_OFFSET_DAYS } from "./constants";
  *  moon so something is actually visible on day 1. */
 export function moonPhaseFromCycles(totalDayCycles: number): number {
   const shifted =
-    ((totalDayCycles + MOON_PHASE_OFFSET_DAYS) % MOON_SYNODIC_CYCLE +
-      MOON_SYNODIC_CYCLE) %
+    (((totalDayCycles + MOON_PHASE_OFFSET_DAYS) % MOON_SYNODIC_CYCLE) + MOON_SYNODIC_CYCLE) %
     MOON_SYNODIC_CYCLE;
   return shifted / MOON_SYNODIC_CYCLE;
 }
@@ -24,14 +23,9 @@ export function moonPhaseFromCycles(totalDayCycles: number): number {
 
 export type RgbTuple = readonly [number, number, number];
 
-export const lerp = (a: number, b: number, t: number): number =>
-  a + (b - a) * t;
+export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
-export const lerpColor = (
-  a: RgbTuple,
-  b: RgbTuple,
-  t: number,
-): [number, number, number] => [
+export const lerpColor = (a: RgbTuple, b: RgbTuple, t: number): [number, number, number] => [
   Math.round(lerp(a[0], b[0], t)),
   Math.round(lerp(a[1], b[1], t)),
   Math.round(lerp(a[2], b[2], t)),
@@ -39,16 +33,13 @@ export const lerpColor = (
 
 export const rgb = (c: RgbTuple): string => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
 
-export const rgba = (c: RgbTuple, a: number): string =>
-  `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
+export const rgba = (c: RgbTuple, a: number): string => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
 
 // ── Numeric ────────────────────────────────────────────────
 
-export const randRange = (min: number, max: number): number =>
-  min + Math.random() * (max - min);
+export const randRange = (min: number, max: number): number => min + Math.random() * (max - min);
 
-export const clamp = (v: number, lo: number, hi: number): number =>
-  Math.max(lo, Math.min(hi, v));
+export const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
 /** Zero-allocation in-place filter. Mutates `arr` to keep only the
  *  elements for which `keep` returns true, preserving order, and
@@ -100,28 +91,19 @@ export function pointInPolygon(p: Point2D, poly: Polygon): boolean {
     const xj = poly[j].x;
     const yj = poly[j].y;
     const intersect =
-      yi > p.y !== yj > p.y &&
-      p.x < ((xj - xi) * (p.y - yi)) / (yj - yi + 1e-12) + xi;
+      yi > p.y !== yj > p.y && p.x < ((xj - xi) * (p.y - yi)) / (yj - yi + 1e-12) + xi;
     if (intersect) inside = !inside;
   }
   return inside;
 }
 
 /** Do segments (a,b) and (c,d) strictly intersect? */
-export function segmentsIntersect(
-  a: Point2D,
-  b: Point2D,
-  c: Point2D,
-  d: Point2D,
-): boolean {
+export function segmentsIntersect(a: Point2D, b: Point2D, c: Point2D, d: Point2D): boolean {
   const d1 = cross(c, d, a);
   const d2 = cross(c, d, b);
   const d3 = cross(a, b, c);
   const d4 = cross(a, b, d);
-  return (
-    ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
-    ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
-  );
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
 }
 
 export const cross = (a: Point2D, b: Point2D, c: Point2D): number =>

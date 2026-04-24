@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { createRoot, type Root } from "react-dom/client";
 import { createElement } from "react";
+import { type Root, createRoot } from "react-dom/client";
 import { Credits, type CreditsCallbacks } from "./Credits";
 
 let root: Root | null = null;

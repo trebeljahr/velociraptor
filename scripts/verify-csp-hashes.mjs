@@ -17,8 +17,8 @@
  * CSS rule silently breaks.
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
 
 const FILES = ["index.html", "about.html", "imprint.html"];
 const fix = process.argv.includes("--fix");
@@ -45,8 +45,7 @@ for (const f of FILES) {
   const actual = inlineScriptHashes(raw);
   const pinned = [...raw.matchAll(/'sha256-([^']+)'/g)].map((m) => m[1]);
 
-  const ok = actual.length === pinned.length &&
-    actual.every((a, i) => a === pinned[i]);
+  const ok = actual.length === pinned.length && actual.every((a, i) => a === pinned[i]);
 
   if (ok) {
     console.log(`✓ ${f}`);
@@ -61,10 +60,7 @@ for (const f of FILES) {
   if (fix && actual.length === pinned.length) {
     let patched = raw;
     for (let i = 0; i < actual.length; i++) {
-      patched = patched.replace(
-        `'sha256-${pinned[i]}'`,
-        `'sha256-${actual[i]}'`,
-      );
+      patched = patched.replace(`'sha256-${pinned[i]}'`, `'sha256-${actual[i]}'`);
     }
     writeFileSync(f, patched);
     console.log(`   → fixed`);

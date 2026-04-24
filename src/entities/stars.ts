@@ -20,18 +20,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import {
-  STAR_AREA_PER_STAR_PX2,
-  STAR_MIN_COUNT,
-  STAR_BRIGHT_PROBABILITY,
-  STAR_TWINKLE_PROBABILITY,
-  MILKY_WAY_STAR_COUNT,
-  MILKY_WAY_TILT,
   MILKY_WAY_LENGTH_SCALE,
+  MILKY_WAY_STAR_COUNT,
   MILKY_WAY_THICKNESS_RATIO,
+  MILKY_WAY_TILT,
+  STAR_AREA_PER_STAR_PX2,
+  STAR_BRIGHT_PROBABILITY,
+  STAR_MIN_COUNT,
   STAR_PIVOT_HEIGHT_RATIO,
+  STAR_TWINKLE_PROBABILITY,
 } from "../constants";
+import { type RgbTuple, randRange, rgba } from "../helpers";
 import { state } from "../state";
-import { randRange, rgba, RgbTuple } from "../helpers";
 
 interface FieldStar {
   x: number;
@@ -60,15 +60,15 @@ interface MilkyWayHazePuff {
 }
 
 export class Stars {
-  opacity: number = 0;
+  opacity = 0;
   field: FieldStar[] = [];
   milkyWay: MilkyWayStar[] = [];
   mwHazePuffs: MilkyWayHazePuff[] = [];
-  mwTilt: number = 0;
-  mwCenterX: number = 0;
-  mwCenterY: number = 0;
-  mwLength: number = 0;
-  mwThickness: number = 0;
+  mwTilt = 0;
+  mwCenterX = 0;
+  mwCenterY = 0;
+  mwLength = 0;
+  mwThickness = 0;
 
   constructor() {
     // Generate stars over an area much larger than the viewport so
@@ -86,10 +86,7 @@ export class Stars {
     // Density: roughly one star per 8000 px² of star-field area —
     // lower density than before because the field is much larger and
     // we don't want to overwhelm the sky with pinpricks.
-    const count = Math.max(
-      STAR_MIN_COUNT,
-      Math.floor((fieldW * fieldH) / STAR_AREA_PER_STAR_PX2),
-    );
+    const count = Math.max(STAR_MIN_COUNT, Math.floor((fieldW * fieldH) / STAR_AREA_PER_STAR_PX2));
     for (let i = 0; i < count; i++) {
       // ~15% of stars are "bright" — noticeably bigger and at full
       // brightness. The rest are background dimmer pinpricks.
@@ -100,11 +97,7 @@ export class Stars {
       // Color variation: 85% white, 10% warm, 5% cool
       const colorRoll = Math.random();
       const color =
-        colorRoll < 0.85
-          ? [255, 255, 255]
-          : colorRoll < 0.95
-            ? [255, 240, 220]
-            : [220, 230, 255];
+        colorRoll < 0.85 ? [255, 255, 255] : colorRoll < 0.95 ? [255, 240, 220] : [220, 230, 255];
       // ~5% of twinkling stars get sharp "flash" spikes
       const flash = twinkles && Math.random() < 0.05;
       this.field.push({
@@ -141,8 +134,7 @@ export class Stars {
       const u = (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
       const across = u * (this.mwThickness * 0.5);
       // Long-axis intensity also tapers off toward the band ends.
-      const endFade =
-        1 - Math.pow(Math.abs(along) / (this.mwLength / 2), 2);
+      const endFade = 1 - Math.pow(Math.abs(along) / (this.mwLength / 2), 2);
       if (endFade < 0.05) continue;
       const x = this.mwCenterX + along * mwCos - across * mwSin;
       const y = this.mwCenterY + along * mwSin + across * mwCos;
@@ -161,14 +153,11 @@ export class Stars {
     const puffCount = 7;
     for (let i = 0; i < puffCount; i++) {
       const t = (i + 0.5) / puffCount - 0.5;
-      const along =
-        t * this.mwLength * 0.95 +
-        (Math.random() - 0.5) * this.mwLength * 0.05;
+      const along = t * this.mwLength * 0.95 + (Math.random() - 0.5) * this.mwLength * 0.05;
       const across = (Math.random() - 0.5) * this.mwThickness * 0.15;
       const x = this.mwCenterX + along * mwCos - across * mwSin;
       const y = this.mwCenterY + along * mwSin + across * mwCos;
-      const endFade =
-        1 - Math.pow(Math.abs(along) / (this.mwLength / 2), 2);
+      const endFade = 1 - Math.pow(Math.abs(along) / (this.mwLength / 2), 2);
       this.mwHazePuffs.push({
         x,
         y,
@@ -179,8 +168,7 @@ export class Stars {
   }
 
   update(isNight: boolean, frameScale = 1): void {
-    if (isNight)
-      this.opacity = Math.min(1, this.opacity + 0.005 * frameScale);
+    if (isNight) this.opacity = Math.min(1, this.opacity + 0.005 * frameScale);
     else this.opacity = Math.max(0, this.opacity - 0.005 * frameScale);
   }
 
@@ -215,14 +203,7 @@ export class Stars {
     for (const puff of this.mwHazePuffs) {
       const a = puff.brightness * this.opacity;
       if (a <= 0.001) continue;
-      const grad = ctx.createRadialGradient(
-        puff.x,
-        puff.y,
-        0,
-        puff.x,
-        puff.y,
-        puff.radius,
-      );
+      const grad = ctx.createRadialGradient(puff.x, puff.y, 0, puff.x, puff.y, puff.radius);
       grad.addColorStop(0, rgba(mwHaze1, a));
       grad.addColorStop(0.6, rgba(mwHaze2, a * 0.4));
       grad.addColorStop(1, rgba(mwHazeOuter, 0));
@@ -245,9 +226,7 @@ export class Stars {
     for (const s of this.field) {
       let twinkle = 1;
       if (s.twinkleDepth) {
-        const raw =
-          0.5 +
-          0.5 * Math.sin(s.twinklePhase + state.frame * s.twinkleRate);
+        const raw = 0.5 + 0.5 * Math.sin(s.twinklePhase + state.frame * s.twinkleRate);
         twinkle = s.flash
           ? 0.4 + 1.1 * Math.pow(raw, 8) // sharp bright spikes
           : 1 - s.twinkleDepth * raw;
@@ -255,10 +234,7 @@ export class Stars {
       const a = s.brightness * twinkle * this.opacity;
       // Size pulsing: ±20% modulated by twinkle
       const r = (s.size / 2) * (1 + 0.2 * (twinkle - 0.5));
-      ctx.fillStyle = rgba(
-        ((s.color || starWhite) as unknown as RgbTuple),
-        Math.min(a, 1),
-      );
+      ctx.fillStyle = rgba((s.color || starWhite) as unknown as RgbTuple, Math.min(a, 1));
       ctx.beginPath();
       ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
       ctx.fill();

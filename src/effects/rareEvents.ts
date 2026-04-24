@@ -21,10 +21,10 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { state } from "../state";
-import { saveRareEventsSeen } from "../persistence";
-import { IMAGES } from "../images";
 import { audio } from "../audio";
+import { IMAGES } from "../images";
+import { saveRareEventsSeen } from "../persistence";
+import { state } from "../state";
 
 // ══════════════════════════════════════════════════════════════════
 // Couplings (wired from main.ts's init)
@@ -37,9 +37,7 @@ let onAchievementUnlock: AchievementCallback | null = null;
 let duneHeightAt: DuneHeightProvider = () => 0;
 
 /** Register the achievement-unlock hook. Called once during init. */
-export function setRareEventsAchievementHandler(
-  cb: AchievementCallback | null,
-): void {
+export function setRareEventsAchievementHandler(cb: AchievementCallback | null): void {
   onAchievementUnlock = cb;
 }
 
@@ -117,8 +115,7 @@ export function maybeSpawnRareEvent(): void {
   // Build candidate list: prefer unseen events, then allow repeats.
   // On shooting star nights (phase >= 1, night), only comet/meteor
   // are allowed.
-  const shootingStarNight =
-    state.isNight && Math.floor(state.smoothPhase) >= 1;
+  const shootingStarNight = state.isNight && Math.floor(state.smoothPhase) >= 1;
   const eligible = RARE_EVENTS.filter(
     (e) =>
       e.avgInterval > 0 &&
@@ -253,8 +250,7 @@ export function updateRareEvent(dtSec: number): void {
       e.startX = state.width * (0.7 + Math.random() * 0.3);
       e.startY = -10;
       e.targetX = state.width * (0.3 + Math.random() * 0.4);
-      e.targetY =
-        state.ground - duneHeightAt(e.targetX, state.duneOffset) + 3;
+      e.targetY = state.ground - duneHeightAt(e.targetX, state.duneOffset) + 3;
     }
     const mt = e.age / e.life;
     const flightT = 0.5; // first 50% is the streak, rest is impact
@@ -273,10 +269,7 @@ export function updateRareEvent(dtSec: number): void {
       // Recalculate impact Y from current dune position (dunes
       // scroll).
       e.impactY =
-        e.impactY ||
-        state.ground -
-          duneHeightAt(e.impactX || e.targetX, state.duneOffset) +
-          3;
+        e.impactY || state.ground - duneHeightAt(e.impactX || e.targetX, state.duneOffset) + 3;
     }
   }
   if (e.age >= e.life) {
@@ -303,7 +296,6 @@ export function stopActiveRareEventAudio(): void {
   else if (e.id === "santa") audio.stopSanta();
   else if (e.id === "comet") audio.stopComet();
 }
-
 
 // ══════════════════════════════════════════════════════════════════
 // Drawing
@@ -457,8 +449,7 @@ export function drawUfoBeam(ctx: CanvasRenderingContext2D) {
   const e = state.activeRareEvent;
   if (!e.beam) return;
   const ufoH = IMAGES.ufo ? 60 * (IMAGES.ufo.height / IMAGES.ufo.width) : 35;
-  const scan =
-    0.4 + 0.2 * Math.sin(e.age * 4.5) + 0.1 * Math.sin(e.age * 7.3);
+  const scan = 0.4 + 0.2 * Math.sin(e.age * 4.5) + 0.1 * Math.sin(e.age * 7.3);
   const beamBottomL = e.x - 30;
   const beamBottomR = e.x + 30;
   // Tuck the top of the beam 8px up into the UFO body — the bottom
@@ -468,10 +459,7 @@ export function drawUfoBeam(ctx: CanvasRenderingContext2D) {
   // Gradient fade for the top ~14px so the beam feathers into the
   // hull instead of abutting it as a flat rectangle.
   const fadeLen = 14;
-  const fadeStop = Math.min(
-    1,
-    fadeLen / Math.max(1, beamBottomY - beamTopY),
-  );
+  const fadeStop = Math.min(1, fadeLen / Math.max(1, beamBottomY - beamTopY));
   const grad = ctx.createLinearGradient(0, beamTopY, 0, beamBottomY);
   grad.addColorStop(0, "rgba(245, 250, 255, 0)");
   grad.addColorStop(fadeStop, `rgba(245, 250, 255, ${scan})`);
@@ -526,10 +514,7 @@ export function drawRareEvent(ctx: CanvasRenderingContext2D) {
         const grabX = e.abductSx || e.x;
         const grabY = e.abductDuneY || state.ground;
         const liftT = e.cactusLift;
-        const cx =
-          grabX +
-          (e.x - grabX) * liftT +
-          Math.sin(e.age * 6) * 8 * (1 - liftT);
+        const cx = grabX + (e.x - grabX) * liftT + Math.sin(e.age * 6) * 8 * (1 - liftT);
         const cy = grabY + (e.y + ufoH / 2 - grabY) * liftT;
         const cScale = 1 - liftT * 0.5; // shrinks as it gets "further"
         const cw = dc.w * cScale;
@@ -573,24 +558,12 @@ export function drawRareEvent(ctx: CanvasRenderingContext2D) {
       ctx.quadraticCurveTo(midX, midY, collarX, collarY);
       ctx.stroke();
       if (deerImg) {
-        ctx.drawImage(
-          deerImg,
-          deerX - deerW / 2,
-          deerY - deerH / 2,
-          deerW,
-          deerH,
-        );
+        ctx.drawImage(deerImg, deerX - deerW / 2, deerY - deerH / 2, deerW, deerH);
       }
     }
     // Draw sleigh (on top of harness lines)
     if (sleighImg) {
-      ctx.drawImage(
-        sleighImg,
-        e.x - sleighW / 2,
-        e.y - sleighH / 2,
-        sleighW,
-        sleighH,
-      );
+      ctx.drawImage(sleighImg, e.x - sleighW / 2, e.y - sleighH / 2, sleighW, sleighH);
     }
     // Rudolph's red nose on the lead reindeer
     if (Math.sin(e.age * 8) > 0 && deerPositions[1]) {
@@ -639,7 +612,18 @@ export function drawRareEvent(ctx: CanvasRenderingContext2D) {
     ctx.rotate(tailAngle);
 
     // Tail helper
-    const _ct = (c0: string, c1: string, c2: string, w: number, x1: number, y1: number, x2: number, y2: number, ex: number, ey: number) => {
+    const _ct = (
+      c0: string,
+      c1: string,
+      c2: string,
+      w: number,
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+      ex: number,
+      ey: number,
+    ) => {
       const g = ctx.createLinearGradient(0, 0, ex, 0);
       g.addColorStop(0, c0);
       g.addColorStop(0.35, c1);
@@ -751,23 +735,14 @@ export function drawRareEvent(ctx: CanvasRenderingContext2D) {
       // Similar blink speed (4.5-6 Hz) but wildly different offsets
       const blinkSpeed = 4.5 + h4 * 1.5;
       const blinkPhase = h1 * 17.3 + h2 * 11.7; // large spread
-      const blink = Math.pow(
-        Math.max(0, Math.sin(e.age * blinkSpeed + blinkPhase)),
-        5,
-      );
+      const blink = Math.pow(Math.max(0, Math.sin(e.age * blinkSpeed + blinkPhase)), 5);
       const baseBright = detaches ? 0.6 : 1;
       const sa = (1 - along * 0.5) * blink * a * baseBright;
       if (sa < 0.05) continue;
 
       const sr = 1.5 + (1 - along) * 2.5 + h4 * 1.5;
       const ci = i % 5;
-      const sC = [
-        "255,255,255",
-        "200,240,255",
-        "255,180,170",
-        "255,230,200",
-        "160,250,255",
-      ][ci];
+      const sC = ["255,255,255", "200,240,255", "255,180,170", "255,230,200", "160,250,255"][ci];
       ctx.strokeStyle = `rgba(${sC},${sa})`;
       ctx.fillStyle = `rgba(${sC},${sa})`;
       const shape = Math.floor(h4 * 3);
@@ -829,13 +804,7 @@ export function drawRareEvent(ctx: CanvasRenderingContext2D) {
       ctx.globalAlpha = alpha;
       // trailSprite is (streakLen × 8) with the line centered vertically;
       // we want the stroke centered on y=0, so draw at y=-h/2.
-      ctx.drawImage(
-        trailSprite,
-        0,
-        -trailSprite.height / 2,
-        streakLen,
-        trailSprite.height,
-      );
+      ctx.drawImage(trailSprite, 0, -trailSprite.height / 2, streakLen, trailSprite.height);
       ctx.globalAlpha = 1;
       // Sparks flying off
       for (let i = 0; i < 6; i++) {

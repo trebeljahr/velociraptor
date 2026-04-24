@@ -14,22 +14,22 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import {
-  RAIN_SPAWN_DENSITY_DIVISOR,
-  LIGHTNING_INTENSITY_THRESHOLD,
-  LIGHTNING_FLASH_PROBABILITY,
-  LIGHTNING_MIN_COOLDOWN_MS,
-  LIGHTNING_MAX_COOLDOWN_MS,
-  THUNDER_DELAY_MIN_MS,
-  THUNDER_DELAY_MAX_MS,
-  LIGHTNING_BOLT_MIN_SEGMENTS,
-  LIGHTNING_BOLT_MAX_SEGMENTS,
-} from "../constants";
-import { state } from "../state";
 import { audio } from "../audio";
-import { duneHeight } from "../render/world";
+import {
+  LIGHTNING_BOLT_MAX_SEGMENTS,
+  LIGHTNING_BOLT_MIN_SEGMENTS,
+  LIGHTNING_FLASH_PROBABILITY,
+  LIGHTNING_INTENSITY_THRESHOLD,
+  LIGHTNING_MAX_COOLDOWN_MS,
+  LIGHTNING_MIN_COOLDOWN_MS,
+  RAIN_SPAWN_DENSITY_DIVISOR,
+  THUNDER_DELAY_MAX_MS,
+  THUNDER_DELAY_MIN_MS,
+} from "../constants";
 import { hapticThunder } from "../haptic";
 import { compactInPlace } from "../helpers";
+import { duneHeight } from "../render/world";
+import { state } from "../state";
 
 /**
  * Deterministic rain check: within each block of 10 cycles, a single
@@ -64,9 +64,7 @@ export function shouldRainForCycle(cycleIndex: number): boolean {
  */
 export function spawnRain(frameScale: number): void {
   const count = Math.ceil(
-    (state.width / RAIN_SPAWN_DENSITY_DIVISOR) *
-      frameScale *
-      state.rainIntensity,
+    (state.width / RAIN_SPAWN_DENSITY_DIVISOR) * frameScale * state.rainIntensity,
   );
   for (let i = 0; i < count; i++) {
     const r = Math.random();
@@ -171,17 +169,13 @@ export function drawRain(ctx: CanvasRenderingContext2D): void {
   ctx.restore();
 }
 
-
 // ══════════════════════════════════════════════════════════════════
 // Lightning
 // ══════════════════════════════════════════════════════════════════
 
 export function updateLightning(frameScale: number, now: number) {
   if (state.lightning.alpha > 0) {
-    state.lightning.alpha = Math.max(
-      0,
-      state.lightning.alpha - 0.015 * frameScale,
-    );
+    state.lightning.alpha = Math.max(0, state.lightning.alpha - 0.015 * frameScale);
   }
   // Random chance for new flash — only at full intensity, not during transitions
   if (
@@ -190,7 +184,10 @@ export function updateLightning(frameScale: number, now: number) {
     Math.random() < LIGHTNING_FLASH_PROBABILITY * frameScale
   ) {
     state.lightning.alpha = 0.7 + Math.random() * 0.2;
-    state.lightning.nextAt = now + LIGHTNING_MIN_COOLDOWN_MS + Math.random() * (LIGHTNING_MAX_COOLDOWN_MS - LIGHTNING_MIN_COOLDOWN_MS);
+    state.lightning.nextAt =
+      now +
+      LIGHTNING_MIN_COOLDOWN_MS +
+      Math.random() * (LIGHTNING_MAX_COOLDOWN_MS - LIGHTNING_MIN_COOLDOWN_MS);
     // Generate a jagged bolt path — preferring cacti as targets
     const result = _generateBoltPath();
     state.lightning.bolt = result.path;
@@ -209,7 +206,8 @@ export function updateLightning(frameScale: number, now: number) {
     }
     // Delay thunder after the flash — random 0.1–0.6s simulating
     // varying strike distances (~35–200m away).
-    const thunderDelay = THUNDER_DELAY_MIN_MS + Math.random() * (THUNDER_DELAY_MAX_MS - THUNDER_DELAY_MIN_MS);
+    const thunderDelay =
+      THUNDER_DELAY_MIN_MS + Math.random() * (THUNDER_DELAY_MAX_MS - THUNDER_DELAY_MIN_MS);
     setTimeout(() => audio.playThunder(), thunderDelay);
     if (!audio.muted) hapticThunder();
     // Gamepad rumble — medium rumble for thunder.
@@ -236,8 +234,7 @@ export function _generateBoltPath() {
     return sx > 20 && sx < state.width - 20 && !dc.struck;
   });
   if (visibleDuneCacti.length > 0) {
-    const dc =
-      visibleDuneCacti[Math.floor(Math.random() * visibleDuneCacti.length)];
+    const dc = visibleDuneCacti[Math.floor(Math.random() * visibleDuneCacti.length)];
     targetX = dc.wx - off;
     struckDuneCactus = dc;
   } else {
@@ -245,21 +242,21 @@ export function _generateBoltPath() {
   }
   // If targeting a dune cactus, end at the cactus top; otherwise ground.
   const endY = struckDuneCactus
-    ? state.ground -
-      duneHeight(targetX, state.duneOffset) -
-      struckDuneCactus.h * 0.85
+    ? state.ground - duneHeight(targetX, state.duneOffset) - struckDuneCactus.h * 0.85
     : state.ground;
   const startX = targetX + (Math.random() - 0.5) * state.width * 0.15;
-  const segments = LIGHTNING_BOLT_MIN_SEGMENTS + Math.floor(Math.random() * (LIGHTNING_BOLT_MAX_SEGMENTS - LIGHTNING_BOLT_MIN_SEGMENTS + 1));
-  const points: {x: number; y: number; branch?: {x:number;y:number}[]}[] = [{ x: startX, y: -10 }];
+  const segments =
+    LIGHTNING_BOLT_MIN_SEGMENTS +
+    Math.floor(Math.random() * (LIGHTNING_BOLT_MAX_SEGMENTS - LIGHTNING_BOLT_MIN_SEGMENTS + 1));
+  const points: { x: number; y: number; branch?: { x: number; y: number }[] }[] = [
+    { x: startX, y: -10 },
+  ];
   for (let i = 1; i <= segments; i++) {
     const t = i / segments;
     const isLast = i === segments;
     // Converge toward targetX; final point lands exactly on target
     const baseX = startX + (targetX - startX) * t;
-    const jitter = isLast
-      ? 0
-      : (Math.random() - 0.5) * state.width * 0.08 * (1 - t);
+    const jitter = isLast ? 0 : (Math.random() - 0.5) * state.width * 0.08 * (1 - t);
     const x = baseX + jitter;
     const y = isLast ? endY : Math.min(t * endY, endY);
     points.push({ x, y });
@@ -288,7 +285,12 @@ export function _generateBoltPath() {
 // difference at ~0.3s flash duration is imperceptible.
 const BOLT_SHADOW_BLUR = 10;
 
-export function _drawBolt(ctx: CanvasRenderingContext2D, points: any[], lineWidth: number, alpha: number) {
+export function _drawBolt(
+  ctx: CanvasRenderingContext2D,
+  points: any[],
+  lineWidth: number,
+  alpha: number,
+) {
   ctx.save();
   ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
   ctx.lineCap = "round";
@@ -347,10 +349,10 @@ function _getBoltBBox(points: any[]): {
   w: number;
   h: number;
 } {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
   const include = (x: number, y: number) => {
     if (x < minX) minX = x;
     if (x > maxX) maxX = x;
@@ -425,12 +427,7 @@ export function drawLightning(ctx: CanvasRenderingContext2D) {
       ctx.restore();
     } else {
       _drawBolt(ctx, state.lightning.bolt, 3, state.lightning.alpha);
-      _drawBolt(
-        ctx,
-        state.lightning.bolt,
-        1.2,
-        Math.min(1, state.lightning.alpha * 1.5),
-      );
+      _drawBolt(ctx, state.lightning.bolt, 1.2, Math.min(1, state.lightning.alpha * 1.5));
     }
   }
 }

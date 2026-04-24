@@ -1,12 +1,9 @@
-import { defineConfig, Plugin } from "vite";
 import { resolve } from "path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import { type Plugin, defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
-import {
-  ATTRIBUTION_SECTIONS,
-  renderAttributionHTML,
-} from "./src/credits";
+import { ATTRIBUTION_SECTIONS, renderAttributionHTML } from "./src/credits";
 
 // Build target selector. `VITE_TARGET=capacitor npm run build` produces
 // the native-mobile bundle: the PWA service worker is skipped (Workbox's
@@ -48,8 +45,7 @@ function creditsBuildInjectPlugin(): Plugin {
     // default page styling defined in the imprint's <style> block.
     listClass: null,
     // Match the inline style the original handwritten <h3>s used.
-    headingInlineStyle:
-      "font-size: 1rem; margin-top: 1rem; margin-bottom: 0.3rem; color: #222;",
+    headingInlineStyle: "font-size: 1rem; margin-top: 1rem; margin-bottom: 0.3rem; color: #222;",
     // Keep single-item sections (Music, Engine & code) as <ul><li> so
     // the imprint's bullet styling stays consistent across sections.
     listAlways: true,
@@ -126,80 +122,76 @@ export default defineConfig({
     // (the injected registerSW.js just 404s and adds noise).
     ...(USE_RELATIVE_BASE
       ? []
-      : [VitePWA({
-      registerType: "autoUpdate",
-      injectRegister: "auto",
-      manifest: {
-        name: "Raptor Runner",
-        short_name: "Raptor",
-        description:
-          "A pixel-art homage to the Chrome 'No Internet' dinosaur game, with a full day/night cycle and a starry sky.",
-        start_url: "/",
-        scope: "/",
-        display: "standalone",
-        orientation: "landscape",
-        background_color: "#50b4cd",
-        theme_color: "#50b4cd",
-        categories: ["games", "entertainment"],
-        icons: [
-          {
-            src: "assets/icon-192.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "any",
-          },
-          {
-            src: "assets/icon-192.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "maskable",
-          },
-          {
-            src: "assets/icon-512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any",
-          },
-          {
-            src: "assets/icon-512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "maskable",
-          },
-          {
-            src: "assets/apple-touch-icon.png",
-            sizes: "180x180",
-            type: "image/png",
-            purpose: "any",
-          },
-        ],
-      },
-      workbox: {
-        globPatterns: [
-          "**/*.{js,css,html,ico,png,svg,webmanifest,mp3}",
-        ],
-        // PWA manifest icons are injected separately by vite-plugin-pwa
-        // (without a __WB_REVISION__ query). If the glob scan also picks
-        // them up it adds a second entry WITH revision, and Workbox's
-        // addToCacheList refuses the conflict. Excluding them here lets
-        // the manifest-side injection be the only source of truth.
-        globIgnores: [
-          "**/icon-192.png",
-          "**/icon-512.png",
-          "**/apple-touch-icon.png",
-        ],
-        navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/about\.html$/, /^\/imprint\.html$/],
-        cleanupOutdatedCaches: true,
-        skipWaiting: true,
-        clientsClaim: true,
-        // Audio files and large images — allow larger precache entries
-        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
-      },
-      devOptions: {
-        enabled: false,
-      },
-    })]),
+      : [
+          VitePWA({
+            registerType: "autoUpdate",
+            injectRegister: "auto",
+            manifest: {
+              name: "Raptor Runner",
+              short_name: "Raptor",
+              description:
+                "A pixel-art homage to the Chrome 'No Internet' dinosaur game, with a full day/night cycle and a starry sky.",
+              start_url: "/",
+              scope: "/",
+              display: "standalone",
+              orientation: "landscape",
+              background_color: "#50b4cd",
+              theme_color: "#50b4cd",
+              categories: ["games", "entertainment"],
+              icons: [
+                {
+                  src: "assets/icon-192.png",
+                  sizes: "192x192",
+                  type: "image/png",
+                  purpose: "any",
+                },
+                {
+                  src: "assets/icon-192.png",
+                  sizes: "192x192",
+                  type: "image/png",
+                  purpose: "maskable",
+                },
+                {
+                  src: "assets/icon-512.png",
+                  sizes: "512x512",
+                  type: "image/png",
+                  purpose: "any",
+                },
+                {
+                  src: "assets/icon-512.png",
+                  sizes: "512x512",
+                  type: "image/png",
+                  purpose: "maskable",
+                },
+                {
+                  src: "assets/apple-touch-icon.png",
+                  sizes: "180x180",
+                  type: "image/png",
+                  purpose: "any",
+                },
+              ],
+            },
+            workbox: {
+              globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest,mp3}"],
+              // PWA manifest icons are injected separately by vite-plugin-pwa
+              // (without a __WB_REVISION__ query). If the glob scan also picks
+              // them up it adds a second entry WITH revision, and Workbox's
+              // addToCacheList refuses the conflict. Excluding them here lets
+              // the manifest-side injection be the only source of truth.
+              globIgnores: ["**/icon-192.png", "**/icon-512.png", "**/apple-touch-icon.png"],
+              navigateFallback: "/index.html",
+              navigateFallbackDenylist: [/^\/about\.html$/, /^\/imprint\.html$/],
+              cleanupOutdatedCaches: true,
+              skipWaiting: true,
+              clientsClaim: true,
+              // Audio files and large images — allow larger precache entries
+              maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+            },
+            devOptions: {
+              enabled: false,
+            },
+          }),
+        ]),
   ],
   build: {
     rollupOptions: {

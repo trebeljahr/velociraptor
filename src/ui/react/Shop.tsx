@@ -18,7 +18,7 @@
  * Pixel-identical to the vanilla Shop: confetti colours, sprite map,
  * and slot colours all come straight from the original code paths.
  */
-import { useCallback, useState, MouseEvent } from "react";
+import { type MouseEvent, useCallback, useState } from "react";
 
 const SLOT_COLOR: Record<string, string> = {
   head: "#d97706",
@@ -59,8 +59,14 @@ function spriteUrlForId(id: string): string | null {
 }
 
 const CONFETTI_COLORS = [
-  "#ff4d6d", "#ffb703", "#06d6a0", "#118ab2",
-  "#8338ec", "#ffd60a", "#ff7b00", "#ef476f",
+  "#ff4d6d",
+  "#ffb703",
+  "#06d6a0",
+  "#118ab2",
+  "#8338ec",
+  "#ffd60a",
+  "#ff7b00",
+  "#ef476f",
 ];
 
 function spawnShopConfetti(originX: number, originY: number) {
@@ -69,8 +75,15 @@ function spawnShopConfetti(originX: number, originY: number) {
     "position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:3000;";
   document.body.appendChild(layer);
   interface P {
-    el: HTMLElement; x: number; y: number; vx: number; vy: number;
-    rot: number; vrot: number; age: number; life: number;
+    el: HTMLElement;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    rot: number;
+    vrot: number;
+    age: number;
+    life: number;
   }
   const particles: P[] = [];
   for (let i = 0; i < 24; i++) {
@@ -86,7 +99,8 @@ function spawnShopConfetti(originX: number, originY: number) {
     const speed = 220 + Math.random() * 280;
     particles.push({
       el,
-      x: originX, y: originY,
+      x: originX,
+      y: originY,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       rot: Math.random() * Math.PI * 2,
@@ -170,12 +184,8 @@ function ShopItem({ def, balance, debug, onChange }: ShopItemProps) {
     }
   };
 
-  const thumbStyle = thumbUrl
-    ? undefined
-    : { background: SLOT_COLOR[def.slot] ?? "#555" };
-  const thumbClass = thumbUrl
-    ? "shop-item-thumb shop-item-thumb-sprite"
-    : "shop-item-thumb";
+  const thumbStyle = thumbUrl ? undefined : { background: SLOT_COLOR[def.slot] ?? "#555" };
+  const thumbClass = thumbUrl ? "shop-item-thumb shop-item-thumb-sprite" : "shop-item-thumb";
 
   let action;
   if (equipped) {
@@ -202,12 +212,7 @@ function ShopItem({ def, balance, debug, onChange }: ShopItemProps) {
         <span className="shop-item-price">
           {isDebugFree ? `Buy · ${def.price} (debug)` : `Buy · ${def.price}`}
         </span>
-        <img
-          src="assets/coin.png"
-          alt=""
-          className="coin-icon"
-          aria-hidden="true"
-        />
+        <img src="assets/coin.png" alt="" className="coin-icon" aria-hidden="true" />
       </button>
     );
   } else {
@@ -216,18 +221,9 @@ function ShopItem({ def, balance, debug, onChange }: ShopItemProps) {
     // price. The CSS gives it a dashed, low-opacity look so it's
     // visibly non-actionable.
     action = (
-      <button
-        type="button"
-        className="shop-item-action shop-item-action-poor"
-        aria-disabled="true"
-      >
+      <button type="button" className="shop-item-action shop-item-action-poor" aria-disabled="true">
         <span className="shop-item-price">{def.price}</span>
-        <img
-          src="assets/coin.png"
-          alt=""
-          className="coin-icon"
-          aria-hidden="true"
-        />
+        <img src="assets/coin.png" alt="" className="coin-icon" aria-hidden="true" />
       </button>
     );
   }
@@ -244,14 +240,10 @@ function ShopItem({ def, balance, debug, onChange }: ShopItemProps) {
       <div className="shop-item-info">
         <div className="shop-item-name">{def.name}</div>
         <div className="shop-item-meta-row">
-          <div className="shop-item-slot">
-            {SLOT_LABEL[def.slot] ?? def.slot}
-          </div>
+          <div className="shop-item-slot">{SLOT_LABEL[def.slot] ?? def.slot}</div>
           {owned && <span className="shop-item-owned-pill">Owned</span>}
         </div>
-        {def.description && (
-          <div className="shop-item-description">{def.description}</div>
-        )}
+        {def.description && <div className="shop-item-description">{def.description}</div>}
       </div>
       {action}
     </div>
@@ -282,41 +274,26 @@ export function Shop({ onClose, onShopChange }: ShopProps) {
 
   return (
     <div className="imprint-sheet shop-sheet">
-      <button
-        className="imprint-close"
-        aria-label="Close"
-        onClick={handleClose}
-      >
+      <button className="imprint-close" aria-label="Close" onClick={handleClose}>
         ×
       </button>
       <div className="shop-scroll">
-        <h1 className="shop-heading" tabIndex={-1}>Shop</h1>
+        <h1 className="shop-heading" tabIndex={-1}>
+          Shop
+        </h1>
         <p className="shop-balance">
           <span className="shop-balance-label">Coins</span>
           <span className="shop-balance-value">
             <span>{balance}</span>
-            <img
-              src="assets/coin.png"
-              alt=""
-              className="coin-icon"
-              aria-hidden="true"
-            />
+            <img src="assets/coin.png" alt="" className="coin-icon" aria-hidden="true" />
           </span>
         </p>
         {inventory.length === 0 ? (
-          <p className="shop-empty-hint">
-            Collect coins on the flower fields to spend them here.
-          </p>
+          <p className="shop-empty-hint">Collect coins on the flower fields to spend them here.</p>
         ) : (
           <div className="shop-items">
             {inventory.map((def) => (
-              <ShopItem
-                key={def.id}
-                def={def}
-                balance={balance}
-                debug={debug}
-                onChange={bump}
-              />
+              <ShopItem key={def.id} def={def} balance={balance} debug={debug} onChange={bump} />
             ))}
           </div>
         )}

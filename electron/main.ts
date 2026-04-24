@@ -23,9 +23,9 @@
  *   circuits — the game still runs and unlocks land in localStorage.
  */
 
-import { app, BrowserWindow, ipcMain, Menu, shell } from "electron";
-import path from "path";
 import fs from "fs";
+import path from "path";
+import { BrowserWindow, Menu, app, ipcMain, shell } from "electron";
 import steamworks from "steamworks.js";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
@@ -197,30 +197,25 @@ function savePrefs(patch: Prefs): void {
 
 // IPC: toggle fullscreen from the desktop menu. Persists so the
 // preference survives app restart.
-ipcMain.handle(
-  "window:setFullscreen",
-  (evt, wantFullscreen: boolean) => {
-    const win = BrowserWindow.fromWebContents(evt.sender);
-    if (!win || win.isDestroyed()) return false;
-    const isMac = process.platform === "darwin";
-    if (isMac) {
-      win.setSimpleFullScreen(!!wantFullscreen);
-    } else {
-      win.setFullScreen(!!wantFullscreen);
-    }
-    savePrefs({ fullscreen: !!wantFullscreen });
-    return !!wantFullscreen;
-  },
-);
+ipcMain.handle("window:setFullscreen", (evt, wantFullscreen: boolean) => {
+  const win = BrowserWindow.fromWebContents(evt.sender);
+  if (!win || win.isDestroyed()) return false;
+  const isMac = process.platform === "darwin";
+  if (isMac) {
+    win.setSimpleFullScreen(!!wantFullscreen);
+  } else {
+    win.setFullScreen(!!wantFullscreen);
+  }
+  savePrefs({ fullscreen: !!wantFullscreen });
+  return !!wantFullscreen;
+});
 
 // IPC: read current fullscreen state (used by the menu to sync the
 // toggle label when the overlay opens).
 ipcMain.handle("window:isFullscreen", (evt) => {
   const win = BrowserWindow.fromWebContents(evt.sender);
   if (!win || win.isDestroyed()) return false;
-  return process.platform === "darwin"
-    ? win.isSimpleFullScreen()
-    : win.isFullScreen();
+  return process.platform === "darwin" ? win.isSimpleFullScreen() : win.isFullScreen();
 });
 
 // IPC: activate a Steam achievement by its API Name. Idempotent on
@@ -388,9 +383,7 @@ function createWindow(): void {
         if (!RECOVERABLE_ERRORS.has(errorCode)) return;
         if (retrying) return;
         retrying = true;
-        console.log(
-          `[dev-reload] ${errorDescription} (${errorCode}); retrying`,
-        );
+        console.log(`[dev-reload] ${errorDescription} (${errorCode}); retrying`);
         const tryReload = () => {
           if (win.isDestroyed()) {
             retrying = false;
@@ -484,9 +477,7 @@ app.whenReady().then(() => {
   // option below.
   if (process.platform === "darwin" && app.dock) {
     try {
-      app.dock.setIcon(
-        path.join(__dirname, "..", "public", "assets", "icon-512.png"),
-      );
+      app.dock.setIcon(path.join(__dirname, "..", "public", "assets", "icon-512.png"));
     } catch (err) {
       console.warn("[app] failed to set dock icon:", err);
     }

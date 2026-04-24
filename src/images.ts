@@ -52,9 +52,18 @@ for (const v of CACTUS_VARIANTS) IMAGE_SRCS[v.key] = `assets/${v.key}.png`;
  *  on startup — no per-patch fetch, no lag spike when a patch
  *  spawns mid-run. */
 export const FLOWER_KEYS: ReadonlyArray<string> = [
-  "flower01", "flower02", "flower03", "flower04",
-  "flower05", "flower06", "flower07", "flower08",
-  "flower09", "flower10", "flower11", "flower12",
+  "flower01",
+  "flower02",
+  "flower03",
+  "flower04",
+  "flower05",
+  "flower06",
+  "flower07",
+  "flower08",
+  "flower09",
+  "flower10",
+  "flower11",
+  "flower12",
 ];
 for (const k of FLOWER_KEYS) {
   const n = k.replace(/^flower/, "");

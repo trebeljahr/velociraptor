@@ -10,7 +10,7 @@
  * on first open, driven by the iframeSrc prop. ui.ts keeps the
  * "have we ever opened this" flag and flips the prop on first open.
  */
-import { useEffect, useRef, type MouseEvent } from "react";
+import { type MouseEvent, useEffect, useRef } from "react";
 
 export interface IframeOverlayCallbacks {
   onClose: () => void;
@@ -21,11 +21,7 @@ export interface IframeOverlayProps {
   iframeSrc: string; // "about:blank" until the overlay has been opened
 }
 
-export function IframeOverlay({
-  callbacks: cb,
-  iframeTitle,
-  iframeSrc,
-}: IframeOverlayProps) {
+export function IframeOverlay({ callbacks: cb, iframeTitle, iframeSrc }: IframeOverlayProps) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     closeRef.current?.focus();
@@ -38,12 +34,7 @@ export function IframeOverlay({
 
   return (
     <div className="imprint-sheet">
-      <button
-        ref={closeRef}
-        className="imprint-close"
-        aria-label="Close"
-        onClick={handleClose}
-      >
+      <button ref={closeRef} className="imprint-close" aria-label="Close" onClick={handleClose}>
         ×
       </button>
       <iframe title={iframeTitle} src={iframeSrc} loading="lazy" />

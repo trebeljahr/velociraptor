@@ -6,22 +6,22 @@
  * a sky-color wash over the foreground canvas.
  */
 
-import {
-  SKY_COLORS,
-  NIGHT_COLOR,
-  SUN_PHASE_CENTER,
-  MOON_PHASE_CENTER,
-  CELESTIAL_ARC_HALF_WIDTH,
-  CELESTIAL_ARC_EXTENSION,
-  CELESTIAL_ARC_HEIGHT_RATIO,
-  SUN_MIN_RADIUS_PX,
-  SUN_RADIUS_SCALE,
-  MOON_MIN_RADIUS_PX,
-  MOON_RADIUS_SCALE,
-} from "../constants";
-import { state } from "../state";
 import { contexts } from "../canvas";
-import { rgb, rgba, lerpColor } from "../helpers";
+import {
+  CELESTIAL_ARC_EXTENSION,
+  CELESTIAL_ARC_HALF_WIDTH,
+  CELESTIAL_ARC_HEIGHT_RATIO,
+  MOON_MIN_RADIUS_PX,
+  MOON_PHASE_CENTER,
+  MOON_RADIUS_SCALE,
+  NIGHT_COLOR,
+  SKY_COLORS,
+  SUN_MIN_RADIUS_PX,
+  SUN_PHASE_CENTER,
+  SUN_RADIUS_SCALE,
+} from "../constants";
+import { lerpColor, rgb } from "../helpers";
+import { state } from "../state";
 
 /*
  * Sprite caches for sun + moon halos. createRadialGradient bakes in
@@ -113,10 +113,7 @@ function bakeMoonHaloSprite(r: number): HTMLCanvasElement {
 // ── Night detection (derived from SKY_COLORS) ───────────────
 
 export const _isNightBand = SKY_COLORS.map(
-  (c) =>
-    c[0] === NIGHT_COLOR[0] &&
-    c[1] === NIGHT_COLOR[1] &&
-    c[2] === NIGHT_COLOR[2],
+  (c) => c[0] === NIGHT_COLOR[0] && c[1] === NIGHT_COLOR[1] && c[2] === NIGHT_COLOR[2],
 );
 
 /** The magenta-pink sunset/sunrise bands — `[220, 90, 120]` in the
@@ -125,9 +122,7 @@ export const _isNightBand = SKY_COLORS.map(
  *  backdrop, so we don't spawn new ones then AND we kill any live one
  *  that outlives into the magenta. Golden hour (bands 5 / 15) remains
  *  valid rainbow territory — bright enough to carry the arc. */
-export const _isMagentaBand = SKY_COLORS.map(
-  (c) => c[0] === 220 && c[1] === 90 && c[2] === 120,
-);
+export const _isMagentaBand = SKY_COLORS.map((c) => c[0] === 220 && c[1] === 90 && c[2] === 120);
 
 /** True when the current phase is unambiguously rainbow-friendly:
  *  pure day bands or golden hour. Excludes night, blue-hour, and
@@ -184,11 +179,7 @@ export function tintStrength() {
 export function tintFactor() {
   const sky = state.currentSky;
   const s = tintStrength();
-  return [
-    255 + (sky[0] - 255) * s,
-    255 + (sky[1] - 255) * s,
-    255 + (sky[2] - 255) * s,
-  ];
+  return [255 + (sky[0] - 255) * s, 255 + (sky[1] - 255) * s, 255 + (sky[2] - 255) * s];
 }
 
 // ── Celestial arc ───────────────────────────────────────────
@@ -219,18 +210,26 @@ export function drawSun(ctx: CanvasRenderingContext2D) {
   if (!arc.visible) return;
   const r = Math.max(SUN_MIN_RADIUS_PX, state.width * SUN_RADIUS_SCALE);
   const elevation = Math.max(0, 1 - Math.pow(Math.abs(arc.t - 0.5) * 2, 4));
-  const cZenith: [number,number,number] = [255, 250, 235];
-  const cMid: [number,number,number] = [255, 200, 110];
-  const cHorizon: [number,number,number] = [220, 60, 25];
-  let core: [number,number,number], halo: [number,number,number];
+  const cZenith: [number, number, number] = [255, 250, 235];
+  const cMid: [number, number, number] = [255, 200, 110];
+  const cHorizon: [number, number, number] = [220, 60, 25];
+  let core: [number, number, number], halo: [number, number, number];
   if (elevation > 0.5) {
     const k = (elevation - 0.5) * 2;
-    core = lerpColor(cMid, cZenith, k) as [number,number,number];
-    halo = lerpColor([255, 180, 100] as [number,number,number], [255, 230, 170] as [number,number,number], k) as [number,number,number];
+    core = lerpColor(cMid, cZenith, k) as [number, number, number];
+    halo = lerpColor(
+      [255, 180, 100] as [number, number, number],
+      [255, 230, 170] as [number, number, number],
+      k,
+    ) as [number, number, number];
   } else {
     const k = elevation * 2;
-    core = lerpColor(cHorizon, cMid, k) as [number,number,number];
-    halo = lerpColor([225, 70, 30] as [number,number,number], [255, 180, 100] as [number,number,number], k) as [number,number,number];
+    core = lerpColor(cHorizon, cMid, k) as [number, number, number];
+    halo = lerpColor(
+      [225, 70, 30] as [number, number, number],
+      [255, 180, 100] as [number, number, number],
+      k,
+    ) as [number, number, number];
   }
 
   ctx.save();
@@ -245,13 +244,7 @@ export function drawSun(ctx: CanvasRenderingContext2D) {
     // drawImage the baked halo, modulated by per-frame alpha ha.
     ctx.save();
     ctx.globalAlpha = ha;
-    ctx.drawImage(
-      _sunHaloSprite,
-      arc.x - haloR,
-      arc.y - haloR,
-      haloR * 2,
-      haloR * 2,
-    );
+    ctx.drawImage(_sunHaloSprite, arc.x - haloR, arc.y - haloR, haloR * 2, haloR * 2);
     ctx.restore();
     ctx.globalAlpha = 0.2 + 0.8 * (1 - ri);
     ctx.fillStyle = rgb(core);
@@ -299,13 +292,7 @@ export function drawMoon(ctx: CanvasRenderingContext2D) {
     const haloR = r * 2.6;
     const prev = ctx.globalAlpha;
     ctx.globalAlpha = prev * illum;
-    ctx.drawImage(
-      _moonHaloSprite,
-      arc.x - haloR,
-      arc.y - haloR,
-      haloR * 2,
-      haloR * 2,
-    );
+    ctx.drawImage(_moonHaloSprite, arc.x - haloR, arc.y - haloR, haloR * 2, haloR * 2);
     ctx.globalAlpha = prev;
   }
 
@@ -326,21 +313,11 @@ export function drawMoon(ctx: CanvasRenderingContext2D) {
       // Lit side is on the RIGHT. Sweep top → right → bottom, then
       // the terminator ellipse back up to the top.
       ctx.arc(arc.x, arc.y, r, -Math.PI * 0.5, Math.PI * 0.5);
-      ctx.ellipse(
-        arc.x, arc.y,
-        termRx, r, 0,
-        Math.PI * 0.5, -Math.PI * 0.5,
-        !gibbous,
-      );
+      ctx.ellipse(arc.x, arc.y, termRx, r, 0, Math.PI * 0.5, -Math.PI * 0.5, !gibbous);
     } else {
       // Lit side is on the LEFT.
       ctx.arc(arc.x, arc.y, r, Math.PI * 0.5, Math.PI * 1.5);
-      ctx.ellipse(
-        arc.x, arc.y,
-        termRx, r, 0,
-        -Math.PI * 0.5, Math.PI * 0.5,
-        !gibbous,
-      );
+      ctx.ellipse(arc.x, arc.y, termRx, r, 0, -Math.PI * 0.5, Math.PI * 0.5, !gibbous);
     }
   }
 

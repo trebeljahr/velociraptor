@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { createElement } from "react";
 /*
  * Mount helper for <StartScreen>. Hosts inside a dedicated
  * #start-content-root div so the surrounding #start-screen wrapper,
@@ -6,12 +7,8 @@
  * raptor stage (painted by refreshStartRaptorCosmetics) stay in
  * vanilla DOM.
  */
-import { createRoot, type Root } from "react-dom/client";
-import { createElement } from "react";
-import {
-  StartScreen,
-  type StartScreenCallbacks,
-} from "./StartScreen";
+import { type Root, createRoot } from "react-dom/client";
+import { StartScreen, type StartScreenCallbacks } from "./StartScreen";
 
 let root: Root | null = null;
 

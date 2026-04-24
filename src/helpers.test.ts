@@ -1,5 +1,6 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  type Polygon,
   clamp,
   compactInPlace,
   cross,
@@ -12,7 +13,6 @@ import {
   rgba,
   segmentsIntersect,
   shrinkPolygon,
-  type Polygon,
 } from "./helpers";
 
 describe("lerp", () => {
@@ -110,43 +110,23 @@ describe("cross", () => {
 describe("segmentsIntersect", () => {
   it("returns true for a plus-sign crossing", () => {
     expect(
-      segmentsIntersect(
-        { x: -1, y: 0 },
-        { x: 1, y: 0 },
-        { x: 0, y: -1 },
-        { x: 0, y: 1 },
-      ),
+      segmentsIntersect({ x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 1 }),
     ).toBe(true);
   });
   it("returns false for parallel segments", () => {
-    expect(
-      segmentsIntersect(
-        { x: 0, y: 0 },
-        { x: 1, y: 0 },
-        { x: 0, y: 1 },
-        { x: 1, y: 1 },
-      ),
-    ).toBe(false);
+    expect(segmentsIntersect({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 })).toBe(
+      false,
+    );
   });
   it("returns false for disjoint segments", () => {
-    expect(
-      segmentsIntersect(
-        { x: 0, y: 0 },
-        { x: 1, y: 0 },
-        { x: 2, y: 2 },
-        { x: 3, y: 3 },
-      ),
-    ).toBe(false);
+    expect(segmentsIntersect({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 2 }, { x: 3, y: 3 })).toBe(
+      false,
+    );
   });
   it("strict crossing — returns false when segments merely touch at a shared endpoint", () => {
-    expect(
-      segmentsIntersect(
-        { x: 0, y: 0 },
-        { x: 1, y: 0 },
-        { x: 1, y: 0 },
-        { x: 1, y: 1 },
-      ),
-    ).toBe(false);
+    expect(segmentsIntersect({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 })).toBe(
+      false,
+    );
   });
 });
 

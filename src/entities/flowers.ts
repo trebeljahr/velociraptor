@@ -16,17 +16,17 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { state } from "../state";
-import { IMAGES } from "../images";
-import { FLOWER_KEYS } from "../images";
-import { compactInPlace } from "../helpers";
 import {
-  FLOWER_PATCH_MIN_COUNT,
-  FLOWER_PATCH_MAX_COUNT,
-  FLOWER_MIN_HEIGHT_PX,
   FLOWER_MAX_HEIGHT_PX,
+  FLOWER_MIN_HEIGHT_PX,
+  FLOWER_PATCH_MAX_COUNT,
+  FLOWER_PATCH_MIN_COUNT,
   FLOWER_PATCH_WIDTH_PX,
 } from "../constants";
+import { compactInPlace } from "../helpers";
+import { IMAGES } from "../images";
+import { FLOWER_KEYS } from "../images";
+import { state } from "../state";
 
 interface Flower {
   /** px offset from the patch's left edge. */
@@ -59,17 +59,13 @@ export interface FlowerPatch {
 export function makeFlowerPatch(x: number): FlowerPatch {
   const count =
     FLOWER_PATCH_MIN_COUNT +
-    Math.floor(
-      Math.random() * (FLOWER_PATCH_MAX_COUNT - FLOWER_PATCH_MIN_COUNT + 1),
-    );
+    Math.floor(Math.random() * (FLOWER_PATCH_MAX_COUNT - FLOWER_PATCH_MIN_COUNT + 1));
   const flowers: Flower[] = [];
   for (let i = 0; i < count; i++) {
     flowers.push({
       dx: Math.random() * FLOWER_PATCH_WIDTH_PX,
       key: FLOWER_KEYS[Math.floor(Math.random() * FLOWER_KEYS.length)],
-      h:
-        FLOWER_MIN_HEIGHT_PX +
-        Math.random() * (FLOWER_MAX_HEIGHT_PX - FLOWER_MIN_HEIGHT_PX),
+      h: FLOWER_MIN_HEIGHT_PX + Math.random() * (FLOWER_MAX_HEIGHT_PX - FLOWER_MIN_HEIGHT_PX),
       rot: (Math.random() - 0.5) * 0.2, // ±~0.1 rad wobble
       flip: Math.random() < 0.5 ? 1 : 0,
     });
@@ -118,10 +114,7 @@ export function drawFlowerPatches(ctx: CanvasRenderingContext2D): void {
 
 /** Return the first patch the raptor is currently on top of, or
  *  null. Used by the first-patch achievement hook in main.ts. */
-export function raptorCrossingPatch(
-  raptorX: number,
-  raptorW: number,
-): FlowerPatch | null {
+export function raptorCrossingPatch(raptorX: number, raptorW: number): FlowerPatch | null {
   if (!state.flowerPatches) return null;
   const rL = raptorX;
   const rR = raptorX + raptorW;

@@ -16,7 +16,7 @@
  * via flashShareLabel). The component is a dumb renderer — every click
  * delegates to a callback prop.
  */
-import { MouseEvent, KeyboardEvent } from "react";
+import type { KeyboardEvent, MouseEvent } from "react";
 import { createPortal } from "react-dom";
 
 export interface ScoreCardActionsProps {
@@ -96,12 +96,7 @@ export function ScoreCardActions({
         onClick={handleRevive}
       >
         <span className="revive-btn-inner">
-          <img
-            src="assets/coin.png"
-            alt=""
-            className="coin-icon"
-            aria-hidden="true"
-          />
+          <img src="assets/coin.png" alt="" className="coin-icon" aria-hidden="true" />
           <span className="revive-btn-label">
             Revive · <span>{reviveCost ?? 0}</span>
           </span>
@@ -114,12 +109,7 @@ export function ScoreCardActions({
         hidden={reviveCost == null || reviveBalance == null}
       >
         You have <span>{reviveBalance ?? 0}</span>
-        <img
-          src="assets/coin.png"
-          alt=""
-          className="coin-icon"
-          aria-hidden="true"
-        />
+        <img src="assets/coin.png" alt="" className="coin-icon" aria-hidden="true" />
       </div>
       <div className="score-card-actions">
         <button
@@ -129,11 +119,7 @@ export function ScoreCardActions({
           onClick={handleShare}
         >
           <span className="inner">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="18" cy="5" r="3"></circle>
               <circle cx="6" cy="12" r="3"></circle>
               <circle cx="18" cy="19" r="3"></circle>

@@ -11,34 +11,30 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { CACTUS_VARIANTS, type CactusVariant } from "../cactusVariants";
 import {
-  INITIAL_BG_VELOCITY,
-  VELOCITY_SCALE_DIVISOR,
-  SPEED_INCREMENT,
-  MAX_BG_VELOCITY,
+  CACTUS_BREATHER_INTERVAL_METERS,
+  CACTUS_BREATHER_MAX_SECONDS,
+  CACTUS_BREATHER_MIN_SECONDS,
   CACTUS_SPAWN_GAP_BASE,
-  CACTUS_SPAWN_GAP_SPEED_FACTOR,
   CACTUS_SPAWN_GAP_RANDOM_MAX,
   CACTUS_SPAWN_GAP_RANDOM_SHRINK,
-  CACTUS_BREATHER_INTERVAL_METERS,
-  CACTUS_BREATHER_MIN_SECONDS,
-  CACTUS_BREATHER_MAX_SECONDS,
+  CACTUS_SPAWN_GAP_SPEED_FACTOR,
   FLOWER_PATCH_WIDTH_PX,
-  PTERODACTYL_SPAWN_CHANCE,
+  INITIAL_BG_VELOCITY,
+  MAX_BG_VELOCITY,
   PTERODACTYL_LOW_FLIGHT_CHANCE,
+  PTERODACTYL_SPAWN_CHANCE,
+  SPEED_INCREMENT,
+  VELOCITY_SCALE_DIVISOR,
 } from "../constants";
-import { state } from "../state";
+import { type Polygon, compactInPlace } from "../helpers";
 import { IMAGES } from "../images";
-import { CACTUS_VARIANTS, CactusVariant } from "../cactusVariants";
-import { Polygon, compactInPlace } from "../helpers";
+import { state } from "../state";
+import { spawnCoinAboveCactus, spawnCoinUnderPterodactyl, spawnCoinsInRange } from "./coins";
 import { makeFlowerPatch } from "./flowers";
-import {
-  spawnCoinsInRange,
-  spawnCoinAboveCactus,
-  spawnCoinUnderPterodactyl,
-} from "./coins";
-import { Raptor } from "./raptor";
 import { Pterodactyls } from "./pterodactyl";
+import type { Raptor } from "./raptor";
 
 export class Cactus {
   x: number;
@@ -140,13 +136,10 @@ export class Cactuses {
       1,
       Math.max(
         0,
-        (state.bgVelocity - INITIAL_BG_VELOCITY) /
-          (MAX_BG_VELOCITY - INITIAL_BG_VELOCITY),
+        (state.bgVelocity - INITIAL_BG_VELOCITY) / (MAX_BG_VELOCITY - INITIAL_BG_VELOCITY),
       ),
     );
-    const floorGap =
-      this.raptor.w *
-      (CACTUS_SPAWN_GAP_BASE + t * CACTUS_SPAWN_GAP_SPEED_FACTOR);
+    const floorGap = this.raptor.w * (CACTUS_SPAWN_GAP_BASE + t * CACTUS_SPAWN_GAP_SPEED_FACTOR);
     const randSpan =
       this.raptor.w *
       CACTUS_SPAWN_GAP_RANDOM_MAX *
@@ -160,8 +153,7 @@ export class Cactuses {
       // Next flower field fires CACTUS_BREATHER_INTERVAL_METERS after
       // this one. Score-gated (not count-gated) so the cadence stays
       // ~1 per 500 meters regardless of bgVelocity.
-      state._nextBreatherAtScore =
-        state.score + CACTUS_BREATHER_INTERVAL_METERS;
+      state._nextBreatherAtScore = state.score + CACTUS_BREATHER_INTERVAL_METERS;
       this._queueBreather();
       return;
     }
@@ -183,11 +175,9 @@ export class Cactuses {
   private _queueBreather(): void {
     const seconds =
       CACTUS_BREATHER_MIN_SECONDS +
-      Math.random() *
-        (CACTUS_BREATHER_MAX_SECONDS - CACTUS_BREATHER_MIN_SECONDS);
+      Math.random() * (CACTUS_BREATHER_MAX_SECONDS - CACTUS_BREATHER_MIN_SECONDS);
     // bgVelocity is a per-frame multiplier; ×60 → approx px/sec.
-    const pxPerSec =
-      state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * 60;
+    const pxPerSec = state.bgVelocity * (state.width / VELOCITY_SCALE_DIVISOR) * 60;
     const fieldPx = seconds * pxPerSec;
     const bufferPx = this._rollNormalGap();
 
@@ -214,15 +204,9 @@ export class Cactuses {
 
   /** Debug helper — arm the threshold so the next spawn is a breather. */
   forceBreather(): void {
-    state._nextBreatherAtScore = Math.min(
-      state._nextBreatherAtScore,
-      state.score,
-    );
+    state._nextBreatherAtScore = Math.min(state._nextBreatherAtScore, state.score);
     // Force the gap-to-next "already elapsed" so spawn fires next frame.
-    this._scrollSinceLastSpawn = Math.max(
-      this._scrollSinceLastSpawn,
-      this._nextGap,
-    );
+    this._scrollSinceLastSpawn = Math.max(this._scrollSinceLastSpawn, this._nextGap);
   }
 
   /** Distance scrolled since the last spawn. Tracked here (instead
@@ -271,8 +255,7 @@ export class Cactuses {
       this._rollNextGap();
       return;
     }
-    const variant =
-      CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
+    const variant = CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
     const cactus = new Cactus(variant, this.raptor);
     this.cacti.push(cactus);
     this._prevSpawnWasPtero = false;
@@ -296,10 +279,7 @@ export class Cactuses {
    *  forceBreather(). */
   forcePterodactyl(): void {
     this._forcePteroNext = true;
-    this._scrollSinceLastSpawn = Math.max(
-      this._scrollSinceLastSpawn,
-      this._nextGap,
-    );
+    this._scrollSinceLastSpawn = Math.max(this._scrollSinceLastSpawn, this._nextGap);
   }
 
   update(now: number, frameScale = 1): void {
@@ -311,15 +291,10 @@ export class Cactuses {
 
     if (this._scrollSinceLastSpawn >= this._nextGap) {
       const isFirstSpawn =
-        this.cacti.length === 0 &&
-        this.pterodactyls.pteros.length === 0 &&
-        this._nextGap === 0;
+        this.cacti.length === 0 && this.pterodactyls.pteros.length === 0 && this._nextGap === 0;
       this.spawn();
       if (!isFirstSpawn) {
-        state.bgVelocity = Math.min(
-          state.bgVelocity + SPEED_INCREMENT,
-          MAX_BG_VELOCITY,
-        );
+        state.bgVelocity = Math.min(state.bgVelocity + SPEED_INCREMENT, MAX_BG_VELOCITY);
       }
     }
 

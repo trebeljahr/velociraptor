@@ -1,12 +1,12 @@
 // @ts-nocheck
+import { createElement } from "react";
 /*
  * Mount helper for the React Achievements overlay. Same pattern as
  * mountShop.ts: the outer #achievements-overlay (class imprint-overlay)
  * stays in index.html for backdrop and open-state CSS, React renders
  * the sheet inside.
  */
-import { createRoot, type Root } from "react-dom/client";
-import { createElement } from "react";
+import { type Root, createRoot } from "react-dom/client";
 import { Achievements } from "./Achievements";
 
 let root: Root | null = null;

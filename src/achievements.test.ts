@@ -46,10 +46,7 @@ describe("ACHIEVEMENTS catalog", () => {
     for (const a of ACHIEVEMENTS) {
       const hasHtml = !!a.iconHTML;
       const hasImage = !!a.iconImage;
-      expect(
-        hasHtml && hasImage,
-        `both iconHTML and iconImage set for ${a.id}`,
-      ).toBe(false);
+      expect(hasHtml && hasImage, `both iconHTML and iconImage set for ${a.id}`).toBe(false);
     }
   });
 

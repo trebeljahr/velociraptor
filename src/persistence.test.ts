@@ -1,11 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ACHIEVEMENTS_KEY,
   CAREER_RUNS_KEY,
@@ -128,7 +121,7 @@ describe("loadUnlockedAchievements / saveUnlockedAchievements", () => {
   it("returns an empty set when nothing saved", () => {
     expect(loadUnlockedAchievements()).toEqual(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (Object.create(null) as any),
+      Object.create(null) as any,
     );
     // Alternative: just check keys length
     expect(Object.keys(loadUnlockedAchievements())).toHaveLength(0);
@@ -154,20 +147,14 @@ describe("loadUnlockedAchievements / saveUnlockedAchievements", () => {
     expect(Object.keys(loadUnlockedAchievements())).toHaveLength(0);
   });
   it("ignores non-string entries in the stored array", () => {
-    window.localStorage.setItem(
-      ACHIEVEMENTS_KEY,
-      JSON.stringify(["alpha", 42, null, "beta"]),
-    );
+    window.localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(["alpha", 42, null, "beta"]));
     const got = loadUnlockedAchievements();
     expect(got["alpha"]).toBe(true);
     expect(got["beta"]).toBe(true);
     expect(Object.keys(got).length).toBe(2);
   });
   it("treats a non-array stored value as empty", () => {
-    window.localStorage.setItem(
-      ACHIEVEMENTS_KEY,
-      JSON.stringify({ not: "an array" }),
-    );
+    window.localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify({ not: "an array" }));
     expect(Object.keys(loadUnlockedAchievements())).toHaveLength(0);
   });
 });
@@ -250,7 +237,7 @@ describe("failure tolerance — silent no-op when localStorage throws", () => {
     expect(loadTotalDayCycles()).toBe(0);
     expect(loadUnlockedAchievements()).toEqual(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (Object.create(null) as any),
+      Object.create(null) as any,
     );
     expect(loadRareEventsSeen()).toEqual({});
     expect(loadBoolFlag("x", true)).toBe(true);

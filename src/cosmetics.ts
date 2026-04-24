@@ -6,11 +6,7 @@
 
 export type CosmeticSlot = "head" | "eyes" | "neck";
 
-export const COSMETIC_SLOTS: ReadonlyArray<CosmeticSlot> = [
-  "head",
-  "eyes",
-  "neck",
-];
+export const COSMETIC_SLOTS: ReadonlyArray<CosmeticSlot> = ["head", "eyes", "neck"];
 
 /** Human-readable slot name used in the equip menu subheadings. */
 export const COSMETIC_SLOT_LABELS: Record<CosmeticSlot, string> = {
@@ -196,7 +192,6 @@ export const COSMETICS: ReadonlyArray<CosmeticDef> = [
     // and forward so the pendants rest on the throat.
     draw: { scale: 0.063, rotation: -0.3, offset: { x: -0.025, y: 0.05 } },
   },
-
 ];
 
 /** O(1) id → def lookup, populated once at module load. */
@@ -230,21 +225,21 @@ export const PLACEHOLDER_COLORS: Record<CosmeticSlot, string> = {
 // also updates the legacy per-item flags (UNLOCKED_PARTY_HAT_KEY etc.)
 // so the Game API shims built on those stay in lockstep.
 
-import { state } from "./state";
 import {
-  saveOwnedCosmetics,
-  saveEquippedCosmetics,
-  saveCoinsBalance,
-  saveBoolFlag,
-} from "./persistence";
-import {
+  UNLOCKED_BOW_TIE_KEY,
   UNLOCKED_PARTY_HAT_KEY,
   UNLOCKED_THUG_GLASSES_KEY,
-  UNLOCKED_BOW_TIE_KEY,
+  WEAR_BOW_TIE_KEY,
   WEAR_PARTY_HAT_KEY,
   WEAR_THUG_GLASSES_KEY,
-  WEAR_BOW_TIE_KEY,
 } from "./constants";
+import {
+  saveBoolFlag,
+  saveCoinsBalance,
+  saveEquippedCosmetics,
+  saveOwnedCosmetics,
+} from "./persistence";
+import { state } from "./state";
 
 // Legacy flag bridges for the three score-unlock classics —
 // localStorage keys, mirrored state field names. New shop items
@@ -278,9 +273,7 @@ const LEGACY_WEAR_STATE: Record<string, keyof typeof state> = {
 type AchievementCallback = (id: string) => void;
 let onAchievementUnlock: AchievementCallback | null = null;
 
-export function setCosmeticsAchievementHandler(
-  cb: AchievementCallback | null,
-): void {
+export function setCosmeticsAchievementHandler(cb: AchievementCallback | null): void {
   onAchievementUnlock = cb;
 }
 

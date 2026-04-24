@@ -7,15 +7,15 @@
 
 import {
   CLOUD_DENSITY_DIVISOR,
-  CLOUD_MIN_COUNT,
-  CLOUD_RAIN_MULTIPLIER_MAX,
-  CLOUD_MIN_SPACING_RATIO,
-  CLOUD_MIN_SPACING_FLOOR_PX,
   CLOUD_HEAVY_RAIN_SPACING,
+  CLOUD_MIN_COUNT,
+  CLOUD_MIN_SPACING_FLOOR_PX,
+  CLOUD_MIN_SPACING_RATIO,
+  CLOUD_RAIN_MULTIPLIER_MAX,
   VELOCITY_SCALE_DIVISOR,
 } from "../constants";
-import { state } from "../state";
 import { randRange } from "../helpers";
+import { state } from "../state";
 
 export const CLOUD_BUMPS = [
   { dx: 0, rx: 12.5, ry: 10 },
@@ -31,8 +31,15 @@ export function drawPolygon(ctx: CanvasRenderingContext2D, poly: any[], opts: an
   ctx.moveTo(poly[0].x, poly[0].y);
   for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
   ctx.closePath();
-  if (opts.fill) { ctx.fillStyle = opts.fill; ctx.fill(); }
-  if (opts.stroke) { ctx.strokeStyle = opts.stroke; ctx.lineWidth = opts.lineWidth || 2; ctx.stroke(); }
+  if (opts.fill) {
+    ctx.fillStyle = opts.fill;
+    ctx.fill();
+  }
+  if (opts.stroke) {
+    ctx.strokeStyle = opts.stroke;
+    ctx.lineWidth = opts.lineWidth || 2;
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -98,21 +105,14 @@ function buildOvercastGradients(
   };
 }
 
-export function drawOvercastBands(
-  ctx: CanvasRenderingContext2D,
-  intensity: number,
-) {
+export function drawOvercastBands(ctx: CanvasRenderingContext2D, intensity: number) {
   if (intensity <= 0) return;
   const w = state.width;
   const coverH = state.height * 0.55;
   const a = intensity;
   const bucket = Math.round(a * 20); // 0..20, ~0.05 granularity
 
-  if (
-    !_overcastCache ||
-    _overcastCache.coverH !== coverH ||
-    _overcastCache.bucket !== bucket
-  ) {
+  if (!_overcastCache || _overcastCache.coverH !== coverH || _overcastCache.bucket !== bucket) {
     _overcastCache = buildOvercastGradients(ctx, coverH, bucket / 20);
   }
 
@@ -135,7 +135,13 @@ export function invalidateCloudsCache(): void {
   _overcastCache = null;
 }
 
-export function drawCloudMorphed(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, ri: number) {
+export function drawCloudMorphed(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  ri: number,
+) {
   const r = Math.round(255 - ri * 135);
   const g = Math.round(255 - ri * 130);
   const b = Math.round(255 - ri * 125);
@@ -195,10 +201,12 @@ export function makeCloudObject(xAbsolute: number) {
 export function trySpawnCloud() {
   const candidate = makeCloudObject(0);
   const visualWidth = cloudVisualWidth(candidate.size, candidate.scale);
-  let rightmost = -Infinity;
-  for (const c of state.clouds) { if (c.x > rightmost) rightmost = c.x; }
+  let rightmost = Number.NEGATIVE_INFINITY;
+  for (const c of state.clouds) {
+    if (c.x > rightmost) rightmost = c.x;
+  }
   const spawnX = state.width + visualWidth * 0.5;
-  if (rightmost > -Infinity && spawnX - rightmost < minCloudSpacing()) return false;
+  if (rightmost > Number.NEGATIVE_INFINITY && spawnX - rightmost < minCloudSpacing()) return false;
   candidate.x = spawnX;
   state.clouds.push(candidate);
   return true;

@@ -19,7 +19,7 @@
  *   { blob }         // PNG Blob, or { error } on failure
  */
 
-self.onmessage = async function (e: MessageEvent) {
+self.onmessage = async (e: MessageEvent) => {
   try {
     const {
       bitmap,
@@ -82,12 +82,7 @@ self.onmessage = async function (e: MessageEvent) {
 
     // ── Dark scrim at the bottom (for the score block) ──────────
     const botShadeH = 260;
-    const botShade = ctx.createLinearGradient(
-      0,
-      H - botShadeH,
-      0,
-      H
-    );
+    const botShade = ctx.createLinearGradient(0, H - botShadeH, 0, H);
     botShade.addColorStop(0, "rgba(0, 0, 0, 0)");
     botShade.addColorStop(1, "rgba(0, 0, 0, 0.75)");
     ctx.fillStyle = botShade;
@@ -100,8 +95,7 @@ self.onmessage = async function (e: MessageEvent) {
     ctx.fillStyle = "#ffffff";
     ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
     ctx.shadowBlur = 14;
-    ctx.font =
-      'bold 72px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.font = 'bold 72px "Helvetica Neue", Helvetica, Arial, sans-serif';
     ctx.fillText("Raptor Runner", 60, 100);
     ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
     ctx.font = '26px "Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -115,16 +109,14 @@ self.onmessage = async function (e: MessageEvent) {
     ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
     ctx.shadowBlur = 16;
     ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-    ctx.font =
-      '600 30px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.font = '600 30px "Helvetica Neue", Helvetica, Arial, sans-serif';
     // Label sits at H-220 (was H-180) so the baseline of the label
     // clears the top of the 180px score digits — the prior layout
     // had the cap of the number sitting exactly under the label
     // baseline with ~0px gap, which read as cramped. 40px of clear
     // breathing room now.
     ctx.fillText("FINAL SCORE", W - 60, H - 220);
-    ctx.font =
-      'bold 180px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.font = 'bold 180px "Helvetica Neue", Helvetica, Arial, sans-serif';
     const scoreGrad = ctx.createLinearGradient(0, H - 170, 0, H - 40);
     scoreGrad.addColorStop(0, "#ffee9a");
     scoreGrad.addColorStop(1, "#e89d33");
@@ -141,8 +133,7 @@ self.onmessage = async function (e: MessageEvent) {
     ctx.textBaseline = "alphabetic";
     ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
     ctx.shadowBlur = 14;
-    ctx.font =
-      'italic 36px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.font = 'italic 36px "Helvetica Neue", Helvetica, Arial, sans-serif';
     if (newHighScore) {
       ctx.fillStyle = "#ffd84a";
       ctx.fillText("\u2605 New personal best!", 60, H - 60);

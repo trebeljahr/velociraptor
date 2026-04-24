@@ -21,7 +21,7 @@
  * desktop-only bridge exposed by electron/preload.ts. The CSS class
  * `desktop-only` keeps it hidden on web/mobile builds.
  */
-import { useEffect, useRef, MouseEvent } from "react";
+import { type MouseEvent, useEffect, useRef } from "react";
 
 interface Achievement {
   id: string;
@@ -37,19 +37,14 @@ function AchievementIcon({ ach, hidden }: { ach: Achievement; hidden: boolean })
   if (hidden) {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <text x="12" y="17" textAnchor="middle" fontSize="16" fill="#aaa">?</text>
+        <text x="12" y="17" textAnchor="middle" fontSize="16" fill="#aaa">
+          ?
+        </text>
       </svg>
     );
   }
   if (ach.iconImage) {
-    return (
-      <img
-        src={ach.iconImage}
-        alt=""
-        aria-hidden="true"
-        className="achievement-icon-image"
-      />
-    );
+    return <img src={ach.iconImage} alt="" aria-hidden="true" className="achievement-icon-image" />;
   }
   return (
     <svg
@@ -84,22 +79,14 @@ export function Achievements({ onClose }: AchievementsProps) {
   };
 
   const handleSteamClick = () => {
-    if (
-      window.electronAPI &&
-      typeof window.electronAPI.openSteamOverlay === "function"
-    ) {
+    if (window.electronAPI && typeof window.electronAPI.openSteamOverlay === "function") {
       window.electronAPI.openSteamOverlay("Achievements");
     }
   };
 
   return (
     <div className="imprint-sheet achievements-sheet">
-      <button
-        ref={closeRef}
-        className="imprint-close"
-        aria-label="Close"
-        onClick={handleClose}
-      >
+      <button ref={closeRef} className="imprint-close" aria-label="Close" onClick={handleClose}>
         ×
       </button>
       <div className="achievements-scroll">
@@ -133,19 +120,14 @@ export function Achievements({ onClose }: AchievementsProps) {
           {list.map((a) => {
             const isHidden = !!a.secret && !a.unlocked;
             return (
-              <li
-                key={a.id}
-                className={"achievement-item " + (a.unlocked ? "unlocked" : "locked")}
-              >
+              <li key={a.id} className={"achievement-item " + (a.unlocked ? "unlocked" : "locked")}>
                 <div className="icon">
                   <AchievementIcon ach={a} hidden={isHidden} />
                 </div>
                 <div className="body">
                   <div className="title">{isHidden ? "???" : a.title}</div>
                   <div className="desc">
-                    {isHidden
-                      ? "Keep playing to discover this secret..."
-                      : a.desc}
+                    {isHidden ? "Keep playing to discover this secret..." : a.desc}
                   </div>
                 </div>
               </li>

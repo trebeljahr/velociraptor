@@ -6,9 +6,9 @@
  * to keep the main thread free during the game-over animation.
  */
 
-import ScoreCardWorker from "../workers/scoreCard.worker.ts?worker";
-import { state } from "../state";
 import { contexts } from "../canvas";
+import { state } from "../state";
+import ScoreCardWorker from "../workers/scoreCard.worker.ts?worker";
 
 // Persistent worker reused across calls so we don't pay startup
 // cost every game-over.
@@ -41,8 +41,7 @@ export async function generateScoreCardBlob(deathSnapshotReady: boolean) {
             worker.removeEventListener("message", onMessage);
             worker.removeEventListener("error", onError);
             if (e.data && e.data.blob) resolve(e.data.blob);
-            else
-              reject(new Error((e.data && e.data.error) || "worker failed"));
+            else reject(new Error((e.data && e.data.error) || "worker failed"));
           };
           const onError = (ev: ErrorEvent) => {
             worker.removeEventListener("message", onMessage);
@@ -86,12 +85,7 @@ function generateScoreCardBlobMainThread(deathSnapshotReady: boolean) {
   cctx.imageSmoothingQuality = "high";
 
   // ── Background: the actual game screenshot from death ─────
-  if (
-    deathSnapshotReady &&
-    deathCanvas &&
-    deathCanvas.width > 0 &&
-    deathCanvas.height > 0
-  ) {
+  if (deathSnapshotReady && deathCanvas && deathCanvas.width > 0 && deathCanvas.height > 0) {
     const srcW = deathCanvas.width;
     const srcH = deathCanvas.height;
     const srcAspect = srcW / srcH;

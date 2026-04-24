@@ -5,15 +5,15 @@
  * scroll at a parallax rate slower than the gameplay foreground.
  */
 
+import { CACTUS_VARIANTS } from "../cactusVariants";
 import {
   DUNE_BASE_HEIGHT_RATIO,
-  DUNE_CACTUS_MIN_HEIGHT_PX,
   DUNE_CACTUS_HEIGHT_RANGE_PX,
+  DUNE_CACTUS_MIN_HEIGHT_PX,
   DUNE_CACTUS_MIN_SPACING_PX,
   DUNE_CACTUS_SPACING_RANGE_PX,
 } from "../constants";
 import { state } from "../state";
-import { CACTUS_VARIANTS } from "../cactusVariants";
 
 /** Dune ridge height above ground — gentle rolling sin waves.
  *  Frequencies are relative to viewport width for consistent look. */
@@ -31,9 +31,9 @@ export function duneHeight(screenX: number, offset: number) {
 
 /** Spawn a dune cactus at the given world-space x. */
 export function spawnDuneCactus(worldX: number) {
-  const variant =
-    CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
-  const ch = (DUNE_CACTUS_MIN_HEIGHT_PX + Math.random() * DUNE_CACTUS_HEIGHT_RANGE_PX) * variant.heightScale;
+  const variant = CACTUS_VARIANTS[Math.floor(Math.random() * CACTUS_VARIANTS.length)];
+  const ch =
+    (DUNE_CACTUS_MIN_HEIGHT_PX + Math.random() * DUNE_CACTUS_HEIGHT_RANGE_PX) * variant.heightScale;
   const cw = ch * (variant.w / variant.h);
   return {
     wx: worldX,

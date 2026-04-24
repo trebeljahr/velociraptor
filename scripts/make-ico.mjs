@@ -34,14 +34,14 @@ dir.writeUInt16LE(1, 4); // count = 1 entry
 // ICONDIRENTRY (16 bytes): width, height, colorCount, reserved,
 // planes, bitCount, bytesInRes, imageOffset
 const entry = Buffer.alloc(16);
-entry.writeUInt8(0, 0);  // width 0 = 256
-entry.writeUInt8(0, 1);  // height 0 = 256
-entry.writeUInt8(0, 2);  // colorCount 0 = 256+
-entry.writeUInt8(0, 3);  // reserved
-entry.writeUInt16LE(1, 4);  // planes
+entry.writeUInt8(0, 0); // width 0 = 256
+entry.writeUInt8(0, 1); // height 0 = 256
+entry.writeUInt8(0, 2); // colorCount 0 = 256+
+entry.writeUInt8(0, 3); // reserved
+entry.writeUInt16LE(1, 4); // planes
 entry.writeUInt16LE(32, 6); // bitCount
-entry.writeUInt32LE(png.length, 8);   // bytesInRes
-entry.writeUInt32LE(6 + 16, 12);      // imageOffset (after dir+entry)
+entry.writeUInt32LE(png.length, 8); // bytesInRes
+entry.writeUInt32LE(6 + 16, 12); // imageOffset (after dir+entry)
 
 writeFileSync(outPath, Buffer.concat([dir, entry, png]));
 console.log(`wrote ${outPath} (${dir.length + entry.length + png.length} bytes)`);

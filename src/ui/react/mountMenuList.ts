@@ -1,12 +1,12 @@
 // @ts-nocheck
+import { createElement } from "react";
 /*
  * Mount helper for the React <MenuList> — the main pause-menu nav
  * buttons + close-hint + menu-hint + gamepad-hint + made-by footer.
  * Hosts inside the #menu-list-root div in index.html which sits
  * where the old <ul> used to live.
  */
-import { createRoot, type Root } from "react-dom/client";
-import { createElement } from "react";
+import { type Root, createRoot } from "react-dom/client";
 import { MenuList, type MenuListCallbacks } from "./MenuList";
 
 let root: Root | null = null;

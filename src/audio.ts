@@ -15,20 +15,20 @@
  */
 
 import {
-  MUTED_KEY,
-  MUSIC_MUTED_KEY,
-  JUMP_MUTED_KEY,
-  RAIN_MUTED_KEY,
-  FOOTSTEPS_MUTED_KEY,
   COINS_MUTED_KEY,
-  UI_MUTED_KEY,
-  EVENTS_MUTED_KEY,
-  THUNDER_MUTED_KEY,
-  RAIN_AUDIO_MAX_VOLUME,
-  COIN_STREAK_PITCH_STEP,
-  COIN_STREAK_MAX_PITCH,
-  COIN_STREAK_RESET_MS,
   COIN_CHAIN_END_GAIN,
+  COIN_STREAK_MAX_PITCH,
+  COIN_STREAK_PITCH_STEP,
+  COIN_STREAK_RESET_MS,
+  EVENTS_MUTED_KEY,
+  FOOTSTEPS_MUTED_KEY,
+  JUMP_MUTED_KEY,
+  MUSIC_MUTED_KEY,
+  MUTED_KEY,
+  RAIN_AUDIO_MAX_VOLUME,
+  RAIN_MUTED_KEY,
+  THUNDER_MUTED_KEY,
+  UI_MUTED_KEY,
 } from "./constants";
 import { saveBoolFlag } from "./persistence";
 
@@ -61,11 +61,7 @@ export type UnmuteDuringRunCallback = () => void;
 const FADE_MS = 40;
 const _activeFade = new WeakMap<HTMLAudioElement, object>();
 
-function rampVolume(
-  el: HTMLAudioElement,
-  targetVol: number,
-  ms: number = FADE_MS,
-): Promise<void> {
+function rampVolume(el: HTMLAudioElement, targetVol: number, ms: number = FADE_MS): Promise<void> {
   return new Promise((resolve) => {
     const token = {};
     _activeFade.set(el, token);
@@ -183,9 +179,7 @@ export const audio = {
   },
 
   init() {
-    this.music = document.getElementById(
-      "game-music",
-    ) as HTMLAudioElement | null;
+    this.music = document.getElementById("game-music") as HTMLAudioElement | null;
     if (this.music) this.music.volume = 0.5;
     // Load per-channel mute preferences from localStorage.
     this._loadChannelPrefs();
@@ -235,10 +229,7 @@ export const audio = {
    *  for instant playback via Web Audio. Falls back gracefully if
    *  Web Audio isn't available (old browsers). */
   _preloadJumpBuffer() {
-    if (
-      typeof AudioContext === "undefined" &&
-      typeof window.webkitAudioContext === "undefined"
-    )
+    if (typeof AudioContext === "undefined" && typeof window.webkitAudioContext === "undefined")
       return;
     fetch("assets/jump.mp3")
       .then((r) => r.arrayBuffer())
@@ -380,7 +371,10 @@ export const audio = {
       src.connect(gain);
       gain.connect(ctx.destination);
       src.onended = () => {
-        try { src.disconnect(); gain.disconnect(); } catch {}
+        try {
+          src.disconnect();
+          gain.disconnect();
+        } catch {}
       };
       src.start(t0);
     } catch {
@@ -414,7 +408,10 @@ export const audio = {
       src.connect(gain);
       gain.connect(ctx.destination);
       src.onended = () => {
-        try { src.disconnect(); gain.disconnect(); } catch {}
+        try {
+          src.disconnect();
+          gain.disconnect();
+        } catch {}
       };
       src.start(t0);
     } catch {
@@ -677,9 +674,7 @@ export const audio = {
   _isRainPlaying: false,
 
   initRain() {
-    this.rain = document.getElementById(
-      "rain-audio",
-    ) as HTMLAudioElement | null;
+    this.rain = document.getElementById("rain-audio") as HTMLAudioElement | null;
     if (this.rain) {
       this.rain.volume = RAIN_AUDIO_MAX_VOLUME;
       this.rain.loop = true;
@@ -703,10 +698,7 @@ export const audio = {
   _thunderBuffer: null as AudioBuffer | null,
 
   _preloadThunderBuffer() {
-    if (
-      typeof AudioContext === "undefined" &&
-      typeof window.webkitAudioContext === "undefined"
-    )
+    if (typeof AudioContext === "undefined" && typeof window.webkitAudioContext === "undefined")
       return;
     fetch("assets/thunder.mp3")
       .then((r) => r.arrayBuffer())
@@ -753,10 +745,7 @@ export const audio = {
   _activeStepGains: new Set<GainNode>(),
 
   _preloadStepBuffers() {
-    if (
-      typeof AudioContext === "undefined" &&
-      typeof window.webkitAudioContext === "undefined"
-    )
+    if (typeof AudioContext === "undefined" && typeof window.webkitAudioContext === "undefined")
       return;
     const paths = [
       "assets/step-left.mp3",
@@ -793,9 +782,7 @@ export const audio = {
     // Pick a buffer other than the last one played — avoids the
     // same waveform back-to-back. Falls back to random on very
     // first call before any have loaded.
-    const loaded = this._stepBuffers
-      .map((b, i) => ({ b, i }))
-      .filter((x) => x.b);
+    const loaded = this._stepBuffers.map((b, i) => ({ b, i })).filter((x) => x.b);
     if (loaded.length === 0) return;
     let pick = loaded[Math.floor(Math.random() * loaded.length)];
     if (loaded.length > 1) {
@@ -820,7 +807,10 @@ export const audio = {
       this._activeStepGains.add(gain);
       src.onended = () => {
         this._activeStepGains.delete(gain);
-        try { src.disconnect(); gain.disconnect(); } catch {}
+        try {
+          src.disconnect();
+          gain.disconnect();
+        } catch {}
       };
       src.start(0);
     } catch {
@@ -849,10 +839,7 @@ export const audio = {
   _hitBuffer: null as AudioBuffer | null,
 
   _preloadHitBuffer() {
-    if (
-      typeof AudioContext === "undefined" &&
-      typeof window.webkitAudioContext === "undefined"
-    )
+    if (typeof AudioContext === "undefined" && typeof window.webkitAudioContext === "undefined")
       return;
     fetch("assets/hit.mp3")
       .then((r) => r.arrayBuffer())
@@ -890,7 +877,10 @@ export const audio = {
       src.connect(gain);
       gain.connect(this._audioCtx.destination);
       src.onended = () => {
-        try { src.disconnect(); gain.disconnect(); } catch {}
+        try {
+          src.disconnect();
+          gain.disconnect();
+        } catch {}
       };
       src.start(0, 0.055);
     } catch {
@@ -913,10 +903,7 @@ export const audio = {
   _coinStreakLastMs: 0 as number,
 
   _preloadCoinBuffer() {
-    if (
-      typeof AudioContext === "undefined" &&
-      typeof window.webkitAudioContext === "undefined"
-    )
+    if (typeof AudioContext === "undefined" && typeof window.webkitAudioContext === "undefined")
       return;
     fetch("assets/coin-collect.mp3")
       .then((r) => r.arrayBuffer())
@@ -949,10 +936,7 @@ export const audio = {
   _coinChainEndBuffer: null as AudioBuffer | null,
 
   _preloadCoinChainEndBuffer() {
-    if (
-      typeof AudioContext === "undefined" &&
-      typeof window.webkitAudioContext === "undefined"
-    )
+    if (typeof AudioContext === "undefined" && typeof window.webkitAudioContext === "undefined")
       return;
     fetch("assets/coin-chain-end.mp3")
       .then((r) => r.arrayBuffer())
@@ -987,7 +971,10 @@ export const audio = {
       src.connect(gain);
       gain.connect(this._audioCtx.destination);
       src.onended = () => {
-        try { src.disconnect(); gain.disconnect(); } catch {}
+        try {
+          src.disconnect();
+          gain.disconnect();
+        } catch {}
       };
       src.start(0);
     } catch {
@@ -1020,7 +1007,10 @@ export const audio = {
       src.connect(gain);
       gain.connect(this._audioCtx.destination);
       src.onended = () => {
-        try { src.disconnect(); gain.disconnect(); } catch {}
+        try {
+          src.disconnect();
+          gain.disconnect();
+        } catch {}
       };
       src.start(0);
     } catch {
@@ -1035,10 +1025,7 @@ export const audio = {
   _shopPurchaseBuffer: null as AudioBuffer | null,
 
   _preloadShopPurchaseBuffer() {
-    if (
-      typeof AudioContext === "undefined" &&
-      typeof window.webkitAudioContext === "undefined"
-    )
+    if (typeof AudioContext === "undefined" && typeof window.webkitAudioContext === "undefined")
       return;
     fetch("assets/shop-purchase.mp3")
       .then((r) => r.arrayBuffer())
@@ -1074,7 +1061,10 @@ export const audio = {
       src.connect(gain);
       gain.connect(this._audioCtx.destination);
       src.onended = () => {
-        try { src.disconnect(); gain.disconnect(); } catch {}
+        try {
+          src.disconnect();
+          gain.disconnect();
+        } catch {}
       };
       src.start(0);
     } catch {
@@ -1090,10 +1080,7 @@ export const audio = {
   _achievementBuffer: null as AudioBuffer | null,
 
   _preloadAchievementBuffer() {
-    if (
-      typeof AudioContext === "undefined" &&
-      typeof window.webkitAudioContext === "undefined"
-    )
+    if (typeof AudioContext === "undefined" && typeof window.webkitAudioContext === "undefined")
       return;
     fetch("assets/achievement.mp3")
       .then((r) => r.arrayBuffer())
@@ -1130,7 +1117,10 @@ export const audio = {
       src.connect(gain);
       gain.connect(this._audioCtx.destination);
       src.onended = () => {
-        try { src.disconnect(); gain.disconnect(); } catch {}
+        try {
+          src.disconnect();
+          gain.disconnect();
+        } catch {}
       };
       src.start(0);
     } catch {
@@ -1151,7 +1141,7 @@ export const audio = {
    *  coins trailing out of a compressed field, cactus-top coins —
    *  plays at the base pitch and leaves the streak reset so
    *  re-entering the field starts the climb fresh. */
-  playCoinCollect(onFlowerField: boolean = true) {
+  playCoinCollect(onFlowerField = true) {
     if (this.muted || this.coinsMuted) return;
     if (!this._audioCtx || !this._coinBuffer) return;
     if (this._audioCtx.state === "suspended") {
@@ -1163,10 +1153,7 @@ export const audio = {
       if (now - this._coinStreakLastMs > COIN_STREAK_RESET_MS) {
         this._coinStreak = 0;
       }
-      pitch = Math.min(
-        COIN_STREAK_MAX_PITCH,
-        1 + this._coinStreak * COIN_STREAK_PITCH_STEP,
-      );
+      pitch = Math.min(COIN_STREAK_MAX_PITCH, 1 + this._coinStreak * COIN_STREAK_PITCH_STEP);
       this._coinStreak++;
       this._coinStreakLastMs = now;
     } else {
@@ -1186,7 +1173,10 @@ export const audio = {
       src.connect(gain);
       gain.connect(this._audioCtx.destination);
       src.onended = () => {
-        try { src.disconnect(); gain.disconnect(); } catch {}
+        try {
+          src.disconnect();
+          gain.disconnect();
+        } catch {}
       };
       src.start(0);
     } catch {
@@ -1200,10 +1190,7 @@ export const audio = {
   _ufoGain: null as GainNode | null,
 
   _preloadUfoBuffer() {
-    if (
-      typeof AudioContext === "undefined" &&
-      typeof window.webkitAudioContext === "undefined"
-    )
+    if (typeof AudioContext === "undefined" && typeof window.webkitAudioContext === "undefined")
       return;
     fetch("assets/ufo.mp3")
       .then((r) => r.arrayBuffer())
@@ -1238,7 +1225,10 @@ export const audio = {
       src.connect(gain);
       gain.connect(this._audioCtx.destination);
       src.onended = () => {
-        try { src.disconnect(); gain.disconnect(); } catch {}
+        try {
+          src.disconnect();
+          gain.disconnect();
+        } catch {}
         if (this._ufoSource === src) {
           this._ufoSource = null;
           this._ufoGain = null;
@@ -1268,7 +1258,9 @@ export const audio = {
       gain.gain.linearRampToValueAtTime(0, t + 0.08);
       src.stop(t + 0.09);
     } catch {
-      try { src.stop(0); } catch {}
+      try {
+        src.stop(0);
+      } catch {}
     }
     this._ufoSource = null;
     this._ufoGain = null;
@@ -1278,10 +1270,7 @@ export const audio = {
   _santaBuffer: null as AudioBuffer | null,
 
   _preloadSantaBuffer() {
-    if (
-      typeof AudioContext === "undefined" &&
-      typeof window.webkitAudioContext === "undefined"
-    )
+    if (typeof AudioContext === "undefined" && typeof window.webkitAudioContext === "undefined")
       return;
     fetch("assets/santa.mp3")
       .then((r) => r.arrayBuffer())
@@ -1327,7 +1316,10 @@ export const audio = {
       src.connect(gain);
       gain.connect(ctx.destination);
       src.onended = () => {
-        try { src.disconnect(); gain.disconnect(); } catch {}
+        try {
+          src.disconnect();
+          gain.disconnect();
+        } catch {}
         if (this._santaSource === src) {
           this._santaSource = null;
           this._santaGain = null;
@@ -1354,7 +1346,9 @@ export const audio = {
       gain.gain.linearRampToValueAtTime(0, t + 0.35);
       src.stop(t + 0.36);
     } catch {
-      try { src.stop(0); } catch {}
+      try {
+        src.stop(0);
+      } catch {}
     }
     this._santaSource = null;
     this._santaGain = null;
@@ -1364,10 +1358,7 @@ export const audio = {
   _meteorBuffer: null as AudioBuffer | null,
 
   _preloadMeteorBuffer() {
-    if (
-      typeof AudioContext === "undefined" &&
-      typeof window.webkitAudioContext === "undefined"
-    )
+    if (typeof AudioContext === "undefined" && typeof window.webkitAudioContext === "undefined")
       return;
     fetch("assets/meteor.mp3")
       .then((r) => r.arrayBuffer())
@@ -1406,7 +1397,10 @@ export const audio = {
       src.connect(gain);
       gain.connect(ctx.destination);
       src.onended = () => {
-        try { src.disconnect(); gain.disconnect(); } catch {}
+        try {
+          src.disconnect();
+          gain.disconnect();
+        } catch {}
       };
       // Schedule against the Web Audio clock so the gap tracks the
       // audio tick exactly (no setTimeout drift). First arg is
@@ -1422,10 +1416,7 @@ export const audio = {
   _cometBuffer: null as AudioBuffer | null,
 
   _preloadCometBuffer() {
-    if (
-      typeof AudioContext === "undefined" &&
-      typeof window.webkitAudioContext === "undefined"
-    )
+    if (typeof AudioContext === "undefined" && typeof window.webkitAudioContext === "undefined")
       return;
     fetch("assets/comet.mp3")
       .then((r) => r.arrayBuffer())
@@ -1482,7 +1473,10 @@ export const audio = {
         src.connect(gain);
         gain.connect(ctx.destination);
         src.onended = () => {
-          try { src.disconnect(); gain.disconnect(); } catch {}
+          try {
+            src.disconnect();
+            gain.disconnect();
+          } catch {}
           if (this._cometSource === src) {
             this._cometSource = null;
             this._cometGain = null;
@@ -1516,7 +1510,9 @@ export const audio = {
       gain.gain.linearRampToValueAtTime(0, t + 0.45);
       src.stop(t + 0.46);
     } catch {
-      try { src.stop(0); } catch {}
+      try {
+        src.stop(0);
+      } catch {}
     }
     this._cometSource = null;
     this._cometGain = null;
@@ -1562,7 +1558,10 @@ export const audio = {
       body.connect(bodyGain);
       bodyGain.connect(ctx.destination);
       body.onended = () => {
-        try { body.disconnect(); bodyGain.disconnect(); } catch {}
+        try {
+          body.disconnect();
+          bodyGain.disconnect();
+        } catch {}
       };
       body.start(t0);
       body.stop(t0 + 0.06);
@@ -1577,7 +1576,10 @@ export const audio = {
       tick.connect(tickGain);
       tickGain.connect(ctx.destination);
       tick.onended = () => {
-        try { tick.disconnect(); tickGain.disconnect(); } catch {}
+        try {
+          tick.disconnect();
+          tickGain.disconnect();
+        } catch {}
       };
       tick.start(t0);
       tick.stop(t0 + 0.02);
@@ -1674,12 +1676,7 @@ export const audio = {
     // watchdog never fights pauseMusicForGameOver or the
     // rampDownAndPause that setMuted(true) / setMusicMuted(true)
     // triggers.
-    if (
-      this._musicShouldBePlaying &&
-      this.music &&
-      !this.muted &&
-      !this.musicMuted
-    ) {
+    if (this._musicShouldBePlaying && this.music && !this.muted && !this.musicMuted) {
       if (this.music.paused) {
         this.music.volume = 0;
         const p = this.music.play();

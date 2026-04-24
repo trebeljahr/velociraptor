@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { createElement } from "react";
 /*
  * Mount helper for the React Shop overlay.
  *
@@ -12,8 +13,7 @@
  * the root; subsequent calls re-render so the component re-reads
  * window.Game state (coin balance, inventory, owned/equipped).
  */
-import { createRoot, type Root } from "react-dom/client";
-import { createElement } from "react";
+import { type Root, createRoot } from "react-dom/client";
 import { Shop } from "./Shop";
 
 let root: Root | null = null;

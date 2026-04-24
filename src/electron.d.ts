@@ -13,9 +13,7 @@ declare global {
     readonly isDesktop: true;
     isSteam(): Promise<boolean>;
     unlockSteamAchievement(apiName: string): Promise<boolean>;
-    getSteamAchievementStates(
-      apiNames: string[],
-    ): Promise<Record<string, boolean>>;
+    getSteamAchievementStates(apiNames: string[]): Promise<Record<string, boolean>>;
     quit(): Promise<void>;
     setFullscreen(on: boolean): Promise<boolean>;
     isFullscreen(): Promise<boolean>;

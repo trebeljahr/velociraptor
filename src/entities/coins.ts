@@ -6,29 +6,29 @@
  * collide with an upcoming cactus.
  */
 
-import { state } from "../state";
-import { IMAGES } from "../images";
 import { audio } from "../audio";
-import { saveCoinsBalance } from "../persistence";
-import { pointInPolygon, Polygon, compactInPlace } from "../helpers";
 import {
+  COIN_AMBIENT_TWINKLE_COUNT,
   COIN_BANK_REWARD,
-  COIN_SIZE_RATIO,
   COIN_BASE_Y_ABOVE_GROUND_RATIO,
   COIN_BOB_AMPLITUDE_PX,
   COIN_BOB_FREQUENCY_HZ,
-  COIN_COUNT_PER_FIELD,
-  COIN_SPACING_RATIO,
-  COIN_FIELD_EDGE_MARGIN_RAPTOR_WIDTHS,
   COIN_COLLECT_FADE_FRAMES,
-  COIN_SPARKLE_FREQUENCY_HZ,
-  COIN_GLINT_SIZE_RATIO,
+  COIN_COUNT_PER_FIELD,
+  COIN_FIELD_EDGE_MARGIN_RAPTOR_WIDTHS,
   COIN_GLINT_MAX_ALPHA,
-  COIN_AMBIENT_TWINKLE_COUNT,
+  COIN_GLINT_SIZE_RATIO,
+  COIN_SIZE_RATIO,
+  COIN_SPACING_RATIO,
+  COIN_SPARKLE_FREQUENCY_HZ,
   COIN_TWINKLE_FREQUENCY_HZ,
-  DIAMOND_SIZE_SCALE,
   DIAMOND_BANK_REWARD,
+  DIAMOND_SIZE_SCALE,
 } from "../constants";
+import { type Polygon, compactInPlace, pointInPolygon } from "../helpers";
+import { IMAGES } from "../images";
+import { saveCoinsBalance } from "../persistence";
+import { state } from "../state";
 
 export interface Coin {
   x: number;
@@ -72,28 +72,19 @@ interface RaptorRef {
  *  chest-height on the running raptor. Resets the audio coin streak
  *  so the rising-pitch chain restarts per-field rather than climbing
  *  across the whole run. */
-export function spawnCoinsInRange(
-  startX: number,
-  endX: number,
-  raptor: RaptorRef,
-): void {
+export function spawnCoinsInRange(startX: number, endX: number, raptor: RaptorRef): void {
   if (!raptor || raptor.h <= 0 || raptor.w <= 0) return;
   if (endX <= startX) return;
   const coinSize = raptor.h * COIN_SIZE_RATIO;
   state.coins = state.coins || [];
-  const baseY =
-    state.ground -
-    raptor.h * COIN_BASE_Y_ABOVE_GROUND_RATIO -
-    coinSize / 2;
+  const baseY = state.ground - raptor.h * COIN_BASE_Y_ABOVE_GROUND_RATIO - coinSize / 2;
   // Inset the usable span by EDGE_MARGIN on each side so coins don't
   // hug the cactus bookends. Fall back to the full width on tiny
   // breathers where 2× margin would leave nothing to spawn into.
   const edgeMarginPx = raptor.w * COIN_FIELD_EDGE_MARGIN_RAPTOR_WIDTHS;
   const rawFieldWidth = endX - startX;
-  const usableStartX =
-    rawFieldWidth > edgeMarginPx * 2 ? startX + edgeMarginPx : startX;
-  const usableEndX =
-    rawFieldWidth > edgeMarginPx * 2 ? endX - edgeMarginPx : endX;
+  const usableStartX = rawFieldWidth > edgeMarginPx * 2 ? startX + edgeMarginPx : startX;
+  const usableEndX = rawFieldWidth > edgeMarginPx * 2 ? endX - edgeMarginPx : endX;
   // Tight ribbon centred in the usable span — quick ding-ding-ding
   // run regardless of field length. Compress to fit if the full
   // ribbon would overflow the margin.
@@ -101,8 +92,7 @@ export function spawnCoinsInRange(
   const desiredSpacing = raptor.w * COIN_SPACING_RATIO;
   const gaps = COIN_COUNT_PER_FIELD - 1;
   const desiredSpanPx = desiredSpacing * gaps;
-  const spacing =
-    desiredSpanPx <= fieldWidth ? desiredSpacing : fieldWidth / gaps;
+  const spacing = desiredSpanPx <= fieldWidth ? desiredSpacing : fieldWidth / gaps;
   const spanPx = spacing * gaps;
   const firstCoinX = usableStartX + (fieldWidth - spanPx) / 2;
   for (let i = 0; i < COIN_COUNT_PER_FIELD; i++) {
@@ -140,18 +130,11 @@ export function spawnCoinsInRange(
  *  reading a tall flyer as "don't jump, keep running" is the pickup
  *  itself. Caller passes the ptero's current x + width; we centre
  *  the coin under the body. */
-export function spawnCoinUnderPterodactyl(
-  pteroX: number,
-  pteroW: number,
-  raptor: RaptorRef,
-): void {
+export function spawnCoinUnderPterodactyl(pteroX: number, pteroW: number, raptor: RaptorRef): void {
   if (!raptor || raptor.h <= 0 || raptor.w <= 0) return;
   const coinSize = raptor.h * COIN_SIZE_RATIO;
   state.coins = state.coins || [];
-  const baseY =
-    state.ground -
-    raptor.h * COIN_BASE_Y_ABOVE_GROUND_RATIO -
-    coinSize / 2;
+  const baseY = state.ground - raptor.h * COIN_BASE_Y_ABOVE_GROUND_RATIO - coinSize / 2;
   state.coins.push({
     x: pteroX + pteroW / 2 - coinSize / 2,
     baseY,
@@ -175,7 +158,7 @@ export function spawnCoinAboveCactus(
   cactusY: number,
   cactusW: number,
   raptor: RaptorRef,
-  isLarge: boolean = false,
+  isLarge = false,
 ): void {
   if (!raptor || raptor.h <= 0 || raptor.w <= 0) return;
   const coinSize = raptor.h * COIN_SIZE_RATIO;
@@ -203,9 +186,7 @@ export function spawnCoinAboveCactus(
 
 /** Shared bob phase — same y used by draw and collision. */
 function bobPhase(c: Coin): number {
-  return (
-    state.frame * ((Math.PI * 2 * COIN_BOB_FREQUENCY_HZ) / 60) + c.phase
-  );
+  return state.frame * ((Math.PI * 2 * COIN_BOB_FREQUENCY_HZ) / 60) + c.phase;
 }
 
 /** Scroll all live coins by this frame's ground speed and drop any
@@ -218,11 +199,7 @@ export function updateCoins(_frameScale: number): void {
   for (const c of state.coins) c.x -= dx;
   compactInPlace(state.coins, (c) => {
     if (c.x + c.w < -20) return false;
-    if (
-      c.collected &&
-      state.frame - c.collectFrame > COIN_COLLECT_FADE_FRAMES
-    )
-      return false;
+    if (c.collected && state.frame - c.collectFrame > COIN_COLLECT_FADE_FRAMES) return false;
     return true;
   });
 }
@@ -341,10 +318,7 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
     let coinAlpha = 1;
     if (c.collected) {
       // Pop up + fade out so the grab reads, then the coin is gone.
-      const t = Math.min(
-        1,
-        (state.frame - c.collectFrame) / COIN_COLLECT_FADE_FRAMES,
-      );
+      const t = Math.min(1, (state.frame - c.collectFrame) / COIN_COLLECT_FADE_FRAMES);
       scale = 1 + t * 0.6;
       coinAlpha = 1 - t;
     }
@@ -361,13 +335,7 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
     const x = c.x - (w - c.w) / 2;
     const y = cy - (h - c.h) / 2;
     if (c.isDiamond) {
-      drawDiamondShape(
-        ctx,
-        x + w / 2,
-        y + h / 2,
-        w,
-        h,
-      );
+      drawDiamondShape(ctx, x + w / 2, y + h / 2, w, h);
       // Diamond breaks out of the coin glint/twinkle loop below —
       // its own facet highlights inside drawDiamondShape carry the
       // "sparkly" read. Keeps the render order consistent with
@@ -377,13 +345,7 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
       fillStyleSet = false;
       continue;
     }
-    ctx.drawImage(
-      img,
-      Math.round(x),
-      Math.round(y),
-      Math.round(w),
-      Math.round(h),
-    );
+    ctx.drawImage(img, Math.round(x), Math.round(y), Math.round(w), Math.round(h));
 
     if (c.collected) continue;
 
@@ -395,9 +357,7 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
     // Main glint — a 4-point star sweeping across the coin face,
     // opacity pulsed on its own sin so the orbit has a dim-bright
     // cadence on top of the motion.
-    const sparkleT =
-      state.frame * ((Math.PI * 2 * COIN_SPARKLE_FREQUENCY_HZ) / 60) +
-      c.phase;
+    const sparkleT = state.frame * ((Math.PI * 2 * COIN_SPARKLE_FREQUENCY_HZ) / 60) + c.phase;
     const s = Math.sin(sparkleT);
     if (s > 0) {
       const orbitT = sparkleT * 0.5;
@@ -419,14 +379,11 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
     // Ambient twinkles — star-flicks on an orbit around the coin,
     // each with its own phase so they blink irregularly and
     // neighbours don't stamp identically.
-    const twinkleBaseT =
-      state.frame * ((Math.PI * 2 * COIN_TWINKLE_FREQUENCY_HZ) / 60);
+    const twinkleBaseT = state.frame * ((Math.PI * 2 * COIN_TWINKLE_FREQUENCY_HZ) / 60);
     const cx = c.x + c.w / 2;
     const centerY = cy + c.h / 2;
     for (let i = 0; i < COIN_AMBIENT_TWINKLE_COUNT; i++) {
-      const ang =
-        ((i / COIN_AMBIENT_TWINKLE_COUNT) * Math.PI * 2) +
-        c.phase * 0.5;
+      const ang = (i / COIN_AMBIENT_TWINKLE_COUNT) * Math.PI * 2 + c.phase * 0.5;
       const orbit = c.w * 0.6;
       const tx = cx + Math.cos(ang) * orbit;
       const ty = centerY + Math.sin(ang) * orbit * 0.7;
@@ -495,14 +452,7 @@ function drawFourPointStar(
   // base * translate(x, y) * scale(r, r) =
   //   [ba*r  bc*r  ba*x + bc*y + be]
   //   [bb*r  bd*r  bb*x + bd*y + bf]
-  ctx.setTransform(
-    ba * r,
-    bb * r,
-    bc * r,
-    bd * r,
-    ba * x + bc * y + be,
-    bb * x + bd * y + bf,
-  );
+  ctx.setTransform(ba * r, bb * r, bc * r, bd * r, ba * x + bc * y + be, bb * x + bd * y + bf);
   ctx.fill(UNIT_STAR_PATH);
 }
 

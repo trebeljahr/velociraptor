@@ -10,55 +10,55 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { audio } from "../audio";
 import {
-  GRAVITY,
-  RAPTOR_WIDTH_RATIO,
-  RAPTOR_ASPECT,
-  VELOCITY_SCALE_DIVISOR,
   DOWNWARD_ACCEL_DIVISOR,
-  JUMP_CLEARANCE_MULTIPLIER,
-  JUMP_BUFFER_MS,
   FRAME_DELAY_SPEED_RANGE,
+  GRAVITY,
   INITIAL_BG_VELOCITY,
-  RAPTOR_FRAME_DELAY_MAX,
-  RAPTOR_FRAME_DELAY_MIN,
-  RAPTOR_FRAMES,
-  RAPTOR_IDLE_FRAME,
-  RAPTOR_NATIVE_W,
-  RAPTOR_NATIVE_H,
-  RAPTOR_CROWN,
-  RAPTOR_SNOUT,
-  RAPTOR_NECK_CORRECTION,
+  JUMP_BUFFER_MS,
+  JUMP_CLEARANCE_MULTIPLIER,
+  RAPTOR_ASPECT,
   RAPTOR_COLLISION,
   RAPTOR_COLLISION_INSET,
+  RAPTOR_CROWN,
+  RAPTOR_FRAMES,
+  RAPTOR_FRAME_DELAY_MAX,
+  RAPTOR_FRAME_DELAY_MIN,
+  RAPTOR_IDLE_FRAME,
+  RAPTOR_NATIVE_H,
+  RAPTOR_NATIVE_W,
+  RAPTOR_NECK_CORRECTION,
+  RAPTOR_SNOUT,
+  RAPTOR_WIDTH_RATIO,
+  VELOCITY_SCALE_DIVISOR,
 } from "../constants";
-import { state } from "../state";
-import { audio } from "../audio";
+import {
+  type COSMETICS,
+  COSMETICS_BY_ID,
+  type CosmeticSlot,
+  PLACEHOLDER_COLORS,
+} from "../cosmetics";
+import { hapticJump } from "../haptic";
+import { type Polygon, clamp, lerp } from "../helpers";
 import { IMAGES } from "../images";
 import { saveTotalJumps } from "../persistence";
-import { hapticJump } from "../haptic";
-import { clamp, lerp, Polygon } from "../helpers";
-import {
-  COSMETICS,
-  COSMETICS_BY_ID,
-  PLACEHOLDER_COLORS,
-  type CosmeticSlot,
-} from "../cosmetics";
+import { state } from "../state";
 
 export type RaptorCallback = () => void;
 export type RaptorStepCallback = (foot: "left" | "right") => void;
 
 export class Raptor {
-  x: number = 0;
-  y: number = 0;
-  w: number = 0;
-  h: number = 0;
-  ground: number = 0;
-  velocity: number = 0;
+  x = 0;
+  y = 0;
+  w = 0;
+  h = 0;
+  ground = 0;
+  velocity = 0;
   gravity: number = GRAVITY;
   sheet: HTMLImageElement | undefined;
-  frame: number = 0;
-  lastFrameAdvanceAt: number = 0;
+  frame = 0;
+  lastFrameAdvanceAt = 0;
 
   // Cached collision polygon — rebuilt once per update() call rather
   // than each time the collision code asks for it, and reused across
@@ -77,8 +77,8 @@ export class Raptor {
     () => ({ x: 0, y: 0 }),
   );
   private _polyView: Polygon = [];
-  private _jumpBufferedAt: number = 0;
-  private _wasAirborne: boolean = false;
+  private _jumpBufferedAt = 0;
+  private _wasAirborne = false;
 
   constructor(
     private onLand: RaptorCallback,
@@ -147,11 +147,7 @@ export class Raptor {
   /** Frame delay scales inversely with bgVelocity — the raptor
    *  visibly runs faster as the game speeds up. */
   get frameDelay(): number {
-    const t = clamp(
-      (state.bgVelocity - INITIAL_BG_VELOCITY) / FRAME_DELAY_SPEED_RANGE,
-      0,
-      1,
-    );
+    const t = clamp((state.bgVelocity - INITIAL_BG_VELOCITY) / FRAME_DELAY_SPEED_RANGE, 0, 1);
     return lerp(RAPTOR_FRAME_DELAY_MAX, RAPTOR_FRAME_DELAY_MIN, t);
   }
 
@@ -173,10 +169,7 @@ export class Raptor {
       }
       // Jump buffered in the last JUMP_BUFFER_MS airtime fires now
       // that we've landed.
-      if (
-        this._jumpBufferedAt &&
-        now - this._jumpBufferedAt < JUMP_BUFFER_MS
-      ) {
+      if (this._jumpBufferedAt && now - this._jumpBufferedAt < JUMP_BUFFER_MS) {
         this.jump();
       }
       this._jumpBufferedAt = 0;
@@ -225,10 +218,7 @@ export class Raptor {
     this._drawEquippedSlot(ctx, "neck");
   }
 
-  private _drawEquippedSlot(
-    ctx: CanvasRenderingContext2D,
-    slot: CosmeticSlot,
-  ): void {
+  private _drawEquippedSlot(ctx: CanvasRenderingContext2D, slot: CosmeticSlot): void {
     const id = state.equippedCosmetics[slot];
     if (!id) return;
     const def = COSMETICS_BY_ID[id];

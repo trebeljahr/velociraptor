@@ -32,26 +32,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import {
+  COIN_COLLECT_BURST_COUNT,
+  COIN_COLLECT_SPARK_LIFE_MAX_SEC,
+  COIN_COLLECT_SPARK_LIFE_MIN_SEC,
+  COIN_COLLECT_SPARK_SPEED_MAX,
+  COIN_COLLECT_SPARK_SPEED_MIN,
   CONFETTI_BURST_COUNT,
   CONFETTI_DRAG,
   CONFETTI_GRAVITY_PX_S2,
-  DUST_BURST_MIN,
   DUST_BURST_MAX,
+  DUST_BURST_MIN,
   DUST_GRAVITY_PX_S2,
+  SHOOTING_STAR_LIFETIME_MAX_SEC,
+  SHOOTING_STAR_LIFETIME_MIN_SEC,
+  SHOOTING_STAR_RAIN_THRESHOLD,
   SHOOTING_STAR_SPAWN_RATE,
   SHOOTING_STAR_SPEED_SCALE,
-  SHOOTING_STAR_LIFETIME_MIN_SEC,
-  SHOOTING_STAR_LIFETIME_MAX_SEC,
-  SHOOTING_STAR_RAIN_THRESHOLD,
-  COIN_COLLECT_BURST_COUNT,
-  COIN_COLLECT_SPARK_LIFE_MIN_SEC,
-  COIN_COLLECT_SPARK_LIFE_MAX_SEC,
-  COIN_COLLECT_SPARK_SPEED_MIN,
-  COIN_COLLECT_SPARK_SPEED_MAX,
 } from "../constants";
-import { state } from "../state";
-import { compactInPlace, randRange } from "../helpers";
 import { drawFourPointStar } from "../entities/coins";
+import { compactInPlace, randRange } from "../helpers";
+import { state } from "../state";
 
 // ══════════════════════════════════════════════════════════════════
 // Achievement bridge
@@ -64,9 +64,7 @@ let onAchievementUnlock: AchievementCallback | null = null;
 /** Register the achievement-unlock hook. Called once from main.ts's
  *  init so particle spawners can fire the `first-shooting-star`
  *  achievement without importing from the main module. */
-export function setParticlesAchievementHandler(
-  cb: AchievementCallback | null,
-): void {
+export function setParticlesAchievementHandler(cb: AchievementCallback | null): void {
   onAchievementUnlock = cb;
 }
 
@@ -97,9 +95,7 @@ let shootingStarSprite: HTMLCanvasElement | ImageBitmap | null = null;
  * browsers can still hitch a frame. No-op if the sprite hasn't been
  * baked yet.
  */
-export function warmShootingStarSprite(
-  ctx: CanvasRenderingContext2D,
-): void {
+export function warmShootingStarSprite(ctx: CanvasRenderingContext2D): void {
   if (!shootingStarSprite) return;
   ctx.save();
   ctx.globalAlpha = 0;
@@ -132,13 +128,7 @@ export function bakeShootingStarSprite(): void {
   // Bright head dot.
   sctx.fillStyle = "#ffffff";
   sctx.beginPath();
-  sctx.arc(
-    SHOOTING_STAR_TRAIL_LEN - 2,
-    SHOOTING_STAR_TRAIL_H / 2,
-    3,
-    0,
-    Math.PI * 2,
-  );
+  sctx.arc(SHOOTING_STAR_TRAIL_LEN - 2, SHOOTING_STAR_TRAIL_H / 2, 3, 0, Math.PI * 2);
   sctx.fill();
   // Start with the canvas as the sprite so the game can draw
   // immediately. Upgrade to an ImageBitmap (faster drawImage) as
@@ -179,10 +169,7 @@ export function maybeSpawnShootingStar(frameScale: number): void {
     vx: Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed,
     age: 0,
-    life: randRange(
-      SHOOTING_STAR_LIFETIME_MIN_SEC,
-      SHOOTING_STAR_LIFETIME_MAX_SEC,
-    ),
+    life: randRange(SHOOTING_STAR_LIFETIME_MIN_SEC, SHOOTING_STAR_LIFETIME_MAX_SEC),
   });
   state.runShootingStars += 1;
   if (state.runShootingStars === 1 && onAchievementUnlock) {
@@ -268,8 +255,7 @@ export function spawnConfettiBurst(worldX: number, worldY: number): void {
       rot: randRange(0, Math.PI * 2),
       vrot: randRange(-8, 8),
       size: randRange(6, 11),
-      color:
-        CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
       age: 0,
       life: randRange(1.1, 1.9),
     });
@@ -370,10 +356,9 @@ export function drawConfetti(ctx: CanvasRenderingContext2D): void {
  * particle template. Speed stays constant so the animation duration
  * feels identical across scales (you just see more / larger motes).
  */
-export function spawnDust(x: number, y: number, scale: number = 1): void {
+export function spawnDust(x: number, y: number, scale = 1): void {
   const baseCount =
-    DUST_BURST_MIN +
-    Math.floor(Math.random() * (DUST_BURST_MAX - DUST_BURST_MIN + 1));
+    DUST_BURST_MIN + Math.floor(Math.random() * (DUST_BURST_MAX - DUST_BURST_MIN + 1));
   const count = Math.max(1, Math.round(baseCount * scale));
   const jitter = 12 * scale;
   for (let i = 0; i < count; i++) {
@@ -427,12 +412,7 @@ export function drawDust(ctx: CanvasRenderingContext2D): void {
 // Ash particles (lightning-struck dune cactus dissolution)
 // ══════════════════════════════════════════════════════════════════
 
-export function spawnAsh(
-  screenX: number,
-  screenY: number,
-  w: number,
-  h: number,
-): void {
+export function spawnAsh(screenX: number, screenY: number, w: number, h: number): void {
   const count = 12 + Math.floor(Math.random() * 8);
   for (let i = 0; i < count; i++) {
     state.ash.push({
@@ -517,12 +497,8 @@ export function spawnCoinCollectBurst(x: number, y: number): void {
     endRadius: 28,
   });
   for (let i = 0; i < COIN_COLLECT_BURST_COUNT; i++) {
-    const angle = (i / COIN_COLLECT_BURST_COUNT) * Math.PI * 2 +
-      randRange(-0.15, 0.15);
-    const speed = randRange(
-      COIN_COLLECT_SPARK_SPEED_MIN,
-      COIN_COLLECT_SPARK_SPEED_MAX,
-    );
+    const angle = (i / COIN_COLLECT_BURST_COUNT) * Math.PI * 2 + randRange(-0.15, 0.15);
+    const speed = randRange(COIN_COLLECT_SPARK_SPEED_MIN, COIN_COLLECT_SPARK_SPEED_MAX);
     state.coinSparks.push({
       kind: "spark",
       x,
@@ -531,10 +507,7 @@ export function spawnCoinCollectBurst(x: number, y: number): void {
       vy: Math.sin(angle) * speed,
       size: randRange(3, 6),
       age: 0,
-      life: randRange(
-        COIN_COLLECT_SPARK_LIFE_MIN_SEC,
-        COIN_COLLECT_SPARK_LIFE_MAX_SEC,
-      ),
+      life: randRange(COIN_COLLECT_SPARK_LIFE_MIN_SEC, COIN_COLLECT_SPARK_LIFE_MAX_SEC),
     });
   }
 }
