@@ -1,0 +1,270 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev",
+      "type": "shell",
+      "command": "pnpm dev",
+      "problemMatcher": [],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "dev:web",
+      "type": "shell",
+      "command": "pnpm dev:web",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:desktop",
+      "type": "shell",
+      "command": "pnpm dev:desktop",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:vite",
+      "type": "shell",
+      "command": "pnpm dev:vite",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:electron",
+      "type": "shell",
+      "command": "pnpm dev:electron",
+      "problemMatcher": []
+    },
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "pnpm build",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "preview",
+      "type": "shell",
+      "command": "pnpm preview",
+      "problemMatcher": []
+    },
+    {
+      "label": "typecheck",
+      "type": "shell",
+      "command": "pnpm typecheck",
+      "problemMatcher": []
+    },
+    {
+      "label": "csp:verify",
+      "type": "shell",
+      "command": "pnpm csp:verify",
+      "problemMatcher": []
+    },
+    {
+      "label": "test",
+      "type": "shell",
+      "command": "pnpm test",
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "test:watch",
+      "type": "shell",
+      "command": "pnpm test:watch",
+      "problemMatcher": []
+    },
+    {
+      "label": "test:coverage",
+      "type": "shell",
+      "command": "pnpm test:coverage",
+      "problemMatcher": []
+    },
+    {
+      "label": "icons:generate",
+      "type": "shell",
+      "command": "pnpm icons:generate",
+      "problemMatcher": []
+    },
+    {
+      "label": "electron:compile",
+      "type": "shell",
+      "command": "pnpm electron:compile",
+      "problemMatcher": []
+    },
+    {
+      "label": "electron:dev",
+      "type": "shell",
+      "command": "pnpm electron:dev",
+      "problemMatcher": []
+    },
+    {
+      "label": "build:desktop",
+      "type": "shell",
+      "command": "pnpm build:desktop",
+      "problemMatcher": []
+    },
+    {
+      "label": "electron:build",
+      "type": "shell",
+      "command": "pnpm electron:build",
+      "problemMatcher": []
+    },
+    {
+      "label": "electron:preview",
+      "type": "shell",
+      "command": "pnpm electron:preview",
+      "problemMatcher": []
+    },
+    {
+      "label": "icons:desktop",
+      "type": "shell",
+      "command": "pnpm icons:desktop",
+      "problemMatcher": []
+    },
+    {
+      "label": "release:tag",
+      "type": "shell",
+      "command": "pnpm release:tag",
+      "problemMatcher": []
+    },
+    {
+      "label": "release:tag:push",
+      "type": "shell",
+      "command": "pnpm release:tag:push",
+      "problemMatcher": []
+    },
+    {
+      "label": "itch:push:mac",
+      "type": "shell",
+      "command": "pnpm itch:push:mac",
+      "problemMatcher": []
+    },
+    {
+      "label": "itch:push:win",
+      "type": "shell",
+      "command": "pnpm itch:push:win",
+      "problemMatcher": []
+    },
+    {
+      "label": "itch:push:linux",
+      "type": "shell",
+      "command": "pnpm itch:push:linux",
+      "problemMatcher": []
+    },
+    {
+      "label": "itch:push:android",
+      "type": "shell",
+      "command": "pnpm itch:push:android",
+      "problemMatcher": []
+    },
+    {
+      "label": "build:mobile",
+      "type": "shell",
+      "command": "pnpm build:mobile",
+      "problemMatcher": []
+    },
+    {
+      "label": "cap:sync",
+      "type": "shell",
+      "command": "pnpm cap:sync",
+      "problemMatcher": []
+    },
+    {
+      "label": "cap:open:ios",
+      "type": "shell",
+      "command": "pnpm cap:open:ios",
+      "problemMatcher": []
+    },
+    {
+      "label": "cap:open:android",
+      "type": "shell",
+      "command": "pnpm cap:open:android",
+      "problemMatcher": []
+    },
+    {
+      "label": "cap:run:ios",
+      "type": "shell",
+      "command": "pnpm cap:run:ios",
+      "problemMatcher": []
+    },
+    {
+      "label": "cap:run:android",
+      "type": "shell",
+      "command": "pnpm cap:run:android",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:android",
+      "type": "shell",
+      "command": "pnpm dev:android",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:ios",
+      "type": "shell",
+      "command": "pnpm dev:ios",
+      "problemMatcher": []
+    },
+    {
+      "label": "build:android:release",
+      "type": "shell",
+      "command": "pnpm build:android:release",
+      "problemMatcher": []
+    },
+    {
+      "label": "build:android:apk",
+      "type": "shell",
+      "command": "pnpm build:android:apk",
+      "problemMatcher": []
+    },
+    {
+      "label": "build:ios:release",
+      "type": "shell",
+      "command": "pnpm build:ios:release",
+      "problemMatcher": []
+    },
+    {
+      "label": "android:emulator",
+      "type": "shell",
+      "command": "pnpm android:emulator",
+      "problemMatcher": []
+    },
+    {
+      "label": "android:kill-emulator",
+      "type": "shell",
+      "command": "pnpm android:kill-emulator",
+      "problemMatcher": []
+    },
+    {
+      "label": "android:avds",
+      "type": "shell",
+      "command": "pnpm android:avds",
+      "problemMatcher": []
+    },
+    {
+      "label": "android:devices",
+      "type": "shell",
+      "command": "pnpm android:devices",
+      "problemMatcher": []
+    },
+    {
+      "label": "android:logcat",
+      "type": "shell",
+      "command": "pnpm android:logcat",
+      "problemMatcher": []
+    },
+    {
+      "label": "mobile:assets",
+      "type": "shell",
+      "command": "pnpm mobile:assets",
+      "problemMatcher": []
+    }
+  ]
+}
