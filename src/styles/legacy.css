@@ -53,7 +53,7 @@ html,
       [role="menuitem"] *,
       .menu-item *,
       .cursor-pointer * {
-        cursor: url("/assets/cursors/cursor-pointer.png") 5 0, pointer;
+        cursor: url("/assets/cursors/cursor-pointer.png") 10 0, pointer;
       }
       /* Pressed state — inverted-palette arrow so a click reads as
          "pushed in". Applied on active pointer-down for all
@@ -338,7 +338,7 @@ html,
         font-size: 1.1rem;
         font-weight: 700;
         letter-spacing: 0.01em;
-        cursor: url("/assets/cursors/cursor-pointer.png") 5 0, pointer;
+        cursor: url("/assets/cursors/cursor-pointer.png") 10 0, pointer;
         transition:
           background-color 0.12s ease,
           color 0.12s ease,
@@ -937,7 +937,7 @@ html,
         border-radius: 6px;
         background: var(--color-sand-contrast);
         color: var(--color-dune);
-        cursor: url("/assets/cursors/cursor-pointer.png") 5 0, pointer;
+        cursor: url("/assets/cursors/cursor-pointer.png") 10 0, pointer;
         transition:
           background-color 0.12s ease,
           color 0.12s ease,
@@ -1061,7 +1061,7 @@ html,
         font-size: clamp(0.85rem, min(2.3vw, 2.7vh), 1rem);
         font-weight: 700;
         letter-spacing: 0.01em;
-        cursor: url("/assets/cursors/cursor-pointer.png") 5 0, pointer;
+        cursor: url("/assets/cursors/cursor-pointer.png") 10 0, pointer;
         white-space: nowrap;
         overflow: hidden;
         transition:
@@ -1196,7 +1196,7 @@ html,
         font-size: clamp(0.82rem, min(2.2vw, 2.6vh), 1rem);
         font-weight: 700;
         letter-spacing: 0.01em;
-        cursor: url("/assets/cursors/cursor-pointer.png") 5 0, pointer;
+        cursor: url("/assets/cursors/cursor-pointer.png") 10 0, pointer;
         white-space: nowrap;
         transition:
           background-color 0.12s ease,
@@ -1259,7 +1259,7 @@ html,
         border-radius: 6px;
         background: var(--color-sand-contrast);
         color: var(--color-dune);
-        cursor: url("/assets/cursors/cursor-pointer.png") 5 0, pointer;
+        cursor: url("/assets/cursors/cursor-pointer.png") 10 0, pointer;
         padding: 0;
         transition:
           background-color 0.12s ease,
@@ -1542,7 +1542,7 @@ html,
         font-family: var(--font-display);
         font-size: 0.9rem;
         font-weight: 600;
-        cursor: url("/assets/cursors/cursor-pointer.png") 5 0, pointer;
+        cursor: url("/assets/cursors/cursor-pointer.png") 10 0, pointer;
         white-space: nowrap;
         transition:
           background-color 0.12s ease,
@@ -1720,7 +1720,7 @@ html,
         color: var(--color-dune);
         padding: 0.35rem 1.1rem;
         border-radius: 6px;
-        cursor: url("/assets/cursors/cursor-pointer.png") 5 0, pointer;
+        cursor: url("/assets/cursors/cursor-pointer.png") 10 0, pointer;
         font-family: var(--font-display);
         font-size: 0.85rem;
         font-weight: 600;
@@ -1824,7 +1824,7 @@ html,
         font-size: 0.9rem;
         font-weight: 700;
         color: var(--color-dune);
-        cursor: url("/assets/cursors/cursor-pointer.png") 5 0, pointer;
+        cursor: url("/assets/cursors/cursor-pointer.png") 10 0, pointer;
         list-style: none;
         user-select: none;
         border: 3px solid var(--color-dune);
@@ -1902,7 +1902,7 @@ html,
         font-size: 0.9rem;
         font-weight: 700;
         color: var(--color-dune);
-        cursor: url("/assets/cursors/cursor-pointer.png") 5 0, pointer;
+        cursor: url("/assets/cursors/cursor-pointer.png") 10 0, pointer;
         list-style: none;
         user-select: none;
         border: 3px solid var(--color-dune);
@@ -2279,7 +2279,7 @@ html,
         font-family: var(--font-display);
         font-weight: 700;
         font-size: 0.8rem;
-        cursor: url("/assets/cursors/cursor-pointer.png") 5 0, pointer;
+        cursor: url("/assets/cursors/cursor-pointer.png") 10 0, pointer;
         white-space: nowrap;
         display: inline-flex;
         align-items: center;
@@ -2758,7 +2758,7 @@ html,
         font: inherit;
         font-size: 0.9rem;
         font-weight: 600;
-        cursor: url("/assets/cursors/cursor-pointer.png") 5 0, pointer;
+        cursor: url("/assets/cursors/cursor-pointer.png") 10 0, pointer;
         transition: background 0.15s;
         touch-action: manipulation;
       }
@@ -2788,7 +2788,7 @@ html,
         width: 36px;
         height: 36px;
         border-radius: 6px;
-        cursor: url("/assets/cursors/cursor-pointer.png") 5 0, pointer;
+        cursor: url("/assets/cursors/cursor-pointer.png") 10 0, pointer;
         font-size: 20px;
         font-weight: 700;
         line-height: 1;

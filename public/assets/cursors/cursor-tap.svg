@@ -1,15 +1,16 @@
-<!--
-  Tap/active cursor — shown while the mouse button is held down on
-  an interactive element. Inverted colour scheme (dune fill, sand
-  stroke) so the press state reads as "pushed in" next to the
-  default arrow. Shares the 20×20 viewBox + (2, 2) hotspot with
-  cursor-default.svg so the click still lands at the arrow tip.
--->
-<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-  <path d="M2 2 L2 15 L6 12 L9 18 L12 17 L9 11 L14 11 Z"
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <!--
+    Tap/active cursor — inverted-palette arrow shown while the
+    pointer is pressed on an interactive element. Same 24×24
+    silhouette + (2, 2) hotspot as cursor-default.svg so clicks
+    still land at the tip. Comment lives inside <svg> so the
+    image loader accepts the file (the previous leading-comment
+    form parsed as invalid in Chrome/Safari cursor pipelines).
+  -->
+  <path d="M2.4 2.4 L2.4 17 L7 13.6 L10.5 21 L14 19.6 L10.5 12.8 L16.5 12.8 Z"
         fill="#2a1d13"
         stroke="#fbebc6"
-        stroke-width="1.8"
+        stroke-width="2"
         stroke-linejoin="miter"
         stroke-linecap="square"/>
 </svg>

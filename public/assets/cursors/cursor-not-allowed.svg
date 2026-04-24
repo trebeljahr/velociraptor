@@ -1,23 +1,24 @@
-<!--
-  Not-allowed cursor — shown over :disabled controls and readonly
-  surfaces. Same chunky arrow silhouette as cursor-default.svg with
-  a red "prohibition" circle+slash overlay so the state reads at a
-  glance. 20×20 viewBox, hotspot at (2, 2) so it aligns with the
-  other cursors in the set.
--->
-<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-  <path d="M2 2 L2 15 L6 12 L9 18 L12 17 L9 11 L14 11 Z"
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <!--
+    Not-allowed cursor — the default arrow plus a red
+    circle-and-slash prohibition mark on the lower-right. Shown
+    over :disabled controls. Same 24×24 silhouette + (2, 2)
+    hotspot as cursor-default.svg. Comment lives inside <svg> so
+    the image loader doesn't reject it (leading comments parse
+    as invalid in Chrome/Safari cursor pipelines).
+  -->
+  <path d="M2.4 2.4 L2.4 17 L7 13.6 L10.5 21 L14 19.6 L10.5 12.8 L16.5 12.8 Z"
         fill="#fbebc6"
         stroke="#2a1d13"
-        stroke-width="1.8"
+        stroke-width="2"
         stroke-linejoin="miter"
         stroke-linecap="square"/>
-  <circle cx="14" cy="14" r="4.5"
+  <circle cx="17" cy="17" r="5.5"
           fill="none"
           stroke="#c0392b"
-          stroke-width="1.6"/>
-  <line x1="11" y1="17" x2="17" y2="11"
+          stroke-width="1.8"/>
+  <line x1="13.4" y1="20.6" x2="20.6" y2="13.4"
         stroke="#c0392b"
-        stroke-width="1.6"
+        stroke-width="1.8"
         stroke-linecap="round"/>
 </svg>
