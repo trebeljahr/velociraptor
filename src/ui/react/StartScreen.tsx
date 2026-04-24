@@ -22,7 +22,7 @@
  * keyboard path (window.__onStartKey) and the click path share one
  * animation pipeline.
  */
-import { type MouseEvent } from "react";
+import { type MouseEvent, useEffect, useRef } from "react";
 
 export interface StartScreenCallbacks {
   onStart: () => void;
@@ -38,6 +38,33 @@ export function StartScreen({ callbacks: cb }: StartScreenProps) {
   const ready = cb.getAssetsReady();
   const hs = cb.getHighScore();
   const showHighScore = hs > 0;
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+
+  // Focus the Start Game button the frame it transitions from
+  // loading → ready so keyboard / gamepad users can hit Enter / A
+  // immediately AND the brand sky-blue highlight reads as
+  // "primary action here". We mirror ui.ts's focusKbd() helper:
+  // focus({ focusVisible: true }) on modern browsers, plus a
+  // `.kbd-focus` class that's dropped on blur so mouse users
+  // don't see a stuck halo. Gated on `ready` so the effect only
+  // fires on the enable edge, not on every re-render.
+  useEffect(() => {
+    if (!ready) return;
+    const btn = btnRef.current;
+    if (!btn || btn.disabled) return;
+    try {
+      (btn as any).focus({ focusVisible: true });
+    } catch {
+      btn.focus();
+    }
+    btn.classList.add("kbd-focus");
+    const clear = () => {
+      btn.classList.remove("kbd-focus");
+      btn.removeEventListener("blur", clear);
+    };
+    btn.addEventListener("blur", clear);
+    return () => btn.removeEventListener("blur", clear);
+  }, [ready]);
 
   const handleStart = (e: MouseEvent) => {
     e.stopPropagation();
@@ -59,6 +86,7 @@ export function StartScreen({ callbacks: cb }: StartScreenProps) {
         )}
         <button
           id="start-btn"
+          ref={btnRef}
           className={"start-btn" + (ready ? "" : " loading")}
           type="button"
           disabled={!ready}

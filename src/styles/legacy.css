@@ -361,28 +361,28 @@ html,
         opacity: 0.75;
         cursor: wait;
       }
-      /* Idle attention pulse — tiny scale-up every 3.6 s so the
-       * button reads as "tap me" without becoming noisy. Runs
-       * continuously while the button is ready AND neither hovered
-       * nor focused; stops under interaction so we don't fight the
-       * hover/active state. `prefers-reduced-motion` kills it for
-       * players with vestibular sensitivity. */
+      /* Idle attention pulse — whisper-quiet scale bump every
+       * ~5s so the button reads as "tap me" without becoming
+       * visual noise. Earlier version used scale(1.035) + a 6px
+       * sky-blue halo, which was too loud next to the rest of the
+       * start-screen chrome. Dropped to a 1.012 scale with a 3px
+       * halo at ~12 % alpha so the pulse is barely perceptible
+       * but still catches the eye on a long dwell. Runs only
+       * while the button is ready AND neither hovered nor focused;
+       * stops under interaction. `prefers-reduced-motion` kills it
+       * for players with vestibular sensitivity. */
       @keyframes start-btn-pulse {
-        0%, 85%, 100% {
+        0%, 88%, 100% {
           transform: scale(1);
           box-shadow: 0 0 0 0 rgba(80, 180, 205, 0);
         }
-        90% {
-          transform: scale(1.035);
-          box-shadow: 0 0 0 6px rgba(80, 180, 205, 0.25);
-        }
-        95% {
-          transform: scale(1.01);
-          box-shadow: 0 0 0 10px rgba(80, 180, 205, 0);
+        94% {
+          transform: scale(1.012);
+          box-shadow: 0 0 0 3px rgba(80, 180, 205, 0.12);
         }
       }
       .start-btn:not(:disabled):not(:hover):not(:focus-visible):not(.kbd-focus) {
-        animation: start-btn-pulse 3.6s ease-in-out infinite;
+        animation: start-btn-pulse 5s ease-in-out infinite;
       }
       @media (prefers-reduced-motion: reduce) {
         .start-btn:not(:disabled):not(:hover):not(:focus-visible):not(.kbd-focus) {

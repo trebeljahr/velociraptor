@@ -181,6 +181,11 @@ function onGameReady() {
   // label / disabled / class all follow assetsReady + getHighScore()
   // — no imperative label poke needed.
   syncStartScreen();
+  // The React <StartScreen> owns the "auto-focus the button the
+  // moment it flips to ready" edge via useEffect — keeping the
+  // focus call in React avoids the rAF-before-commit race we'd
+  // hit from here (re-render is async, so an rAF here fires while
+  // the button is still disabled).
 
   // Wire the share panel to the game's onGameOver /
   // onGameReset events now that the API is ready.
