@@ -37,6 +37,7 @@ import "./styles/base.css";
 import { ACHIEVEMENTS, ACHIEVEMENTS_BY_ID } from "./achievements";
 import { audio } from "./audio";
 import { contexts, initCanvas } from "./canvas";
+import { track, trackPageview } from "./telemetry";
 // ScoreCardWorker import moved into src/render/scoreCard.ts.
 import {
   BOW_TIE_SCORE_THRESHOLD,
@@ -212,6 +213,11 @@ import {
 } from "./services/gameServices";
 import { state } from "./state";
 import { pushAchievementToSteam, reconcileWithSteam } from "./steamBridge";
+
+// Fire the single pageview for this session. Gated inside
+// trackPageview() — no-ops in dev, Electron, Capacitor, and on
+// any host other than the production domain.
+trackPageview();
 
 // ══════════════════════════════════════════════════════════════════
 // Constants
@@ -1327,6 +1333,7 @@ function unlockAchievement(id: string) {
   if (state.unlockedAchievements[id]) return;
   state.unlockedAchievements[id] = true;
   saveUnlockedAchievements(state.unlockedAchievements);
+  track("achievement_unlock", { id });
   // Celebratory stinger paired with the toast. Fires exactly once
   // per achievement — the idempotency guard above ensures repeat
   // calls during the same run don't retrigger the chime.
@@ -1374,12 +1381,29 @@ function commitRunScore() {
   // expected. No-op on web/desktop + on mobile until the adapter is
   // wired up.
   reportScoreToServices(state.score);
+  track("run_end", {
+    score: floored,
+    coins: state.runCoins,
+    nights: state.runNightsSurvived,
+    jumps: state.runJumps,
+    duration_ms: Math.round(performance.now() - _runStartMs),
+    new_best: state.newHighScore,
+  });
 }
+
+/** performance.now() at the start of the current run, captured in
+ *  initRunState. commitRunScore subtracts from performance.now()
+ *  to report run length to telemetry. Kept module-local so no
+ *  state-shape churn (and no localStorage persistence — run length
+ *  is strictly a telemetry-time computation). */
+let _runStartMs = 0;
 
 /** Reset per-run tracking state. Called from both start()
  *  (first run) and resetGame() (subsequent runs) so the
  *  initialization is identical regardless of code path. */
 function initRunState() {
+  _runStartMs = performance.now();
+  track("run_start");
   state.runJumps = 0;
   state.runCactiCleared = 0;
   state.runNightsSurvived = 0;
@@ -2349,9 +2373,12 @@ const GameAPI = {
       if (!def) return "unknown" as const;
       if (state.ownedCosmetics[id]) return "owned" as const;
       grantCosmetic(id);
+      track("shop_purchase", { id, debug: true });
       return "ok" as const;
     }
-    return purchaseCosmetic(id);
+    const result = purchaseCosmetic(id);
+    if (result === "ok") track("shop_purchase", { id });
+    return result;
   },
 
   /** Play the shop-purchase chime. Exposed as a Game API method
