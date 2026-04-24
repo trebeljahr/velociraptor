@@ -24,6 +24,8 @@ import {
   COIN_TWINKLE_FREQUENCY_HZ,
   DIAMOND_BANK_REWARD,
   DIAMOND_SIZE_SCALE,
+  DIAMOND_SPARKLE_COUNT,
+  DIAMOND_SPARKLE_ORBIT_RATIO,
 } from "../constants";
 import { type Polygon, compactInPlace, pointInPolygon } from "../helpers";
 import { IMAGES } from "../images";
@@ -335,14 +337,41 @@ export function drawCoins(ctx: CanvasRenderingContext2D): void {
     const x = c.x - (w - c.w) / 2;
     const y = cy - (h - c.h) / 2;
     if (c.isDiamond) {
-      drawDiamondShape(ctx, x + w / 2, y + h / 2, w, h);
-      // Diamond breaks out of the coin glint/twinkle loop below —
-      // its own facet highlights inside drawDiamondShape carry the
-      // "sparkly" read. Keeps the render order consistent with
-      // regular coins (no ambient star cloud drifting past the gem).
-      // fillStyleSet gets stomped by drawDiamondShape; reset so the
-      // first subsequent coin's fillStyle = "#fff" gets re-applied.
-      fillStyleSet = false;
+      const dImg = IMAGES.diamond;
+      if (dImg) {
+        ctx.drawImage(dImg, Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+      }
+      if (c.collected) continue;
+      // Edge sparkles — DIAMOND_SPARKLE_COUNT star-flicks orbiting
+      // at DIAMOND_SPARKLE_ORBIT_RATIO so they graze the gem's
+      // silhouette. Each one carries its own phase offset for
+      // irregular twinkling. Re-use the coin twinkle cadence but
+      // with a denser orbit for the "end-of-chain flex" read.
+      if (!fillStyleSet) {
+        ctx.fillStyle = "#fff";
+        fillStyleSet = true;
+      }
+      const dTwinkleBaseT =
+        state.frame * ((Math.PI * 2 * COIN_TWINKLE_FREQUENCY_HZ) / 60);
+      const dcx = c.x + c.w / 2;
+      const dcy = cy + c.h / 2;
+      for (let i = 0; i < DIAMOND_SPARKLE_COUNT; i++) {
+        const ang = (i / DIAMOND_SPARKLE_COUNT) * Math.PI * 2 + c.phase * 0.5;
+        const orbit = c.w * DIAMOND_SPARKLE_ORBIT_RATIO;
+        const dx = dcx + Math.cos(ang) * orbit;
+        const dy = dcy + Math.sin(ang) * orbit * 0.75;
+        const tPhase = dTwinkleBaseT + c.phase * 1.7 + i * 2.1;
+        const tAmp = Math.sin(tPhase);
+        if (tAmp <= 0) continue;
+        const tAlpha = tAmp * tAmp * coinAlpha;
+        if (tAlpha <= 0) continue;
+        const tr = c.w * 0.09;
+        if (tAlpha !== lastAlpha) {
+          ctx.globalAlpha = tAlpha;
+          lastAlpha = tAlpha;
+        }
+        drawFourPointStar(ctx, ba, bb, bc, bd, be, bf, dx, dy, tr);
+      }
       continue;
     }
     ctx.drawImage(img, Math.round(x), Math.round(y), Math.round(w), Math.round(h));
@@ -458,112 +487,6 @@ function drawFourPointStar(
 
 export { drawFourPointStar };
 
-/** Render a pixel-art-ish diamond gem centred at (cx, cy). Two
- *  symmetric facets (top-tip triangle + bottom-kite) filled with a
- *  cyan → white vertical gradient, bordered in the brand dune. A
- *  single moving highlight rectangle on the upper-right facet reads
- *  as the "shine" without needing a separate draw loop. Caller
- *  handles globalAlpha + base transform. */
-function drawDiamondShape(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  w: number,
-  h: number,
-): void {
-  const halfW = w / 2;
-  const halfH = h / 2;
-  const topY = cy - halfH;
-  const bottomY = cy + halfH;
-  const leftX = cx - halfW;
-  const rightX = cx + halfW;
-  // Shoulder line — the two outer points of the classic gem
-  // silhouette sit ≈30% down from the top so the facet under them
-  // reads as a table and the lower body reads as a pavilion.
-  const shoulderY = cy - halfH * 0.4;
-  const innerInset = halfW * 0.35;
-
-  // Body gradient — deep sky-blue at the top, near-white at the
-  // bottom. Cached by canvas size (w,h) so rescans don't build a
-  // new gradient every frame on diamonds of the same size.
-  const g = _getDiamondGradient(ctx, topY, bottomY);
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.moveTo(cx, topY);
-  ctx.lineTo(rightX, shoulderY);
-  ctx.lineTo(cx, bottomY);
-  ctx.lineTo(leftX, shoulderY);
-  ctx.closePath();
-  ctx.fill();
-
-  // Table facet (top slab) — lighter fill to suggest the bright
-  // top surface of a real cut.
-  ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
-  ctx.beginPath();
-  ctx.moveTo(cx, topY);
-  ctx.lineTo(rightX, shoulderY);
-  ctx.lineTo(cx - innerInset + halfW * 0.4, shoulderY);
-  ctx.lineTo(cx + innerInset - halfW * 0.4, shoulderY);
-  ctx.lineTo(leftX, shoulderY);
-  ctx.closePath();
-  ctx.fill();
-
-  // Right-upper facet highlight — tiny bright wedge that catches
-  // the eye. Animated via state.frame so the facet twinkles.
-  const tFlicker = (state.frame % 90) / 90;
-  const alpha = 0.4 + 0.4 * Math.sin(tFlicker * Math.PI * 2);
-  ctx.fillStyle = `rgba(255, 255, 255, ${alpha.toFixed(3)})`;
-  ctx.beginPath();
-  ctx.moveTo(cx + halfW * 0.15, topY + halfH * 0.1);
-  ctx.lineTo(rightX - halfW * 0.1, shoulderY - halfH * 0.05);
-  ctx.lineTo(cx + halfW * 0.3, shoulderY - halfH * 0.1);
-  ctx.closePath();
-  ctx.fill();
-
-  // Outline — same dune stroke as the start/menu chrome so the
-  // gem sits in the same visual vocabulary as the rest of the UI
-  // instead of reading as a ported-in sprite.
-  ctx.strokeStyle = "#2a1d13";
-  ctx.lineWidth = Math.max(1.5, w * 0.05);
-  ctx.lineJoin = "miter";
-  ctx.beginPath();
-  ctx.moveTo(cx, topY);
-  ctx.lineTo(rightX, shoulderY);
-  ctx.lineTo(cx, bottomY);
-  ctx.lineTo(leftX, shoulderY);
-  ctx.closePath();
-  ctx.stroke();
-  // Inner shoulder line — separates table from pavilion.
-  ctx.beginPath();
-  ctx.moveTo(leftX, shoulderY);
-  ctx.lineTo(rightX, shoulderY);
-  ctx.stroke();
-}
-
-let _diamondGradientCache: {
-  topY: number;
-  bottomY: number;
-  g: CanvasGradient;
-} | null = null;
-function _getDiamondGradient(
-  ctx: CanvasRenderingContext2D,
-  topY: number,
-  bottomY: number,
-): CanvasGradient {
-  if (
-    _diamondGradientCache &&
-    Math.abs(_diamondGradientCache.topY - topY) < 0.5 &&
-    Math.abs(_diamondGradientCache.bottomY - bottomY) < 0.5
-  ) {
-    return _diamondGradientCache.g;
-  }
-  const g = ctx.createLinearGradient(0, topY, 0, bottomY);
-  g.addColorStop(0, "#bfe8f2"); // pale sky-cyan at the top
-  g.addColorStop(0.5, "#50b4cd"); // brand sky
-  g.addColorStop(1, "#1f5b6b"); // sky-deep at the pavilion tip
-  _diamondGradientCache = { topY, bottomY, g };
-  return g;
-}
 
 export function clearCoins(): void {
   state.coins = [];

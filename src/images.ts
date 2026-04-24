@@ -25,6 +25,7 @@ export const IMAGE_SRCS: { [key: string]: string } = {
   reindeer: "assets/reindeer.png",
   tumbleweed: "assets/tumbleweed.png",
   coin: "assets/coin.png",
+  diamond: "assets/diamond.png",
   pterodactylSprite: "assets/pterodactyl-sprite.png",
   // Shop cosmetics — each sprite is background-keyed + trimmed +
   // resized in public/assets/cosmetics/. Keys here must match the

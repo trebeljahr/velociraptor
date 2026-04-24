@@ -136,6 +136,15 @@ export const DIAMOND_SIZE_SCALE = 1.6;
 /** Persistent bank payout for a diamond pickup. 10× COIN_BANK_REWARD
  *  — the payoff for completing the full 10-coin chain in a field. */
 export const DIAMOND_BANK_REWARD = 10;
+/** Sparkle count around the diamond — denser than a coin's ambient
+ *  twinkles so the gem reads as the flashier end-of-chain reward.
+ *  Each sparkle carries its own phase so the edge never flickers
+ *  in lockstep. */
+export const DIAMOND_SPARKLE_COUNT = 10;
+/** Sparkle orbit radius as a fraction of the diamond's width. ~0.7
+ *  keeps most sparkles along the silhouette edge rather than
+ *  drifting into open sky. */
+export const DIAMOND_SPARKLE_ORBIT_RATIO = 0.7;
 
 // ── Celestial Bodies (Sun & Moon) ──────────────────────────
 // Phases expressed as band-index / SKY_COLORS.length so anchors
