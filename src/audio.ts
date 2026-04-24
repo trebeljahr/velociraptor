@@ -521,6 +521,10 @@ export const audio = {
       this._santaBuffer,
       this._meteorBuffer,
       this._cometBuffer,
+      this._coinBuffer,
+      this._coinChainEndBuffer,
+      this._shopPurchaseBuffer,
+      this._achievementBuffer,
       ...this._stepBuffers,
     ];
     // Wait until at least one buffer is ready. If none are, this
@@ -563,10 +567,18 @@ export const audio = {
    * milliseconds — long enough for the raptor to die to a cactus
    * that appeared during the hitch.
    *
-   * Trick: play at volume 0 and immediately pause. The browser
-   * decodes the stream to start playback, then we stop. The decoder
-   * state stays warm so the *next* play() (when rain actually
-   * starts in-game) is a no-op on the decode path.
+   * Trick: play at volume 0 and *leave it playing*. A previous
+   * version paused immediately after play() resolved, which only
+   * decoded the first chunk; when the first real rain window hit
+   * (often many seconds later, mid-run), the player still saw a
+   * hitch as the decoder worked through the rest of the file.
+   * Keeping the element looping silently in the background means
+   * every frame of the MP3 gets decoded well before startRain()'s
+   * volume ramp makes it audible. startRain() calls rampUpAndPlay()
+   * which sets volume=0 (already 0) and ramps to target after
+   * DECODER_PREROLL_MS — play() on an already-playing element is a
+   * cheap no-op, and the preroll absorbs any residual cold-start
+   * cost.
    *
    * Idempotent — only runs once per session. If the play() promise
    * rejects (autoplay policy still blocking, non-gesture context),
@@ -576,32 +588,15 @@ export const audio = {
     if (this._rainPrimed) return;
     if (!this.rain) return;
     this._rainPrimed = true;
-    const targetVolume = this.rain.volume;
     this.rain.volume = 0;
-    // Only tear the silent playback back down if rain isn't currently
-    // in its "on" state. If startRain() ran during priming (e.g. the
-    // session began inside a rain window and the restored weather
-    // state triggered it), pausing here would kill the real rain.
-    const restore = () => {
-      if (!this.rain) return;
-      this.rain.volume = targetVolume;
-      if (!this._isRainPlaying) {
-        this.rain.pause();
-        this.rain.currentTime = 0;
-      }
-    };
     try {
       const p = this.rain.play();
       if (p && typeof p.then === "function") {
-        p.then(restore).catch(() => {
-          if (this.rain) this.rain.volume = targetVolume;
+        p.catch(() => {
           this._rainPrimed = false;
         });
-      } else {
-        restore();
       }
     } catch {
-      if (this.rain) this.rain.volume = targetVolume;
       this._rainPrimed = false;
     }
   },
