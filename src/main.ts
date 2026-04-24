@@ -1449,6 +1449,10 @@ function resetGame(hard = false) {
   state.flowerPatches = [];
   clearCoins();
   audio.resetCoinStreak();
+  // Cut the game-over tally sequence if it's still firing — quick
+  // restarts would otherwise layer the previous run's "ding ding
+  // diiing" over the fresh run's gameplay audio.
+  audio.stopCoinFill();
   state.grassFields = [];
   // First breather of the new run fires at ~INTERVAL meters. The
   // gate is score-based now, so just re-anchor the next-at marker
@@ -2291,20 +2295,11 @@ const GameAPI = {
 
   /** Fire the "coins pouring into the wallet" audio sequence used
    *  by the game-over card while the balance number tweens up.
-   *  Plays up to 10 rising-pitch coin chimes evenly spaced over
-   *  durationMs, then a completion chord at the end. Caps the tick
-   *  count so a huge haul doesn't turn into a continuous blat. */
+   *  Delegates to audio.playCoinFillAnim so the tally's timers +
+   *  source handles live in one place — resetGame calls
+   *  audio.stopCoinFill() to cut the whole sequence on restart. */
   playCoinFillAnim(count: number, durationMs = 1200): void {
-    if (count <= 0) return;
-    const ticks = Math.min(count, 10);
-    const intervalMs = durationMs / ticks;
-    // Tally has its own cue (diamond-found at rising pitch) — the
-    // in-run pickup SFX stays the pause-piano. Keeps the game-over
-    // moment distinct from "I grabbed one coin" on the flower field.
-    for (let i = 0; i < ticks; i++) {
-      setTimeout(() => audio.playCoinFillTick(i, ticks), i * intervalMs);
-    }
-    setTimeout(() => audio.playCoinChainEnd(), durationMs);
+    audio.playCoinFillAnim(count, durationMs);
   },
 
   /** Every cosmetic ever declared, in registry order. UI pairs

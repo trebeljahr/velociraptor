@@ -962,7 +962,9 @@ export const audio = {
       const src = this._audioCtx.createBufferSource();
       src.buffer = this._coinChainEndBuffer;
       const gain = this._audioCtx.createGain();
-      gain.gain.value = COIN_CHAIN_END_GAIN;
+      const now = this._audioCtx.currentTime;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(COIN_CHAIN_END_GAIN, now + 0.005);
       src.connect(gain);
       gain.connect(this._audioCtx.destination);
       src.onended = () => {
@@ -977,14 +979,52 @@ export const audio = {
     }
   },
 
-  /** Per-tick chime for the game-over coin tally. Reuses the liecio
-   *  diamond-found sample (same one the chain-end chord plays at base
-   *  pitch) so the tally has its own "rising chain → resolution"
-   *  identity that stays clear of the in-run pickup cue. `step` /
-   *  `totalSteps` shape the pitch climb so the last tick lands just
-   *  below the chord, and the per-tick gain is pulled down hard so a
-   *  full 10-tick burst doesn't dog-pile into distortion. */
-  playCoinFillTick(step: number, totalSteps: number) {
+  /** Active tally sources — scheduled setTimeout ids + the gain
+   *  nodes of currently-playing ticks. stopCoinFill() walks these
+   *  to cancel future ticks and fade live ones to zero instead of
+   *  letting samples finish naturally (or worse, clicking off
+   *  when the game-over card unmounts mid-sample). */
+  _coinFillTimers: [] as number[],
+  _coinFillGains: [] as GainNode[],
+  _coinFillChordTimer: 0 as number,
+
+  /** Fire the "coins pouring into the wallet" audio sequence used
+   *  by the game-over card while the balance number tweens up.
+   *  Plays up to 10 rising-pitch ticks evenly spaced over
+   *  durationMs, then a resolution chord at the end. Tracks
+   *  timers + gains on `this` so stopCoinFill() can interrupt the
+   *  whole sequence on restart without leaving half-played samples
+   *  bleeding into the next run. */
+  playCoinFillAnim(count: number, durationMs = 1200) {
+    if (count <= 0) return;
+    const ticks = Math.min(count, 10);
+    const intervalMs = durationMs / ticks;
+    for (let i = 0; i < ticks; i++) {
+      const id = window.setTimeout(
+        () => this._playCoinFillTick(i, ticks),
+        i * intervalMs,
+      );
+      this._coinFillTimers.push(id);
+    }
+    this._coinFillChordTimer = window.setTimeout(
+      () => this.playCoinChainEnd(),
+      durationMs,
+    );
+  },
+
+  /** Per-tick chime. Reuses the liecio diamond-found sample (same
+   *  one the chain-end chord plays at base pitch) so the tally has
+   *  its own "rising chain → resolution" identity that stays clear
+   *  of the in-run pickup cue. `step` / `totalSteps` shape the
+   *  pitch climb so the last tick lands just below the chord, and
+   *  the per-tick gain is pulled down hard so a full 10-tick burst
+   *  doesn't dog-pile into distortion.
+   *
+   *  Registers its gain node in _coinFillGains so stopCoinFill can
+   *  fade it out. 5ms linear attack from 0 → target avoids the
+   *  click some browsers emit when a BufferSource abruptly snaps
+   *  from silence to a non-zero sample amplitude. */
+  _playCoinFillTick(step: number, totalSteps: number) {
     if (this.muted || this.coinsMuted) return;
     if (!this._audioCtx || !this._coinChainEndBuffer) return;
     if (this._audioCtx.state === "suspended") {
@@ -998,19 +1038,58 @@ export const audio = {
       const denom = Math.max(1, totalSteps - 1);
       src.playbackRate.value = 1 + (step / denom) * 0.6;
       const gain = this._audioCtx.createGain();
-      gain.gain.value = 0.12;
+      const now = this._audioCtx.currentTime;
+      const target = 0.12;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(target, now + 0.005);
       src.connect(gain);
       gain.connect(this._audioCtx.destination);
-      src.onended = () => {
+      this._coinFillGains.push(gain);
+      const cleanup = () => {
+        const i = this._coinFillGains.indexOf(gain);
+        if (i >= 0) this._coinFillGains.splice(i, 1);
         try {
           src.disconnect();
           gain.disconnect();
         } catch {}
       };
+      src.onended = cleanup;
       src.start(0);
     } catch {
       /* SFX is non-critical */
     }
+  },
+
+  /** Cancel pending tally ticks and fade any live ones to zero.
+   *  Called from resetGame so a new run starts in silence instead
+   *  of layering the previous run's tally under the next run's
+   *  gameplay audio. 80ms linear ramp — long enough to dodge the
+   *  abrupt-cut click, short enough that a quick restart feels
+   *  immediate. */
+  stopCoinFill() {
+    for (const id of this._coinFillTimers) clearTimeout(id);
+    this._coinFillTimers.length = 0;
+    if (this._coinFillChordTimer) {
+      clearTimeout(this._coinFillChordTimer);
+      this._coinFillChordTimer = 0;
+    }
+    if (!this._audioCtx) {
+      this._coinFillGains.length = 0;
+      return;
+    }
+    const now = this._audioCtx.currentTime;
+    for (const gain of this._coinFillGains) {
+      try {
+        const current = gain.gain.value;
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setValueAtTime(current, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.08);
+      } catch {
+        /* gain graph already torn down — nothing to cancel */
+      }
+    }
+    // Don't clear _coinFillGains here — src.onended will splice
+    // each entry out as its ramp completes and the source stops.
   },
 
   // ── Shop purchase cue (rhodesmas "Level Up 01") ─────────────
@@ -1164,7 +1243,9 @@ export const audio = {
       src.buffer = this._coinBuffer;
       src.playbackRate.value = pitch;
       const gain = this._audioCtx.createGain();
-      gain.gain.value = 0.35;
+      const startAt = this._audioCtx.currentTime;
+      gain.gain.setValueAtTime(0, startAt);
+      gain.gain.linearRampToValueAtTime(0.35, startAt + 0.005);
       src.connect(gain);
       gain.connect(this._audioCtx.destination);
       src.onended = () => {
